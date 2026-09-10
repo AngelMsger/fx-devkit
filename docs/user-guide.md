@@ -16,30 +16,50 @@ administrator privileges or Developer Mode. See [platform support](https://angel
 
 ## Install
 
-The planned public release installs from npm without team registry configuration:
+<!-- distribution:internal -->
+
+### Internal package
+
+The internal distribution uses `@fx/devkit` through your team's private Registry. Obtain its URL and npm
+access from your team, then set `FX_REGISTRY` before installing. The public npm
+release is on hold. These commands require the version to be available in that Registry.
 
 ```sh
-npm install -g @angelmsger/fx
+export FX_REGISTRY=https://npm.example.com/
+npm login --registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
 fx --version
 ```
 
-This is the installation path for the public release, not a claim that the
-package is already available. Use the source checkout as described below for this pre-release.
+The URL above is fictional. Explicitly selecting both registries prevents an
+existing scope setting from redirecting this installation.
 
-If your npm configuration redirects the `@angelmsger` scope to an old registry,
-explicitly select public npm for this installation:
+In PowerShell, use `.cmd` entries if local policy blocks `.ps1` shims:
+
+```powershell
+$env:FX_REGISTRY = 'https://npm.example.com/'
+npm.cmd login --registry=$env:FX_REGISTRY
+npm.cmd install -g @fx/devkit --registry=$env:FX_REGISTRY --@fx:registry=$env:FX_REGISTRY
+fx.cmd --version
+```
+
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+### Public package
+
+The public distribution uses `@angelmsger/fx` from npmjs. It does not require your
+team's private Registry. Public publication is currently on hold; use this command
+only once your selected release is available.
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
+fx --version
 ```
 
-In PowerShell, use `.cmd` entries if local policy prevents running npm's `.ps1`
-shims; fx does not require changing that policy:
-
-```powershell
-npm.cmd install -g @angelmsger/fx
-fx.cmd --version
-```
+In PowerShell, use `npm.cmd` and `fx.cmd` if the execution policy blocks `.ps1` shims.
+<!-- /distribution -->
 
 ### Run from source
 

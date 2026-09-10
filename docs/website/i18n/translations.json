@@ -1,9 +1,9 @@
 {
   "ja": {
-    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
+      "source_sha256": "cdcf1e6a16f6bd3e95a86bf83318a8ffe25ec0819d7b949f6d07d73f32c45688"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -15,18 +15,18 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
+      "source_sha256": "9b0ea9b19a6148633d49d57b720ba6ca82a4ff1216a891abff10918dd7d03795"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
+      "source_sha256": "50456c90668f12a00ee0e33471b513dc99fbb0681955854b006c536ecd810fed"
     }
   },
   "zh-Hans": {
-    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
+      "source_sha256": "cdcf1e6a16f6bd3e95a86bf83318a8ffe25ec0819d7b949f6d07d73f32c45688"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -38,18 +38,18 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
+      "source_sha256": "9b0ea9b19a6148633d49d57b720ba6ca82a4ff1216a891abff10918dd7d03795"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
+      "source_sha256": "50456c90668f12a00ee0e33471b513dc99fbb0681955854b006c536ecd810fed"
     }
   },
   "zh-Hant": {
-    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
+      "source_sha256": "cdcf1e6a16f6bd3e95a86bf83318a8ffe25ec0819d7b949f6d07d73f32c45688"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -61,11 +61,11 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
+      "source_sha256": "9b0ea9b19a6148633d49d57b720ba6ca82a4ff1216a891abff10918dd7d03795"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
+      "source_sha256": "50456c90668f12a00ee0e33471b513dc99fbb0681955854b006c536ecd810fed"
     }
   }
 }

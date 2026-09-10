@@ -1,5 +1,5 @@
 {
-  "name": "@angelmsger/fx",
+  "name": "@fx/devkit",
   "version": "0.1.0",
   "description": "Manifest-driven multi-repository workspaces for people and coding agents",
   "license": "Apache-2.0",
@@ -23,7 +23,7 @@
     "npm": "11.9.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "restricted"
   },
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json",
@@ -32,7 +32,7 @@
     "format": "prettier --write .",
     "test": "vitest run test/unit",
     "test:bun": "bun run --bun vitest run test/unit",
-    "test:e2e": "npm run build && vitest run test/e2e",
+    "test:e2e": "npm run build && vitest run test/e2e --maxWorkers=4",
     "test:contract": "node scripts/test-contract.mjs",
     "check:windows": "node scripts/check-windows.mjs",
     "docs:gen": "npm run build && node scripts/gen-cli-docs.mjs",
@@ -112,14 +112,6 @@
         "description": "Source contributions: validate selected files and propose a pull request"
       }
     }
-  },
-  "homepage": "https://angelmsger.github.io/fx-devkit/",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AngelMsger/fx-devkit.git"
-  },
-  "bugs": {
-    "url": "https://github.com/AngelMsger/fx-devkit/issues"
   },
   "keywords": [
     "cli",

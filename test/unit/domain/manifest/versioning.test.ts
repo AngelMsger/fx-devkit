@@ -72,7 +72,7 @@ describe('negotiationError', () => {
       expect(err).toBeDefined();
       expect(err?.category).toBe('config');
       expect(err?.code).toBe(`MANIFEST_${failure.toUpperCase()}`);
-      expect(err?.nextSteps.join('\n')).toContain('npm i -g @angelmsger/fx@latest');
+      expect(err?.nextSteps.join('\n')).toContain('fx self update --dry-run');
       expect(err?.nextSteps.join('\n')).not.toMatch(/https?:\/\//);
     }
     expect(

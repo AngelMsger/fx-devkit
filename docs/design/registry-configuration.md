@@ -1,69 +1,50 @@
-# Package registry transition
+# Distribution and registry contract
 
-The public release of `@angelmsger/fx` is intended to use public npm without a
-private registry prerequisite. This page separates that target from the current
-implementation so installation guidance does not imply that publishing and
-self-update have already been migrated.
+The project and binary remain `fx-devkit` and `fx`. Package identity determines
+the distribution; `src/domain/distribution.js` owns that mapping.
 
-## Public-release target
+| Package          | Default metadata/update source | Publication target                                           | Access     |
+| ---------------- | ------------------------------ | ------------------------------------------------------------ | ---------- |
+| `@fx/devkit`     | Explicit private `FX_REGISTRY` | Private Registry selected by injected npmrc or `FX_REGISTRY` | restricted |
+| `@angelmsger/fx` | npmjs                          | npmjs only                                                   | public     |
 
-- Install with `npm install -g @angelmsger/fx` from public npm.
-- Use `https://registry.npmjs.org/` for metadata lookup and self-update when
-  `FX_REGISTRY` is unset. Keep an explicit registry override for mirrors and
-  teams that choose their own distribution endpoint.
-- Publish the scoped package with public access through the controlled publishing
-  entry point. No team registry address belongs in package metadata.
-- Keep npm authentication with npm. `FX_REGISTRY_TOKEN`, when used for metadata
-  queries, is not a publishing credential configuration.
+Public release is currently paused by the GitHub repository variable gate described
+in [delivery](../delivery.md). Preparing a public artifact is not publication.
 
-npm documents [registry selection](https://docs.npmjs.com/cli/v11/using-npm/registry/)
-and [publishConfig](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#publishconfig).
-Scoped registry settings can redirect a package independently of the general
-registry. Explicit install or publishing vectors must select both when pinning a
-target.
+## Selection
 
-## Current implementation and required changes
+`scripts/select-distribution.mjs internal|public` changes package metadata in a
+disposable CI checkout. The source default is internal. It never writes a private
+Registry or credential. Runtime chooses from the installed package name, so a
+published package never depends on a leftover CI environment variable.
 
-| Area                | Current checkout                                                                                  | Required for public npm                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Shared policy       | `src/adapters/registry/registry-policy.js` rejects missing values and known public registry hosts | Accept public npm and define the default separately from URL validation                 |
-| Runtime             | `configuredRegistry` returns null without a private `FX_REGISTRY`                                 | Resolve the public default for info, metadata checks and self-update                    |
-| Publication         | `scripts/publish.mjs` and `scripts/guard-registry.mjs` require a private registry                 | Permit the public target while retaining wrapper and target-consistency checks          |
-| Package access      | `publishConfig.access` is `public`                                                                | Configured; verify publishing credentials and scope access                              |
-| Help and recovery   | `self update`, doctor and the bundled Skill request a private coordinate                          | Describe the public default and recovery from an invalid override                       |
-| Regression coverage | Registry and publishing tests expect public npm to be rejected                                    | Cover the default, explicit public/private overrides, unsafe URLs and target mismatches |
+Private URLs must be explicit HTTP(S) coordinates without embedded credentials,
+query strings or fragments; known public hosts are rejected. A public installation
+defaults to npmjs and can use a validated explicit private mirror. An invalid override
+fails instead of silently falling back. Cache identities include package and Registry.
 
-Change these together before advertising self-update as ready for public npm.
-Keep malformed URLs, embedded credentials, query strings and fragments rejected.
-An invalid explicit override should produce an actionable configuration error,
-not silently send requests to a different registry. Review metadata-token routing
-when changing the default so a legacy private token is not forwarded to public npm.
+## Publishing and authentication
 
-## Controls to preserve
+`scripts/publish.mjs` accepts optional `--dry-run`, pins both default and scoped npm
+Registry options, enables lifecycle checks and runs from the repository. Internal
+publication requires a private target; public publication is restricted to npmjs.
+The lifecycle guard rejects direct publication, embedded registry metadata and
+mismatched targets. These prevent accidental routing, not deliberate lifecycle bypass.
 
-The shared JavaScript policy is used by both pre-build scripts and compiled
-runtime adapters. Update cache keys include package and registry identity.
+Jenkins injects a Managed npmrc through `NPM_CONFIG_USERCONFIG`, with `NPM_TOKEN`
+bound only in the publish stage. `publish-ci.mjs` resolves the scope target through
+npm and supplies it to the controlled publisher. GitHub Actions uses npm trusted
+publishing and never consumes the internal Managed file or token.
 
-The publishing wrapper accepts only an optional `--dry-run`, pins both general
-and scoped npm registry options, enables lifecycle checks and runs from this
-repository. The lifecycle guard rejects direct publication, embedded registry
-metadata and mismatched targets. It prevents accidental routing through ambient
-settings; it is not a security boundary against deliberate lifecycle bypass.
-Publishing tests use a fake npm executable and do not publish to a server.
+For metadata reads, `FX_REGISTRY_TOKEN` is used only for a private target; otherwise
+only a matching entry in the user's npmrc may supply authentication. Environment
+tokens are not persisted. Manifest sources, companion installers and source PRs
+have separate configuration and are never redirected by fx's package Registry.
 
-`check-package.mjs` derives scan coverage from the package file list and implicit
-metadata/readme/license files, including source maps. Missing or unsupported
-paths fail instead of disappearing from coverage.
+## Distribution boundary
 
-## Existing private installations
-
-Until the transition is implemented, existing users can continue supplying their
-team's private `FX_REGISTRY` for self-update. This compatibility path is not a
-prerequisite for the planned public installation. Keep team coordinates outside
-this repository.
-
-npm owns installation and publishing authentication. The current metadata reader
-uses `FX_REGISTRY_TOKEN` when present, otherwise a matching token from `~/.npmrc`.
-It does not persist the environment token. Manifest source access, companion
-package installers and source pull requests have separate configuration; changing
-fx's package registry must not redirect them.
+`check-package.mjs` scans the paths owned by the package file list, including
+implicit metadata/README/LICENSE and source maps. Missing paths fail. Both channel
+artifacts must pass this check. Unit tests use fake npm and HTTP implementations;
+actual release acceptance requires the Registry and installed package checks in
+the delivery guide.

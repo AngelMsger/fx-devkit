@@ -1,60 +1,82 @@
 #!groovy
-// Lint, test on both runtimes, run the end-to-end suite, and publish on a
-// version tag. Bun is installed per build because the default agent does not
-// carry it; a tag build that fails any stage does not publish.
+// Internal package delivery. Untrusted branches run checks without release credentials.
 pipeline {
     agent {
-        node { label 'default' }
+        docker {
+            label 'default'
+            image 'node:24.14.0-bookworm'
+            args '-e HOME=/tmp'
+        }
     }
-
     options {
         disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '5'))
+        timeout(time: 45, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '3'))
     }
-
+    parameters {
+        booleanParam(name: 'PUBLISH_PACKAGE', defaultValue: false,
+            description: 'Publish the current main version to the private Registry after all checks pass.')
+    }
     environment {
-        NPM_TOKEN = credentials('npm-token')
-        BUN_INSTALL = "${WORKSPACE}/.bun"
-        PATH = "${WORKSPACE}/.bun/bin:${PATH}"
+        PATH = "/tmp/fx-ci/bin:${PATH}"
+        FX_DISTRIBUTION = 'internal'
     }
-
     stages {
         stage('Install') {
             steps {
+                sh 'node scripts/select-distribution.mjs internal'
+                sh 'node --version && npm --version'
                 sh 'npm ci'
                 sh 'npm --prefix docs/website ci'
-                sh 'command -v bun || curl -fsSL https://bun.sh/install | bash'
+                sh 'npm install --prefix /tmp/fx-ci bun@1.3.5'
+                sh 'mkdir -p /tmp/fx-ci/bin && ln -sf /tmp/fx-ci/node_modules/.bin/bun /tmp/fx-ci/bin/bun'
+                sh 'bun --version'
             }
         }
-        stage('Lint') {
+        stage('Quality') {
             steps {
                 sh 'npm run lint'
                 sh 'npm run typecheck'
-                sh 'npm run build'
                 sh 'npm run docs:check'
-                sh 'npm run site:build'
-                sh 'npm run site:check'
             }
         }
         stage('Test') {
             parallel {
-                stage('node') {
-                    steps { sh 'npm test' }
-                }
-                stage('bun') {
-                    steps { sh 'npm run test:bun' }
-                }
+                stage('Node') { steps { sh 'npm test' } }
+                stage('Bun') { steps { sh 'npm run test:bun' } }
             }
         }
-        stage('E2E') {
+        stage('Acceptance') {
             steps {
                 sh 'npm run test:e2e'
+                sh 'node scripts/check-package.mjs'
+                sh 'SITE_BASE_PATH=/fx-devkit/ SITE_ORIGIN=https://docs.example.com npm run site:build'
+                sh 'npm run site:check'
+                sh 'SITE_BASE_PATH=/ SITE_ORIGIN= npm run site:build'
+                sh 'npm run site:check'
+                archiveArtifacts artifacts: 'docs/website/dist/**', fingerprint: true
             }
         }
         stage('Publish') {
-            when { tag 'v*' }
+            when {
+                allOf {
+                    not { changeRequest() }
+                    anyOf {
+                        tag pattern: 'v*', comparator: 'GLOB'
+                        allOf {
+                            branch 'main'
+                            expression { params.PUBLISH_PACKAGE }
+                        }
+                    }
+                }
+            }
             steps {
-                sh 'node scripts/publish.mjs'
+                sh 'node scripts/check-release.mjs'
+                configFileProvider([configFile(fileId: 'npm-ci-config', variable: 'NPM_CONFIG_USERCONFIG')]) {
+                    withCredentials([string(credentialsId: 'npm-token', variable: 'NPM_TOKEN')]) {
+                        sh 'node scripts/publish-ci.mjs'
+                    }
+                }
             }
         }
     }

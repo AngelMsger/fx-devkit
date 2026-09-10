@@ -38,7 +38,7 @@ export class SelfUpdate {
         'REGISTRY_UNKNOWN',
         'No private update registry is configured.',
         {
-          hint: 'Set FX_REGISTRY from the private registry coordinate supplied by your team.',
+          hint: 'Check the installed distribution and FX_REGISTRY override; follow the registry setup handoff.',
           nextSteps: ['fx self info'],
           handoff: REGISTRY_HANDOFF,
         },

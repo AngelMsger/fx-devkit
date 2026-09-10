@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { assertPublicContent, assertPublicPath } from './audience.mjs';
+import { distribution } from '../../src/domain/distribution.js';
 const site = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(site, '../..');
 const output = path.join(site, 'dist');
@@ -29,6 +30,11 @@ const pages = new Map();
 for (const file of files.filter((file) => file.endsWith('.html'))) {
   const text = await readFile(file, 'utf8');
   assertPublicContent(text, file);
+  const expected = distribution(manifest.channel).packageName;
+  for (const [, name] of text.matchAll(/npm(?:\.cmd)? (?:install|i) -g (@[^\s<]+)/g)) {
+    if (['@fx/devkit', '@angelmsger/fx'].includes(name) && name !== expected)
+      throw new Error(`Wrong distribution install command in ${file}`);
+  }
   const ids = [...text.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   if (new Set(ids).size !== ids.length) throw new Error(`Duplicate anchor in ${file}`);
   if (!text.includes('<title>') || !text.includes('name="description"') || !ids.includes('main'))

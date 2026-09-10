@@ -23,39 +23,60 @@ It is separate from the CLI's `dist/` and excluded from the npm package.
 Personal hosting bindings are not tracked in this repository.
 For hosts that support it, configure `404.html` as the custom error document.
 
-## GitHub Pages deployment
+## Internal Dokploy deployment
 
-GitHub Pages is the deployment baseline. `.github/workflows/pages.yml` checks
-pull requests and pushes; only a run on the repository's default branch can deploy.
-It builds the CLI reference, checks the website at both `/` and `/fx-devkit/`,
-then uses Pages metadata to rebuild for the actual origin and base path. Only
-`docs/website/dist/` is uploaded. The deploy job uses `pages: write` and `id-token: write`,
-with the `github-pages` environment. It does not publish the npm package.
+The internal website uses `FX_DISTRIBUTION=internal`. Configure the application in Dokploy with
+its internal Git source and a read-only deploy key. Use Dockerfile build type,
+`docs/website/Dockerfile`, and the repository root (`.`) as build context. The
+Dockerfile needs user Markdown from outside the website directory.
 
-After the public GitHub repository exists, enable **Settings → Pages → Build and
-deployment → Source → GitHub Actions**. Confirm the environment's deployment branch
-rules. Package metadata follows the `oa-cli` convention: the inferred repository is
-`https://github.com/AngelMsger/fx-devkit` and the homepage is
-`https://angelmsger.github.io/fx-devkit/`. These addresses are configured targets;
-the build does not create a remote or provision the website.
-See [GitHub's custom workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+The container serves port 80 with directory indexes, a `/healthz` check and actual
+404 responses. Only static output is copied into the NGINX runtime. Configure the
+internal domain, HTTPS and network/access restrictions in Dokploy. `noindex`
+metadata and headers discourage indexing; they do not provide access control.
 
-For another static host, set `SITE_BASE_PATH` to `/` or a slash-delimited repository
-path ending in `/`. Optional `SITE_ORIGIN` is the trusted origin without a path.
-When set, the build emits canonical URLs, hreflang alternates, a sitemap and robots
-metadata. Relative navigation and assets work without an origin. For example:
+Build arguments:
+
+- `SITE_ORIGIN`: the internal HTTP(S) origin, without a path or credentials.
+- `SITE_REPOSITORY_URL`: optional internal source browser URL, without credentials.
+- `SITE_BASE_PATH`: keep `/` for the supplied NGINX container.
 
 ```sh
-SITE_BASE_PATH=/fx-devkit/ SITE_ORIGIN=https://example.github.io npm run site:build
-npm run site:check
-npm run site:dev
+docker build -f docs/website/Dockerfile -t fx-devkit-website:local .
+docker run --rm -p 4173:80 fx-devkit-website:local
 ```
 
-The preview server reads the base from the built manifest. Restart it when changing
-the base path. `404.html` uses that same base for assets and recovery links, even
-when served for a deeply nested missing URL. `.nojekyll` is emitted. No SPA rewrite,
-Node.js runtime, proprietary hostname, or Sites registration is required to serve
-the result. Personal preview bindings must stay outside the repository and are never packaged.
+Deploy a reviewed main revision after Jenkins checks pass. Keep private Git keys,
+Registry tokens, application IDs and personal preview bindings in the platform.
+Configure a real 404 for removed maintainer routes; do not add an SPA fallback.
+
+Other static hosts can serve subpaths. For example:
+
+```sh
+SITE_BASE_PATH=/fx-devkit/ SITE_ORIGIN=https://docs.example.com npm run site:build
+npm run site:check
+```
+
+The preview reads the base from ignored local build state; restart it after a base
+change. Relative links, assets and English-default language selection work with
+or without `SITE_ORIGIN`. When set, canonical URLs, hreflang and a sitemap use it.
+Only `docs/website/dist/` is deployable; build state and source files stay outside it.
+
+## Public GitHub Pages channel
+
+Set `FX_DISTRIBUTION=public` for the npmjs package name and public installation
+instructions. The Pages workflow validates root and repository-subpath routes,
+builds against Pages origin metadata, and deploys only with
+`PUBLIC_RELEASE_ENABLED=true`. Leave this gate unset while public release is on
+hold. Public builds use the public repository link and allow indexing; internal
+builds use the optional platform-supplied source link and discourage indexing.
+Neither indexing metadata nor private repository visibility provides website access control.
+
+Channel-specific Markdown is wrapped in `<!-- distribution:internal -->` or
+`<!-- distribution:public -->` blocks, closed by `<!-- /distribution -->`.
+The source README can show both; deployed user pages show only their own channel.
+Keep both blocks and the matching translations accurate. See [delivery](../delivery.md)
+for maintainer-side configuration; it is not a user website route.
 
 ## Languages and translation coverage
 
@@ -67,7 +88,7 @@ the result. Personal preview bindings must stay outside the repository and are n
 | Traditional Chinese | `/zh-Hant/`  |
 
 English is the default language. The site root and unprefixed documentation
-routes always serve English, including under a GitHub Pages repository subpath.
+routes always serve English, including under a static-host subpath.
 Do not redirect based on browser language, geolocation, or a remembered preference.
 Other languages are selected explicitly through their URLs or the language menu.
 The `x-default` alternate points to the English equivalent.

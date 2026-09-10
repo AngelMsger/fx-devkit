@@ -165,3 +165,6 @@ vite.config.ts.timestamp-*
 # Local website build state and optional personal preview bindings
 docs/website/.build-state.json
 docs/website/.openai/
+
+# npm configuration and credentials are injected by Jenkins Managed Files.
+.npmrc

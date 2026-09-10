@@ -20,15 +20,24 @@ individual findings and recovery information.
 
 ## Updates
 
+<!-- distribution:internal -->
+
 Use `fx self info --format json` to identify the version, runtime and configured
-package registry. For the current pre-release, update a source checkout through
-Git, then run `npm ci` and `npm run build` in that checkout.
+package registry. Package installations use the private Registry supplied by your team through
+`FX_REGISTRY`. Source installations can be updated through Git, followed by
+`npm ci` and `npm run build` in that checkout.
 
 For a package installation with an available update source, inspect
 `fx self update --dry-run` before applying it. The current version requires an
 explicit private registry for package-based self-update. Source installations can
 be updated without using that command. Updating fx and updating the team manifest
 are separate operations; `fx sync` refreshes eligible manifest sources.
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+The public package uses npmjs for update checks by default. `FX_REGISTRY` can select an explicit mirror. Inspect `fx self update --dry-run` before applying an update. For source installations, update Git and rebuild. Updating fx is separate from `fx sync`, which updates eligible manifest sources.
+<!-- /distribution -->
 
 ## Platform support
 
@@ -43,15 +52,29 @@ local NTFS. Use `.cmd` entries if PowerShell policy blocks npm’s `.ps1` shims.
 Agent hosts differ in Skill, hook, MCP and rule support. Inspect `fx agent list`,
 `fx hook list` and `fx mcp list` for the selected host’s state.
 
+<!-- distribution:internal -->
+
 ## Report an issue
 
-[Open an issue](https://github.com/AngelMsger/fx-devkit/issues) with the output of
-`fx --version`, your operating system, the command, expected behavior and a
-redacted reproduction. Include the relevant finding and handoff for setup errors.
+Contact your team's fx maintainers through the internal support channel with the
+output of `fx --version`, your operating system, the command, expected behavior
+and a redacted reproduction. Include the relevant finding and handoff for setup errors.
 
 ## Security reports
 
-Use [private vulnerability reporting](https://github.com/AngelMsger/fx-devkit/security/advisories/new)
-when available. If unavailable, request a private contact route in an issue without
-publishing the sensitive details. Keep credentials, personal information and
-private team coordinates out of public reports.
+Report security findings privately to the maintainers. Keep credentials, personal
+information and team coordinates out of shared reports and reproduction examples.
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+## Report an issue
+
+[Open a GitHub issue](https://github.com/AngelMsger/fx-devkit/issues) with the version,
+operating system, command, expected behavior and a redacted reproduction.
+
+## Security reports
+
+Use [private vulnerability reporting](https://github.com/AngelMsger/fx-devkit/security/advisories/new).
+Keep credentials, personal information and private team coordinates out of public reports.
+<!-- /distribution -->

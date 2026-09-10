@@ -5,17 +5,27 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import spawn from 'cross-spawn';
 
-import { privateRegistry, registryArguments } from '../src/adapters/registry/registry-policy.js';
+import { distribution, packageChannel } from '../src/domain/distribution.js';
 
-const registry = privateRegistry(process.env.FX_REGISTRY);
+import {
+  publicationRegistry,
+  registryArguments,
+} from '../src/adapters/registry/registry-policy.js';
+
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const registry = publicationRegistry(pkg.name, process.env.FX_REGISTRY);
 const extra = process.argv.slice(2);
 if (!registry || extra.some((arg) => arg !== '--dry-run') || extra.length > 1) {
-  console.error('Publishing requires a private FX_REGISTRY and accepts only --dry-run.');
+  console.error(
+    'Publishing requires the matching distribution Registry and accepts only --dry-run.',
+  );
   process.exit(1);
 }
-const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-if (pkg.publishConfig?.registry) {
-  console.error('Package metadata must not embed a registry address.');
+if (
+  pkg.publishConfig?.registry ||
+  pkg.publishConfig?.access !== distribution(packageChannel(pkg.name)).access
+) {
+  console.error('Package metadata must use matching channel access and omit the Registry address.');
   process.exit(1);
 }
 const result = spawn.sync(

@@ -51,7 +51,7 @@ function failureOf(
   return undefined;
 }
 
-const UPGRADE_STEPS = ['npm i -g @angelmsger/fx@latest', 'fx --version'];
+const UPGRADE_STEPS = ['fx self update --dry-run', 'fx --version'];
 
 export function negotiationError(
   kind: Kind,

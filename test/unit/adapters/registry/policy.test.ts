@@ -21,3 +21,16 @@ describe('configured private registry', () => {
     expect(configuredRegistry({ FX_REGISTRY })).toBeNull();
   });
 });
+
+describe('public distribution registry', () => {
+  it('defaults only the public package to npmjs and rejects malformed overrides', () => {
+    expect(configuredRegistry({}, '@angelmsger/fx')).toBe('https://registry.npmjs.org/');
+    expect(
+      configuredRegistry({ FX_REGISTRY: 'https://registry.npmjs.org' }, '@angelmsger/fx'),
+    ).toBe('https://registry.npmjs.org/');
+    expect(
+      configuredRegistry({ FX_REGISTRY: 'https://mirror.example.com/' }, '@angelmsger/fx'),
+    ).toBe('https://mirror.example.com/');
+    expect(configuredRegistry({ FX_REGISTRY: 'invalid' }, '@angelmsger/fx')).toBeNull();
+  });
+});

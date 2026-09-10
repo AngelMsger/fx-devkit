@@ -249,7 +249,7 @@ export abstract class FxCommand extends Command {
     return {
       current: this.config.version,
       packageName: pjson.name,
-      registry: configuredRegistry(process.env),
+      registry: configuredRegistry(process.env, this.config.pjson.name),
     };
   }
 

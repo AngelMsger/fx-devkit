@@ -8,6 +8,8 @@ import path from 'node:path';
 import { DevkitError } from '../../domain/errors.js';
 import type { Registry } from '../../ports/registry.js';
 
+import { privateRegistry } from './registry-policy.js';
+
 export const TOKEN_ENV = 'FX_REGISTRY_TOKEN';
 
 export interface NpmHttpOptions {
@@ -24,7 +26,8 @@ export class NpmHttpRegistry implements Registry {
   async latest(packageName: string, signal?: AbortSignal): Promise<string> {
     const { registry, timeoutMs, env, userHome } = this.options;
     const token =
-      env[TOKEN_ENV] || (await npmrcToken(registry, path.join(userHome, '.npmrc'), signal));
+      (privateRegistry(registry) ? env[TOKEN_ENV] : undefined) ||
+      (await npmrcToken(registry, path.join(userHome, '.npmrc'), signal));
     const url = `${registry.replace(/\/+$/, '')}/${packageName.replace('/', '%2F')}`;
     const response = await (this.options.fetch ?? fetch)(url, {
       headers: {

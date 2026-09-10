@@ -25,7 +25,7 @@ export function jsonSchemaFor(kind: Kind, cliVersion: string): Record<string, un
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: `urn:fx-devkit:manifest:${kind}`,
     title: `fx manifest: ${kind}`,
-    description: `${typeof own === 'string' ? `${own}. ` : ''}Generated from @angelmsger/fx ${cliVersion}; describes ${describes}.`,
+    description: `${typeof own === 'string' ? `${own}. ` : ''}Generated from fx-devkit ${cliVersion}; describes ${describes}.`,
     ...rest,
   };
 }

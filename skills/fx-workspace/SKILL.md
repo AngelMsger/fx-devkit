@@ -218,7 +218,7 @@ null `after`, or a handoff is not successful recording. Repository-scoped result
 never certify sibling repositories; notes retain templates and dates, not expanded
 values. Contribute the resulting source change through source push when authorized.
 
-Set FX_REGISTRY from the private team coordinate for self-update checks and
+For `@fx/devkit`, set FX_REGISTRY from the private team coordinate; `@angelmsger/fx` defaults to npmjs. This controls self-update checks and
 `fx self update`; the generic package contains no registry address. This setting
 does not grant write permission and does not configure npm authentication.
 

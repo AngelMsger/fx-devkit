@@ -29,7 +29,7 @@ export async function checkSelf(check: SelfCheck): Promise<Finding[]> {
         'self',
         'version',
         'warn',
-        'FX_REGISTRY is not configured for private update checks.',
+        'The distribution registry is not configured for update checks.',
         { handoff: handoffEnvelope(REGISTRY_HANDOFF), coverage: 'incomplete' },
       ),
     ];

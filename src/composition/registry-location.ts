@@ -1,8 +1,10 @@
-// The generic package carries no registry address. Runtime and CI supply the
-// same non-secret coordinate through FX_REGISTRY; missing/unsafe input stays null.
+// Runtime defaults follow the installed package identity; private endpoints stay explicit.
+import { runtimeRegistry } from '../adapters/registry/registry-policy.js';
+import { DISTRIBUTIONS } from '../domain/distribution.js';
 
-import { privateRegistry } from '../adapters/registry/registry-policy.js';
-
-export function configuredRegistry(env: NodeJS.ProcessEnv): string | null {
-  return privateRegistry(env.FX_REGISTRY);
+export function configuredRegistry(
+  env: NodeJS.ProcessEnv,
+  packageName = DISTRIBUTIONS.internal.packageName,
+): string | null {
+  return runtimeRegistry(packageName, env.FX_REGISTRY);
 }

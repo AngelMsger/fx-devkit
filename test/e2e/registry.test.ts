@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fx } from './harness.js';
+import { fx, packageName } from './harness.js';
 
 describe('runtime registry coordinates', () => {
   it('uses FX_REGISTRY for a self-update preview without an embedded package address', () => {
@@ -14,15 +14,17 @@ describe('runtime registry coordinates', () => {
         'npm',
         'install',
         '-g',
-        '@angelmsger/fx@latest',
+        `${packageName}@latest`,
         '--registry',
         'https://npm.example.com/',
-        '--@angelmsger:registry=https://npm.example.com/',
+        `--${packageName.split('/')[0]}:registry=https://npm.example.com/`,
       ],
     });
   });
   it('does not infer a public target when the coordinate is absent or unsafe', () => {
-    for (const FX_REGISTRY of ['', 'https://registry.npmjs.org/']) {
+    for (const FX_REGISTRY of packageName === '@fx/devkit'
+      ? ['', 'https://registry.npmjs.org/']
+      : ['', 'invalid']) {
       const result = fx(['self', 'update', '--dry-run', '--format', 'json'], { FX_REGISTRY });
       expect(result.error().code).toBe('REGISTRY_UNKNOWN');
       expect(result.stdout).toBe('');

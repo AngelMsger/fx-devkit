@@ -14,16 +14,17 @@ afterEach(() => {
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'fx-publish-test-'));
   roots.push(root);
-  for (const directory of ['scripts', 'src/adapters/registry', 'bin'])
+  for (const directory of ['scripts', 'src/adapters/registry', 'src/domain', 'bin'])
     mkdirSync(path.join(root, directory), { recursive: true });
   writeFileSync(
     path.join(root, 'package.json'),
-    JSON.stringify({ name: '@angelmsger/fx', type: 'module' }),
+    JSON.stringify({ name: '@fx/devkit', type: 'module', publishConfig: { access: 'restricted' } }),
   );
   for (const file of [
     'scripts/publish.mjs',
     'scripts/guard-registry.mjs',
     'src/adapters/registry/registry-policy.js',
+    'src/domain/distribution.js',
   ])
     writeFileSync(path.join(root, file), readFileSync(file));
   writeFileSync(path.join(root, 'bin/package.json'), '{"type":"commonjs"}');
@@ -71,7 +72,7 @@ describe('private publishing boundary', () => {
       'publish',
       '--registry',
       'https://npm.example.com/',
-      '--@angelmsger:registry=https://npm.example.com/',
+      '--@fx:registry=https://npm.example.com/',
       '--ignore-scripts=false',
       '--dry-run',
     ]);
@@ -83,6 +84,34 @@ describe('private publishing boundary', () => {
     expect(run(f, 'publish.mjs', { FX_REGISTRY: 'https://registry.npmjs.org/' }).status).toBe(1);
     expect(run(f, 'publish.mjs', { FX_REGISTRY: '' }).status).toBe(1);
     expect(run(f, 'publish.mjs', {}, ['--registry=https://registry.npmjs.org']).status).toBe(1);
+  });
+  it('publishes the public identity only to npmjs with public access', () => {
+    const f = fixture();
+    writeFileSync(
+      path.join(f.root, 'package.json'),
+      JSON.stringify({
+        name: '@angelmsger/fx',
+        type: 'module',
+        publishConfig: { access: 'public' },
+      }),
+    );
+    expect(run(f, 'publish.mjs', { FX_REGISTRY: 'https://npm.example.com/' }).status).toBe(1);
+    const result = run(f, 'publish.mjs', { FX_REGISTRY: 'https://registry.npmjs.org/' }, [
+      '--dry-run',
+    ]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(f.output, 'utf8')).args).toContain(
+      '--@angelmsger:registry=https://registry.npmjs.org/',
+    );
+    writeFileSync(
+      path.join(f.root, 'package.json'),
+      JSON.stringify({
+        name: '@angelmsger/fx',
+        type: 'module',
+        publishConfig: { access: 'restricted' },
+      }),
+    );
+    expect(run(f, 'publish.mjs', { FX_REGISTRY: 'https://registry.npmjs.org/' }).status).toBe(1);
   });
   it('blocks direct publishing and any mismatch with the wrapper target', () => {
     const f = fixture();

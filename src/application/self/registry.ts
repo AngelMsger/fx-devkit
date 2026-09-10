@@ -1,16 +1,17 @@
 // Registry readiness has one recovery route shared by self update and doctor.
-// The coordinate is supplied by the private environment, never by the package.
+// Internal coordinates are explicit; the public distribution has a public default.
 
 import type { Handoff } from '../../domain/errors.js';
 
 export const REGISTRY_HANDOFF: Handoff = {
-  summary: 'A private registry coordinate is required.',
+  summary: 'The distribution registry is missing or invalid.',
   command: 'fx self info --format json',
   userSteps: [
     {
       id: 'fx-registry',
       kind: 'manual',
-      title: 'Set FX_REGISTRY from the private registry coordinate supplied by your team.',
+      title:
+        'For @fx/devkit, set FX_REGISTRY from your team. For @angelmsger/fx, remove an invalid override to use npmjs or select a valid mirror.',
     },
   ],
 };

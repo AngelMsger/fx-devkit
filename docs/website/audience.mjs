@@ -12,7 +12,7 @@ export const userSources = new Set([
 ]);
 export function assertPublicPath(file) {
   const retired =
-    /^(?:(?:ja|zh-Hans|zh-Hant)\/)?docs\/(?:public-release|validation|eval|website|contributing(?:-guide)?|design|roadmap|security)(?:\/|$)/;
+    /^(?:(?:ja|zh-Hans|zh-Hant)\/)?docs\/(?:public-release|delivery|internal-delivery|validation|eval|website|contributing(?:-guide)?|design|roadmap|security)(?:\/|$)/;
   if (
     retired.test(file) ||
     /(?:^|\/)(?:build-manifest\.json|\.build-state\.json|\.openai)(?:\/|$)/.test(file)
@@ -28,7 +28,7 @@ export function assertUserSources(pages) {
 }
 export function assertPublicContent(text, file) {
   const forbidden = [
-    /(?:https?:\/\/[^\s"<>]+)?\/docs\/(?:public-release|validation|eval|website|contributing(?:-guide)?|design|roadmap)(?:\/|["#?])/i,
+    /(?:https?:\/\/[^\s"<>]+)?\/docs\/(?:public-release|delivery|internal-delivery|validation|eval|website|contributing(?:-guide)?|design|roadmap)(?:\/|["#?])/i,
     /(?:build-manifest|\.build-state)\.json/i,
     /appgprj_[a-z0-9]+/i,
     /[a-z0-9-]+\.chatgpt\.site/i,

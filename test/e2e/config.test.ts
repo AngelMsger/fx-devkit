@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, packageName } from './harness.js';
 
 describe('fx config', () => {
   it.each([
@@ -115,7 +115,7 @@ describe('fx config', () => {
     const run = fx(['self', 'info'], env);
     expect(run.status, run.stderr).toBe(0);
     const payload = run.json() as Record<string, unknown>;
-    expect(payload).toMatchObject({ name: '@angelmsger/fx', version: expect.any(String) });
+    expect(payload).toMatchObject({ name: packageName, version: expect.any(String) });
     expect(payload).not.toHaveProperty('error');
   });
 

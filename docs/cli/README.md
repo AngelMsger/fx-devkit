@@ -1,4 +1,4 @@
-# @angelmsger/fx command reference
+# fx-devkit command reference
 
 Generated from the command registry of version 0.1.0. Do not edit by hand;
 run `npm run docs:gen` after changing commands or flags.
@@ -920,7 +920,7 @@ fx self info --format json
 
 ## `fx self update`
 
-Update fx from the private registry configured by FX_REGISTRY
+Update fx from its distribution registry (override with FX_REGISTRY)
 
 Flags:
 

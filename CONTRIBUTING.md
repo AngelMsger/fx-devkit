@@ -1,7 +1,8 @@
 # Contributing to fx-devkit
 
 Start with a small reproducible problem or a concrete improvement. Bug fixes,
-documentation, translations and provider work are welcome. For a substantial
+documentation, translations and provider work are welcome within the team.
+Public release and external contribution intake are currently on hold. For a substantial
 behavior or architecture change, open an issue first to explain the use case and
 proposed contract.
 
@@ -19,7 +20,7 @@ node bin/fx.js --help
 
 The CLI and website have separate dependencies and output directories. Run
 `npm run site:build` and `npm run site:dev` to preview the static site. See the
-[website guide](docs/website/README.md) for GitHub Pages and multilingual content.
+[website guide](docs/website/README.md) for distribution-specific hosting and multilingual content.
 
 ## Make a focused change
 

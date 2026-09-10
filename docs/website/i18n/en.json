@@ -1,6 +1,6 @@
 {
   "heroAudience": "FOR HUMANS. FOR AGENTS.",
-  "preRelease": "PRE-RELEASE",
+  "preRelease": "INTERNAL PREVIEW",
   "heroMany": "Many repos.",
   "heroOne": "One ",
   "heroWorkspace": "workspace.",
@@ -8,7 +8,7 @@
   "heroDetail": "fx turns a shared manifest into a working environment.<br class=\"desktop-break\" /> Know what’s here. Know what’s ready. Get to work.",
   "readDocs": "Read the docs",
   "seeAction": "See it in action",
-  "installNote": "Use a source checkout for this pre-release.",
+  "installNote": "Set your team’s FX_REGISTRY first. See the installation guide.",
   "releaseLink": "Installation guide ↗",
   "copy": "Copy",
   "copyInstall": "Copy install command",
@@ -121,5 +121,7 @@
       "title": "Changelog",
       "description": "User-visible changes to fx."
     }
-  }
+  },
+  "publicRelease": "PUBLIC PREVIEW",
+  "publicInstallNote": "Public npm package. See the installation guide for availability."
 }

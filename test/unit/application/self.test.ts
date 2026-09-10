@@ -9,7 +9,7 @@ import { FakeProcess } from '../../fakes/fake-process.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 
 const base = {
-  packageName: '@angelmsger/fx',
+  packageName: '@fx/devkit',
   registry: 'https://npm.example.com/',
   dryRun: false,
   yes: false,
@@ -27,10 +27,10 @@ describe('SelfUpdate', () => {
         'npm',
         'install',
         '-g',
-        '@angelmsger/fx@latest',
+        '@fx/devkit@latest',
         '--registry',
         'https://npm.example.com/',
-        '--@angelmsger:registry=https://npm.example.com/',
+        '--@fx:registry=https://npm.example.com/',
       ],
       ran: true,
       code: 0,
@@ -89,7 +89,7 @@ describe('SelfUpdate', () => {
 describe('selfInfo', () => {
   it('derives the personal directories from the fx home', () => {
     const info = selfInfo({
-      name: '@angelmsger/fx',
+      name: '@fx/devkit',
       version: '1.0.0',
       runtime: 'node 22',
       fxHome: path.resolve('/home/me/.fx'),

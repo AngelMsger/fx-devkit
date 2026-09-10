@@ -14,9 +14,19 @@
 
 ## 更新 {#updates}
 
+<!-- distribution:internal -->
+
+包安装使用团队通过 `FX_REGISTRY` 指定的私有 Registry。
+
 `fx self info --format json` 显示版本、运行时和包更新来源。当前预发布版本可通过 Git 更新源码 checkout，再在该目录执行 `npm ci` 和 `npm run build`。
 
 使用包安装且有可用更新来源时，先查看 `fx self update --dry-run`。当前版本的包式自更新需要显式配置私有 registry；源码安装可按上述方式更新，不需要该命令。更新 fx 与更新团队 manifest 是不同操作，`fx sync` 会刷新符合条件的 manifest 来源。
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+公开包默认从 npmjs 检查更新，可通过 `FX_REGISTRY` 指定镜像。执行前先查看 `fx self update --dry-run`。源码安装通过 Git 更新后重新构建。fx 本体更新与刷新 manifest 的 `fx sync` 是不同操作。
+<!-- /distribution -->
 
 ## 平台支持 {#platform-support}
 
@@ -26,10 +36,24 @@
 
 各 Agent 宿主对 Skill、hook、MCP 和规则的支持不同。用 `fx agent list`、`fx hook list` 和 `fx mcp list` 查看所选宿主的状态。
 
+<!-- distribution:internal -->
+
 ## 报告问题 {#report-an-issue}
 
-[创建 issue](https://github.com/AngelMsger/fx-devkit/issues) 时，提供 `fx --version` 输出、操作系统、命令、预期行为和脱敏复现。设置问题请附相关检查项和 handoff。
+通过团队内部支持渠道联系 fx 维护者，附上 `fx --version`、操作系统、命令、预期行为和脱敏后的复现步骤。
 
 ## 安全报告 {#security-reports}
 
-优先使用可用的[私有漏洞报告](https://github.com/AngelMsger/fx-devkit/security/advisories/new)。如果该入口不可用，可以在 issue 中请求私有联系渠道，不要公开敏感细节。报告中不要包含凭据、个人信息和团队私有坐标。
+请私下向维护者报告安全问题。共享报告中不要包含凭证、个人信息和团队内部连接地址。
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+## 报告问题 {#report-an-issue}
+
+通过 [GitHub Issue](https://github.com/AngelMsger/fx-devkit/issues) 提供版本、操作系统、命令、预期行为及脱敏后的复现步骤。
+
+## 安全报告 {#security-reports}
+
+请使用[私密漏洞报告](https://github.com/AngelMsger/fx-devkit/security/advisories/new)，不要公开凭证、个人信息或内部连接地址。
+<!-- /distribution -->

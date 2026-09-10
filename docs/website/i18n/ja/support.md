@@ -14,9 +14,19 @@
 
 ## 更新 {#updates}
 
+<!-- distribution:internal -->
+
+パッケージ版はチームのプライベート Registry を `FX_REGISTRY` で指定します。
+
 `fx self info --format json` でバージョン、ランタイム、パッケージ更新元を確認できます。現在のプレリリースでは Git でソース checkout を更新し、そのディレクトリで `npm ci` と `npm run build` を実行します。
 
 パッケージからインストールし更新元が利用可能な場合は、先に `fx self update --dry-run` を確認します。現在のパッケージ自己更新にはプライベートレジストリの明示的設定が必要です。ソースからの更新にはこのコマンドは不要です。fx 本体とチームのマニフェストの更新は別の操作で、`fx sync` が条件を満たすマニフェストソースを更新します。
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+公開パッケージは既定で npmjs を更新元に使います。`FX_REGISTRY` でミラーを指定できます。更新前に `fx self update --dry-run` を確認してください。ソース版は Git を更新して再ビルドします。fx 本体の更新と、マニフェストを更新する `fx sync` は別の操作です。
+<!-- /distribution -->
 
 ## 対応プラットフォーム {#platform-support}
 
@@ -26,10 +36,24 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 Skill、hook、MCP、ルールの対応はホストごとに異なります。`fx agent list`、`fx hook list`、`fx mcp list` で選択中のホストを確認してください。
 
+<!-- distribution:internal -->
+
 ## 問題を報告する {#report-an-issue}
 
-[issue を作成](https://github.com/AngelMsger/fx-devkit/issues)する際は、`fx --version` の出力、OS、コマンド、期待する動作、機密情報を除いた再現手順を含めます。設定の問題には該当する結果と handoff を添えてください。
+チームの内部サポート窓口で fx のメンテナーに連絡してください。`fx --version`、OS、コマンド、期待する動作、機密情報を除いた再現手順を添えてください。
 
 ## セキュリティ報告 {#security-reports}
 
-利用可能なら[非公開の脆弱性報告](https://github.com/AngelMsger/fx-devkit/security/advisories/new)を使ってください。利用できない場合は詳細を公開せず、issue で非公開の連絡経路を求めます。資格情報、個人情報、非公開のチーム座標を報告に含めないでください。
+セキュリティ上の問題はメンテナーに非公開で報告してください。認証情報、個人情報、内部接続先を共有レポートに含めないでください。
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+## 問題を報告する {#report-an-issue}
+
+[GitHub Issue](https://github.com/AngelMsger/fx-devkit/issues) にバージョン、OS、コマンド、期待する動作、機密情報を除いた再現手順を添えて報告してください。
+
+## セキュリティ報告 {#security-reports}
+
+[非公開の脆弱性報告](https://github.com/AngelMsger/fx-devkit/security/advisories/new)を使ってください。認証情報や個人情報を公開しないでください。
+<!-- /distribution -->

@@ -11,11 +11,12 @@ private manifests, live evaluation evidence or business patches. Keep migration
 provenance in a private record outside this repository.
 
 Preserve existing changes and verify repository identity and remotes before
-committing or pushing. This project checkout uses only `origin`, pointing to
-`git@github.com:AngelMsger/fx-devkit.git`; there is no `upstream` remote.
-Authorized maintainer pushes go to `origin`. External contributors use their
-personal forks as described in CONTRIBUTING.md. Do not force-push to repair
-unrelated history or merge unrelated histories.
+committing or pushing. The delivery upstream is the internal shared repository;
+`origin` is the verified personal fork and `upstream` is the shared repository.
+The GitHub repository uses remote `github` for the separately gated public channel.
+Push only to `origin` and merge through a pull request; an empty shared repository
+requires task-specific authorization for its initial seed. Never merge predecessor
+or unrelated histories. Keep actual remote URLs in Git configuration.
 
 Work in the target checkout or an isolated worktree. Workspace migration,
 publication and tags need task-specific authorization. User authorization takes
@@ -147,15 +148,19 @@ internal coordinates under their separate scanner policy; credential/personnel
 protections are not relaxed. Exported profiles carry settings and personal
 layers, never trust records, caches, manifest clones or credentials.
 
-Public package metadata follows the `oa-cli` convention: repository
-`https://github.com/AngelMsger/fx-devkit`, homepage
-`https://angelmsger.github.io/fx-devkit/`, and the repository's `/issues` page.
-These coordinates were inferred for publication; they do not prove provisioning
-or deployment. Use Apache-2.0 consistently in package metadata, lockfiles and
-license documentation, and include the full root LICENSE in distribution checks.
-Keep npm-facing README links usable without shipping the documentation toolchain.
+The project is always `fx-devkit` and its binary is always `fx`. Maintain two
+channels from the same code: internal `@fx/devkit` through Jenkins/private Registry
+and private Dokploy; public `@angelmsger/fx` through GitHub Actions/npmjs and GitHub
+Pages. The source checkout defaults to internal metadata. CI selects metadata with
+`scripts/select-distribution.mjs`; never commit public build metadata over the
+internal baseline. Public deployment/publication stays gated by
+`PUBLIC_RELEASE_ENABLED` while external release is on hold. User documentation
+must render the matching installation commands for its channel in all four languages.
+Keep private endpoints and credentials in platform configuration, never generic
+source or package metadata. Use Apache-2.0 consistently in both distributions.
 
-Registry coordinates come from `FX_REGISTRY`, not package metadata. Keep the
+Private registry coordinates come from `FX_REGISTRY` or Jenkins Managed npmrc,
+not package metadata; the public package defaults to npmjs. Keep the
 shared registry policy as the checked JavaScript implementation used by scripts
 and compiled adapters. Publishing uses `scripts/publish.mjs`; the lifecycle guard
 rejects direct publication. Package file lists own scanner coverage. Remotes,
@@ -175,7 +180,7 @@ normally need only their description. Inline comments explain a non-obvious
 constraint, not the neighboring statement or another module's rationale.
 If explanation dominates the implementation, improve the abstraction first.
 
-README is the user entry point, CONTRIBUTING.md owns the public contribution
+README is the user entry point, CONTRIBUTING.md owns the internal contribution
 workflow, SECURITY.md owns reporting guidance, this file owns agent rules, and design pages
 own current contracts, and `docs/cli/README.md` is generated syntax reference.
 Keep one owner for each fact. Remove feature-history narration and resolved
@@ -184,7 +189,7 @@ this repository. Preserve their originals in the team's private evidence store.
 Public validation notes describe scope and limits without identifying deployments,
 accounts or business repositories.
 
-## Public website and documentation consistency
+## User website and documentation consistency
 
 `docs/website/` presents documentation for people using fx, not for the fx
 maintainer. `docs/user-guide.md` owns user onboarding; README is the repository
@@ -221,10 +226,13 @@ If a change has no external impact, state why in its delivery or PR description.
 Run `npm run docs:check`, `npm run site:build` and `npm run site:check` before
 delivering affected changes. The website check verifies source freshness,
 generated routes, internal links/anchors, local assets and JavaScript syntax.
-GitHub Pages (including repository subpaths) is the deployment baseline. Keep
-`SITE_BASE_PATH`, locale routes, assets, 404 navigation and canonical/hreflang URLs
-consistent. The GitHub workflow validates root and subpath builds; PRs never deploy.
-Do not introduce a proprietary hosting dependency or a server-side runtime.
+The internal channel uses Dokploy with `docs/website/Dockerfile` as its static
+deployment baseline. The public channel uses the gated GitHub Pages workflow. Both channels
+check root and subpath builds; the supplied NGINX container
+serves at the origin root. Keep locale routes, assets, 404 navigation and
+canonical/hreflang URLs consistent. Only reviewed main revisions deploy. Hosting
+configuration and maintainer delivery procedures never enter user documentation.
+Keep the website static without a server-side application runtime.
 
 The public site supports English, Japanese, Simplified Chinese and Traditional
 Chinese (`en`, `ja`, `zh-Hans`, `zh-Hant`). English is the default UI language

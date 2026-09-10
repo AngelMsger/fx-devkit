@@ -12,14 +12,33 @@
 
 ## 安裝 {#install}
 
-公開發佈後的安裝方式不需要私有 registry：
+<!-- distribution:internal -->
+
+fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址和 npm 存取權限，並設定 `FX_REGISTRY`。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
 
 ```sh
-npm install -g @angelmsger/fx
+export FX_REGISTRY=https://npm.example.com/
+npm login --registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
 fx --version
 ```
 
-這些命令描述預期的公開安裝方式，並不表示套件已經發佈。目前可以從原始碼執行：
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+### 公開套件
+
+對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。目前公開發佈暫緩，請於目標版本提供後執行。
+
+```sh
+npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
+fx --version
+```
+
+<!-- /distribution -->
+
+也可以從原始碼執行：
 
 ```sh
 npm ci
@@ -29,12 +48,6 @@ node bin/fx.js --version
 ```
 
 執行後續範例時，將 `fx` 替換為 `node /absolute/path/to/fx-devkit/bin/fx.js`。啟動器讀取 `dist/`，因此必須先建置。
-
-如果 npm 的 `@angelmsger` scope 仍指向舊 registry，公開版本發佈後可明確選擇公共 npm：
-
-```sh
-npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
-```
 
 PowerShell 執行原則阻止 `.ps1` shim 時，可使用 `npm.cmd` 和 `fx.cmd`，不必變更原則。
 

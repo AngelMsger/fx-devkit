@@ -3,7 +3,8 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
 export default class SelfUpdateCommand extends FxCommand {
-  static override description = 'Update fx from the private registry configured by FX_REGISTRY';
+  static override description =
+    'Update fx from its distribution registry (override with FX_REGISTRY)';
   static override examples = [
     '<%= config.bin %> self update --dry-run',
     '<%= config.bin %> self update --yes',

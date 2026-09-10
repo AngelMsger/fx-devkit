@@ -12,14 +12,33 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 ## インストール {#install}
 
-公開後は、プライベートレジストリの設定なしでインストールできます。
+<!-- distribution:internal -->
+
+fx はチームのプライベート Registry で配布します。公開リリースは当面予定していません。チームから Registry の URL と npm のアクセス権を取得し、`FX_REGISTRY` を設定してください。以下は架空の URL です。パッケージが Registry に提供されている必要があります。
 
 ```sh
-npm install -g @angelmsger/fx
+export FX_REGISTRY=https://npm.example.com/
+npm login --registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
 fx --version
 ```
 
-これは公開版の予定された手順であり、パッケージが公開済みであることを示すものではありません。現在はソースから実行できます。
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+### 公開パッケージ
+
+公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。公開は現在保留中のため、対象バージョンの提供開始後に実行してください。
+
+```sh
+npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
+fx --version
+```
+
+<!-- /distribution -->
+
+現在はソースからも実行できます。
 
 ```sh
 npm ci
@@ -29,12 +48,6 @@ node bin/fx.js --version
 ```
 
 以下の例をソースから実行するときは、`fx` を `node /absolute/path/to/fx-devkit/bin/fx.js` に置き換えます。ランチャーが `dist/` を読み込むため、事前のビルドが必要です。
-
-npm の `@angelmsger` スコープが古いレジストリを参照している場合、公開版の提供後に次の指定で public npm を選択できます。
-
-```sh
-npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
-```
 
 PowerShell の実行ポリシーが `.ps1` shim をブロックする場合は、`npm.cmd` と `fx.cmd` を使用します。ポリシーの変更は不要です。
 

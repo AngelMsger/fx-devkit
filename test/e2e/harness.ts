@@ -3,7 +3,7 @@
 // non-interactive.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,9 @@ import { manifestSourceDir } from '../../src/infra/workspace-home.js';
 
 const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../bin/fx.js');
 // One home per test run: agent detection and Skill links never reach the person's own.
+export const packageName: string = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+).name;
 export const userHome = mkdtempSync(path.join(tmpdir(), 'fx-user-home-'));
 
 export interface Run {

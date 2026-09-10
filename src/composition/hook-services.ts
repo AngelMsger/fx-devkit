@@ -209,7 +209,7 @@ async function self(s: Services): Promise<readonly HookObservation[]> {
   const verdict = await updateChecks(s.container).fx.execute({
     current: s.metadata.version,
     packageName: s.metadata.name,
-    registry: configuredRegistry(s.env),
+    registry: configuredRegistry(s.env, s.metadata.name),
   });
   if (verdict.source === 'skipped')
     return [s.observation('self', 'FX_UPDATE_UNAVAILABLE', 'fx self info')];

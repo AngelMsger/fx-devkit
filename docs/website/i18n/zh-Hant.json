@@ -1,6 +1,6 @@
 {
   "heroAudience": "為人，也為 Agent。",
-  "preRelease": "公開發佈準備中",
+  "preRelease": "內部預覽",
   "heroMany": "多個儲存庫，",
   "heroOne": "一個",
   "heroWorkspace": "工作區。",
@@ -8,7 +8,7 @@
   "heroDetail": "fx 將共用 manifest 變成可用的開發環境。<br class=\"desktop-break\" />了解有哪些資源、哪些已就緒，然後開始工作。",
   "readDocs": "閱讀文件",
   "seeAction": "看看它如何運作",
-  "installNote": "目前預發佈版本可從原始碼安裝。",
+  "installNote": "先設定團隊的 FX_REGISTRY，詳見安裝指南。",
   "releaseLink": "安裝指南 ↗",
   "copy": "複製",
   "copyInstall": "複製安裝命令",
@@ -121,5 +121,7 @@
       "title": "更新日誌",
       "description": "fx 工作區 CLI 的變化。"
     }
-  }
+  },
+  "publicRelease": "公開預覽",
+  "publicInstallNote": "公開 npm 套件，版本提供情況請查看安裝指南。"
 }

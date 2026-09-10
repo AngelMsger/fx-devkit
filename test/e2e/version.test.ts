@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { fx } from './harness.js';
+import { fx, packageName } from './harness.js';
 
 describe('fx --version and self info', () => {
   it('answers --version and -v with the oclif line, and has no version command', () => {
     for (const flag of ['--version', '-v']) {
       const run = fx([flag]);
       expect(run.status, run.stderr).toBe(0);
-      expect(run.stdout).toMatch(/^@angelmsger\/fx\/\d+\.\d+\.\d+ /);
+      expect(run.stdout.startsWith(`${packageName}/`)).toBe(true);
+      expect(run.stdout.slice(packageName.length + 1)).toMatch(/^\d+\.\d+\.\d+ /);
     }
     expect(fx(['version']).status).toBe(2);
   });
@@ -15,11 +16,11 @@ describe('fx --version and self info', () => {
   it('carries the version and runtime in self info, honouring FX_FORMAT under the flag', () => {
     const info = fx(['self', 'info', '--format', 'json']);
     expect(info.status).toBe(0);
-    expect(info.json()).toMatchObject({ name: '@angelmsger/fx', version: expect.any(String) });
+    expect(info.json()).toMatchObject({ name: packageName, version: expect.any(String) });
     expect((info.json() as { runtime: string }).runtime).toMatch(/^node /);
     expect(() => fx(['self', 'info'], { FX_FORMAT: 'json' }).json()).not.toThrow();
     expect(fx(['self', 'info', '--format', 'human'], { FX_FORMAT: 'json' }).stdout).toMatch(
-      /^name\s+@angelmsger\/fx/,
+      new RegExp(`^name\\s+${packageName}`),
     );
   });
 
