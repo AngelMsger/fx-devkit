@@ -34,7 +34,7 @@ providers:
   code-host:
     provider: bitbucket-cli
     vars:
-      host: ssh://git@git.example.com:12345
+      host: ssh://git@git.example.com
       web: https://git.example.com
 defaults:
   upstream_project: example

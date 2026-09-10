@@ -178,7 +178,7 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   tools: [BINARY],
   recipes: BITBUCKET_RECIPES,
   vars: [
-    { name: 'host', desc: 'git clone prefix, e.g. ssh://git@git.example.com:12345', required: true },
+    { name: 'host', desc: 'git clone prefix, e.g. ssh://git@git.example.com', required: true },
     { name: 'web', desc: 'browser base URL, e.g. https://git.example.com', required: false },
     {
       name: 'context',

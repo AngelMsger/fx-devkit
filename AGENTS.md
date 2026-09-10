@@ -138,7 +138,11 @@ The package boundary scanner must run against actual built distribution paths.
 
 Internal hosts, registries, repository coordinates, credentials and personnel
 identifiers do not belong in generic source, fixtures, errors or distributed
-assets. Use `example.com` examples. Private-manifest contributions may contain
+assets. Use `example.com` examples. Public SSH examples omit deployment-specific
+ports; a test that needs a non-default port uses the designated synthetic port
+`12345`. Do not carry real service ports over when anonymizing a hostname.
+`npm run check:examples` enforces the public-example convention without recording
+internal coordinates in a committed denylist. Private-manifest contributions may contain
 internal coordinates under their separate scanner policy; credential/personnel
 protections are not relaxed. Exported profiles carry settings and personal
 layers, never trust records, caches, manifest clones or credentials.

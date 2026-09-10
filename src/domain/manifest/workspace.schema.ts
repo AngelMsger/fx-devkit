@@ -156,7 +156,7 @@ export const workspaceSchema = z
           .string()
           .optional()
           .describe(
-            'git host prefix, e.g. ssh://git@git.example.com:12345 (schema 1; schema 2 puts it in providers.code-host.vars.host)',
+            'git host prefix, e.g. ssh://git@git.example.com (schema 1; schema 2 puts it in providers.code-host.vars.host)',
           ),
         upstream_project: z
           .string()

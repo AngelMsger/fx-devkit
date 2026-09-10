@@ -25,6 +25,7 @@ jobs:
             package-lock.json
             docs/website/package-lock.json
       - run: npm ci
+      - run: npm run check:examples
       - run: npm --prefix docs/website ci
       - run: npm run docs:check
       - name: Check origin-root hosting

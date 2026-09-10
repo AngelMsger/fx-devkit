@@ -76,7 +76,7 @@ Flags:
 Examples:
 
 ```bash
-fx init ~/Workspaces/fx --from ssh://git@git.example.com:12345/team/workspace-manifest.git
+fx init ~/Workspaces/fx --from ssh://git@git.example.com/team/workspace-manifest.git
 fx init ./ws --from ./manifest --dry-run
 cat workspace.yaml | fx init ./ws --from -
 ```
@@ -863,7 +863,7 @@ Flags:
 Examples:
 
 ```bash
-fx repo add ../scratch-x --upstream ssh://git@git.example.com:12345/lab/scratch-x.git
+fx repo add ../scratch-x --upstream ssh://git@git.example.com/lab/scratch-x.git
 ```
 
 ## `fx repo remove`

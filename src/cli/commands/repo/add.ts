@@ -7,7 +7,7 @@ import { dryRunFlag } from '../../flags.js';
 export default class RepoAddCommand extends FxCommand {
   static override description = 'Register a checkout that exists only on this machine';
   static override examples = [
-    '<%= config.bin %> repo add ../scratch-x --upstream ssh://git@git.example.com:12345/lab/scratch-x.git',
+    '<%= config.bin %> repo add ../scratch-x --upstream ssh://git@git.example.com/lab/scratch-x.git',
   ];
   static override args = {
     path: Args.string({ required: true, description: 'directory of the checkout' }),

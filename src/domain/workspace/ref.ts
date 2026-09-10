@@ -20,7 +20,7 @@ function projectRef(repo: Pick<ResolvedRepo, 'name' | 'project'>): RepoRef | und
   return repo.project === undefined ? undefined : { project: repo.project, name: repo.name };
 }
 
-// ssh://git@host:12345/PROJECT/name.git and git@host:PROJECT/name.git → { project: PROJECT, name }
+// ssh://git@host/PROJECT/name.git and git@host:PROJECT/name.git → { project: PROJECT, name }
 export function refFromUrl(url: string): RepoRef | undefined {
   const segments = url
     .replace(/^([^/@]+@[^/:]+):(?!\/\/)/, '$1/')
