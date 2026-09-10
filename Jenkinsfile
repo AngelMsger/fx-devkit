@@ -18,7 +18,6 @@ pipeline {
             description: 'Publish the current main version to the private Registry after all checks pass.')
     }
     environment {
-        PATH = "/tmp/fx-ci/bin:${PATH}"
         FX_DISTRIBUTION = 'internal'
     }
     stages {
@@ -29,8 +28,7 @@ pipeline {
                 sh 'npm ci'
                 sh 'npm --prefix docs/website ci'
                 sh 'npm install --prefix /tmp/fx-ci bun@1.3.5'
-                sh 'mkdir -p /tmp/fx-ci/bin && ln -sf /tmp/fx-ci/node_modules/.bin/bun /tmp/fx-ci/bin/bun'
-                sh 'bun --version'
+                sh '/tmp/fx-ci/node_modules/.bin/bun --version'
             }
         }
         stage('Quality') {
@@ -43,7 +41,7 @@ pipeline {
         stage('Test') {
             parallel {
                 stage('Node') { steps { sh 'npm test' } }
-                stage('Bun') { steps { sh 'npm run test:bun' } }
+                stage('Bun') { steps { sh 'PATH="/tmp/fx-ci/node_modules/.bin:$PATH" npm run test:bun' } }
             }
         }
         stage('Acceptance') {

@@ -22,7 +22,10 @@ import predecessor history; actual URLs stay in Git/platform configuration.
 
 Jenkins reads `Jenkinsfile` from the reviewed internal source. Use a multibranch
 job with main and version-tag discovery. The Docker-capable default agent runs
-pinned Node and Bun versions. Branch checks require no publication credentials.
+pinned Node and Bun versions. Bun is invoked from its temporary installation
+path; the Bun test step sets PATH inside the shell instead of relying on the
+Docker agent inheriting Jenkins PATH overrides. Branch checks require no
+publication credentials.
 
 After checks pass, exact `v<package.json version>` tags publish. A maintainer can
 also run main with `PUBLISH_PACKAGE=true` for the initial release or a deliberate
