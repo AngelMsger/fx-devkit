@@ -5,7 +5,7 @@ pipeline {
         docker {
             label 'default'
             image 'node:24.14.0-bookworm'
-            args '-e HOME=/tmp'
+            args '--init -e HOME=/tmp'
         }
     }
     options {
