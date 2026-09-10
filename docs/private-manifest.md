@@ -38,6 +38,8 @@ not defaults for a real organization. Repository and service identifiers can dif
 set `obs.svc` explicitly when needed. The legacy `fx-` service-name convention is
 retained for compatibility, without requiring that convention in new manifests.
 
-Private registry distribution remains supported and guarded by FX_REGISTRY. An
-open-source license for the toolkit is independent of access to the manifest,
-private packages or connected services.
+The planned public npm package does not require private registry access. Teams
+may still use private manifests, companion packages and services independently.
+The current fx publishing and self-update implementation still needs the
+[registry transition](design/registry-configuration.md). The toolkit uses [Apache-2.0](../LICENSE); its license does not grant access to
+private manifests or connected services.

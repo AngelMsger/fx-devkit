@@ -1,0 +1,192 @@
+{
+  "heroAudience": "FOR HUMANS. FOR AGENTS.",
+  "preRelease": "PRE-RELEASE",
+  "heroMany": "Many repos.",
+  "heroOne": "One ",
+  "heroWorkspace": "workspace.",
+  "heroLead": "Your repositories, tools, and coding agents.<br />Finally speaking the same language.",
+  "heroDetail": "fx turns a shared manifest into a working environment.<br class=\"desktop-break\" /> Know what’s here. Know what’s ready. Get to work.",
+  "readDocs": "Read the docs",
+  "seeAction": "See it in action",
+  "installNote": "Public npm release in preparation.",
+  "releaseLink": "Track release readiness ↗",
+  "copy": "Copy",
+  "copyInstall": "Copy install command",
+  "demo": "EXAMPLE",
+  "demoLabel": "Command examples",
+  "terminalFoot": "DECLARATIVE IN. PREDICTABLE OUT.",
+  "terminalCaption": "ONE MANIFEST → YOUR ENTIRE WORKSPACE",
+  "baseline": "BUILT FOR THE WAY ENGINEERS WORK",
+  "jsonNative": "JSON-native",
+  "manifestDriven": "Manifest-driven",
+  "principlesKicker": "01 / LESS GLUE. MORE BUILDING.",
+  "principlesTitle": "Context is infrastructure.",
+  "principlesLead": "Stop rebuilding the same mental map.<br />Give your team—and your agents—a shared one.",
+  "declareTitle": "Declare it once.",
+  "declareBody": "Repositories, tools, owners, environments. Shared facts in a versioned manifest. Personal choices stay on your machine.",
+  "declareLink": "Explore the manifest",
+  "flowTitle": "Keep your flow.",
+  "flowBody": "Clone what’s missing. Update what’s clean. Dirty branches and unfinished work remain exactly where you left them.",
+  "flowLink": "Understand workspace sync",
+  "agentTitle": "Give agents context.",
+  "agentBody": "Structured answers, shared Skills, and explicit handoffs. Your agent can discover what to do—and what needs you.",
+  "agentLink": "Read the agent contract",
+  "architectureKicker": "02 / YOUR STACK. CONNECTED.",
+  "architectureTitle": "One source of truth.<br />Zero black boxes.",
+  "architectureBody": "fx orchestrates your workspace. Your tools keep their jobs: authentication, service APIs, and access control.",
+  "underHood": "Under the hood ↗",
+  "mapLabel": "A team manifest flows through fx into repositories, tools and coding agents",
+  "input": "INPUT",
+  "sharedFacts": "shared facts + local choices",
+  "orchestrate": "ORCHESTRATE",
+  "repositories": "Repositories",
+  "companionCLIs": "Companion CLIs",
+  "codingAgents": "Coding agents",
+  "closingKicker": "03 / START WITH YOUR WORKSPACE",
+  "closingTitle": "Make yourself<br /><span class=\"accent\">at ~/home.</span>",
+  "closingBody": "Bring an existing manifest.<br />Or build your first one in a few steps.",
+  "buildWorkspace": "Build your workspace",
+  "closingNote": "Your code. Your tools. Your context.",
+  "siteTitle": "Many repos. One workspace.",
+  "siteDescription": "A shared workspace for repositories, tools, and coding agents.",
+  "skip": "Skip to content",
+  "home": "fx-devkit home",
+  "mainNav": "Main navigation",
+  "why": "Why fx",
+  "docs": "Docs",
+  "changelog": "Changelog",
+  "getStarted": "Get started",
+  "footer": "Made for people who build.",
+  "architecture": "Architecture",
+  "releaseStatus": "Release status",
+  "pause": "Pause motion",
+  "resume": "Resume motion",
+  "reduced": "Reduced motion",
+  "copied": "Copied to clipboard",
+  "copyFallback": "Text selected. Use your keyboard to copy.",
+  "copyCode": "Copy code block",
+  "table": "Scrollable reference table",
+  "docMenu": "Documentation menu",
+  "onPage": "ON THIS PAGE",
+  "top": "Back to top ↑",
+  "previous": "← PREVIOUS",
+  "next": "NEXT →",
+  "source": "SOURCE",
+  "docKicker": "FX-DEVKIT / DOCUMENTATION",
+  "language": "Language",
+  "englishReference": "English reference",
+  "fallback": "This technical reference is currently maintained in English.",
+  "original": "Read the English source ↗",
+  "notFound": "Page not found",
+  "notFoundTitle": "This path is untracked.",
+  "notFoundBody": "The page may have moved. Start again from the documentation.",
+  "groups": {
+    "Start here": "Start here",
+    "Reference": "Reference",
+    "Architecture": "Architecture",
+    "Project": "Project",
+    "Contributing": "Contributing"
+  },
+  "pages": {
+    "docs/": {
+      "title": "Introduction",
+      "description": "A shared map for your repositories, tools, and coding agents."
+    },
+    "docs/getting-started/": {
+      "title": "Getting started",
+      "description": "Install fx, connect a manifest, and make your workspace ready."
+    },
+    "docs/manifest-guide/": {
+      "title": "Your first manifest",
+      "description": "Start small. Declare your repositories, then connect the rest of your stack."
+    },
+    "docs/private-manifest/": {
+      "title": "Public & private",
+      "description": "Share the toolkit. Keep your team’s operational context where it belongs."
+    },
+    "docs/cli/": {
+      "title": "CLI commands",
+      "description": "Every command, argument, and flag. Generated directly from the CLI."
+    },
+    "docs/agent-skill/": {
+      "title": "Agent Skill",
+      "description": "Discovery, trust, readiness, and recovery for coding agents."
+    },
+    "docs/agent-commands/": {
+      "title": "Response contracts",
+      "description": "Read structured output without losing the distinctions that matter."
+    },
+    "docs/design/": {
+      "title": "Overview",
+      "description": "How fx connects shared declarations to local workflows."
+    },
+    "docs/design/runtime/": {
+      "title": "Runtime & commands",
+      "description": "Output, configuration, trust, and process lifetimes."
+    },
+    "docs/design/setup/": {
+      "title": "Setup & readiness",
+      "description": "Explicit setup steps. Evidence-backed readiness."
+    },
+    "docs/design/import/": {
+      "title": "Importing repositories",
+      "description": "Turn existing checkouts into a reviewed workspace declaration."
+    },
+    "docs/design/harness/": {
+      "title": "MCP & rules",
+      "description": "Project team context into native agent hosts with clear ownership."
+    },
+    "docs/design/lifecycle/": {
+      "title": "Lifecycle hooks",
+      "description": "Bounded background refresh, without interrupting your work."
+    },
+    "docs/design/source-contributions/": {
+      "title": "Source contributions",
+      "description": "Contribute shared knowledge through a verified personal fork."
+    },
+    "docs/design/probe-recording/": {
+      "title": "Probe recording",
+      "description": "Record dated evidence of platform coordinates."
+    },
+    "docs/design/windows/": {
+      "title": "Windows",
+      "description": "Native platform behavior and explicit acceptance limits."
+    },
+    "docs/design/registry-configuration/": {
+      "title": "Registry transition",
+      "description": "The public npm target and the implementation work still required."
+    },
+    "docs/public-release/": {
+      "title": "Release readiness",
+      "description": "Distribution decisions and checks for the first public release."
+    },
+    "docs/validation/": {
+      "title": "Validation",
+      "description": "What the checks prove, and where real-world evidence is still needed."
+    },
+    "docs/eval/": {
+      "title": "Agent evaluation",
+      "description": "Reusable evaluation protocols with private case data."
+    },
+    "docs/eval/handover/": {
+      "title": "Evaluation handover",
+      "description": "Prepare and review a bounded agent evaluation."
+    },
+    "docs/roadmap/": {
+      "title": "Roadmap",
+      "description": "Potential extensions, clearly separated from current capabilities."
+    },
+    "docs/changelog/": {
+      "title": "Changelog",
+      "description": "Changes to the fx workspace CLI."
+    },
+    "docs/contributing/": {
+      "title": "Engineering guide",
+      "description": "Repository boundaries, verification, and documentation responsibilities."
+    },
+    "docs/website/": {
+      "title": "Website maintenance",
+      "description": "Build and maintain the static homepage and documentation."
+    }
+  }
+}

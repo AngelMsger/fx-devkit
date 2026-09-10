@@ -1,6 +1,8 @@
 # Documentation
 
+- [Website maintenance](website/README.md): static homepage, generated docs and local preview.
 - [Getting started](../README.md): installation, concepts and common workflows.
+- [Manifest guide](manifest-guide.md): create a first source or import existing checkouts.
 - [CLI reference](cli/README.md): generated syntax and flags.
 - [Agent Skill](../skills/fx-workspace/SKILL.md): task routing and response interpretation.
 - [Architecture](design/README.md): implementation contracts and extension boundaries.

@@ -1,55 +1,69 @@
-# Registry configuration boundary
+# Package registry transition
 
-The generic repository and package contain no team registry coordinate.
-`FX_REGISTRY` supplies that non-secret coordinate to runtime update checks,
-self information, self update and the CI publishing entry point. Missing,
-malformed, credential-bearing or known public-registry URLs are refused or
-reported as unavailable; there is no implicit public fallback.
+The public release of `@angelmsger/fx` is intended to use public npm without a
+private registry prerequisite. This page separates that target from the current
+implementation so installation guidance does not imply that publishing and
+self-update have already been migrated.
 
-The policy is a small JavaScript module under adapters/registry so the runtime
-and pre-build guard execute the same policy. TypeScript checks it through JSDoc
-and includes it in dist. It has no IO or dependencies on another application
-layer. Update cache keys include the package and registry identity.
+## Public-release target
 
-## Publishing
+- Install with `npm install -g @angelmsger/fx` from public npm.
+- Use `https://registry.npmjs.org/` for metadata lookup and self-update when
+  `FX_REGISTRY` is unset. Keep an explicit registry override for mirrors and
+  teams that choose their own distribution endpoint.
+- Publish the scoped package with public access through the controlled publishing
+  entry point. No team registry address belongs in package metadata.
+- Keep npm authentication with npm. `FX_REGISTRY_TOKEN`, when used for metadata
+  queries, is not a publishing credential configuration.
 
-CI must supply FX_REGISTRY and npm authentication through its own configuration.
-The existing tag-only Jenkins stage invokes `node scripts/publish.mjs`; this
-change does not authorize creating a tag or publishing a build.
+npm documents [registry selection](https://docs.npmjs.com/cli/v11/using-npm/registry/)
+and [publishConfig](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#publishconfig).
+Scoped registry settings can redirect a package independently of the general
+registry. Explicit install or publishing vectors must select both when pinning a
+target.
 
-The wrapper accepts only an optional --dry-run. It fixes both the general npm
-registry and the package's scoped registry, enables lifecycle guards explicitly,
-and runs from this repository. It never rewrites package.json with an address.
-The prepublish guard refuses direct npm publish, embedded registry metadata and
-mismatched targets. This prevents accidental routing through ambient npm settings;
-like any lifecycle guard, it is not a security boundary against someone deliberately
-bypassing the repository's publishing procedure.
+## Current implementation and required changes
 
-This distinction matters because npm's registry selection prefers a scoped
-registry over the general registry, and its lifecycle environment export omits
-scoped keys. The installed npm 11.9.0 source and a read-only `npm config get`
-experiment confirmed that explicitly setting both CLI options selects the intended
-scope target. Tests invoke a fake npm executable and never publish to a server.
+| Area                | Current checkout                                                                                  | Required for public npm                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Shared policy       | `src/adapters/registry/registry-policy.js` rejects missing values and known public registry hosts | Accept public npm and define the default separately from URL validation                 |
+| Runtime             | `configuredRegistry` returns null without a private `FX_REGISTRY`                                 | Resolve the public default for info, metadata checks and self-update                    |
+| Publication         | `scripts/publish.mjs` and `scripts/guard-registry.mjs` require a private registry                 | Permit the public target while retaining wrapper and target-consistency checks          |
+| Package access      | `publishConfig.access` is `public`                                                                | Configured; verify publishing credentials and scope access                              |
+| Help and recovery   | `self update`, doctor and the bundled Skill request a private coordinate                          | Describe the public default and recovery from an invalid override                       |
+| Regression coverage | Registry and publishing tests expect public npm to be rejected                                    | Cover the default, explicit public/private overrides, unsafe URLs and target mismatches |
 
-`check-package.mjs` derives coverage from package.json's files list and implicit
-package metadata/readme/license files. It invokes the shared boundary scanner on
-those paths, including source maps. Missing or unsupported paths fail instead of
-silently disappearing from coverage.
+Change these together before advertising self-update as ready for public npm.
+Keep malformed URLs, embedded credentials, query strings and fragments rejected.
+An invalid explicit override should produce an actionable configuration error,
+not silently send requests to a different registry. Review metadata-token routing
+when changing the default so a legacy private token is not forwarded to public npm.
 
-## Runtime and installation
+## Controls to preserve
 
-Obtain the private coordinate from the team's manifest or onboarding instructions.
-Keep it in the shell, agent or CI environment. Do not commit its value here.
-For example, replace the example address before using:
+The shared JavaScript policy is used by both pre-build scripts and compiled
+runtime adapters. Update cache keys include package and registry identity.
 
-```sh
-export FX_REGISTRY='https://npm.example.com/'
-npm install -g @angelmsger/fx --registry="$FX_REGISTRY" --@angelmsger:registry="$FX_REGISTRY"
-fx self info --format json
-fx self update --dry-run --format json
-```
+The publishing wrapper accepts only an optional `--dry-run`, pins both general
+and scoped npm registry options, enables lifecycle checks and runs from this
+repository. The lifecycle guard rejects direct publication, embedded registry
+metadata and mismatched targets. It prevents accidental routing through ambient
+settings; it is not a security boundary against deliberate lifecycle bypass.
+Publishing tests use a fake npm executable and do not publish to a server.
 
-npm manages installation/publishing authentication. FX_REGISTRY_TOKEN optionally
-supplies authentication for fx's read-only metadata query and is never persisted.
-It is not an npm login setting. Source PRs and probe recording are independent
-of this package publishing configuration.
+`check-package.mjs` derives scan coverage from the package file list and implicit
+metadata/readme/license files, including source maps. Missing or unsupported
+paths fail instead of disappearing from coverage.
+
+## Existing private installations
+
+Until the transition is implemented, existing users can continue supplying their
+team's private `FX_REGISTRY` for self-update. This compatibility path is not a
+prerequisite for the planned public installation. Keep team coordinates outside
+this repository.
+
+npm owns installation and publishing authentication. The current metadata reader
+uses `FX_REGISTRY_TOKEN` when present, otherwise a matching token from `~/.npmrc`.
+It does not persist the environment token. Manifest source access, companion
+package installers and source pull requests have separate configuration; changing
+fx's package registry must not redirect them.

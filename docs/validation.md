@@ -10,18 +10,23 @@ Use the development runtime versions from `package.json`:
 
 ```sh
 npm ci
+npm --prefix docs/website ci
 npm run lint
 npm run typecheck
 npm test
 npm run test:bun
 npm run test:e2e
 npm run docs:check
+npm run site:build
+npm run site:check
 node scripts/check-package.mjs
 ```
 
 The unit suite covers domain decisions and application workflows with injected
 ports. E2e tests run the built CLI with temporary configuration and repository
 fixtures. The CLI documentation check rebuilds before comparing generated help.
+The website build renders the canonical Markdown; its check rejects stale sources,
+broken page/anchor links and missing assets. See the [website guide](website/README.md).
 The package check scans the declared distributable paths, including the bundled
 Skill and public entry documents.
 
@@ -70,6 +75,7 @@ using an organization's actual topology or identifiers.
 Removing a file from the working tree does not erase earlier commits. A public
 source snapshot can omit `.git` entirely and begin a new public history. Preserve
 the private original; rewriting or publishing that history is a separate action.
-An open-source release also requires an explicitly selected license and review
-of third-party notices. Public source does not require publishing the team's
-manifest or changing its private package distribution policy.
+Apache-2.0 is selected for this project. Release review still includes
+third-party notices and the license text in the actual distribution. The public npm release does not publish the team's manifest or change the
+distribution policy of companion packages. Track fx's own registry migration in
+the [public release checklist](public-release.md).

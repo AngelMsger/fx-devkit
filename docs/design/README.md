@@ -65,7 +65,7 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | [Windows](windows.md)                               | Native process/filesystem adapters, terminal and host protocols    |
 | [Source contributions](source-contributions.md)     | Candidate validation, source isolation, fork/PR recovery           |
 | [Probe recording](probe-recording.md)               | Conditional recording of dated coordinate evidence                 |
-| [Registry configuration](registry-configuration.md) | Private package lookup and publication boundaries                  |
+| [Registry configuration](registry-configuration.md) | Public npm transition and current distribution boundaries          |
 
 [CLI reference](../cli/README.md) owns command syntax; the shipped
 [Skill command guide](../../skills/fx-workspace/references/commands.md) explains

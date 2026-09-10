@@ -22,6 +22,7 @@ pipeline {
         stage('Install') {
             steps {
                 sh 'npm ci'
+                sh 'npm --prefix docs/website ci'
                 sh 'command -v bun || curl -fsSL https://bun.sh/install | bash'
             }
         }
@@ -31,6 +32,8 @@ pipeline {
                 sh 'npm run typecheck'
                 sh 'npm run build'
                 sh 'npm run docs:check'
+                sh 'npm run site:build'
+                sh 'npm run site:check'
             }
         }
         stage('Test') {

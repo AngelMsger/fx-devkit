@@ -141,6 +141,14 @@ internal coordinates under their separate scanner policy; credential/personnel
 protections are not relaxed. Exported profiles carry settings and personal
 layers, never trust records, caches, manifest clones or credentials.
 
+Public package metadata follows the `oa-cli` convention: repository
+`https://github.com/AngelMsger/fx-devkit`, homepage
+`https://angelmsger.github.io/fx-devkit/`, and the repository's `/issues` page.
+These coordinates were inferred for publication; they do not prove provisioning
+or deployment. Use Apache-2.0 consistently in package metadata, lockfiles and
+license documentation, and include the full root LICENSE in distribution checks.
+Keep npm-facing README links usable without shipping the documentation toolchain.
+
 Registry coordinates come from `FX_REGISTRY`, not package metadata. Keep the
 shared registry policy as the checked JavaScript implementation used by scripts
 and compiled adapters. Publishing uses `scripts/publish.mjs`; the lifecycle guard
@@ -169,10 +177,57 @@ this repository. Preserve their originals in the team's private evidence store.
 Public validation notes describe scope and limits without identifying deployments,
 accounts or business repositories.
 
+## Public website and documentation consistency
+
+`docs/website/` owns the static homepage and documentation presentation. Its build
+renders the canonical README, public `docs/`, bundled Skill and contributor
+references selected in `docs/website/pages.mjs`; do not maintain a second copy of
+feature documentation or edit generated `docs/website/dist/` files.
+
+Every feature addition, behavior change, removal or design-contract update MUST
+update the affected external documentation in the same change. This includes
+commands/flags, configuration/defaults, output/error contracts, setup steps,
+compatibility/support boundaries and deprecations. A task is not complete while
+implementation, design documents and public guidance disagree. For intentional
+future designs, label them as planned and retain an accurate description of
+current behavior rather than advertising unfinished work as available.
+
+Update README and the owning public guide first; update homepage claims in
+`docs/website/src/home.html` and navigation/descriptions in `docs/website/pages.mjs` when
+affected. Regenerate `docs/cli/README.md` from command definitions for CLI changes.
+If a change has no external impact, state why in its delivery or PR description.
+
+Run `npm run docs:check`, `npm run site:build` and `npm run site:check` before
+delivering affected changes. The website check verifies source freshness,
+generated routes, internal links/anchors, local assets and JavaScript syntax.
+GitHub Pages (including repository subpaths) is the deployment baseline. Keep
+`SITE_BASE_PATH`, locale routes, assets, 404 navigation and canonical/hreflang URLs
+consistent. The GitHub workflow validates root and subpath builds; PRs never deploy.
+Do not introduce a proprietary hosting dependency or a server-side runtime.
+
+The public site supports English, Japanese, Simplified Chinese and Traditional
+Chinese (`en`, `ja`, `zh-Hans`, `zh-Hant`). English is the default UI language
+and the technical source. The site root and unprefixed documentation routes must
+serve English. Keep `x-default` pointing to English; do not auto-redirect based on
+browser language, location or stored preferences. Other languages require an
+explicit locale URL or language-menu selection.
+Update localized guides and UI catalogs alongside affected English changes;
+review and update `docs/website/i18n/translations.json` source digests only after
+checking translation accuracy. Never bump digests merely to make CI pass.
+Untranslated references must have an explicit English notice and `lang="en"`,
+not silently appear as translated content. Commands, flags, identifiers and real
+CLI output stay verbatim. Preserve the current page when switching languages.
+
+Keep the site static, accessible, responsive and respectful of reduced-motion
+preferences. Website dependencies and output remain separate from the CLI npm
+package. Public pages must not include private manifests, real coordinates,
+credentials or live evaluation evidence.
+
 ## Verification and delivery
 
 Run the nearest meaningful regression tests while iterating, then the required
-gates before delivery:
+gates before delivery. Install website build dependencies with
+`npm --prefix docs/website ci` after the root dependency install:
 
 ```text
 npm run lint
@@ -181,6 +236,8 @@ npm test
 npm run test:bun
 npm run test:e2e
 npm run docs:check
+npm run site:build
+npm run site:check
 node scripts/check-package.mjs
 ```
 

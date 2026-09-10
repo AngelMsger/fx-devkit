@@ -5,13 +5,16 @@ repositories, configure companion CLIs, equip coding agents, and discover where
 to investigate a service. People use readable output; agents use structured
 results with explicit readiness and recovery steps.
 
-The project is `fx-devkit`. Its target npm package is `@angelmsger/fx`, providing
+The project is `fx-devkit`. Its npm package name is `@angelmsger/fx`, providing
 the `fx` command.
-Public distribution is being prepared; see the [release checklist](docs/public-release.md).
+Public npm distribution is being prepared; it will not require a private registry.
+The current checkout still has distribution blockers listed in the
+[release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/).
 
 ## Contents
 
-- [Requirements and installation](#requirements)
+- [Requirements](#requirements)
+- [Installation](#install)
 - [Quick start](#quick-start)
 - [Concepts](#concepts)
 - [Commands](#commands)
@@ -24,7 +27,7 @@ Public distribution is being prepared; see the [release checklist](docs/public-r
 The intended users are engineering team members and the coding agents assisting
 them. The source can be shared independently of operational data: each team keeps
 its manifest, ownership, service coordinates and access configuration private.
-See [the public/private boundary](docs/private-manifest.md).
+See [the public/private boundary](https://angelmsger.github.io/fx-devkit/docs/private-manifest/).
 
 Repository URLs, ownership, environment coordinates and tool requirements belong
 in one shared manifest. Personal selections and credentials belong on each
@@ -35,48 +38,83 @@ Git operations or taking over the companion tools' service APIs.
 
 - Node.js ≥22 (development uses Node 24), or Bun as an alternative runtime.
 - Git on PATH. Companion CLIs can be installed afterward through `fx tool install`.
-- Access to the team's manifest and its documented installation source.
+- A manifest source: use your team's repository or [create your own](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/).
+- npm for global installation and `fx self update`, including when using Bun.
 
 macOS and Linux are supported. Native Windows adapters are implemented, but
 Windows execution and real host activation remain unverified. Windows targets
 PowerShell 5.1/7 and cmd on local NTFS, without requiring WSL, Git Bash,
-administrator privileges or Developer Mode. See [acceptance limits](docs/design/windows.md).
+administrator privileges or Developer Mode. See [acceptance limits](https://angelmsger.github.io/fx-devkit/docs/design/windows/).
 
 ## Install
 
-Get the registry coordinate and publication status from the manifest source
-README. A version in this repository is not evidence that its package is published.
-The following coordinate is an example:
+The planned public release installs from npm without team registry configuration:
 
 ```sh
-export FX_REGISTRY='https://npm.example.com/'
-npm install -g @angelmsger/fx --registry="$FX_REGISTRY" --@angelmsger:registry="$FX_REGISTRY"
+npm install -g @angelmsger/fx
 fx --version
+```
+
+This is the installation path for the public release, not a claim that the
+package is already available. Until the [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/)
+is complete, run the source checkout as described below.
+
+If your npm configuration redirects the `@angelmsger` scope to an old registry,
+explicitly select public npm for this installation:
+
+```sh
+npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
 ```
 
 In PowerShell, use `.cmd` entries if local policy prevents running npm's `.ps1`
 shims; fx does not require changing that policy:
 
 ```powershell
-$env:FX_REGISTRY = 'https://npm.example.com/'
-npm.cmd install -g @angelmsger/fx --registry=$env:FX_REGISTRY --@angelmsger:registry=$env:FX_REGISTRY
+npm.cmd install -g @angelmsger/fx
 fx.cmd --version
 ```
 
-From a source checkout, install dependencies and build, then invoke
-`node bin/fx.js`. This uses the same CLI without a global installation.
+### Run from source
+
+In the fx-devkit checkout, using the development versions in `package.json`:
+
+```sh
+npm ci
+npm run build
+node bin/fx.js --help
+node bin/fx.js --version
+```
+
+In the examples below, replace `fx` with `node /absolute/path/to/fx-devkit/bin/fx.js`
+when running from source. Building is required because the launcher loads `dist/`.
+
+### Updates
+
+`fx self info --format json` reports the runtime and effective update registry.
+The public-release target is public npm by default, with no required `FX_REGISTRY`.
+The current implementation still requires a private registry for update checks
+and `fx self update`; see the [registry transition](https://angelmsger.github.io/fx-devkit/docs/design/registry-configuration/).
+A source checkout is updated through Git and rebuilt with `npm ci` and
+`npm run build`; `self update` installs the global npm package.
 
 ## Quick start
 
-Create a workspace from the source your team supplies:
+Create a workspace from the source your team supplies. If you do not have one,
+start with the [manifest guide](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/). Replace angle-bracket
+placeholders before running commands:
 
 ```sh
+fx init ./work --from <manifest-repository> --dry-run
 fx init ./work --from <manifest-repository>
 cd work
 fx login --list
 fx login
 fx doctor
 ```
+
+`init` also synchronizes repositories and selected agent resources. Registration
+can succeed while some synchronization stages fail; inspect the reported failures
+and retry the relevant stages after resolving access or setup.
 
 Initialization can adopt an existing directory; `--adopt` is retained for
 compatibility and is no longer required. Inspect the plan with `--dry-run`
@@ -115,8 +153,8 @@ resetting or stashing it.
 
 The manifest's workspace, environments, tools and members documents describe
 shared facts; optional harness declarations describe MCP resources and rules.
-Use `fx manifest explain <path>` or `fx manifest schema --kind <kind>` to inspect
-fields. [Architecture](docs/design/README.md) explains their relationships.
+Use `fx manifest explain '<path>'` or `fx manifest schema --kind <kind>` to inspect
+fields. [Architecture](https://angelmsger.github.io/fx-devkit/docs/design/) explains their relationships.
 
 ### Your personal layer
 
@@ -153,21 +191,21 @@ and `sync --only skills` to reconcile it.
 Harness declarations project owned MCP entries and rule pointers into selected
 hosts. Secret values remain environment references. `mcp list/show` and
 `can mcp:<name>` explain prerequisites; a correct configuration does not prove
-native host activation. See [harness contracts](docs/design/harness.md).
+native host activation. See [harness contracts](https://angelmsger.github.io/fx-devkit/docs/design/harness/).
 
 ### Workspace lifecycle
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
 project and hook trust remain owned by the host. Use `hook list`, `hook inject`
-and `hook remove`; [lifecycle](docs/design/lifecycle.md) describes the boundaries.
+and `hook remove`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/design/lifecycle/) describes the boundaries.
 
 ### Shared source contributions
 
 `source push` previews or submits selected source changes while preserving the
 source checkout's HEAD, index and working files. It requires evidence of a personal
 fork and its upstream relationship. Inspect `fx source push --help` and the
-[source contract](docs/design/source-contributions.md) before an actual submission.
+[source contract](https://angelmsger.github.io/fx-devkit/docs/design/source-contributions/) before an actual submission.
 
 ## Commands
 
@@ -189,7 +227,7 @@ Daily workflows remain top-level; resource operations live under a noun:
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid
 selectors produce structured errors. The
-[generated CLI reference](docs/cli/README.md) owns the full syntax and flags.
+[generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) owns the full syntax and flags.
 
 ## For coding agents
 
@@ -213,8 +251,8 @@ handoffs. Read report
 coverage and handoffs instead of treating the exit code as readiness. A missing user step is
 a handoff, never a reason to invent authentication or override host trust.
 
-Use the bundled [fx-workspace Skill](skills/fx-workspace/SKILL.md) and its
-[command guide](skills/fx-workspace/references/commands.md) for response semantics.
+Use the bundled [fx-workspace Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/) and its
+[command guide](https://angelmsger.github.io/fx-devkit/docs/agent-commands/) for response semantics.
 `fx self info --format json` locates the installed Skill. Set `FX_SKILL_LOADED=1`
 after reading it, using your shell's environment syntax. The Skill is shipped in
 the package; source architecture and verification pages are additional references.
@@ -255,7 +293,7 @@ Bash, zsh and fish are also available through `fx completion <shell>`.
 
 Use the versions pinned in package.json. After `npm ci`, the required local gates
 are lint, typecheck, Node/Bun unit tests, e2e, fresh CLI docs checks and the package
-boundary scanner. Read [AGENTS.md](AGENTS.md) for commands and contributor rules.
+boundary scanner. Read [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md) for commands and contributor rules.
 Windows acceptance has its own `npm run check:windows` entry; a POSIX test run is
 not evidence of native Windows behavior.
 
@@ -266,24 +304,33 @@ read-only and require explicit test coordinates: `FX_TEST_BITBUCKET_HOST` and
 `FX_TEST_SENTRY_PROJECT`. Missing coordinates skip those contracts; configured
 but failing access fails them.
 
-Publication is separate from development. Authorized tag builds use
-`scripts/publish.mjs` with runtime registry configuration. Direct publication is
-refused by the guard; see [registry policy](docs/design/registry-configuration.md).
+Publication is separate from development. The current Jenkinsfile publishes on
+`v*` tags through `scripts/publish.mjs`, whose private-only guard still blocks
+public npm. Complete the [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/) before
+using that pipeline for a public release.
+
+## Website
+
+The static homepage and documentation live in `docs/website/`, with English, Japanese,
+Simplified Chinese and Traditional Chinese versions. User guides are localized;
+untranslated technical references are explicitly labeled in the selected language.
+GitHub Pages is the deployment baseline, including repository subpaths.
+Documentation pages are generated from this repository’s Markdown. Run `npm --prefix docs/website ci`,
+`npm run site:build`, then `npm run site:dev` to preview them. See the
+[website guide](https://angelmsger.github.io/fx-devkit/docs/website/) for maintenance and hosting.
 
 ## Documentation
 
-| Audience/question                              | Source                                                     |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| Exact command syntax                           | [Generated CLI reference](docs/cli/README.md) and `--help` |
-| Agent workflow and response interpretation     | [Bundled Skill](skills/fx-workspace/SKILL.md)              |
-| Architecture, boundaries and current behavior  | [Design index](docs/design/README.md)                      |
-| Contributor rules and checks                   | [AGENTS.md](AGENTS.md)                                     |
-| Current delivery evidence and remaining limits | [Validation](docs/validation.md)                           |
-| Release contents                               | [Changelog](CHANGELOG.md)                                  |
+| Audience/question                              | Source                                                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Creating or importing a team manifest          | [Manifest guide](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/)            |
+| Exact command syntax                           | [Generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) and `--help` |
+| Agent workflow and response interpretation     | [Bundled Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/)                |
+| Architecture, boundaries and current behavior  | [Design index](https://angelmsger.github.io/fx-devkit/docs/design/)                      |
+| Contributor rules and checks                   | [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md)                 |
+| Current delivery evidence and remaining limits | [Validation](https://angelmsger.github.io/fx-devkit/docs/validation/)                    |
+| Release contents                               | [Changelog](https://angelmsger.github.io/fx-devkit/docs/changelog/)                      |
 
 ## License
 
-`package.json` currently declares `UNLICENSED`. A repository owner must select
-an open-source license before an open-source release. Source visibility and
-package registry access are separate decisions; the CLI retains its private
-registry publication controls.
+Licensed under the [Apache License, Version 2.0](https://github.com/AngelMsger/fx-devkit/blob/main/LICENSE).

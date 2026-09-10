@@ -1,0 +1,192 @@
+{
+  "heroAudience": "为人，也为 Agent。",
+  "preRelease": "公开发布准备中",
+  "heroMany": "多个仓库，",
+  "heroOne": "一个",
+  "heroWorkspace": "工作区。",
+  "heroLead": "仓库、工具与编码 Agent，<br />终于有了共同语言。",
+  "heroDetail": "fx 将共享 manifest 变成可用的开发环境。<br class=\"desktop-break\" />了解有哪些资源、哪些已就绪，然后开始工作。",
+  "readDocs": "阅读文档",
+  "seeAction": "看看它如何工作",
+  "installNote": "正在准备 npm 公开发布。",
+  "releaseLink": "查看发布准备进度 ↗",
+  "copy": "复制",
+  "copyInstall": "复制安装命令",
+  "demo": "演示示例",
+  "demoLabel": "命令演示",
+  "terminalFoot": "声明式输入。可预期输出。",
+  "terminalCaption": "一份 MANIFEST → 整个工作区",
+  "baseline": "按工程师的工作方式构建",
+  "jsonNative": "原生 JSON",
+  "manifestDriven": "Manifest 驱动",
+  "principlesKicker": "01 / 少写胶水，多做开发。",
+  "principlesTitle": "上下文，也是基础设施。",
+  "principlesLead": "别再反复拼凑同一张工程地图。<br />让团队与 Agent 共享一份。",
+  "declareTitle": "只需声明一次。",
+  "declareBody": "仓库、工具、负责人、环境。共享事实进入版本化的 manifest，个人选择留在本机。",
+  "declareLink": "了解 manifest",
+  "flowTitle": "保持你的节奏。",
+  "flowBody": "克隆缺少的仓库，更新干净的分支。未提交的改动和未完成的工作，都留在原处。",
+  "flowLink": "了解工作区同步",
+  "agentTitle": "给 Agent 足够的上下文。",
+  "agentBody": "结构化回答、共享 Skill、明确的交接步骤。Agent 能发现下一步做什么，以及何时需要你。",
+  "agentLink": "阅读 Agent 使用契约",
+  "architectureKicker": "02 / 连接你的技术栈。",
+  "architectureTitle": "单一事实来源。<br />没有黑箱。",
+  "architectureBody": "fx 编排工作区；认证、服务 API 和访问控制，仍由各自的工具负责。",
+  "underHood": "看看内部设计 ↗",
+  "mapLabel": "团队 manifest 经 fx 编排，连接仓库、工具和编码 Agent",
+  "input": "输入",
+  "sharedFacts": "共享事实 + 个人选择",
+  "orchestrate": "编排",
+  "repositories": "仓库",
+  "companionCLIs": "配套 CLI",
+  "codingAgents": "编码 Agent",
+  "closingKicker": "03 / 从你的工作区开始。",
+  "closingTitle": "让开发<br /><span class=\"accent\">回到 ~/home。</span>",
+  "closingBody": "使用现有 manifest，<br />或用几个步骤创建第一份。",
+  "buildWorkspace": "构建你的工作区",
+  "closingNote": "你的代码。你的工具。你的上下文。",
+  "siteTitle": "多个仓库，一个工作区。",
+  "siteDescription": "连接仓库、工具和编码 Agent 的共享工作区。",
+  "skip": "跳转到正文",
+  "home": "fx-devkit 首页",
+  "mainNav": "主导航",
+  "why": "为什么选择 fx",
+  "docs": "文档",
+  "changelog": "更新日志",
+  "getStarted": "开始使用",
+  "footer": "为构建者而生。",
+  "architecture": "架构",
+  "releaseStatus": "发布状态",
+  "pause": "暂停动效",
+  "resume": "恢复动效",
+  "reduced": "已减少动态效果",
+  "copied": "已复制到剪贴板",
+  "copyFallback": "文本已选中，请使用键盘复制。",
+  "copyCode": "复制代码块",
+  "table": "可滚动的参考表格",
+  "docMenu": "文档目录",
+  "onPage": "本页内容",
+  "top": "返回顶部 ↑",
+  "previous": "← 上一篇",
+  "next": "下一篇 →",
+  "source": "来源",
+  "docKicker": "FX-DEVKIT / 文档",
+  "language": "语言",
+  "englishReference": "英文参考",
+  "fallback": "此技术参考目前以英文维护。",
+  "original": "阅读英文原文 ↗",
+  "notFound": "页面不存在",
+  "notFoundTitle": "这条路径尚未被追踪。",
+  "notFoundBody": "页面可能已移动，请从文档入口重新查找。",
+  "groups": {
+    "Start here": "开始使用",
+    "Reference": "参考",
+    "Architecture": "架构",
+    "Project": "项目",
+    "Contributing": "参与贡献"
+  },
+  "pages": {
+    "docs/": {
+      "title": "简介",
+      "description": "仓库、工具与编码 Agent 的共享工程地图。"
+    },
+    "docs/getting-started/": {
+      "title": "开始使用",
+      "description": "安装 fx、连接 manifest，并准备好你的工作区。"
+    },
+    "docs/manifest-guide/": {
+      "title": "第一份 manifest",
+      "description": "从小规模声明开始，逐步接入工具与环境。"
+    },
+    "docs/private-manifest/": {
+      "title": "公开与私有的边界",
+      "description": "共享工具，妥善保管团队的运维上下文。"
+    },
+    "docs/cli/": {
+      "title": "CLI 命令",
+      "description": "命令、参数与选项，直接从 CLI 自动生成。"
+    },
+    "docs/agent-skill/": {
+      "title": "Agent Skill",
+      "description": "面向编码 Agent 的发现、信任、就绪判断与恢复流程。"
+    },
+    "docs/agent-commands/": {
+      "title": "响应契约",
+      "description": "准确理解结构化输出中的状态与边界。"
+    },
+    "docs/design/": {
+      "title": "架构概览",
+      "description": "fx 如何连接共享声明与本地工作流。"
+    },
+    "docs/design/runtime/": {
+      "title": "运行时与命令",
+      "description": "输出、配置、信任和进程生命周期。"
+    },
+    "docs/design/setup/": {
+      "title": "设置与就绪状态",
+      "description": "明确的准备步骤，基于验证结果的就绪判断。"
+    },
+    "docs/design/import/": {
+      "title": "导入仓库",
+      "description": "将现有 checkout 转为可审阅的工作区声明。"
+    },
+    "docs/design/harness/": {
+      "title": "MCP 与规则",
+      "description": "在明确所有权的前提下向 Agent 宿主投射团队配置。"
+    },
+    "docs/design/lifecycle/": {
+      "title": "生命周期钩子",
+      "description": "限定范围的后台刷新，不打断正在进行的工作。"
+    },
+    "docs/design/source-contributions/": {
+      "title": "共享源贡献",
+      "description": "通过已验证的个人 fork 提交共享知识。"
+    },
+    "docs/design/probe-recording/": {
+      "title": "探测结果记录",
+      "description": "记录带日期的环境坐标验证证据。"
+    },
+    "docs/design/windows/": {
+      "title": "Windows",
+      "description": "原生平台行为与明确的验收限制。"
+    },
+    "docs/design/registry-configuration/": {
+      "title": "Registry 迁移",
+      "description": "公共 npm 发布目标与尚待完成的实现。"
+    },
+    "docs/public-release/": {
+      "title": "发布准备",
+      "description": "首次公开发布所需的决策和检查。"
+    },
+    "docs/validation/": {
+      "title": "验证与支持范围",
+      "description": "自动检查能证明什么，以及仍需实机验证的内容。"
+    },
+    "docs/eval/": {
+      "title": "Agent 评估",
+      "description": "使用私有案例数据的可复用评估协议。"
+    },
+    "docs/eval/handover/": {
+      "title": "评估交接",
+      "description": "准备和审阅范围明确的 Agent 评估。"
+    },
+    "docs/roadmap/": {
+      "title": "路线图",
+      "description": "清楚区分未来可能扩展与当前已有能力。"
+    },
+    "docs/changelog/": {
+      "title": "更新日志",
+      "description": "fx 工作区 CLI 的变化。"
+    },
+    "docs/contributing/": {
+      "title": "工程指南",
+      "description": "仓库边界、验证要求与文档维护责任。"
+    },
+    "docs/website/": {
+      "title": "网站维护",
+      "description": "构建和维护静态官网与多语言文档。"
+    }
+  }
+}

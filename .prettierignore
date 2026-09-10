@@ -4,3 +4,6 @@ package-lock.json
 docs/cli/
 test/fixtures/
 .claude/
+docs/website/dist/
+docs/website/node_modules/
+docs/website/package-lock.json

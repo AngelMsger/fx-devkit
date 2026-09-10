@@ -1,0 +1,165 @@
+<main id="main">
+  <section class="hero shell">
+    <canvas class="workspace-probe" aria-hidden="true"></canvas>
+    <div class="eyebrow">
+      <span class="release-tag">{{preRelease}} / {{version}}</span><span>{{heroAudience}}</span>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <h1>
+          {{heroMany}}<br />{{heroOne}}<span class="accent">{{heroWorkspace}}</span
+          ><span class="cursor" aria-hidden="true">_</span>
+        </h1>
+        <p class="lead">{{heroLead}}</p>
+        <p class="hero-detail">{{heroDetail}}</p>
+        <div class="actions">
+          <a class="button primary" href="./docs/">{{readDocs}} <span aria-hidden="true">↗</span></a
+          ><a class="button secondary" href="#workflow"
+            >{{seeAction}} <span aria-hidden="true">↓</span></a
+          >
+        </div>
+        <div class="install-line">
+          <span class="prompt">$</span><code>npm install -g @angelmsger/fx</code
+          ><button
+            class="copy"
+            data-copy="npm install -g @angelmsger/fx"
+            aria-label="{{copyInstall}}"
+          >
+            {{copy}}
+          </button>
+        </div>
+        <p class="install-note">
+          {{installNote}}
+          <a href="./docs/public-release/">{{releaseLink}}</a>
+        </p>
+      </div>
+      <div class="terminal-wrap" id="workflow">
+        <div class="terminal-orbit" aria-hidden="true"></div>
+        <div class="terminal">
+          <div class="terminal-top">
+            <span class="terminal-controls" aria-hidden="true">● ● ●</span><span>~/work / fx</span
+            ><span class="example-label">{{demo}}</span>
+          </div>
+          <div class="terminal-tabs" role="tablist" aria-label="{{demoLabel}}">
+            <button
+              role="tab"
+              id="tab-sync"
+              aria-controls="terminal-panel"
+              aria-selected="true"
+              data-demo="sync"
+            >
+              01 / sync</button
+            ><button
+              role="tab"
+              id="tab-where"
+              aria-controls="terminal-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-demo="where"
+            >
+              02 / where</button
+            ><button
+              role="tab"
+              id="tab-agent"
+              aria-controls="terminal-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-demo="agent"
+            >
+              03 / agents
+            </button>
+          </div>
+          <div id="terminal-panel" role="tabpanel" aria-labelledby="tab-sync" tabindex="0">
+            <div class="terminal-command"><span>❯</span> fx sync --dry-run</div>
+            <pre class="terminal-output"><span class="muted">Reading workspace manifest…</span>
+
+<span class="lime">✓</span> example-api       fast-forward
+<span class="lime">✓</span> example-web       up to date
+<span class="amber">↳</span> example-worker    skip · dirty
+
+<span class="muted">docs       skills       hooks</span>
+  ready      ready        ready
+
+<span class="lime">Plan ready.</span> Your changes stay yours.
+<span class="muted">Dry run. No files changed.</span></pre>
+          </div>
+          <div class="terminal-foot">
+            <span>{{terminalFoot}}</span><span aria-hidden="true">⌘</span>
+          </div>
+        </div>
+        <div class="terminal-caption">
+          <span class="cross" aria-hidden="true">+</span
+          ><span data-probe-readout aria-hidden="true">{{terminalCaption}}</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-baseline">
+      <span>{{baseline}}</span>
+      <div><span>Node.js ≥22</span><span>{{jsonNative}}</span><span>{{manifestDriven}}</span></div>
+    </div>
+  </section>
+  <section class="principles shell" id="capabilities">
+    <div class="section-heading">
+      <span class="eyebrow">{{principlesKicker}}</span>
+      <h2>{{principlesTitle}}</h2>
+      <p>{{principlesLead}}</p>
+    </div>
+    <div class="feature-grid">
+      <a class="feature" href="./docs/getting-started/#the-workspace-and-the-manifest"
+        ><span class="feature-number">[ 01 ]</span>
+        <div class="feature-icon" aria-hidden="true">{ }</div>
+        <h3>{{declareTitle}}</h3>
+        <p>{{declareBody}}</p>
+        <span class="feature-link">{{declareLink}} <span>↗</span></span></a
+      >
+      <a class="feature" href="./docs/agent-skill/#what-sync-will-and-will-not-do"
+        ><span class="feature-number">[ 02 ]</span>
+        <div class="feature-icon" aria-hidden="true">git ↳</div>
+        <h3>{{flowTitle}}</h3>
+        <p>{{flowBody}}</p>
+        <span class="feature-link">{{flowLink}} <span>↗</span></span></a
+      >
+      <a class="feature" href="./docs/agent-skill/"
+        ><span class="feature-number">[ 03 ]</span>
+        <div class="feature-icon" aria-hidden="true">&gt;_</div>
+        <h3>{{agentTitle}}</h3>
+        <p>{{agentBody}}</p>
+        <span class="feature-link">{{agentLink}} <span>↗</span></span></a
+      >
+    </div>
+  </section>
+  <section class="architecture shell">
+    <div class="architecture-copy">
+      <span class="eyebrow">{{architectureKicker}}</span>
+      <h2>{{architectureTitle}}</h2>
+      <p>{{architectureBody}}</p>
+      <a class="text-link" href="./docs/design/">{{underHood}}</a>
+    </div>
+    <div class="system-map" aria-label="{{mapLabel}}">
+      <div class="map-source">
+        <span class="muted">{{input}}</span><code>workspace.yaml</code
+        ><span class="muted">{{sharedFacts}}</span>
+      </div>
+      <div class="map-line" aria-hidden="true"></div>
+      <div class="map-core">f<span>x</span><small>{{orchestrate}}</small></div>
+      <div class="map-branches" aria-hidden="true"></div>
+      <div class="map-targets">
+        <span>{{repositories}}</span><span>{{companionCLIs}}</span><span>{{codingAgents}}</span>
+      </div>
+    </div>
+  </section>
+  <section class="closing shell">
+    <div>
+      <span class="eyebrow">{{closingKicker}}</span>
+      <h2>{{closingTitle}}</h2>
+    </div>
+    <div class="closing-right">
+      <p>{{closingBody}}</p>
+      <a class="button primary" href="./docs/manifest-guide/"
+        >{{buildWorkspace}} <span aria-hidden="true">↗</span></a
+      ><span class="muted mono">{{closingNote}}</span>
+    </div>
+  </section>
+</main>
+
+<script src="./assets/probe.js" defer></script>

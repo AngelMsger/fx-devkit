@@ -1,0 +1,192 @@
+{
+  "heroAudience": "人にも、エージェントにも。",
+  "preRelease": "公開準備中",
+  "heroMany": "リポジトリを、",
+  "heroOne": "ひとつの",
+  "heroWorkspace": "ワークスペースに。",
+  "heroLead": "リポジトリ、ツール、コーディングエージェント。<br />共通のコンテキストで、同じ方向へ。",
+  "heroDetail": "共有マニフェストから、使える開発環境へ。<br class=\"desktop-break\" />何があり、何が使えるかを知って、開発を始めよう。",
+  "readDocs": "ドキュメントを読む",
+  "seeAction": "動作を見る",
+  "installNote": "npm での一般公開に向けて準備中です。",
+  "releaseLink": "公開までの状況 ↗",
+  "copy": "コピー",
+  "copyInstall": "インストールコマンドをコピー",
+  "demo": "実行例",
+  "demoLabel": "コマンドの実行例",
+  "terminalFoot": "宣言的な入力。予測できる出力。",
+  "terminalCaption": "ひとつのマニフェスト → ワークスペース全体",
+  "baseline": "エンジニアの仕事の流れに合わせて",
+  "jsonNative": "JSON ネイティブ",
+  "manifestDriven": "マニフェスト駆動",
+  "principlesKicker": "01 / つなぎ込みを減らし、開発に集中。",
+  "principlesTitle": "コンテキストも、インフラだ。",
+  "principlesLead": "同じ情報を何度も調べ直さない。<br />チームとエージェントに、共通の地図を。",
+  "declareTitle": "一度の宣言で。",
+  "declareBody": "リポジトリ、ツール、担当者、環境。共有情報はバージョン管理したマニフェストへ。個人の設定は手元に。",
+  "declareLink": "マニフェストを知る",
+  "flowTitle": "作業の流れを守る。",
+  "flowBody": "足りないものをクローンし、安全なものを更新。未コミットの変更や作業中のブランチは、そのままに。",
+  "flowLink": "同期の仕組みを読む",
+  "agentTitle": "エージェントにも地図を。",
+  "agentBody": "構造化された応答、共有 Skill、明確な引き継ぎ。エージェントは次の操作と、人の判断が必要な場面を見つけられます。",
+  "agentLink": "エージェント向け契約を読む",
+  "architectureKicker": "02 / ツールをつなぎ、役割を保つ。",
+  "architectureTitle": "情報源はひとつ。<br />仕組みは透明に。",
+  "architectureBody": "fx はワークスペースを調整します。認証、サービス API、アクセス制御は、それぞれのツールが担います。",
+  "underHood": "内部の仕組み ↗",
+  "mapLabel": "チームのマニフェストから fx を通じてリポジトリ、ツール、エージェントを構成",
+  "input": "入力",
+  "sharedFacts": "共有情報 + 個人の選択",
+  "orchestrate": "編成",
+  "repositories": "リポジトリ",
+  "companionCLIs": "連携 CLI",
+  "codingAgents": "コーディングエージェント",
+  "closingKicker": "03 / あなたのワークスペースから。",
+  "closingTitle": "ここを、<br /><span class=\"accent\">あなたの ~/home に。</span>",
+  "closingBody": "既存のマニフェストを使う。<br />または、最初の一つをここから作る。",
+  "buildWorkspace": "ワークスペースを作る",
+  "closingNote": "あなたのコード。ツール。コンテキスト。",
+  "siteTitle": "リポジトリを、ひとつのワークスペースに。",
+  "siteDescription": "リポジトリ、ツール、エージェントのための共有ワークスペース。",
+  "skip": "本文へ移動",
+  "home": "fx-devkit ホーム",
+  "mainNav": "メインナビゲーション",
+  "why": "fx を選ぶ理由",
+  "docs": "ドキュメント",
+  "changelog": "変更履歴",
+  "getStarted": "はじめる",
+  "footer": "開発する人のために。",
+  "architecture": "アーキテクチャ",
+  "releaseStatus": "公開状況",
+  "pause": "動きを停止",
+  "resume": "動きを再開",
+  "reduced": "動きを抑制中",
+  "copied": "コピーしました",
+  "copyFallback": "テキストを選択しました。キーボードでコピーしてください。",
+  "copyCode": "コードをコピー",
+  "table": "横スクロール可能な参照表",
+  "docMenu": "ドキュメントメニュー",
+  "onPage": "このページ",
+  "top": "先頭へ ↑",
+  "previous": "← 前へ",
+  "next": "次へ →",
+  "source": "原文",
+  "docKicker": "FX-DEVKIT / ドキュメント",
+  "language": "言語",
+  "englishReference": "英語リファレンス",
+  "fallback": "この技術リファレンスは現在、英語で管理されています。",
+  "original": "英語の原文を読む ↗",
+  "notFound": "ページが見つかりません",
+  "notFoundTitle": "このパスは見つかりません。",
+  "notFoundBody": "ページが移動した可能性があります。ドキュメントから探してください。",
+  "groups": {
+    "Start here": "はじめに",
+    "Reference": "リファレンス",
+    "Architecture": "アーキテクチャ",
+    "Project": "プロジェクト",
+    "Contributing": "開発への参加"
+  },
+  "pages": {
+    "docs/": {
+      "title": "概要",
+      "description": "リポジトリ、ツール、エージェントのための共有マップ。"
+    },
+    "docs/getting-started/": {
+      "title": "はじめに",
+      "description": "fx をインストールし、マニフェストを接続して開発を始めましょう。"
+    },
+    "docs/manifest-guide/": {
+      "title": "最初のマニフェスト",
+      "description": "小さな宣言から始め、必要なツールや環境を接続します。"
+    },
+    "docs/private-manifest/": {
+      "title": "公開と非公開の境界",
+      "description": "ツールは共有し、チームの運用情報は適切に管理します。"
+    },
+    "docs/cli/": {
+      "title": "CLI コマンド",
+      "description": "コマンド、引数、フラグ。CLI から生成したリファレンス。"
+    },
+    "docs/agent-skill/": {
+      "title": "Agent Skill",
+      "description": "エージェント向けの検出、信頼、準備状態、復旧手順。"
+    },
+    "docs/agent-commands/": {
+      "title": "応答の契約",
+      "description": "構造化された出力を正しく読み解くために。"
+    },
+    "docs/design/": {
+      "title": "アーキテクチャ概要",
+      "description": "共有宣言とローカルのワークフローをつなぐ仕組み。"
+    },
+    "docs/design/runtime/": {
+      "title": "ランタイムとコマンド",
+      "description": "出力、設定、信頼、プロセスの寿命。"
+    },
+    "docs/design/setup/": {
+      "title": "セットアップと準備状態",
+      "description": "明確な手順と、検証結果に基づく準備状態。"
+    },
+    "docs/design/import/": {
+      "title": "リポジトリのインポート",
+      "description": "既存のチェックアウトからワークスペースの宣言を作成します。"
+    },
+    "docs/design/harness/": {
+      "title": "MCP とルール",
+      "description": "所有権を保ちながらエージェントホストに設定を投影します。"
+    },
+    "docs/design/lifecycle/": {
+      "title": "ライフサイクルフック",
+      "description": "作業を妨げない、範囲を限定したバックグラウンド更新。"
+    },
+    "docs/design/source-contributions/": {
+      "title": "ソースへの貢献",
+      "description": "検証済みの個人フォークから共有情報を提案します。"
+    },
+    "docs/design/probe-recording/": {
+      "title": "プローブ結果の記録",
+      "description": "プラットフォームの座標に関する日付付きの根拠を記録します。"
+    },
+    "docs/design/windows/": {
+      "title": "Windows",
+      "description": "ネイティブ環境での動作と検証範囲。"
+    },
+    "docs/design/registry-configuration/": {
+      "title": "レジストリの移行",
+      "description": "public npm に向けた移行と、残っている実装。"
+    },
+    "docs/public-release/": {
+      "title": "公開に向けた準備",
+      "description": "初回公開のための配布方針とチェック項目。"
+    },
+    "docs/validation/": {
+      "title": "検証とサポート範囲",
+      "description": "自動チェックで確認できることと、実環境での確認が必要なこと。"
+    },
+    "docs/eval/": {
+      "title": "エージェント評価",
+      "description": "非公開のケースデータを使う、再利用可能な評価手順。"
+    },
+    "docs/eval/handover/": {
+      "title": "評価の引き継ぎ",
+      "description": "範囲を限定したエージェント評価の準備とレビュー。"
+    },
+    "docs/roadmap/": {
+      "title": "ロードマップ",
+      "description": "現在の機能と区別した、今後の拡張候補。"
+    },
+    "docs/changelog/": {
+      "title": "変更履歴",
+      "description": "fx ワークスペース CLI の変更点。"
+    },
+    "docs/contributing/": {
+      "title": "開発ガイド",
+      "description": "リポジトリの境界、検証、ドキュメント更新の責任。"
+    },
+    "docs/website/": {
+      "title": "Web サイトの保守",
+      "description": "静的サイトと多言語ドキュメントのビルドと保守。"
+    }
+  }
+}

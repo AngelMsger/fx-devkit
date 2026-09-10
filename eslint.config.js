@@ -36,7 +36,7 @@ const innerImports = (codecs = false) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', 'docs/'] },
+  { ignores: ['dist/', 'node_modules/', 'docs/website/dist/', 'docs/website/node_modules/'] },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.ts'],

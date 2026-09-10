@@ -1,8 +1,8 @@
 {
   "name": "@angelmsger/fx",
   "version": "0.1.0",
-  "description": "Build and maintain the fx multi-project workspace",
-  "license": "UNLICENSED",
+  "description": "Manifest-driven multi-repository workspaces for people and coding agents",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "fx": "./bin/fx.js"
@@ -23,7 +23,7 @@
     "npm": "11.9.0"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json",
@@ -37,7 +37,10 @@
     "check:windows": "node scripts/check-windows.mjs",
     "docs:gen": "npm run build && node scripts/gen-cli-docs.mjs",
     "docs:check": "npm run build && node scripts/gen-cli-docs.mjs --check",
-    "prepublishOnly": "node scripts/guard-registry.mjs && npm run build && node scripts/check-package.mjs"
+    "prepublishOnly": "node scripts/guard-registry.mjs && npm run build && node scripts/check-package.mjs",
+    "site:build": "npm --prefix docs/website run build",
+    "site:check": "npm --prefix docs/website run check",
+    "site:dev": "npm --prefix docs/website run dev"
   },
   "dependencies": {
     "@oclif/core": "^5.0.0",
@@ -108,5 +111,21 @@
         "description": "Source contributions: validate selected files and propose a pull request"
       }
     }
-  }
+  },
+  "homepage": "https://angelmsger.github.io/fx-devkit/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AngelMsger/fx-devkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AngelMsger/fx-devkit/issues"
+  },
+  "keywords": [
+    "cli",
+    "workspace",
+    "multi-repo",
+    "git",
+    "manifest",
+    "coding-agents"
+  ]
 }

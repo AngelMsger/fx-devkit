@@ -1,0 +1,95 @@
+{
+  "ja": {
+    "_catalog_sha256": "77629aa83f68c845ac131fe7469eeda1eb6b407409e83f666643849afc762361",
+    "README.md": {
+      "file": "getting-started.md",
+      "source_sha256": "50745c75f6ddff1b46de475f27000b5d9218ef9c84a12d540b4533545f952198"
+    },
+    "docs/manifest-guide.md": {
+      "file": "manifest-guide.md",
+      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+    },
+    "docs/private-manifest.md": {
+      "file": "private-manifest.md",
+      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+    },
+    "docs/public-release.md": {
+      "file": "public-release.md",
+      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
+    },
+    "docs/validation.md": {
+      "file": "validation.md",
+      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
+    },
+    "docs/roadmap.md": {
+      "file": "roadmap.md",
+      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    },
+    "CHANGELOG.md": {
+      "file": "changelog.md",
+      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+    }
+  },
+  "zh-Hans": {
+    "_catalog_sha256": "77629aa83f68c845ac131fe7469eeda1eb6b407409e83f666643849afc762361",
+    "README.md": {
+      "file": "getting-started.md",
+      "source_sha256": "50745c75f6ddff1b46de475f27000b5d9218ef9c84a12d540b4533545f952198"
+    },
+    "docs/manifest-guide.md": {
+      "file": "manifest-guide.md",
+      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+    },
+    "docs/private-manifest.md": {
+      "file": "private-manifest.md",
+      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+    },
+    "docs/public-release.md": {
+      "file": "public-release.md",
+      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
+    },
+    "docs/validation.md": {
+      "file": "validation.md",
+      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
+    },
+    "docs/roadmap.md": {
+      "file": "roadmap.md",
+      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    },
+    "CHANGELOG.md": {
+      "file": "changelog.md",
+      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+    }
+  },
+  "zh-Hant": {
+    "_catalog_sha256": "77629aa83f68c845ac131fe7469eeda1eb6b407409e83f666643849afc762361",
+    "README.md": {
+      "file": "getting-started.md",
+      "source_sha256": "50745c75f6ddff1b46de475f27000b5d9218ef9c84a12d540b4533545f952198"
+    },
+    "docs/manifest-guide.md": {
+      "file": "manifest-guide.md",
+      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+    },
+    "docs/private-manifest.md": {
+      "file": "private-manifest.md",
+      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+    },
+    "docs/public-release.md": {
+      "file": "public-release.md",
+      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
+    },
+    "docs/validation.md": {
+      "file": "validation.md",
+      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
+    },
+    "docs/roadmap.md": {
+      "file": "roadmap.md",
+      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    },
+    "CHANGELOG.md": {
+      "file": "changelog.md",
+      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+    }
+  }
+}
