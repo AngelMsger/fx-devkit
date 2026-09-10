@@ -100,6 +100,10 @@ function stage(): Stage {
     ].join('\n'),
   );
   writeFileSync(
+    path.join(manifestDir, 'tools.yaml'),
+    "schema_version: 2\ntools: [{name: sentry, min_version: '0.42.2'}, {name: jenkins-cli, min_version: '1.0.0'}]\n",
+  );
+  writeFileSync(
     path.join(manifestDir, 'environments.yaml'),
     [
       'schema_version: 2',

@@ -26,6 +26,23 @@ AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以補充團隊規則與文件。�
 
 內建工具宣告最低版本要求。使用 `fx tool show <tool>` 查看實際要求，透過 `fx tool update <tool> --dry-run` 預覽升級。團隊可在 `manifest/tools.yaml` 中覆寫 `min_version`，以維持適合自身環境的相容性基準。最低版本要求不會將 npm 安裝鎖定至該版本。
 
+## 初始化時安裝團隊工具 {#install-a-team-tool-during-initialization}
+
+fx 0.1.1 起，可以在 `manifest/tools.yaml` 中宣告初始化時安裝工具。
+
+```yaml
+schema_version: 2
+min_cli: '0.1.1'
+tools:
+  - name: example-team-tool
+    install_on_init: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+```
+
+以下套件名稱和執行檔名稱均為虛構範例。Registry 和認證使用本機 npm 設定。`fx init` 只安裝標記了 `install_on_init: true`、已啟用且缺少的工具，並在儲存庫及 Skill 同步前完成安裝。執行前須確認具體的安裝與版本檢查命令。既有工具即使低於最低版本也會保留，升級使用 `fx tool update`。一般 `fx sync` 不安裝套件，初始化也不會登入服務。
+
+初始化成功後可查看 `tool_install` 中的結果。dry-run 不物化來源、不執行安裝器，`tool_install` 和 `sync` 均為 null；唯讀模式禁止安裝。安裝或版本驗證失敗會回報 `INIT_TOOL_INSTALL_FAILED`。此時工作區可能已經註冊，修復 npm 存取或 PATH 後，以相同目錄和來源重試即可。
+
 ## 從最小宣告開始 {#start-with-a-small-declaration}
 
 使用 Bitbucket 的團隊可以建立 `team-workspace/manifest/workspace.yaml`：

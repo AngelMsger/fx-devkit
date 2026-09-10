@@ -21,6 +21,7 @@ export interface ToolInstallInput {
   readonly names?: readonly string[] | undefined;
   readonly all?: boolean | undefined;
   readonly update: boolean;
+  readonly requireInstallTrust?: boolean;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
   // Present inside a workspace, where the post-install probe may run a
@@ -62,6 +63,24 @@ export class ToolInstall {
         input.posture,
         `tool ${action} ${selected.map((tool) => tool.name).join(' ')}`,
       );
+    }
+    if (input.requireInstallTrust) {
+      if (!input.trust)
+        throw new DevkitError(
+          'config',
+          'VECTOR_UNTRUSTED',
+          'Automatic installation requires workspace command trust.',
+        );
+      for (const plan of plans) {
+        if (plan.output.vector === null) continue;
+        for (const vector of [plan.output.vector, [plan.tool.binary, ...plan.tool.versionArgs]])
+          await input.trust.gate.ensure({
+            ...input.trust,
+            vector,
+            origin: 'patch',
+            label: `${plan.tool.name} initialization`,
+          });
+      }
     }
     const results: ToolInstallOutput[] = [];
     for (const plan of plans) results.push(await this.apply(plan, input.trust));

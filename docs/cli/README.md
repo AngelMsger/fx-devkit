@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Generated from the command registry of version 0.1.0. Do not edit by hand;
+Generated from the command registry of version 0.1.1. Do not edit by hand;
 run `npm run docs:gen` after changing commands or flags.
 
 ## Everyday
@@ -54,6 +54,8 @@ Every command accepts these.
 ## `fx init`
 
 Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced
+
+Tools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved.
 
 Registration can succeed with partial synchronization. Inspect sync.summary, sync.stages and failed item details; exit zero does not establish complete preparation.
 

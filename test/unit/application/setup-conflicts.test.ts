@@ -15,6 +15,8 @@ it('never certifies either platform from a colliding setup plan', async () => {
     workspace:
       'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /host}}}\ndefaults: {upstream_project: fx, branch: main}\nrepos: [{name: sample}]\n',
     files: {
+      [`${MANIFEST_DIR}/manifest/tools.yaml`]:
+        "schema_version: 2\ntools: [{name: kubectl, min_version: '1.0.0'}]\n",
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: [
         'schema_version: 2',
         'platforms:',

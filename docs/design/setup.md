@@ -69,3 +69,20 @@ are not applicable, and a checked advisory warning need not make a report
 incomplete. Doctor's repair attempts are separate from its fresh check results.
 The [Agent command guide](../../skills/fx-workspace/references/commands.md) owns
 wire fields and recovery instructions.
+
+## Initialization tool installation
+
+Tools may opt in with `install_on_init: true` (default false, fx ≥0.1.1). The
+application installs only missing enabled opt-ins after materializing, validating
+and registering the source, before repository/resource sync. Installer vectors
+come from `ToolInstall`; every installation and post-install probe vector is
+approved through workspace trust before any package manager runs. Selection never
+implicitly upgrades an existing binary or logs in to a companion service.
+
+`init --dry-run` retains its non-materializing preview: `tool_install: null` and
+`sync: null` mean these effects have not been planned from the source yet. Actual
+success returns `tool_install` records. Missing installers, trust refusal, failed
+installs and unverified/below-minimum installed versions stop init with an error;
+the source registration may already exist and the same invocation can be retried.
+Normal `sync` continues to run only tool checks; lifecycle hooks do not gain this
+installation path. npm retains ownership of Registry authentication.

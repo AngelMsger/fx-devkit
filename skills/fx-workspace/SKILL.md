@@ -1,6 +1,6 @@
 ---
 name: fx-workspace
-version: 0.1.0
+version: 0.1.1
 description: 'Use only when the user explicitly asks for the fx workspace CLI or manifest, or the current task is inside an fx-managed workspace or routed by its fx-derived AGENTS.md. Drive workspace init and sync, repository status and selection, manifest validation and editing, companion tools and login, doctor, agent Skills, repository ownership, environment coordinates and readiness through can/where, and release checks across dependencies, branches, builds and errors. Do not use for generic Sentry, OpenObserve, Jenkins, Kubernetes, logs, errors or builds outside an fx-managed workspace.'
 metadata:
   requires:
@@ -221,6 +221,21 @@ values. Contribute the resulting source change through source push when authoriz
 For `@fx/devkit`, set FX_REGISTRY from the private team coordinate; `@angelmsger/fx` defaults to npmjs. This controls self-update checks and
 `fx self update`; the generic package contains no registry address. This setting
 does not grant write permission and does not configure npm authentication.
+
+## Initialization tool installs
+
+From fx 0.1.1, a manifest tool with `install_on_init: true` is installed during
+`fx init` only when its binary is missing. This can write to the package manager's
+global installation prefix. Review the exact installation and version-check
+vectors through the usual trust flow; broad setup intent does not approve an
+unknown vector. Existing binaries are preserved and ordinary `fx sync` never
+installs packages. npm configuration owns private Registry access.
+
+Check `tool_install` records on successful init. Dry runs do not materialize the
+source and return `tool_install: null`; they never run installers. A failed
+installation or version check stops init after registration may have occurred.
+Resolve the reported installer/access/PATH problem and retry the same source and
+directory; do not reinitialize unrelated workspaces or create credentials.
 
 ## What sync will and will not do
 

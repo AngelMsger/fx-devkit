@@ -20,6 +20,7 @@ export interface ToolDetail {
   readonly required: boolean;
   readonly enabled: boolean;
   readonly min_version: string | null;
+  readonly install_on_init: boolean;
   readonly version_args: readonly string[];
   readonly install: readonly { via: string; spec: string | null; registry: string | null }[];
   readonly skill: {
@@ -47,6 +48,7 @@ export class ToolShow {
       required: tool.required,
       enabled: tool.enabled,
       min_version: tool.minVersion ?? null,
+      install_on_init: tool.installOnInit ?? false,
       version_args: tool.versionArgs,
       install: tool.install.map((m) => ({
         via: m.via,

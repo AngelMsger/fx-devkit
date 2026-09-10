@@ -110,6 +110,12 @@ export const toolSchema = z
       .describe(
         'arguments that make this tool print its version; defaults to defaults.version_args',
       ),
+    install_on_init: z
+      .boolean()
+      .optional()
+      .describe(
+        'install this tool if missing during fx init, after command trust approval; default false',
+      ),
     install: z
       .array(installMethod)
       .optional()

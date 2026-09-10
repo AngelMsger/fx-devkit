@@ -102,7 +102,10 @@ own branches and histories.
   missing checkouts, fast-forwards eligible clean branches, and reports dirty or
   diverged state. Separate source-contribution ports may prepare controlled commits;
   they do not widen the repository-sync Git port.
-- `init` writes only into the user-selected target or registered directories.
+- `init` writes workspace data only into the user-selected target or registered directories.
+  Tools explicitly marked `install_on_init` may also install missing global packages
+  through approved installer/probe vectors before repository and Skill synchronization.
+  Existing installations are preserved; ordinary sync and lifecycle hooks never install packages.
   `repo remove` removes a reference, not files. Import reads checkouts and writes
   only to an explicit output outside the imported directory.
 - Only marked guides, owned Skill links/copies and receipted host resources are

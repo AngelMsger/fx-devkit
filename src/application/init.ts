@@ -19,6 +19,7 @@ import { LoadManifest } from './manifest/load.js';
 import { RefreshManifest } from './refresh-manifest.js';
 import { assertWritable, type WritePosture } from './safety/posture.js';
 import { Sync, type SyncOutput, type SyncStages } from './sync.js';
+import type { ToolInstallOutput } from './tool/install.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { WorkspaceContext } from './workspace-context.js';
 
@@ -33,6 +34,7 @@ export interface InitDeps {
   readonly reporter: Reporter;
   readonly manifestDirFor: (name: string) => string;
   readonly workspaceDepsFor: (ctx: WorkspaceContext) => WorkspaceDeps;
+  readonly installTools?: (ctx: WorkspaceContext) => Promise<readonly ToolInstallOutput[]>;
   readonly stagesFor: (ctx: WorkspaceContext) => SyncStages;
   readonly settleManifest: (name: string, manifestDir: string) => Promise<void>;
 }
@@ -57,6 +59,7 @@ export interface InitOutput {
   readonly registered: boolean;
   readonly default_workspace: boolean;
   readonly sync: SyncOutput | null;
+  readonly tool_install: readonly ToolInstallOutput[] | null;
   readonly next_steps: readonly string[];
   readonly written: boolean;
 }
@@ -113,6 +116,7 @@ export class Init {
         registered: existing === undefined,
         default_workspace: config.default_workspace === undefined,
         sync: null,
+        tool_install: null,
         next_steps: [],
         written: false,
       },
@@ -158,6 +162,7 @@ export class Init {
       reporter: this.deps.reporter,
       manifestDirFor: this.deps.manifestDirFor,
     });
+    const toolInstall = (await this.deps.installTools?.(ctx)) ?? [];
     const sync = await new Sync(this.deps.workspaceDepsFor(ctx)).execute({
       dryRun: false,
       posture: input.posture,
@@ -167,6 +172,7 @@ export class Init {
     const done = {
       ...output,
       sync,
+      tool_install: toolInstall,
       next_steps: nextSteps(output.root, sync, this.deps.commandShell),
       written: true,
     };

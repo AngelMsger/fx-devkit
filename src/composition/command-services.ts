@@ -5,6 +5,9 @@ import type { LoginDeps } from '../application/login/deps.js';
 import type { TrustGate } from '../application/safety/trust.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync.js';
+import { ToolInitialize } from '../application/tool/initialize.js';
+import { ToolInstall } from '../application/tool/install.js';
+import { toolchainOf } from '../application/tool/toolchain.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
 import type { ResolvedShell } from '../domain/shell.js';
@@ -73,6 +76,19 @@ export class CommandServices {
       cliVersion: this.input.cliVersion,
       reporter: this.input.reporter,
       workspaceDepsFor: depsFor,
+      installTools: (ctx) =>
+        new ToolInitialize(
+          new ToolInstall(this.input.container.installers, this.input.container.process),
+        ).execute({
+          tools: toolchainOf(ctx).tools,
+          posture: this.input.posture,
+          trust: {
+            gate: this.input.trust,
+            workspace: ctx.name,
+            yes: this.input.yes,
+            posture: this.input.posture,
+          },
+        }),
       stagesFor: (ctx) => this.stages(depsFor(ctx), false),
       settleManifest: (name, dir) =>
         updateChecks(this.input.container).manifest.markCurrent(name, dir),

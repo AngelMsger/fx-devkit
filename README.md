@@ -290,6 +290,8 @@ selectors produce structured errors. The
 The manifest chooses which providers and companion tools a workspace uses.
 Bundled tools have minimum version requirements; inspect them with `fx tool show <tool>`
 and override `min_version` in the team’s `manifest/tools.yaml` when needed.
+Tools marked `install_on_init: true` in that manifest are installed if missing
+during `fx init`, after command trust approval. See the [initialization guide](docs/manifest-guide.md#install-a-team-tool-during-initialization).
 These are the currently implemented provider families:
 
 | Capability                 | Providers                                  |

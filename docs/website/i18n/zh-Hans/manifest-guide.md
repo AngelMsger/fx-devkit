@@ -26,6 +26,23 @@ AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以补充团队规则与文档。�
 
 内置工具声明最低版本要求。使用 `fx tool show <tool>` 查看实际要求，通过 `fx tool update <tool> --dry-run` 预览升级。团队可在 `manifest/tools.yaml` 中覆盖 `min_version`，以维持适合自身环境的兼容性基线。最低版本要求不会将 npm 安装锁定到该版本。
 
+## 初始化时安装团队工具 {#install-a-team-tool-during-initialization}
+
+fx 0.1.1 起，可以在 `manifest/tools.yaml` 中声明初始化时安装工具。
+
+```yaml
+schema_version: 2
+min_cli: '0.1.1'
+tools:
+  - name: example-team-tool
+    install_on_init: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+```
+
+以下包名和可执行文件名均为虚构示例。Registry 和认证使用本机 npm 配置。`fx init` 只安装标记了 `install_on_init: true`、已启用且缺失的工具，并在仓库及 Skill 同步前完成安装。执行前须确认具体的安装与版本检查命令。已有工具即使低于最低版本也会保留，升级使用 `fx tool update`。普通 `fx sync` 不安装包，初始化也不会登录服务。
+
+初始化成功后可查看 `tool_install` 中的结果。dry-run 不物化来源、不运行安装器，`tool_install` 和 `sync` 均为 null；只读模式禁止安装。安装或版本验证失败会报告 `INIT_TOOL_INSTALL_FAILED`。此时工作区可能已经注册，修复 npm 访问或 PATH 后，用相同目录和来源重试即可。
+
 ## 从最小声明开始 {#start-with-a-small-declaration}
 
 使用 Bitbucket 的团队可以创建 `team-workspace/manifest/workspace.yaml`：

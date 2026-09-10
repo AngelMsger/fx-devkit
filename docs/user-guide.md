@@ -97,7 +97,9 @@ fx login
 fx doctor
 ```
 
-`init` also synchronizes repositories and selected agent resources. Registration
+`init` first installs missing tools explicitly marked `install_on_init` in the
+team manifest, after command trust approval, then synchronizes repositories and
+selected agent resources. Existing tool installations are preserved. Registration
 can succeed while some synchronization stages fail; inspect the reported failures
 and retry the relevant stages after resolving access or setup.
 

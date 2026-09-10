@@ -26,6 +26,23 @@ AGENTS.md、CLAUDE.md、docs/、skills/ にはチームのガイドや Skill を
 
 内蔵ツールには最低バージョンが定義されています。`fx tool show <tool>` で有効な要件を確認し、`fx tool update <tool> --dry-run` で更新を事前確認できます。互換性のために別の基準が必要な場合は、`manifest/tools.yaml` の `min_version` を上書きしてください。最低バージョンは npm のインストール先バージョンを固定するものではありません。
 
+## 初期化時にチームツールをインストールする {#install-a-team-tool-during-initialization}
+
+fx 0.1.1 以降では、`manifest/tools.yaml` で初期化時のインストールを指定できます。
+
+```yaml
+schema_version: 2
+min_cli: '0.1.1'
+tools:
+  - name: example-team-tool
+    install_on_init: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+```
+
+以下のパッケージ名と実行名は架空です。Registry と認証は利用者の npm 設定を使います。`fx init` は `install_on_init: true` の有効なツールが見つからない場合だけ、リポジトリと Skill の同期前にインストールします。実行前にインストールとバージョン確認の正確なコマンドを承認します。既存のツールは最低バージョン未満でも保持され、更新は `fx tool update` で行います。通常の `fx sync` はパッケージをインストールせず、初期化もサービスにログインしません。
+
+成功時の `tool_install` に実行結果が入ります。dry-run はソースを物化せず、インストーラーを実行しないため、`tool_install` と `sync` は null です。読み取り専用ではインストールできません。インストールまたはバージョン確認に失敗すると `INIT_TOOL_INSTALL_FAILED` になります。登録済みの場合もあるため、npm のアクセスや PATH を修復し、同じディレクトリとソースで再実行してください。
+
 ## 最小の宣言 {#start-with-a-small-declaration}
 
 Bitbucket を使うチームは `team-workspace/manifest/workspace.yaml` を作成できます。

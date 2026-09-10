@@ -33,6 +33,33 @@ Bundled tools declare minimum versions. Inspect the effective requirement with
 Teams can override `min_version` in `manifest/tools.yaml` to maintain a different
 compatibility baseline. Version floors do not pin npm installations to that exact release.
 
+## Install a team tool during initialization
+
+With fx 0.1.1 or newer, a team can opt a tool into installation during `fx init`:
+
+```yaml
+schema_version: 2
+min_cli: '0.1.1'
+tools:
+  - name: example-team-tool
+    install_on_init: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+```
+
+The package and executable above are fictional. npm uses the user's Registry and
+authentication configuration; keep credentials out of the manifest. `fx init`
+installs only missing, enabled tools explicitly marked `install_on_init`, before
+repository and Skill synchronization. It asks for trust in the exact installation
+and version-check commands. Existing installations are preserved, even when below
+the minimum version; use `fx tool update` for an upgrade. `fx sync` never installs
+packages, and initialization does not sign in to companion services.
+
+Successful initialization reports installations in `tool_install`. A dry run does
+not materialize the manifest or run installers; `tool_install` and `sync` are null
+until execution. Read-only mode blocks installation. If installation or version
+verification fails, init reports `INIT_TOOL_INSTALL_FAILED`; registration may
+already exist, so resolve npm access or PATH and retry the same directory/source.
+
 ## Start with a small declaration
 
 For a team using the Bitbucket companion, create

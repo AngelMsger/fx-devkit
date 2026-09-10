@@ -23,6 +23,7 @@ export interface ResolvedTool {
   readonly required: boolean;
   readonly enabled: boolean;
   readonly minVersion?: string;
+  readonly installOnInit?: boolean;
   readonly versionArgs: readonly string[];
   readonly install: readonly InstallMethod[];
   readonly skill?: {
@@ -71,6 +72,7 @@ function resolveTool(tool: Tool, toolchain: Toolchain, provenance: Provenance): 
     ...(tool.docs === undefined ? {} : { docs: tool.docs }),
     required: tool.required ?? false,
     enabled: tool.enabled ?? true,
+    installOnInit: tool.install_on_init ?? false,
     ...(tool.min_version === undefined ? {} : { minVersion: tool.min_version }),
     versionArgs: tool.version_args ?? defaults.version_args ?? ['--version'],
     install: (tool.install ?? defaults.install ?? []).map((m) =>

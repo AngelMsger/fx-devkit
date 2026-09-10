@@ -7,6 +7,7 @@ announcement; distribution is internal and public release is on hold. The projec
 The project is `fx-devkit` and the binary is `fx`. Internal distribution uses
 `@fx/devkit`; public distribution uses `@angelmsger/fx`.
 
+- Opt-in installation of missing companion tools during initialization (`install_on_init`, fx ≥0.1.1).
 - Manifest-driven workspace initialization, synchronization and repository selection.
 - Structured configuration, discovery, readiness and release reports.
 - Companion tool integration, agent Skills, lifecycle hooks and MCP projections.
