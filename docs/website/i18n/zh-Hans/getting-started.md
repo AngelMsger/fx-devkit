@@ -1,42 +1,14 @@
-# 开始使用
+# 使用 fx
 
-`fx` 将团队的共享 manifest 变成多仓库工作区：同步仓库、准备配套 CLI、为编码 Agent 配置上下文，并帮助你找到服务的调查入口。人可以阅读默认输出，Agent 可以使用结构化结果。
-
-项目名为 `fx-devkit`，npm 包名为 `@angelmsger/fx`，命令名为 `fx`。公共 npm 发布正在准备中，当前实现仍有[发布待办](docs/public-release.md)。
-
-## 为什么使用 fx {#why}
-
-拉取代码只是开始。工程师还需要工具、访问权限、服务坐标、团队约定和 Agent 上下文。fx 让这些共享事实可以被发现，同时保留每个仓库独立的构建方式。
-
-- 一次声明仓库、负责人、工具与环境。
-- 同步符合条件的干净分支，保留未提交、分叉和其他分支上的工作；用 `--dry-run` 预览写入。
-- 向 Agent 分发团队 Skill 和受支持的宿主资源，以结构化结果和明确步骤处理失败。
-- 用 `can`、`doctor` 检查就绪，用 `where` 查找日志、构建、错误和集群入口。
-- 配套工具继续管理认证和协议，个人选择与信任记录保留在本机。
-- 通过 `source push` 和已验证的个人 fork 贡献共享知识。
-
-### 日常工作 {#a-working-session}
-
-初始化后，下面这些命令是常用入口。`example-api` 和 `test` 需要替换为 manifest 中的条目。
-
-```sh
-fx status
-fx sync --dry-run
-fx can code-host --format json
-fx where example-api --env test
-fx sync --only docs,skills
-fx release --format json
-```
-
-官网与仓库 URL 是已配置的发布目标，不代表已经上线。
+安装 fx，连接团队 manifest，并管理仓库、工具与编码 Agent。
 
 ## 环境要求 {#requirements}
 
 - Node.js ≥22；开发版本以 package.json 为准。Bun 也可以作为运行时。
 - Git 位于 PATH 中。全局安装和 `fx self update` 仍需要 npm，包括使用 Bun 时。
-- 团队提供的 manifest，或[自行创建的 manifest](docs/manifest-guide.md)。
+- 团队提供的 manifest，或[自行创建的 manifest](manifest-guide.md)。
 
-支持 macOS 和 Linux。原生 Windows 适配器已实现，但 Windows 实机执行和 Agent 宿主激活尚未完成验证；目标为本地 NTFS 上的 PowerShell 5.1/7 和 cmd。参见 [Windows 支持边界](docs/design/windows.md)。
+支持 macOS 和 Linux。原生 Windows 适配器已实现，但 Windows 实机执行和 Agent 宿主激活尚未完成验证；目标为本地 NTFS 上的 PowerShell 5.1/7 和 cmd。参见 [Windows 支持边界](support.md#platform-support)。
 
 ## 安装 {#install}
 
@@ -68,7 +40,7 @@ PowerShell 执行策略阻止 `.ps1` shim 时，可使用 `npm.cmd` 和 `fx.cmd`
 
 ### 更新
 
-`fx self info --format json` 显示运行时和实际更新 registry。公开发布的目标是默认使用公共 npm；当前自更新与更新检查仍需要私有 `FX_REGISTRY`，见 [registry 迁移](docs/design/registry-configuration.md)。源码 checkout 应通过 Git 更新，再执行 `npm ci` 和 `npm run build`；`self update` 安装的是全局 npm 包。
+源码安装可通过 Git 更新 checkout，然后执行 `npm ci` 和 `npm run build`。使用 `fx self info --format json` 查看当前版本及包更新来源。参见[更新说明](support.md#updates)。
 
 ## 快速上手 {#quick-start}
 
@@ -127,13 +99,13 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 所选 Agent 获得团队 Skill 目录链接和带版本的 fx Skill 副本。非 fx 所有的文件会被保留；Windows 用 junction 链接团队目录。用 `skill list` 查看交付状态，用 `sync --only skills` 协调资源。
 
-harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环境变量引用。`mcp list/show` 和 `can mcp:<name>` 说明前置条件；配置正确不证明宿主已激活。见 [MCP 契约](docs/design/harness.md)。
+harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环境变量引用。`mcp list/show` 和 `can mcp:<name>` 说明前置条件；配置正确不证明宿主已激活。见 [MCP 契约](user-guide.md#for-coding-agents)。
 
-工作区启动钩子可以返回缓存上下文，并后台刷新 manifest、文档和 Skill；不会同步业务仓库或确认信任。宿主仍控制项目与钩子信任。用 `hook list/inject/remove` 管理，见[生命周期契约](docs/design/lifecycle.md)。
+工作区启动钩子可以返回缓存上下文，并后台刷新 manifest、文档和 Skill；不会同步业务仓库或确认信任。宿主仍控制项目与钩子信任。用 `hook list/inject/remove` 管理，见[生命周期契约](user-guide.md#for-coding-agents)。
 
 ### 贡献共享知识
 
-`source push` 可预览或提交所选源文件，保留源 checkout 的 HEAD、索引和工作文件。提交需要个人 fork 及其上游关系的证据。实际提交前阅读 `fx source push --help` 与[贡献契约](docs/design/source-contributions.md)。
+`source push` 可预览或提交所选源文件，保留源 checkout 的 HEAD、索引和工作文件。提交需要个人 fork 及其上游关系的证据。实际提交前阅读 `fx source push --help` 与[贡献契约](cli/README.md#fx-source-push)。
 
 ## 常用命令 {#commands}
 
@@ -150,7 +122,7 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 | 检查宿主资源           | `hook list/inject/remove`、`mcp list/show`                                         |
 | CLI 信息与更新         | `self info/update`、`completion`                                                   |
 
-完整语法以 `--help` 和[生成的 CLI 参考](docs/cli/README.md)为准。
+完整语法以 `--help` 和[生成的 CLI 参考](cli/README.md)为准。
 
 ## 给编码 Agent {#for-coding-agents}
 
@@ -160,7 +132,7 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 
 doctor/release 即使有失败检查也退出零；init/sync 也可能在部分成功时退出零。init 查看 `sync.summary`、`sync.stages`；sync 查看 `summary`、`stages` 和每个失败条目的 `failure`。`stage_details` 保留资源阶段结果和 handoff。不要把退出码当作就绪证据，不要捏造认证或绕过宿主信任。
 
-先读[内置 Skill](skills/fx-workspace/SKILL.md)和[响应指南](skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1`。`self info` 可定位安装后的 Skill。
+先读[内置 Skill](../skills/fx-workspace/SKILL.md)和[响应指南](../skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1`。`self info` 可定位安装后的 Skill。
 
 ## 配置 {#configuration}
 
@@ -171,18 +143,6 @@ doctor/release 即使有失败检查也退出零；init/sync 也可能在部分�
 `format` 控制输出。`command_shell` 只控制生成命令的文本，不改变执行方式；auto 在 Windows 选择 PowerShell，其他平台选择 POSIX。可用 `--command-shell`、`FX_COMMAND_SHELL` 或 cmd 配置覆盖。manifest 中的 shell 模板保持原样。
 
 补全支持 bash、zsh、fish 和 PowerShell，通过 `fx completion <shell>` 生成，按需自行加载。
-
-## 开发与验证 {#development}
-
-使用 package.json 固定的工具版本。执行 `npm ci` 与 `npm --prefix docs/website ci`，随后运行 lint、typecheck、Node/Bun 单测、e2e、CLI 文档与网站检查、分发包扫描。见[验证指南](docs/validation.md)和[工程规则](AGENTS.md)。Windows 验收有独立的 `npm run check:windows`。
-
-`npm run test:contract` 是可选只读集成检查，需显式提供测试坐标。Bitbucket 使用 `FX_TEST_BITBUCKET_HOST` 和 `FX_TEST_BITBUCKET_REPO`；Jenkins 使用 `FX_TEST_JENKINS_JOB`，可选 `FX_TEST_JENKINS_CONTEXT`；Sentry 使用 `FX_TEST_SENTRY_HOST`、`FX_TEST_SENTRY_ORG`、`FX_TEST_SENTRY_PROJECT`。缺少坐标时跳过；已配置但访问失败时检查失败。
-
-公开发布前须完成[发布清单](docs/public-release.md)。当前 Jenkins 的版本标签发布入口仍受私有 registry 限制。
-
-## 网站与文档 {#documentation}
-
-[静态站点维护指南](docs/website/README.md)说明多语言内容、GitHub Pages 部署与本地预览。英语是技术事实的基准；尚未翻译的深层技术参考会明确标注英文。
 
 ## 集成 {#integrations}
 
@@ -200,34 +160,4 @@ manifest 选择工作区使用的 provider 和配套 CLI。当前实现包括：
 
 使用 `fx manifest providers` 与 `fx tool list` 查看实际绑定。通讯和知识入口交接给配套工具，不代表 fx 代理了所有服务 API。
 
-Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力。参见[宿主契约](docs/design/harness.md)。
-
-## 常见问题 {#faq}
-
-### 必须采用 monorepo 吗？
-
-不需要。仓库保留各自的分支、历史、依赖和构建工具；工作区根目录为普通目录。已有 checkout 可以[导入并纳入管理](docs/design/import.md)。
-
-### 团队必须公开 manifest 吗？
-
-不需要。工具与团队运维数据分离。manifest 存放在权限适当的仓库，凭据仍由所属工具管理。参见[公开与私有边界](docs/private-manifest.md)。
-
-### 报告退出码为零就代表成功吗？
-
-不代表。doctor/release 可在检查失败时退出零，init/sync 可返回部分成功。应检查 `ok`、`complete`、阶段结果和失败恢复信息。参见[响应契约](skills/fx-workspace/references/commands.md)。
-
-## 参与贡献 {#contributing}
-
-欢迎问题报告、聚焦修复、文档改进和翻译。先阅读[贡献指南](https://github.com/AngelMsger/fx-devkit/blob/main/CONTRIBUTING.md)，了解设置、验证和 PR 要求。较大的行为或 provider 变更应先通过 issue 讨论。
-
-功能变更包含文档变更：英文源文档与对应译文需要一起更新，网站构建会检查翻译是否过期。[路线图](docs/roadmap.md)明确区分潜在扩展与当前能力。
-
-## 支持与安全 {#support-and-security}
-
-[报告问题](https://github.com/AngelMsger/fx-devkit/issues)时，请提供 `fx --version` 输出、操作系统、命令、预期行为和脱敏复现。设置失败时，附上相关 doctor 结果和 handoff。
-
-疑似漏洞请遵循[安全报告指南](https://github.com/AngelMsger/fx-devkit/blob/main/SECURITY.md)。公开报告中不要包含凭据、个人信息或团队私有坐标。
-
-## 许可证 {#license}
-
-本项目采用 [Apache License 2.0](https://github.com/AngelMsger/fx-devkit/blob/main/LICENSE)。
+Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力。参见[宿主契约](user-guide.md#for-coding-agents)。

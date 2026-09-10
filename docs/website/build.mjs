@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Marked, Renderer } from 'marked';
 import { pages } from './pages.mjs';
+import { assertUserSources, assertPublicContent } from './audience.mjs';
+assertUserSources(pages);
 import { publicTarget } from './public-links.mjs';
 import { locales, messages, message, validateCatalogs } from './i18n.mjs';
 import { basePath, siteOrigin, relativeHref as href, localizedRoute } from './paths.mjs';
@@ -57,9 +59,9 @@ function localLink(page, target) {
   if (publicLink?.route !== undefined) {
     const selected = locales.find(({ id }) => id !== 'en' && publicLink.route.startsWith(`${id}/`));
     const route = selected ? publicLink.route.slice(selected.id.length + 1) : publicLink.route;
-    if (route === '' || [...routes.values()].includes(route)) {
+    if (route === '' || [...routes.values()].includes(route))
       return href(page.route, localizedRoute(selected?.id ?? page.locale, route) + publicLink.hash);
-    }
+    throw new Error(`Link to unpublished site page: ${target}`);
   }
   if (publicLink?.source === 'LICENSE') return href(page.route, 'LICENSE.txt');
   if (publicLink?.source && routes.has(publicLink.source)) {
@@ -68,6 +70,7 @@ function localLink(page, target) {
       localizedRoute(page.locale, routes.get(publicLink.source)) + publicLink.hash,
     );
   }
+  if (publicLink?.source) throw new Error(`Link to non-user repository document: ${target}`);
   if (/^(https?:|mailto:)/i.test(target) || target.startsWith('#')) return target;
   if (/^[a-z]+:/i.test(target) || target.startsWith('//'))
     throw new Error(`Unsupported link in ${page.source}`);
@@ -106,7 +109,7 @@ function frame({
   return `<!doctype html>
 <html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${escapeHtml(description)}"><meta name="theme-color" content="#101211"><title>${escapeHtml(title)} — fx-devkit</title>${seo}<link rel="icon" href="${asset('assets/favicon.svg')}" type="image/svg+xml"><link rel="stylesheet" href="${asset('assets/site.css')}"><script src="${asset('assets/site.js')}" defer></script><noscript><style>@media(max-width:620px){.sidebar{display:block;position:static;height:auto;border:0}.docs-menu{display:none}}</style></noscript></head>
 <body class="${docs ? 'docs-page' : 'home-page'}" data-messages="${escapeHtml(JSON.stringify(runtime))}"><a href="#main" class="skip">${t('skip')}</a><header class="site-header"><nav class="nav shell" aria-label="${t('mainNav')}"><a href="${url('')}" class="brand" aria-label="${t('home')}"><span class="brand-symbol" aria-hidden="true">f<i>x</i>_</span> fx-devkit <small>${escapeHtml(series)}</small></a><div class="nav-links"><a class="nav-optional" href="${url('')}#capabilities">${t('why')}</a><a href="${url('docs/')}"${docs ? ' aria-current="page"' : ''}>${t('docs')}</a><a class="nav-optional" href="${url('docs/changelog/')}">${t('changelog')}</a>${languageMenu}<a class="nav-cta" href="${url('docs/getting-started/')}">${t('getStarted')} <span aria-hidden="true">↗</span></a></div></nav></header>${body}
-<footer class="footer"><div class="shell footer-inner"><span>fx-devkit / ${t('footer')}</span><div class="footer-links"><a href="${escapeHtml(repository)}">GitHub ↗</a><a href="${asset('LICENSE.txt')}">Apache-2.0</a><a href="${url('docs/design/')}">${t('architecture')}</a><a href="${url('docs/public-release/')}">${t('releaseStatus')}</a><button class="motion-toggle" aria-pressed="false">${t('pause')}</button></div></div></footer><div class="copy-status" role="status" aria-live="polite"></div></body></html>`;
+<footer class="footer"><div class="shell footer-inner"><span>fx-devkit / ${t('footer')}</span><div class="footer-links"><a href="${escapeHtml(repository)}">GitHub ↗</a><a href="${asset('LICENSE.txt')}">Apache-2.0</a><a href="${url('docs/getting-started/#concepts')}">${t('architecture')}</a><a href="${url('docs/support/')}">${t('releaseStatus')}</a><button class="motion-toggle" aria-pressed="false">${t('pause')}</button></div></div></footer><div class="copy-status" role="status" aria-live="polite"></div></body></html>`;
 }
 function sidebar(page) {
   const groups = [...new Set(pages.map((entry) => entry.group))];
@@ -241,6 +244,7 @@ for (const { id: locale } of locales) {
       fallback = false;
     }
     const { html, headings } = markdown(page, source);
+    assertPublicContent(html, page.route);
     const adjacent = (entry, next) =>
       entry
         ? `<a href="${href(page.route, localizedRoute(locale, entry.route))}" class="${next ? 'next' : 'previous'}"><span>${next ? t('next') : t('previous')}</span>${escapeHtml(catalog.pages[entry.route].title)}</a>`
@@ -248,7 +252,7 @@ for (const { id: locale } of locales) {
     const notice = fallback
       ? `<aside class="translation-note"><strong>${t('englishReference')}</strong><p>${t('fallback')}</p><a href="${href(page.route, canonical.route)}" lang="en">${t('original')}</a></aside>`
       : '';
-    const body = `<button class="docs-menu" aria-expanded="false" aria-controls="docs-sidebar">${t('docMenu')} <span aria-hidden="true">+</span></button><div class="docs-layout">${sidebar(page)}<main id="main" class="doc-body"><div class="breadcrumb"><a href="${href(page.route, localizedRoute(locale, 'docs/'))}">${t('docs')}</a><span>/</span><span>${escapeHtml(catalog.groups[page.group])}</span></div><div class="doc-kicker">${t('docKicker')}</div><h1 class="doc-title">${escapeHtml(page.title)}</h1><p class="doc-description">${escapeHtml(page.description)}</p><div class="doc-meta"><span>${t('source')} / ${escapeHtml(page.source)}</span><span>v${escapeHtml(version)} · ${t('preRelease')}</span></div>${notice}<article class="prose" lang="${fallback ? 'en' : locale}">${html}</article><nav class="doc-pagination" aria-label="${t('docs')}">${adjacent(pages[index - 1], false)}${adjacent(pages[index + 1], true)}</nav></main><nav class="toc" aria-label="${t('onPage')}"><h2>${t('onPage')}</h2>${headings.map((heading) => `<a class="depth-${heading.depth}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`).join('')}<a href="#main">${t('top')}</a></nav></div>`;
+    const body = `<button class="docs-menu" aria-expanded="false" aria-controls="docs-sidebar">${t('docMenu')} <span aria-hidden="true">+</span></button><div class="docs-layout">${sidebar(page)}<main id="main" class="doc-body"><div class="breadcrumb"><a href="${href(page.route, localizedRoute(locale, 'docs/'))}">${t('docs')}</a><span>/</span><span>${escapeHtml(catalog.groups[page.group])}</span></div><div class="doc-kicker">${t('docKicker')}</div><h1 class="doc-title">${escapeHtml(page.title)}</h1><p class="doc-description">${escapeHtml(page.description)}</p><div class="doc-meta"><span>v${escapeHtml(version)} · ${t('preRelease')}</span></div>${notice}<article class="prose" lang="${fallback ? 'en' : locale}">${html}</article><nav class="doc-pagination" aria-label="${t('docs')}">${adjacent(pages[index - 1], false)}${adjacent(pages[index + 1], true)}</nav></main><nav class="toc" aria-label="${t('onPage')}"><h2>${t('onPage')}</h2>${headings.map((heading) => `<a class="depth-${heading.depth}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`).join('')}<a href="#main">${t('top')}</a></nav></div>`;
     await mkdir(path.join(output, page.route), { recursive: true });
     await writeFile(
       path.join(output, page.route, 'index.html'),
@@ -288,6 +292,7 @@ const sourceFiles = [
     'LICENSE',
     ...mediaAssets,
     'docs/website/public-links.mjs',
+    'docs/website/audience.mjs',
     'docs/website/package.json',
     'docs/website/package-lock.json',
     'docs/website/build.mjs',
@@ -317,7 +322,7 @@ const sources = Object.fromEntries(
   ),
 );
 await writeFile(
-  path.join(output, 'build-manifest.json'),
+  path.join(site, '.build-state.json'),
   JSON.stringify({ sources, base, origin, routes: routeRecords }, null, 2) + '\n',
 );
 console.log(

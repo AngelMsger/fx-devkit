@@ -1,29 +1,25 @@
-# 公开工具与私有团队配置
+# 你的数据与凭据
 
-公开 fx-devkit 并不意味着公开团队的工作区。团队成员仍使用组织自己的仓库、服务环境、配套 CLI 和既有访问控制。
+团队 manifest 描述仓库、工具和服务坐标。请将它保存在访问权限合适的团队仓库中；使用 fx 不要求公开 manifest。
 
-## 公开仓库中保留什么 {#keep-in-this-repository}
+## 本机状态 {#what-stays-on-your-machine}
 
-- CLI 实现、provider 适配器与原生 Agent 协议。
-- Schema、通用使用文档和虚构示例。
-- 保留真实协议语义的合成数据与离线测试。
-- 内置 fx-workspace Skill 和通用贡献指南。
+fx 默认在 `~/.fx` 保存工作区注册、个人选择、偏好、信任决策和操作状态。可以用 `FX_HOME` 更改位置。manifest checkout 与业务仓库分开保存。
 
-## 团队私有来源中保留什么 {#keep-in-the-teams-private-source}
+`fx config export` 导出受支持的偏好与个人层，不包含凭据、信任记录和 manifest clone。分享前仍需审阅导出内容：仓库选择与个人覆盖可能透露团队上下文。
 
-- 实际仓库 URL、分支、负责人和访问联系人。
-- 环境主机、日志流、错误追踪项目、构建任务和集群坐标。
-- 跨仓库业务架构与产品特有流程。
-- 团队 Skill、获授权的案例定义和适当受限的评估证据。
+## 认证 {#authentication}
 
-私有 manifest 可以使用 Git 管理。`init`、`sync`、`manifest`、`member`、`where`、`release` 与 `source push` 的职责不变。Provider 和安装器配置仍由数据驱动；公开源码不能通过删除集成或将私有服务替换为公共服务来改变实际行为。
+服务凭据由配套工具负责。按工具正常流程登录，不要把 token 写入 manifest 或共享 Agent 指引。缺少访问权限时，fx 会检查就绪状态并提供相应的设置步骤。
 
-## 本机保留什么 {#keep-on-each-machine}
+一台机器选中了某个环境，不代表另一台机器也有权限。使用 `fx can <capability> --env <environment>` 或 `fx doctor` 检查。
 
-凭据由各配套工具负责。FX_HOME 保存选择、偏好、信任与操作状态。导出配置不含秘密、信任记录和 manifest clone。其他机器的检查成功不能证明本机已就绪。
+## 团队知识 {#sharing-team-knowledge}
 
-## 示例与兼容性 {#examples-and-compatibility}
+共享仓库信息、环境坐标和团队 Skill 保存在受控的 manifest 来源中。成员文档需要 `sensitive: true`，但该标记不能代替仓库访问控制。
 
-包含 example 的名称和 example.com 域名都是虚构示例，不是真实组织的默认配置。仓库标识和服务标识可以不同，必要时明确设置 `obs.svc`。旧 `fx-` 服务命名约定仅为兼容保留，新 manifest 不必采用。
+只有明确执行 `fx source push` 才会提交选定的来源变更。先使用 `--dry-run` 检查文件和目标。普通工作区同步并不代表发布团队来源。
 
-计划中的公共 npm 包不需要私有 registry 权限。团队的私有 manifest、配套包和服务仍可独立管理。fx 自身的发布与自更新还需要完成 [registry 迁移](design/registry-configuration.md)，工具采用 [Apache-2.0](../LICENSE)，该许可证不授予访问私有 manifest 或服务的权限。
+## 问题报告 {#reporting-a-problem}
+
+公开报告只应包含最小化、已脱敏的示例。移除凭据、成员信息和私有服务地址。参见[支持](support.md)。

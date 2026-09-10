@@ -1,18 +1,12 @@
-# Documentation
+# fx documentation
 
-- [Website maintenance](website/README.md): static homepage, generated docs and local preview.
-- [Getting started](../README.md): installation, concepts and common workflows.
-- [Manifest guide](manifest-guide.md): create a first source or import existing checkouts.
-- [CLI reference](cli/README.md): generated syntax and flags.
-- [Agent Skill](../skills/fx-workspace/SKILL.md): task routing and response interpretation.
-- [Architecture](design/README.md): implementation contracts and extension boundaries.
-- [Public/private boundary](private-manifest.md): what belongs in source versus team configuration.
-- [Public release preparation](public-release.md): pending distribution decisions and review gates.
-- [Validation](validation.md): local checks, live integration prerequisites and support limits.
-- [Agent evaluation](eval/README.md): reusable trials with private case data.
-- [Contribution guide](../CONTRIBUTING.md): setup, validation and pull requests.
-- [Security reporting](../SECURITY.md): vulnerability reporting and trust boundaries.
-- [Roadmap](roadmap.md): potential extensions.
+Use fx to prepare and maintain your team’s multi-repository workspace.
 
-Team deployment guides, business architecture and live investigation records
-belong in the private manifest or a private evidence store, not this documentation tree.
+- [Getting started](user-guide.md): installation, everyday commands and configuration.
+- [Your first manifest](manifest-guide.md): create a manifest or adopt existing checkouts.
+- [Your data and credentials](user-privacy.md): what stays local and what your team shares.
+- [CLI reference](cli/README.md): command arguments and flags.
+- [Agent Skill](../skills/fx-workspace/SKILL.md): using fx from a coding agent.
+- [Response contracts](../skills/fx-workspace/references/commands.md): interpreting structured results.
+- [Support and updates](support.md): setup issues, supported platforms and updating fx.
+- [Changelog](../CHANGELOG.md): user-visible changes.

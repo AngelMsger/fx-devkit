@@ -105,7 +105,7 @@ fx init ./existing-work --from ./team-workspace
 
 Adoption is automatic; `--adopt` is a legacy flag. Existing guides or Skill
 locations may require a reviewed replacement with backup. Import does not alter
-checkouts or remove submodule bookkeeping. See the [import contract](design/import.md).
+checkouts or remove submodule bookkeeping. See the [import commands](cli/README.md#fx-manifest-import).
 
 ## Share and maintain the source
 
@@ -124,4 +124,4 @@ Maintain shared declarations in the registered source checkout and personal
 selections through `repo pick/unpick`, `env pick/unpick` and `agent pick/unpick`.
 Agent selection applies across workspaces in the same FX_HOME. For contributing
 source changes through a verified personal fork, see
-[source contributions](design/source-contributions.md).
+[source contribution commands](cli/README.md#fx-source-push).

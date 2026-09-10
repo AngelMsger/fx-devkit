@@ -1,95 +1,71 @@
 {
   "ja": {
-    "_catalog_sha256": "413db40d020b269039f78b4d826c9e930681641b19e18eb78d56ce0013771bd6",
-    "README.md": {
+    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b190c6c037716e907938c6bfae9fefdc7a31174011ee4df28534745635b814ba"
+      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+      "source_sha256": "2031dcf1ad52a16e5b74613533e48ffa31d19d4a1ac4f304aab603c3318e6c1b"
     },
-    "docs/private-manifest.md": {
+    "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
     },
-    "docs/public-release.md": {
-      "file": "public-release.md",
-      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
-    },
-    "docs/validation.md": {
-      "file": "validation.md",
-      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
-    },
-    "docs/roadmap.md": {
-      "file": "roadmap.md",
-      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    "docs/support.md": {
+      "file": "support.md",
+      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
     }
   },
   "zh-Hans": {
-    "_catalog_sha256": "413db40d020b269039f78b4d826c9e930681641b19e18eb78d56ce0013771bd6",
-    "README.md": {
+    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b190c6c037716e907938c6bfae9fefdc7a31174011ee4df28534745635b814ba"
+      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+      "source_sha256": "2031dcf1ad52a16e5b74613533e48ffa31d19d4a1ac4f304aab603c3318e6c1b"
     },
-    "docs/private-manifest.md": {
+    "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
     },
-    "docs/public-release.md": {
-      "file": "public-release.md",
-      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
-    },
-    "docs/validation.md": {
-      "file": "validation.md",
-      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
-    },
-    "docs/roadmap.md": {
-      "file": "roadmap.md",
-      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    "docs/support.md": {
+      "file": "support.md",
+      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
     }
   },
   "zh-Hant": {
-    "_catalog_sha256": "413db40d020b269039f78b4d826c9e930681641b19e18eb78d56ce0013771bd6",
-    "README.md": {
+    "_catalog_sha256": "f9afa3543b583ea5bcd67c71ce4e911aaf22458e89f13c8cde2f258d09f88aad",
+    "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b190c6c037716e907938c6bfae9fefdc7a31174011ee4df28534745635b814ba"
+      "source_sha256": "80b4030fbda27d85fd88a8d222a7dd0859dab058bda60abcbfa797bb333f7a8e"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "ff989b5d2e6f499ada7b50de4c1345705bc2d0c3703e258b35d7aabccda0d2c9"
+      "source_sha256": "2031dcf1ad52a16e5b74613533e48ffa31d19d4a1ac4f304aab603c3318e6c1b"
     },
-    "docs/private-manifest.md": {
+    "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "3bfc5918bfd95314759f817909a3cdbea0294f5d73f228e6c29edc584b7f6b58"
+      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
     },
-    "docs/public-release.md": {
-      "file": "public-release.md",
-      "source_sha256": "4599a7df227e7d35b75607bf3d72744a7f438b11b03dcf3de2c3b2705e4ad275"
-    },
-    "docs/validation.md": {
-      "file": "validation.md",
-      "source_sha256": "0e2e94a98504d3fe3ee0d9476b961dfd71e390f14f2e170d4a9de61881736100"
-    },
-    "docs/roadmap.md": {
-      "file": "roadmap.md",
-      "source_sha256": "d332f36a53ef7e1c75e6a92bc2018754b62b33cabed30eebfedc0e119677748f"
+    "docs/support.md": {
+      "file": "support.md",
+      "source_sha256": "e3c8fbe5ed3654b168145c7ebb35b2ea5adbd300f360cd55a2c827e89e5f72bc"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "0622cd6ee7832c8cd56ef015ae87dd109a0c8ce3e5cf52da50e268aee6aa0b39"
+      "source_sha256": "49b294781cbf5013129a2f20e3835d831ef81beae846c5edf225907b731159eb"
     }
   }
 }

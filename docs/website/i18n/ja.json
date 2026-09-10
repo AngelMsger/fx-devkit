@@ -8,8 +8,8 @@
   "heroDetail": "共有マニフェストから、使える開発環境へ。<br class=\"desktop-break\" />何があり、何が使えるかを知って、開発を始めよう。",
   "readDocs": "ドキュメントを読む",
   "seeAction": "動作を見る",
-  "installNote": "npm での一般公開に向けて準備中です。",
-  "releaseLink": "公開までの状況 ↗",
+  "installNote": "このプレリリースはソースから利用できます。",
+  "releaseLink": "インストールガイド ↗",
   "copy": "コピー",
   "copyInstall": "インストールコマンドをコピー",
   "demo": "実行例",
@@ -34,7 +34,7 @@
   "architectureKicker": "02 / ツールをつなぎ、役割を保つ。",
   "architectureTitle": "情報源はひとつ。<br />仕組みは透明に。",
   "architectureBody": "fx はワークスペースを調整します。認証、サービス API、アクセス制御は、それぞれのツールが担います。",
-  "underHood": "内部の仕組み ↗",
+  "underHood": "ワークスペースを理解する ↗",
   "mapLabel": "チームのマニフェストから fx を通じてリポジトリ、ツール、エージェントを構成",
   "input": "入力",
   "sharedFacts": "共有情報 + 個人の選択",
@@ -57,8 +57,8 @@
   "changelog": "変更履歴",
   "getStarted": "はじめる",
   "footer": "開発する人のために。",
-  "architecture": "アーキテクチャ",
-  "releaseStatus": "公開状況",
+  "architecture": "ワークスペース",
+  "releaseStatus": "サポート",
   "pause": "動きを停止",
   "resume": "動きを再開",
   "reduced": "動きを抑制中",
@@ -82,10 +82,7 @@
   "notFoundBody": "ページが移動した可能性があります。ドキュメントから探してください。",
   "groups": {
     "Start here": "はじめに",
-    "Reference": "リファレンス",
-    "Architecture": "アーキテクチャ",
-    "Project": "プロジェクト",
-    "Contributing": "開発への参加"
+    "Reference": "リファレンス"
   },
   "pages": {
     "docs/": {
@@ -101,8 +98,8 @@
       "description": "小さな宣言から始め、必要なツールや環境を接続します。"
     },
     "docs/private-manifest/": {
-      "title": "公開と非公開の境界",
-      "description": "ツールは共有し、チームの運用情報は適切に管理します。"
+      "title": "データと資格情報",
+      "description": "ローカルの状態、共有情報、サービスの認証を理解する。"
     },
     "docs/cli/": {
       "title": "CLI コマンド",
@@ -116,85 +113,13 @@
       "title": "応答の契約",
       "description": "構造化された出力を正しく読み解くために。"
     },
-    "docs/design/": {
-      "title": "アーキテクチャ概要",
-      "description": "共有宣言とローカルのワークフローをつなぐ仕組み。"
-    },
-    "docs/design/runtime/": {
-      "title": "ランタイムとコマンド",
-      "description": "出力、設定、信頼、プロセスの寿命。"
-    },
-    "docs/design/setup/": {
-      "title": "セットアップと準備状態",
-      "description": "明確な手順と、検証結果に基づく準備状態。"
-    },
-    "docs/design/import/": {
-      "title": "リポジトリのインポート",
-      "description": "既存のチェックアウトからワークスペースの宣言を作成します。"
-    },
-    "docs/design/harness/": {
-      "title": "MCP とルール",
-      "description": "所有権を保ちながらエージェントホストに設定を投影します。"
-    },
-    "docs/design/lifecycle/": {
-      "title": "ライフサイクルフック",
-      "description": "作業を妨げない、範囲を限定したバックグラウンド更新。"
-    },
-    "docs/design/source-contributions/": {
-      "title": "ソースへの貢献",
-      "description": "検証済みの個人フォークから共有情報を提案します。"
-    },
-    "docs/design/probe-recording/": {
-      "title": "プローブ結果の記録",
-      "description": "プラットフォームの座標に関する日付付きの根拠を記録します。"
-    },
-    "docs/design/windows/": {
-      "title": "Windows",
-      "description": "ネイティブ環境での動作と検証範囲。"
-    },
-    "docs/design/registry-configuration/": {
-      "title": "レジストリの移行",
-      "description": "public npm に向けた移行と、残っている実装。"
-    },
-    "docs/public-release/": {
-      "title": "公開に向けた準備",
-      "description": "初回公開のための配布方針とチェック項目。"
-    },
-    "docs/validation/": {
-      "title": "検証とサポート範囲",
-      "description": "自動チェックで確認できることと、実環境での確認が必要なこと。"
-    },
-    "docs/eval/": {
-      "title": "エージェント評価",
-      "description": "非公開のケースデータを使う、再利用可能な評価手順。"
-    },
-    "docs/eval/handover/": {
-      "title": "評価の引き継ぎ",
-      "description": "範囲を限定したエージェント評価の準備とレビュー。"
-    },
-    "docs/roadmap/": {
-      "title": "ロードマップ",
-      "description": "現在の機能と区別した、今後の拡張候補。"
+    "docs/support/": {
+      "title": "サポートと更新",
+      "description": "設定の問題、対応環境、fx の更新を確認する。"
     },
     "docs/changelog/": {
       "title": "変更履歴",
       "description": "fx ワークスペース CLI の変更点。"
-    },
-    "docs/contributing/": {
-      "title": "開発ガイド",
-      "description": "リポジトリの境界、検証、ドキュメント更新の責任。"
-    },
-    "docs/website/": {
-      "title": "Web サイトの保守",
-      "description": "静的サイトと多言語ドキュメントのビルドと保守。"
-    },
-    "docs/contributing-guide/": {
-      "title": "貢献ガイド",
-      "description": "ローカル設定、変更の範囲、検証、プルリクエストの進め方。"
-    },
-    "docs/security/": {
-      "title": "セキュリティ報告",
-      "description": "脆弱性の疑いを報告し、ワークスペースの信頼境界を守ります。"
     }
   }
 }

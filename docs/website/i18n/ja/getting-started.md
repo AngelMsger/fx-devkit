@@ -1,42 +1,14 @@
-# はじめに
+# fx を使う
 
-`fx` はチームの共有マニフェストから複数リポジトリのワークスペースを構成します。リポジトリの同期、連携 CLI の準備、コーディングエージェントへのコンテキスト配布、サービスの調査先の発見を支援します。人には読みやすい出力を、エージェントには構造化された結果を返します。
-
-プロジェクト名は `fx-devkit`、npm パッケージ名は `@angelmsger/fx`、コマンド名は `fx` です。public npm での配布は準備中です。[公開チェックリスト](docs/public-release.md)に残っている作業を確認してください。
-
-## fx を使う理由 {#why}
-
-checkout は開発の出発点にすぎません。ツール、アクセス権、サービスの座標、チームの手順、Agent のコンテキストも必要です。fx は各リポジトリの独立したビルドを保ちながら、共有情報を発見できるようにします。
-
-- リポジトリ、担当者、ツール、環境を一度宣言する。
-- 条件を満たすクリーンなブランチを同期し、未コミットの変更や分岐、別ブランチの作業を保護する。書き込みは `--dry-run` で確認する。
-- チーム Skill と対応するホストリソースを Agent に配布し、構造化された結果と明確な復旧手順を提供する。
-- `can`、`doctor` で準備状態を確認し、`where` でログ、ビルド、エラー、クラスタへの入口を探す。
-- 認証とサービスのプロトコルは連携ツールに任せ、個人の選択と信頼記録はローカルに置く。
-- 検証済みの個人フォークと `source push` で共有知識に貢献する。
-
-### 日々の操作 {#a-working-session}
-
-初期化後は以下が主な入口です。`example-api` と `test` はマニフェストの実際の項目に置き換えてください。
-
-```sh
-fx status
-fx sync --dry-run
-fx can code-host --format json
-fx where example-api --env test
-fx sync --only docs,skills
-fx release --format json
-```
-
-サイトとリポジトリの URL は設定済みの公開先であり、公開済みであることを示すものではありません。
+fx をインストールし、チームのマニフェストを接続してリポジトリやツール、エージェントを利用します。
 
 ## 動作環境 {#requirements}
 
 - Node.js ≥22。開発バージョンは package.json に固定されています。Bun もランタイムとして利用できます。
 - PATH 上の Git。グローバルインストールと `fx self update` には、Bun を使う場合も npm が必要です。
-- チームのマニフェスト、または[自分で作成したマニフェスト](docs/manifest-guide.md)。
+- チームのマニフェスト、または[自分で作成したマニフェスト](manifest-guide.md)。
 
-macOS と Linux をサポートします。Windows のネイティブアダプターは実装済みですが、実機実行とエージェントホストの有効化は未検証です。対象はローカル NTFS 上の PowerShell 5.1/7 と cmd です。[Windows の検証範囲](docs/design/windows.md)を参照してください。
+macOS と Linux をサポートします。Windows のネイティブアダプターは実装済みですが、実機実行とエージェントホストの有効化は未検証です。対象はローカル NTFS 上の PowerShell 5.1/7 と cmd です。[Windows の検証範囲](support.md#platform-support)を参照してください。
 
 ## インストール {#install}
 
@@ -68,9 +40,7 @@ PowerShell の実行ポリシーが `.ps1` shim をブロックする場合は�
 
 ### 更新
 
-`fx self info --format json` でランタイムと実際の更新レジストリを確認できます。公開版では public npm を既定値とする予定ですが、現在の更新確認と `self update` はプライベートな `FX_REGISTRY` を必要とします。[移行状況](docs/design/registry-configuration.md)を確認してください。
-
-ソースの checkout は Git で更新し、`npm ci` と `npm run build` を実行します。`self update` がインストールするのはグローバル npm パッケージです。
+ソースからインストールした場合は Git で checkout を更新し、`npm ci` と `npm run build` を実行します。`fx self info --format json` でバージョンとパッケージ更新元を確認できます。[更新ガイド](support.md#updates)を参照してください。
 
 ## クイックスタート {#quick-start}
 
@@ -129,13 +99,13 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 選択したエージェントには、チームの Skill ディレクトリへのリンクと、バージョン付き fx Skill のコピーを配布します。fx の所有物でないファイルは保持します。Windows ではチームのディレクトリに junction を使います。`skill list` で状態を確認し、`sync --only skills` で調整します。
 
-harness は MCP エントリーとルールへの参照をホストに投影します。秘密の値は環境変数への参照に留めます。`mcp list/show` と `can mcp:<name>` は前提条件を説明しますが、設定の存在だけではホストでの有効化を証明できません。[MCP の契約](docs/design/harness.md)を参照してください。
+harness は MCP エントリーとルールへの参照をホストに投影します。秘密の値は環境変数への参照に留めます。`mcp list/show` と `can mcp:<name>` は前提条件を説明しますが、設定の存在だけではホストでの有効化を証明できません。[MCP の契約](user-guide.md#for-coding-agents)を参照してください。
 
-起動フックはキャッシュ済みコンテキストを返し、マニフェスト、文書、Skill をバックグラウンドで更新できます。業務リポジトリの同期や信頼の承認はしません。プロジェクトとフックの信頼はホストが管理します。`hook list/inject/remove` と[ライフサイクルの契約](docs/design/lifecycle.md)を使用してください。
+起動フックはキャッシュ済みコンテキストを返し、マニフェスト、文書、Skill をバックグラウンドで更新できます。業務リポジトリの同期や信頼の承認はしません。プロジェクトとフックの信頼はホストが管理します。`hook list/inject/remove` と[ライフサイクルの契約](user-guide.md#for-coding-agents)を使用してください。
 
 ### 共有情報への貢献
 
-`source push` は選択したソースファイルの変更をプレビューまたは提出し、ソース checkout の HEAD、インデックス、作業ファイルを保護します。個人フォークと上流の関係を示す根拠が必要です。実行前に `fx source push --help` と[貢献の契約](docs/design/source-contributions.md)を確認してください。
+`source push` は選択したソースファイルの変更をプレビューまたは提出し、ソース checkout の HEAD、インデックス、作業ファイルを保護します。個人フォークと上流の関係を示す根拠が必要です。実行前に `fx source push --help` と[貢献の契約](cli/README.md#fx-source-push)を確認してください。
 
 ## 主なコマンド {#commands}
 
@@ -152,7 +122,7 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 | ホストのリソース       | `hook list/inject/remove`、`mcp list/show`                                         |
 | CLI 自体の管理         | `self info/update`、`completion`                                                   |
 
-正確な構文は `--help` と[生成された CLI リファレンス](docs/cli/README.md)が基準です。
+正確な構文は `--help` と[生成された CLI リファレンス](cli/README.md)が基準です。
 
 ## コーディングエージェント向け {#for-coding-agents}
 
@@ -162,7 +132,7 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 doctor/release は失敗項目があっても終了コード 0 を返します。init/sync も部分成功で 0 を返す場合があります。init では `sync.summary` と `sync.stages`、sync では `summary`、`stages`、失敗項目の `failure` を読みます。`stage_details` に各リソース段階の結果と handoff が残ります。終了コードだけで準備完了と判断せず、認証の捏造やホストの信頼境界の回避をしないでください。
 
-[内蔵 Skill](skills/fx-workspace/SKILL.md)と[応答ガイド](skills/fx-workspace/references/commands.md)を読んだ後で `FX_SKILL_LOADED=1` を設定します。インストール済み Skill の場所は `self info` で確認できます。
+[内蔵 Skill](../skills/fx-workspace/SKILL.md)と[応答ガイド](../skills/fx-workspace/references/commands.md)を読んだ後で `FX_SKILL_LOADED=1` を設定します。インストール済み Skill の場所は `self info` で確認できます。
 
 ## 設定 {#configuration}
 
@@ -173,18 +143,6 @@ doctor/release は失敗項目があっても終了コード 0 を返します�
 `format` は出力形式です。`command_shell` は生成されるコマンド文字列だけを変更し、実行方法は変更しません。auto は Windows で PowerShell、それ以外で POSIX を選択します。`--command-shell`、`FX_COMMAND_SHELL`、cmd 設定で変更できます。マニフェストの shell テンプレートはそのままです。
 
 bash、zsh、fish、PowerShell の補完は `fx completion <shell>` で生成し、必要に応じて自分の環境に読み込みます。
-
-## 開発と検証 {#development}
-
-package.json の固定バージョンを使用します。`npm ci` と `npm --prefix docs/website ci` の後、lint、typecheck、Node/Bun 単体テスト、e2e、CLI 文書・Web サイトのチェック、配布パッケージのスキャンを実行します。[検証ガイド](docs/validation.md)と[開発ルール](AGENTS.md)を参照してください。Windows の検証には `npm run check:windows` を使用します。
-
-`npm run test:contract` は明示的なテスト座標を必要とする任意の読み取り専用チェックです。Bitbucket は `FX_TEST_BITBUCKET_HOST` と `FX_TEST_BITBUCKET_REPO`、Jenkins は `FX_TEST_JENKINS_JOB` と任意の `FX_TEST_JENKINS_CONTEXT`、Sentry は `FX_TEST_SENTRY_HOST`、`FX_TEST_SENTRY_ORG`、`FX_TEST_SENTRY_PROJECT` を使用します。未設定ならスキップし、設定済みでアクセスできなければ失敗します。
-
-公開前に[チェックリスト](docs/public-release.md)を完了してください。現在の Jenkins タグ公開にはプライベートレジストリの制約が残っています。
-
-## Web サイトと文書 {#documentation}
-
-[サイト保守ガイド](docs/website/README.md)で多言語コンテンツ、GitHub Pages、ローカルプレビューを説明します。技術的な基準は英語原文です。未翻訳の詳細リファレンスは英語であることを明示します。
 
 ## 連携 {#integrations}
 
@@ -202,34 +160,4 @@ package.json の固定バージョンを使用します。`npm ci` と `npm --pr
 
 `fx manifest providers` と `fx tool list` で実際のバインディングを確認します。コミュニケーションと知識の入口は連携ツールに引き継ぎ、すべての API を fx が仲介するわけではありません。
 
-Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホストを含みます。Skill、hook、MCP、ルールの対応はホストによって異なります。`agent list`、`hook list`、`mcp list` と[ホストの契約](docs/design/harness.md)で確認してください。
-
-## よくある質問 {#faq}
-
-### monorepo が必要ですか？
-
-不要です。各リポジトリはブランチ、履歴、依存、ビルドツールを維持します。ルートは通常ディレクトリです。既存 checkout も[インポートして取り込めます](docs/design/import.md)。
-
-### マニフェストを公開する必要がありますか？
-
-ありません。ツールとチームの運用データは独立しています。マニフェストは適切なアクセス権のあるリポジトリに保存し、資格情報は元のツールが管理します。[公開と非公開の境界](docs/private-manifest.md)を参照してください。
-
-### 終了コード 0 はレポートの成功を意味しますか？
-
-必ずしもそうではありません。doctor/release は失敗項目があっても 0 を返し、init/sync は部分成功を返すことがあります。`ok`、`complete`、各段階の結果と復旧情報を確認します。[応答の契約](skills/fx-workspace/references/commands.md)を参照してください。
-
-## 貢献 {#contributing}
-
-バグ報告、焦点を絞った修正、文書の改善、翻訳を歓迎します。[貢献ガイド](https://github.com/AngelMsger/fx-devkit/blob/main/CONTRIBUTING.md)で設定、検証、PR の進め方を確認してください。大きな動作や provider の変更は、先に issue で相談してください。
-
-機能の変更には文書の更新も含まれます。英語原文と対応する翻訳を一緒に更新し、サイトビルドで鮮度を確認します。[ロードマップ](docs/roadmap.md)では現在の機能と拡張候補を区別しています。
-
-## サポートとセキュリティ {#support-and-security}
-
-[問題を報告する](https://github.com/AngelMsger/fx-devkit/issues)際は、`fx --version` の出力、OS、コマンド、期待する動作、機密情報を除いた再現手順を含めてください。セットアップの失敗では、該当する doctor の結果と handoff を添えます。
-
-脆弱性の疑いは[セキュリティ報告ガイド](https://github.com/AngelMsger/fx-devkit/blob/main/SECURITY.md)に従ってください。公開の報告には資格情報、個人情報、非公開のチーム座標を含めないでください。
-
-## ライセンス {#license}
-
-本プロジェクトは [Apache License 2.0](https://github.com/AngelMsger/fx-devkit/blob/main/LICENSE) で提供します。
+Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホストを含みます。Skill、hook、MCP、ルールの対応はホストによって異なります。`agent list`、`hook list`、`mcp list` と[ホストの契約](user-guide.md#for-coding-agents)で確認してください。

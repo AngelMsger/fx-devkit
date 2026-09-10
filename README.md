@@ -2,7 +2,7 @@
 
 **One manifest for your repositories, tools, and coding agents.**
 
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-dfbf6b?style=flat-square&labelColor=101211)](https://angelmsger.github.io/fx-devkit/docs/public-release/)
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-dfbf6b?style=flat-square&labelColor=101211)](https://angelmsger.github.io/fx-devkit/docs/getting-started/#install)
 [![Node.js: 22 or newer](https://img.shields.io/badge/Node.js-%E2%89%A522-c4f36b?style=flat-square&labelColor=101211)](#requirements)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-c4f36b?style=flat-square&labelColor=101211)](https://github.com/AngelMsger/fx-devkit/blob/main/LICENSE)
 [![Structured output: JSON](https://img.shields.io/badge/output-JSON-c4f36b?style=flat-square&labelColor=101211)](#for-coding-agents)
@@ -21,11 +21,8 @@ English · [日本語](https://angelmsger.github.io/fx-devkit/ja/docs/getting-st
 checkouts, prepare companion tools, equip coding agents, and find the right place
 to investigate a service—all from one shared map.
 
-> **Pre-release:** the public npm package is being prepared. Build from source
-> for now. Public-registry publishing and self-update still need migration; the
-> [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/)
-> tracks the remaining work. Repository and website URLs are configured publication
-> targets, not a claim that those destinations are already live.
+> **Pre-release:** install from a source checkout using the instructions below.
+> Check the package's availability before using a global npm installation.
 
 ## Contents
 
@@ -37,7 +34,6 @@ to investigate a service—all from one shared map.
 - [Integrations](#integrations)
 - [For coding agents](#for-coding-agents)
 - [Configuration](#configuration)
-- [Development](#development)
 - [FAQ](#faq)
 - [Contributing and support](#contributing)
 
@@ -87,7 +83,7 @@ separate: inspect findings, coverage and handoffs.
 macOS and Linux are supported. Native Windows adapters are implemented, but
 Windows execution and real host activation remain unverified. Windows targets
 PowerShell 5.1/7 and cmd on local NTFS, without requiring WSL, Git Bash,
-administrator privileges or Developer Mode. See [acceptance limits](https://angelmsger.github.io/fx-devkit/docs/design/windows/).
+administrator privileges or Developer Mode. See [platform support](https://angelmsger.github.io/fx-devkit/docs/support/#platform-support).
 
 ## Install
 
@@ -99,8 +95,7 @@ fx --version
 ```
 
 This is the installation path for the public release, not a claim that the
-package is already available. Until the [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/)
-is complete, run the source checkout as described below.
+package is already available. Use the source checkout as described below for this pre-release.
 
 If your npm configuration redirects the `@angelmsger` scope to an old registry,
 explicitly select public npm for this installation:
@@ -133,12 +128,10 @@ when running from source. Building is required because the launcher loads `dist/
 
 ### Updates
 
-`fx self info --format json` reports the runtime and effective update registry.
-The public-release target is public npm by default, with no required `FX_REGISTRY`.
-The current implementation still requires a private registry for update checks
-and `fx self update`; see the [registry transition](https://angelmsger.github.io/fx-devkit/docs/design/registry-configuration/).
-A source checkout is updated through Git and rebuilt with `npm ci` and
-`npm run build`; `self update` installs the global npm package.
+For a source installation, update your checkout and run `npm ci` and
+`npm run build` again. `fx self info --format json` shows the running version
+and configured package registry. See the
+[update guide](https://angelmsger.github.io/fx-devkit/docs/support/#updates).
 
 ## Quick start
 
@@ -197,7 +190,7 @@ resetting or stashing it.
 The manifest's workspace, environments, tools and members documents describe
 shared facts; optional harness declarations describe MCP resources and rules.
 Use `fx manifest explain '<path>'` or `fx manifest schema --kind <kind>` to inspect
-fields. [Architecture](https://angelmsger.github.io/fx-devkit/docs/design/) explains their relationships.
+fields. [Workspace concepts](https://angelmsger.github.io/fx-devkit/docs/getting-started/#concepts) explains their relationships.
 
 ### Your personal layer
 
@@ -234,21 +227,21 @@ and `sync --only skills` to reconcile it.
 Harness declarations project owned MCP entries and rule pointers into selected
 hosts. Secret values remain environment references. `mcp list/show` and
 `can mcp:<name>` explain prerequisites; a correct configuration does not prove
-native host activation. See [harness contracts](https://angelmsger.github.io/fx-devkit/docs/design/harness/).
+native host activation. See [agent usage](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents).
 
 ### Workspace lifecycle
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
 project and hook trust remain owned by the host. Use `hook list`, `hook inject`
-and `hook remove`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/design/lifecycle/) describes the boundaries.
+and `hook remove`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents) describes the boundaries.
 
 ### Shared source contributions
 
 `source push` previews or submits selected source changes while preserving the
 source checkout's HEAD, index and working files. It requires evidence of a personal
 fork and its upstream relationship. Inspect `fx source push --help` and the
-[source contract](https://angelmsger.github.io/fx-devkit/docs/design/source-contributions/) before an actual submission.
+[command reference](https://angelmsger.github.io/fx-devkit/docs/cli/#fx-source-push) before an actual submission.
 
 ## Commands
 
@@ -295,7 +288,7 @@ Agent discovery includes Claude Code, Codex CLI, Cursor and other registered
 hosts. **Skill delivery, hooks, MCP and rules have different support per host.**
 Use `fx agent list`, `fx hook list` and `fx mcp list` to inspect the relevant
 capabilities instead of assuming feature parity. See the
-[harness contract](https://angelmsger.github.io/fx-devkit/docs/design/harness/).
+[agent usage](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents).
 
 ## For coding agents
 
@@ -357,48 +350,15 @@ fx.cmd completion powershell | Out-File -Encoding utf8 "$HOME\fx-completion.ps1"
 
 Bash, zsh and fish are also available through `fx completion <shell>`.
 
-## Development
-
-Use the versions pinned in package.json. After `npm ci` and
-`npm --prefix docs/website ci`, the required local gates
-are lint, typecheck, Node/Bun unit tests, e2e, fresh CLI docs checks and the package
-boundary scanner. Read [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md) for commands and contributor rules.
-Windows acceptance has its own `npm run check:windows` entry; a POSIX test run is
-not evidence of native Windows behavior.
-
-Live companion contracts are opt-in with `npm run test:contract`. They are
-read-only and require explicit test coordinates: `FX_TEST_BITBUCKET_HOST` and
-`FX_TEST_BITBUCKET_REPO`; `FX_TEST_JENKINS_JOB` with optional
-`FX_TEST_JENKINS_CONTEXT`; or `FX_TEST_SENTRY_HOST`, `FX_TEST_SENTRY_ORG` and
-`FX_TEST_SENTRY_PROJECT`. Missing coordinates skip those contracts; configured
-but failing access fails them.
-
-Publication is separate from development. The current Jenkinsfile publishes on
-`v*` tags through `scripts/publish.mjs`, whose private-only guard still blocks
-public npm. Complete the [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/) before
-using that pipeline for a public release.
-
-## Website
-
-The static homepage and documentation live in `docs/website/`, with English, Japanese,
-Simplified Chinese and Traditional Chinese versions. User guides are localized;
-untranslated technical references are explicitly labeled in the selected language.
-GitHub Pages is the deployment baseline, including repository subpaths.
-Documentation pages are generated from this repository’s Markdown. Run `npm --prefix docs/website ci`,
-`npm run site:build`, then `npm run site:dev` to preview them. See the
-[website guide](https://angelmsger.github.io/fx-devkit/docs/website/) for maintenance and hosting.
-
 ## Documentation
 
-| Audience/question                              | Source                                                                                   |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Creating or importing a team manifest          | [Manifest guide](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/)            |
-| Exact command syntax                           | [Generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) and `--help` |
-| Agent workflow and response interpretation     | [Bundled Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/)                |
-| Architecture, boundaries and current behavior  | [Design index](https://angelmsger.github.io/fx-devkit/docs/design/)                      |
-| Contributor rules and checks                   | [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md)                 |
-| Current delivery evidence and remaining limits | [Validation](https://angelmsger.github.io/fx-devkit/docs/validation/)                    |
-| Release contents                               | [Changelog](https://angelmsger.github.io/fx-devkit/docs/changelog/)                      |
+| Audience/question                             | Source                                                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Creating or importing a team manifest         | [Manifest guide](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/)            |
+| Exact command syntax                          | [Generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) and `--help` |
+| Agent workflow and response interpretation    | [Bundled Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/)                |
+| Architecture, boundaries and current behavior | [Workspace guide](https://angelmsger.github.io/fx-devkit/docs/getting-started/#concepts) |
+| Release contents                              | [Changelog](https://angelmsger.github.io/fx-devkit/docs/changelog/)                      |
 
 ## FAQ
 
@@ -406,7 +366,7 @@ Documentation pages are generated from this repository’s Markdown. Run `npm --
 
 No. Repositories keep their own branches, history, dependencies and build tools.
 The managed workspace root is a plain directory. Existing checkouts can be
-[imported and adopted](https://angelmsger.github.io/fx-devkit/docs/design/import/).
+[imported and adopted](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/#import-existing-checkouts).
 
 ### Does my team have to publish its manifest?
 

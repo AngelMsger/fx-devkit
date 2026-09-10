@@ -161,3 +161,7 @@ vite.config.ts.timestamp-*
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Local website build state and optional personal preview bindings
+docs/website/.build-state.json
+docs/website/.openai/

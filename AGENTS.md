@@ -182,10 +182,24 @@ accounts or business repositories.
 
 ## Public website and documentation consistency
 
-`docs/website/` owns the static homepage and documentation presentation. Its build
-renders the canonical README, public `docs/`, bundled Skill and contributor
-references selected in `docs/website/pages.mjs`; do not maintain a second copy of
-feature documentation or edit generated `docs/website/dist/` files.
+`docs/website/` presents documentation for people using fx, not for the fx
+maintainer. `docs/user-guide.md` owns user onboarding; README is the repository
+entry point and must not be rendered wholesale into the user site. Only sources
+explicitly approved in `docs/website/audience.mjs` may appear in `pages.mjs`.
+
+Never publish AGENTS.md, CONTRIBUTING.md, website-maintenance instructions,
+internal design/evaluation documents, fx package-release procedures, maintainer
+validation checklists, personal preview bindings, or build-source metadata as user
+documentation. Do not add indirect links to excluded documents from public pages,
+translations, homepage sections, navigation or sitemaps. Explain how users operate
+fx (including checking their own repositories with `fx release`), not how the
+maintainer builds or publishes fx. Personal machine paths, preview project IDs and
+credential configuration belong outside the public repository.
+
+Build state stays in the ignored `docs/website/.build-state.json`, outside the
+static output directory. The audience checks must reject non-user sources and
+maintainer content in deployable HTML. Keep removed routes absent from fresh
+build output; verify their removal after deployment.
 
 Every feature addition, behavior change, removal or design-contract update MUST
 update the affected external documentation in the same change. This includes
@@ -195,7 +209,7 @@ implementation, design documents and public guidance disagree. For intentional
 future designs, label them as planned and retain an accurate description of
 current behavior rather than advertising unfinished work as available.
 
-Update README and the owning public guide first; update homepage claims in
+Update the owning user guide and README when affected; update homepage claims in
 `docs/website/src/home.html` and navigation/descriptions in `docs/website/pages.mjs` when
 affected. Regenerate `docs/cli/README.md` from command definitions for CLI changes.
 If a change has no external impact, state why in its delivery or PR description.

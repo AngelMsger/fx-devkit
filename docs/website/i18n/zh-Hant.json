@@ -8,8 +8,8 @@
   "heroDetail": "fx 將共用 manifest 變成可用的開發環境。<br class=\"desktop-break\" />了解有哪些資源、哪些已就緒，然後開始工作。",
   "readDocs": "閱讀文件",
   "seeAction": "看看它如何運作",
-  "installNote": "正在準備 npm 公開發佈。",
-  "releaseLink": "查看發佈準備進度 ↗",
+  "installNote": "目前預發佈版本可從原始碼安裝。",
+  "releaseLink": "安裝指南 ↗",
   "copy": "複製",
   "copyInstall": "複製安裝命令",
   "demo": "示範範例",
@@ -34,7 +34,7 @@
   "architectureKicker": "02 / 連接你的技術棧。",
   "architectureTitle": "單一事實來源。<br />沒有黑箱。",
   "architectureBody": "fx 編排工作區；驗證、服務 API 和存取控制，仍由各自的工具負責。",
-  "underHood": "看看內部設計 ↗",
+  "underHood": "了解工作區概念 ↗",
   "mapLabel": "團隊 manifest 經 fx 編排，連接儲存庫、工具和編碼 Agent",
   "input": "輸入",
   "sharedFacts": "共用資訊 + 個人選擇",
@@ -57,8 +57,8 @@
   "changelog": "更新日誌",
   "getStarted": "開始使用",
   "footer": "為開發者而生。",
-  "architecture": "架構",
-  "releaseStatus": "發佈狀態",
+  "architecture": "工作區概念",
+  "releaseStatus": "支援",
   "pause": "暫停動效",
   "resume": "恢復動效",
   "reduced": "已減少動態效果",
@@ -82,10 +82,7 @@
   "notFoundBody": "頁面可能已移動，請從文件入口重新尋找。",
   "groups": {
     "Start here": "開始使用",
-    "Reference": "參考",
-    "Architecture": "架構",
-    "Project": "專案",
-    "Contributing": "參與貢獻"
+    "Reference": "參考"
   },
   "pages": {
     "docs/": {
@@ -101,8 +98,8 @@
       "description": "從小規模宣告開始，逐步接入工具與環境。"
     },
     "docs/private-manifest/": {
-      "title": "公開與私有的界線",
-      "description": "共用工具，妥善保管團隊的維運上下文。"
+      "title": "資料與憑證",
+      "description": "了解本機狀態、共用資訊與服務驗證。"
     },
     "docs/cli/": {
       "title": "CLI 命令",
@@ -116,85 +113,13 @@
       "title": "回應契約",
       "description": "準確理解結構化輸出中的狀態與界線。"
     },
-    "docs/design/": {
-      "title": "架構概覽",
-      "description": "fx 如何連接共用宣告與本機工作流程。"
-    },
-    "docs/design/runtime/": {
-      "title": "執行階段與命令",
-      "description": "輸出、設定、信任和程序生命週期。"
-    },
-    "docs/design/setup/": {
-      "title": "設定與就緒狀態",
-      "description": "明確的準備步驟，根據驗證結果判斷就緒狀態。"
-    },
-    "docs/design/import/": {
-      "title": "匯入儲存庫",
-      "description": "將現有 checkout 轉為可審閱的工作區宣告。"
-    },
-    "docs/design/harness/": {
-      "title": "MCP 與規則",
-      "description": "在明確擁有權的前提下向 Agent 宿主投射團隊設定。"
-    },
-    "docs/design/lifecycle/": {
-      "title": "生命週期掛鉤",
-      "description": "限定範圍的背景更新，不打斷正在進行的工作。"
-    },
-    "docs/design/source-contributions/": {
-      "title": "共用來源貢獻",
-      "description": "透過已驗證的個人 fork 提交共用知識。"
-    },
-    "docs/design/probe-recording/": {
-      "title": "探測結果記錄",
-      "description": "記錄附日期的環境座標驗證證據。"
-    },
-    "docs/design/windows/": {
-      "title": "Windows",
-      "description": "原生平台行為與明確的驗收限制。"
-    },
-    "docs/design/registry-configuration/": {
-      "title": "Registry 遷移",
-      "description": "公共 npm 發佈目標與尚待完成的實作。"
-    },
-    "docs/public-release/": {
-      "title": "發佈準備",
-      "description": "首次公開發佈所需的決策和檢查。"
-    },
-    "docs/validation/": {
-      "title": "驗證與支援範圍",
-      "description": "自動檢查能證明什麼，以及仍需實機驗證的內容。"
-    },
-    "docs/eval/": {
-      "title": "Agent 評估",
-      "description": "使用私有案例資料的可重複使用評估協議。"
-    },
-    "docs/eval/handover/": {
-      "title": "評估交接",
-      "description": "準備和審閱範圍明確的 Agent 評估。"
-    },
-    "docs/roadmap/": {
-      "title": "路線圖",
-      "description": "清楚區分未來可能擴充與目前已有能力。"
+    "docs/support/": {
+      "title": "支援與更新",
+      "description": "排查設定問題、了解平台支援並更新 fx。"
     },
     "docs/changelog/": {
       "title": "更新日誌",
       "description": "fx 工作區 CLI 的變化。"
-    },
-    "docs/contributing/": {
-      "title": "工程指南",
-      "description": "儲存庫界線、驗證要求與文件維護責任。"
-    },
-    "docs/website/": {
-      "title": "網站維護",
-      "description": "建置和維護靜態官網與多語言文件。"
-    },
-    "docs/contributing-guide/": {
-      "title": "貢獻指南",
-      "description": "本機設定、聚焦變更、驗證與 Pull Request 要求。"
-    },
-    "docs/security/": {
-      "title": "安全報告",
-      "description": "回報疑似弱點，並保護工作區的信任界線。"
     }
   }
 }

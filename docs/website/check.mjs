@@ -4,11 +4,12 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { assertPublicContent, assertPublicPath } from './audience.mjs';
 const site = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(site, '../..');
 const output = path.join(site, 'dist');
 const hash = (value) => createHash('sha256').update(value).digest('hex');
-const manifest = JSON.parse(await readFile(path.join(output, 'build-manifest.json'), 'utf8'));
+const manifest = JSON.parse(await readFile(path.join(site, '.build-state.json'), 'utf8'));
 for (const [source, expected] of Object.entries(manifest.sources)) {
   if (hash(await readFile(path.join(root, source))) !== expected)
     throw new Error(`Stale website: ${source} changed. Run npm run site:build.`);
@@ -23,9 +24,11 @@ async function walk(directory) {
 }
 const files = await walk(output);
 const known = new Set(files.map((file) => path.relative(output, file).split(path.sep).join('/')));
+for (const file of known) assertPublicPath(file);
 const pages = new Map();
 for (const file of files.filter((file) => file.endsWith('.html'))) {
   const text = await readFile(file, 'utf8');
+  assertPublicContent(text, file);
   const ids = [...text.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   if (new Set(ids).size !== ids.length) throw new Error(`Duplicate anchor in ${file}`);
   if (!text.includes('<title>') || !text.includes('name="description"') || !ids.includes('main'))
@@ -51,6 +54,13 @@ for (const route of manifest.routes) {
   if (route.includes('docs/') && page.text.includes('src="./assets/probe.js"'))
     throw new Error(`Pointer probe must remain homepage-only: ${route}`);
 }
+if (
+  known.has('build-manifest.json') ||
+  [...known].some((file) =>
+    /(?:^|\/)(?:\.openai|\.build-state|AGENTS\.md|CONTRIBUTING\.md)/.test(file),
+  )
+)
+  throw new Error('Private build state or maintainer sources were published');
 let links = 0;
 for (const [file, page] of pages) {
   const current = new URL(manifest.base + file, 'https://static.example.com/');
@@ -80,6 +90,7 @@ for (const script of [
   'i18n.mjs',
   'paths.mjs',
   'public-links.mjs',
+  'audience.mjs',
 ]) {
   const result = spawnSync(process.execPath, ['--check', path.join(site, script)], {
     encoding: 'utf8',

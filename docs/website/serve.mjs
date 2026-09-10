@@ -4,7 +4,9 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), 'dist');
-const { base } = JSON.parse(await readFile(path.join(root, 'build-manifest.json'), 'utf8'));
+const { base } = JSON.parse(
+  await readFile(path.join(path.dirname(root), '.build-state.json'), 'utf8'),
+);
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

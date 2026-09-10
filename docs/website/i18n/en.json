@@ -8,8 +8,8 @@
   "heroDetail": "fx turns a shared manifest into a working environment.<br class=\"desktop-break\" /> Know what’s here. Know what’s ready. Get to work.",
   "readDocs": "Read the docs",
   "seeAction": "See it in action",
-  "installNote": "Public npm release in preparation.",
-  "releaseLink": "Track release readiness ↗",
+  "installNote": "Use a source checkout for this pre-release.",
+  "releaseLink": "Installation guide ↗",
   "copy": "Copy",
   "copyInstall": "Copy install command",
   "demo": "EXAMPLE",
@@ -34,7 +34,7 @@
   "architectureKicker": "02 / YOUR STACK. CONNECTED.",
   "architectureTitle": "One source of truth.<br />Zero black boxes.",
   "architectureBody": "fx orchestrates your workspace. Your tools keep their jobs: authentication, service APIs, and access control.",
-  "underHood": "Under the hood ↗",
+  "underHood": "Explore workspace concepts ↗",
   "mapLabel": "A team manifest flows through fx into repositories, tools and coding agents",
   "input": "INPUT",
   "sharedFacts": "shared facts + local choices",
@@ -57,8 +57,8 @@
   "changelog": "Changelog",
   "getStarted": "Get started",
   "footer": "Made for people who build.",
-  "architecture": "Architecture",
-  "releaseStatus": "Release status",
+  "architecture": "Workspace concepts",
+  "releaseStatus": "Support",
   "pause": "Pause motion",
   "resume": "Resume motion",
   "reduced": "Reduced motion",
@@ -82,119 +82,44 @@
   "notFoundBody": "The page may have moved. Start again from the documentation.",
   "groups": {
     "Start here": "Start here",
-    "Reference": "Reference",
-    "Architecture": "Architecture",
-    "Project": "Project",
-    "Contributing": "Contributing"
+    "Reference": "Reference"
   },
   "pages": {
     "docs/": {
       "title": "Introduction",
-      "description": "A shared map for your repositories, tools, and coding agents."
+      "description": "Prepare and maintain your team’s workspace with fx."
     },
     "docs/getting-started/": {
       "title": "Getting started",
-      "description": "Install fx, connect a manifest, and make your workspace ready."
+      "description": "Install fx, connect a manifest, and start working."
     },
     "docs/manifest-guide/": {
       "title": "Your first manifest",
-      "description": "Start small. Declare your repositories, then connect the rest of your stack."
+      "description": "Create a team manifest or adopt your existing checkouts."
     },
     "docs/private-manifest/": {
-      "title": "Public & private",
-      "description": "Share the toolkit. Keep your team’s operational context where it belongs."
+      "title": "Your data and credentials",
+      "description": "Understand local state, shared information and service authentication."
     },
     "docs/cli/": {
       "title": "CLI commands",
-      "description": "Every command, argument, and flag. Generated directly from the CLI."
+      "description": "Commands, arguments and flags generated from the CLI."
     },
     "docs/agent-skill/": {
       "title": "Agent Skill",
-      "description": "Discovery, trust, readiness, and recovery for coding agents."
+      "description": "Use fx from a coding agent with clear readiness and recovery steps."
     },
     "docs/agent-commands/": {
       "title": "Response contracts",
-      "description": "Read structured output without losing the distinctions that matter."
+      "description": "Interpret structured results, coverage and handoffs."
     },
-    "docs/design/": {
-      "title": "Overview",
-      "description": "How fx connects shared declarations to local workflows."
-    },
-    "docs/design/runtime/": {
-      "title": "Runtime & commands",
-      "description": "Output, configuration, trust, and process lifetimes."
-    },
-    "docs/design/setup/": {
-      "title": "Setup & readiness",
-      "description": "Explicit setup steps. Evidence-backed readiness."
-    },
-    "docs/design/import/": {
-      "title": "Importing repositories",
-      "description": "Turn existing checkouts into a reviewed workspace declaration."
-    },
-    "docs/design/harness/": {
-      "title": "MCP & rules",
-      "description": "Project team context into native agent hosts with clear ownership."
-    },
-    "docs/design/lifecycle/": {
-      "title": "Lifecycle hooks",
-      "description": "Bounded background refresh, without interrupting your work."
-    },
-    "docs/design/source-contributions/": {
-      "title": "Source contributions",
-      "description": "Contribute shared knowledge through a verified personal fork."
-    },
-    "docs/design/probe-recording/": {
-      "title": "Probe recording",
-      "description": "Record dated evidence of platform coordinates."
-    },
-    "docs/design/windows/": {
-      "title": "Windows",
-      "description": "Native platform behavior and explicit acceptance limits."
-    },
-    "docs/design/registry-configuration/": {
-      "title": "Registry transition",
-      "description": "The public npm target and the implementation work still required."
-    },
-    "docs/public-release/": {
-      "title": "Release readiness",
-      "description": "Distribution decisions and checks for the first public release."
-    },
-    "docs/validation/": {
-      "title": "Validation",
-      "description": "What the checks prove, and where real-world evidence is still needed."
-    },
-    "docs/eval/": {
-      "title": "Agent evaluation",
-      "description": "Reusable evaluation protocols with private case data."
-    },
-    "docs/eval/handover/": {
-      "title": "Evaluation handover",
-      "description": "Prepare and review a bounded agent evaluation."
-    },
-    "docs/roadmap/": {
-      "title": "Roadmap",
-      "description": "Potential extensions, clearly separated from current capabilities."
+    "docs/support/": {
+      "title": "Support and updates",
+      "description": "Resolve setup issues, check platform support and update fx."
     },
     "docs/changelog/": {
       "title": "Changelog",
-      "description": "Changes to the fx workspace CLI."
-    },
-    "docs/contributing/": {
-      "title": "Engineering guide",
-      "description": "Repository boundaries, verification, and documentation responsibilities."
-    },
-    "docs/website/": {
-      "title": "Website maintenance",
-      "description": "Build and maintain the static homepage and documentation."
-    },
-    "docs/contributing-guide/": {
-      "title": "Contribution guide",
-      "description": "Local setup, focused changes, validation and pull-request expectations."
-    },
-    "docs/security/": {
-      "title": "Security reporting",
-      "description": "Report suspected vulnerabilities and preserve the workspace trust boundaries."
+      "description": "User-visible changes to fx."
     }
   }
 }

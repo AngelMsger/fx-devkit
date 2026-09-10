@@ -1,7 +1,7 @@
 # Static website
 
 `docs/website/` contains the fx-devkit homepage, shared visual theme, and a small static
-site generator. Documentation is rendered from the canonical repository Markdown;
+site generator. Documentation is rendered only from approved user-facing Markdown;
 there is no second copy of feature documentation to maintain. The browser needs
 no framework, backend, external fonts, or runtime CDN.
 
@@ -20,7 +20,7 @@ The preview serves `docs/website/dist/` at `http://127.0.0.1:4173`. Stop it with
 Rebuild after editing source; the preview server serves the updated files.
 Deploy the contents of `docs/website/dist/` to any static host with directory indexes.
 It is separate from the CLI's `dist/` and excluded from the npm package.
-`.openai/hosting.json` inside `docs/website/` describes the optional Sites preview.
+Personal hosting bindings are not tracked in this repository.
 For hosts that support it, configure `404.html` as the custom error document.
 
 ## GitHub Pages deployment
@@ -55,8 +55,7 @@ The preview server reads the base from the built manifest. Restart it when chang
 the base path. `404.html` uses that same base for assets and recovery links, even
 when served for a deeply nested missing URL. `.nojekyll` is emitted. No SPA rewrite,
 Node.js runtime, proprietary hostname, or Sites registration is required to serve
-the result. Existing `.openai/hosting.json` is optional private-preview metadata;
-it is not packaged by the GitHub Pages workflow.
+the result. Personal preview bindings must stay outside the repository and are never packaged.
 
 ## Languages and translation coverage
 
@@ -77,12 +76,10 @@ The language switch opens the equivalent page. All four versions have localized
 homepage copy, navigation, metadata, copy feedback, motion controls and error
 recovery navigation. English remains the canonical technical source.
 
-Localized documentation bodies cover introduction, getting started, the manifest
-guide, the public/private boundary, release preparation, validation, roadmap and
-changelog. Detailed architecture, generated CLI, agent and contributor references
-currently retain English bodies, explicitly labeled with an English-reference
-notice, an original-page link and `lang="en"`. Do not describe these as translated.
-Command names, flags, identifiers and actual CLI output stay verbatim.
+The site is for fx users. Localized bodies cover introduction, getting started,
+manifest setup, data and credentials, support/updates and changelog. The generated
+CLI and agent reference pages retain English bodies with explicit language notices.
+Maintainer and publishing guides have no public site routes or localized entries.
 
 UI copy lives in `i18n/<locale>.json`; translated guides live in the matching locale
 directory. `i18n/translations.json` explicitly records the canonical source and
@@ -102,13 +99,17 @@ heading IDs (`{#install}`) retain stable cross-language section links.
 - `public-links.mjs`: resolve the project’s public links locally for each language.
 - `paths.mjs`: origin-root and repository-subpath routing.
 - `pages.mjs`: public page inventory, navigation, route, description and canonical
-  Markdown path. Add each new public document here.
+  Markdown path. Only add user documents accepted by `audience.mjs`.
+- `audience.mjs`: explicit user-source allowlist and public-content checks.
 - `build.mjs`: Markdown rendering, page shell, relative link rewriting and output.
 - `check.mjs`: checks generated routes, anchors and local assets, plus JavaScript
   syntax and source freshness. A broken internal link fails the check; focused probe tests also verify scheduling,
   pointer capability changes and motion cancellation.
 
-Change the canonical Markdown, then rebuild. Do not edit `docs/website/dist/` by hand.
+Build state is written to the ignored `.build-state.json` outside `dist/`. It is
+used locally for freshness checks and preview configuration and must never ship.
+
+Change the canonical user Markdown, then rebuild. Do not edit `docs/website/dist/` by hand.
 The homepage must describe the same current behavior as the CLI and documentation.
 Keep plans, pre-release availability and platform acceptance limits explicit.
 The terminal demo is illustrative, not a live connection or exact output fixture.

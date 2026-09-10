@@ -7,3 +7,4 @@ test/fixtures/
 docs/website/dist/
 docs/website/node_modules/
 docs/website/package-lock.json
+docs/website/.build-state.json

@@ -12,6 +12,6 @@ binary name is `fx`.
 - Companion tool integration, agent Skills, lifecycle hooks and MCP projections.
 - Source contribution planning with trust, ownership and recovery boundaries.
 - Native Windows adapters with acceptance limits documented in
-  [validation](https://angelmsger.github.io/fx-devkit/docs/validation/).
+  [platform support](https://angelmsger.github.io/fx-devkit/docs/support/#platform-support).
 
 Future entries describe changes made in this repository.
