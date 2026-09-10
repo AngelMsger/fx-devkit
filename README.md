@@ -288,6 +288,8 @@ selectors produce structured errors. The
 ## Integrations
 
 The manifest chooses which providers and companion tools a workspace uses.
+Bundled tools have minimum version requirements; inspect them with `fx tool show <tool>`
+and override `min_version` in the team’s `manifest/tools.yaml` when needed.
 These are the currently implemented provider families:
 
 | Capability                 | Providers                                  |

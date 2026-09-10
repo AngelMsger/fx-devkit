@@ -24,6 +24,8 @@ team-workspace/
 
 AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以补充团队规则与文档。未提供环境、成员或 harness 文档时，相应能力保持未配置；未提供 tools.yaml 时仍使用内置工具目录。凭据属于工具，不应写入这些文件。
 
+内置工具声明最低版本要求。使用 `fx tool show <tool>` 查看实际要求，通过 `fx tool update <tool> --dry-run` 预览升级。团队可在 `manifest/tools.yaml` 中覆盖 `min_version`，以维持适合自身环境的兼容性基线。最低版本要求不会将 npm 安装锁定到该版本。
+
 ## 从最小声明开始 {#start-with-a-small-declaration}
 
 使用 Bitbucket 的团队可以创建 `team-workspace/manifest/workspace.yaml`：

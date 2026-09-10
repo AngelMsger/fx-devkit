@@ -28,6 +28,11 @@ harness documents leave those capabilities unconfigured. Omitting `tools.yaml`
 uses the bundled tool catalog; it does not remove companion requirements.
 Keep credentials in the owning tools, not in these documents.
 
+Bundled tools declare minimum versions. Inspect the effective requirement with
+`fx tool show <tool>` and preview an upgrade with `fx tool update <tool> --dry-run`.
+Teams can override `min_version` in `manifest/tools.yaml` to maintain a different
+compatibility baseline. Version floors do not pin npm installations to that exact release.
+
 ## Start with a small declaration
 
 For a team using the Bitbucket companion, create

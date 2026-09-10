@@ -24,6 +24,8 @@ team-workspace/
 
 AGENTS.md、CLAUDE.md、docs/、skills/ にはチームのガイドや Skill を追加できます。環境、メンバー、harness 文書を省略すると、その能力は未設定になります。tools.yaml がなくても内蔵ツール一覧は使用されます。資格情報は各ツールが管理し、これらの文書には保存しません。
 
+内蔵ツールには最低バージョンが定義されています。`fx tool show <tool>` で有効な要件を確認し、`fx tool update <tool> --dry-run` で更新を事前確認できます。互換性のために別の基準が必要な場合は、`manifest/tools.yaml` の `min_version` を上書きしてください。最低バージョンは npm のインストール先バージョンを固定するものではありません。
+
 ## 最小の宣言 {#start-with-a-small-declaration}
 
 Bitbucket を使うチームは `team-workspace/manifest/workspace.yaml` を作成できます。
