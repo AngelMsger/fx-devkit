@@ -50,14 +50,16 @@ for (const { id } of locales.filter((item) => item.id !== 'en')) {
     throw new Error(`UI translations need review: ${id}`);
 }
 const localizedSources = [];
+const mediaAssets = new Set();
 const routes = new Map(pages.map((page) => [page.source, page.route]));
 function localLink(page, target) {
   const publicLink = publicTarget(target, { homepage, repository });
-  if (
-    publicLink?.route !== undefined &&
-    (publicLink.route === '' || [...routes.values()].includes(publicLink.route))
-  ) {
-    return href(page.route, localizedRoute(page.locale, publicLink.route) + publicLink.hash);
+  if (publicLink?.route !== undefined) {
+    const selected = locales.find(({ id }) => id !== 'en' && publicLink.route.startsWith(`${id}/`));
+    const route = selected ? publicLink.route.slice(selected.id.length + 1) : publicLink.route;
+    if (route === '' || [...routes.values()].includes(route)) {
+      return href(page.route, localizedRoute(selected?.id ?? page.locale, route) + publicLink.hash);
+    }
   }
   if (publicLink?.source === 'LICENSE') return href(page.route, 'LICENSE.txt');
   if (publicLink?.source && routes.has(publicLink.source)) {
@@ -146,6 +148,19 @@ function markdown(page, source) {
       },
       link({ href: target, title, tokens }) {
         return `<a href="${escapeHtml(localLink(page, target))}"${title ? ` title="${escapeHtml(title)}"` : ''}>${this.parser.parseInline(tokens)}</a>`;
+      },
+      image({ href: target, title, text }) {
+        let src = target;
+        if (!/^https?:\/\//.test(target)) {
+          const source = path.posix.normalize(
+            path.posix.join(path.posix.dirname(page.source), target),
+          );
+          if (!source.startsWith('docs/assets/') || !/\.(?:png|jpe?g|webp|gif|svg)$/i.test(source))
+            throw new Error(`Unsupported documentation image: ${target}`);
+          mediaAssets.add(source);
+          src = href(page.route, `assets/docs/${source.slice('docs/assets/'.length)}`);
+        }
+        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(text)}"${title ? ` title="${escapeHtml(title)}"` : ''} decoding="async">`;
       },
       code({ text, lang }) {
         return `<div class="code-block"><div class="code-top"><span>${escapeHtml(lang || 'text')}</span><button class="copy" data-code-copy aria-label="${escapeHtml(catalogs[page.locale].copyCode)}">${escapeHtml(catalogs[page.locale].copy)}</button></div><pre><code>${escapeHtml(text)}</code></pre></div>`;
@@ -262,10 +277,16 @@ if (origin) {
     `User-agent: *\nAllow: /\nSitemap: ${origin}${base}sitemap.xml\n`,
   );
 }
+for (const source of mediaAssets) {
+  const destination = path.join(output, 'assets/docs', source.slice('docs/assets/'.length));
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(path.join(root, source), destination);
+}
 const sourceFiles = [
   ...new Set([
     'package.json',
     'LICENSE',
+    ...mediaAssets,
     'docs/website/public-links.mjs',
     'docs/website/package.json',
     'docs/website/package-lock.json',

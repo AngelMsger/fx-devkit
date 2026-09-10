@@ -11,9 +11,11 @@ private manifests, live evaluation evidence or business patches. Keep migration
 provenance in a private record outside this repository.
 
 Preserve existing changes and verify repository identity and remotes before
-committing or pushing. `origin` is the personal fork; `upstream` is the shared
-repository. Never push directly to `upstream`, force-push to repair unrelated
-history, or merge unrelated histories.
+committing or pushing. This project checkout uses only `origin`, pointing to
+`git@github.com:AngelMsger/fx-devkit.git`; there is no `upstream` remote.
+Authorized maintainer pushes go to `origin`. External contributors use their
+personal forks as described in CONTRIBUTING.md. Do not force-push to repair
+unrelated history or merge unrelated histories.
 
 Work in the target checkout or an isolated worktree. Workspace migration,
 publication and tags need task-specific authorization. User authorization takes
@@ -169,7 +171,8 @@ normally need only their description. Inline comments explain a non-obvious
 constraint, not the neighboring statement or another module's rationale.
 If explanation dominates the implementation, improve the abstraction first.
 
-README is the user entry point, this file owns contributor rules, design pages
+README is the user entry point, CONTRIBUTING.md owns the public contribution
+workflow, SECURITY.md owns reporting guidance, this file owns agent rules, and design pages
 own current contracts, and `docs/cli/README.md` is generated syntax reference.
 Keep one owner for each fact. Remove feature-history narration and resolved
 blockers from maintained guidance. Keep team-specific plans, raw reports, traces and private source patches outside
@@ -249,5 +252,5 @@ uses `npm run check:windows` and separate host/cross-volume checks described in
 
 Use Conventional Commits and include an issue reference when one is available
 and appropriate for public history (for example, `fix: handle missing configuration`).
-Check the final diff and preserve unrelated work. Push only to the verified personal fork,
-and only within the user's authorized task scope.
+Check the final diff and preserve unrelated work. Push only to the verified
+`origin`, and only within the user's authorized task scope.

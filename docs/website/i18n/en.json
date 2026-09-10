@@ -187,6 +187,14 @@
     "docs/website/": {
       "title": "Website maintenance",
       "description": "Build and maintain the static homepage and documentation."
+    },
+    "docs/contributing-guide/": {
+      "title": "Contribution guide",
+      "description": "Local setup, focused changes, validation and pull-request expectations."
+    },
+    "docs/security/": {
+      "title": "Security reporting",
+      "description": "Report suspected vulnerabilities and preserve the workspace trust boundaries."
     }
   }
 }

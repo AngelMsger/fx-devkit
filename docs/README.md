@@ -10,6 +10,8 @@
 - [Public release preparation](public-release.md): pending distribution decisions and review gates.
 - [Validation](validation.md): local checks, live integration prerequisites and support limits.
 - [Agent evaluation](eval/README.md): reusable trials with private case data.
+- [Contribution guide](../CONTRIBUTING.md): setup, validation and pull requests.
+- [Security reporting](../SECURITY.md): vulnerability reporting and trust boundaries.
 - [Roadmap](roadmap.md): potential extensions.
 
 Team deployment guides, business architecture and live investigation records

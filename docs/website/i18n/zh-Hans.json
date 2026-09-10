@@ -187,6 +187,14 @@
     "docs/website/": {
       "title": "网站维护",
       "description": "构建和维护静态官网与多语言文档。"
+    },
+    "docs/contributing-guide/": {
+      "title": "贡献指南",
+      "description": "本地设置、聚焦改动、验证与 Pull Request 要求。"
+    },
+    "docs/security/": {
+      "title": "安全报告",
+      "description": "报告疑似漏洞，并保护工作区的信任边界。"
     }
   }
 }

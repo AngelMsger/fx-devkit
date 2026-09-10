@@ -4,6 +4,32 @@
 
 项目名为 `fx-devkit`，npm 包名为 `@angelmsger/fx`，命令名为 `fx`。公共 npm 发布正在准备中，当前实现仍有[发布待办](docs/public-release.md)。
 
+## 为什么使用 fx {#why}
+
+拉取代码只是开始。工程师还需要工具、访问权限、服务坐标、团队约定和 Agent 上下文。fx 让这些共享事实可以被发现，同时保留每个仓库独立的构建方式。
+
+- 一次声明仓库、负责人、工具与环境。
+- 同步符合条件的干净分支，保留未提交、分叉和其他分支上的工作；用 `--dry-run` 预览写入。
+- 向 Agent 分发团队 Skill 和受支持的宿主资源，以结构化结果和明确步骤处理失败。
+- 用 `can`、`doctor` 检查就绪，用 `where` 查找日志、构建、错误和集群入口。
+- 配套工具继续管理认证和协议，个人选择与信任记录保留在本机。
+- 通过 `source push` 和已验证的个人 fork 贡献共享知识。
+
+### 日常工作 {#a-working-session}
+
+初始化后，下面这些命令是常用入口。`example-api` 和 `test` 需要替换为 manifest 中的条目。
+
+```sh
+fx status
+fx sync --dry-run
+fx can code-host --format json
+fx where example-api --env test
+fx sync --only docs,skills
+fx release --format json
+```
+
+官网与仓库 URL 是已配置的发布目标，不代表已经上线。
+
 ## 环境要求 {#requirements}
 
 - Node.js ≥22；开发版本以 package.json 为准。Bun 也可以作为运行时。
@@ -157,6 +183,50 @@ doctor/release 即使有失败检查也退出零；init/sync 也可能在部分�
 ## 网站与文档 {#documentation}
 
 [静态站点维护指南](docs/website/README.md)说明多语言内容、GitHub Pages 部署与本地预览。英语是技术事实的基准；尚未翻译的深层技术参考会明确标注英文。
+
+## 集成 {#integrations}
+
+manifest 选择工作区使用的 provider 和配套 CLI。当前实现包括：
+
+| 能力         | 提供者                            |
+| ------------ | --------------------------------- |
+| 代码托管     | Bitbucket CLI、本地 bare Git 仓库 |
+| CI           | Jenkins CLI                       |
+| 日志         | OpenObserve CLI                   |
+| 错误追踪     | Sentry CLI                        |
+| 集群发现     | kubectl，只读查询向量             |
+| 工作项与知识 | 飞书项目、Confluence CLI          |
+| 通讯入口     | Lark CLI、WeCom CLI               |
+
+使用 `fx manifest providers` 与 `fx tool list` 查看实际绑定。通讯和知识入口交接给配套工具，不代表 fx 代理了所有服务 API。
+
+Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力。参见[宿主契约](docs/design/harness.md)。
+
+## 常见问题 {#faq}
+
+### 必须采用 monorepo 吗？
+
+不需要。仓库保留各自的分支、历史、依赖和构建工具；工作区根目录为普通目录。已有 checkout 可以[导入并纳入管理](docs/design/import.md)。
+
+### 团队必须公开 manifest 吗？
+
+不需要。工具与团队运维数据分离。manifest 存放在权限适当的仓库，凭据仍由所属工具管理。参见[公开与私有边界](docs/private-manifest.md)。
+
+### 报告退出码为零就代表成功吗？
+
+不代表。doctor/release 可在检查失败时退出零，init/sync 可返回部分成功。应检查 `ok`、`complete`、阶段结果和失败恢复信息。参见[响应契约](skills/fx-workspace/references/commands.md)。
+
+## 参与贡献 {#contributing}
+
+欢迎问题报告、聚焦修复、文档改进和翻译。先阅读[贡献指南](https://github.com/AngelMsger/fx-devkit/blob/main/CONTRIBUTING.md)，了解设置、验证和 PR 要求。较大的行为或 provider 变更应先通过 issue 讨论。
+
+功能变更包含文档变更：英文源文档与对应译文需要一起更新，网站构建会检查翻译是否过期。[路线图](docs/roadmap.md)明确区分潜在扩展与当前能力。
+
+## 支持与安全 {#support-and-security}
+
+[报告问题](https://github.com/AngelMsger/fx-devkit/issues)时，请提供 `fx --version` 输出、操作系统、命令、预期行为和脱敏复现。设置失败时，附上相关 doctor 结果和 handoff。
+
+疑似漏洞请遵循[安全报告指南](https://github.com/AngelMsger/fx-devkit/blob/main/SECURITY.md)。公开报告中不要包含凭据、个人信息或团队私有坐标。
 
 ## 许可证 {#license}
 

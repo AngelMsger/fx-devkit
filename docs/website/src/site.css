@@ -1467,3 +1467,9 @@ html:not([lang='en']) .doc-title {
 .feature-link {
   margin-top: auto;
 }
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}

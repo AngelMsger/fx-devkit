@@ -157,6 +157,20 @@ export const pages = [
   ['Project', 'Changelog', 'docs/changelog/', 'CHANGELOG.md', 'Changes to the fx workspace CLI.'],
   [
     'Contributing',
+    'Contribution guide',
+    'docs/contributing-guide/',
+    'CONTRIBUTING.md',
+    'Local setup, focused changes, validation and pull-request expectations.',
+  ],
+  [
+    'Contributing',
+    'Security reporting',
+    'docs/security/',
+    'SECURITY.md',
+    'Report suspected vulnerabilities and preserve the workspace trust boundaries.',
+  ],
+  [
+    'Contributing',
     'Engineering guide',
     'docs/contributing/',
     'AGENTS.md',

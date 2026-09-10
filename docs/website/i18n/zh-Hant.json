@@ -187,6 +187,14 @@
     "docs/website/": {
       "title": "網站維護",
       "description": "建置和維護靜態官網與多語言文件。"
+    },
+    "docs/contributing-guide/": {
+      "title": "貢獻指南",
+      "description": "本機設定、聚焦變更、驗證與 Pull Request 要求。"
+    },
+    "docs/security/": {
+      "title": "安全報告",
+      "description": "回報疑似弱點，並保護工作區的信任界線。"
     }
   }
 }

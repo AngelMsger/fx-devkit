@@ -4,6 +4,32 @@
 
 專案名稱為 `fx-devkit`，npm 套件名稱為 `@angelmsger/fx`，命令名稱為 `fx`。公共 npm 發佈正在準備中，目前實作仍有[發佈待辦](docs/public-release.md)。
 
+## 為什麼使用 fx {#why}
+
+取得程式碼只是開始。工程師還需要工具、存取權限、服務座標、團隊慣例和 Agent 上下文。fx 讓這些共用資訊可以被探索，同時保留每個儲存庫獨立的建置方式。
+
+- 一次宣告儲存庫、負責人、工具與環境。
+- 同步符合條件的乾淨分支，保留未提交、分歧和其他分支上的工作；使用 `--dry-run` 預覽寫入。
+- 向 Agent 分發團隊 Skill 和受支援的宿主資源，以結構化結果和明確步驟處理失敗。
+- 使用 `can`、`doctor` 檢查就緒，使用 `where` 尋找日誌、建置、錯誤和叢集入口。
+- 配套工具繼續管理驗證和協議，個人選擇與信任記錄保留在本機。
+- 透過 `source push` 和已驗證的個人 fork 貢獻共用知識。
+
+### 日常工作 {#a-working-session}
+
+初始化後，以下命令是常用入口。`example-api` 和 `test` 需要替換為 manifest 中的項目。
+
+```sh
+fx status
+fx sync --dry-run
+fx can code-host --format json
+fx where example-api --env test
+fx sync --only docs,skills
+fx release --format json
+```
+
+官網與儲存庫 URL 是已設定的發佈目標，不代表已經上線。
+
 ## 環境需求 {#requirements}
 
 - Node.js ≥22；開發版本以 package.json 為準。Bun 也可以作為執行環境。
@@ -157,6 +183,50 @@ doctor/release 即使有失敗檢查也傳回結束代碼零；init/sync 也可�
 ## 網站與文件 {#documentation}
 
 [靜態網站維護指南](docs/website/README.md)說明多語言內容、GitHub Pages 部署與本機預覽。英語是技術事實的基準；尚未翻譯的深入技術參考會明確標示英文。
+
+## 整合 {#integrations}
+
+manifest 選擇工作區使用的 provider 和配套 CLI。目前實作包括：
+
+| 能力           | 提供者                              |
+| -------------- | ----------------------------------- |
+| 程式碼託管     | Bitbucket CLI、本機 bare Git 儲存庫 |
+| CI             | Jenkins CLI                         |
+| 日誌           | OpenObserve CLI                     |
+| 錯誤追蹤       | Sentry CLI                          |
+| 叢集探索       | kubectl，唯讀查詢向量               |
+| 工作項目與知識 | 飛書專案、Confluence CLI            |
+| 通訊入口       | Lark CLI、WeCom CLI                 |
+
+使用 `fx manifest providers` 與 `fx tool list` 查看實際繫結。通訊和知識入口交接給配套工具，不代表 fx 代理了所有服務 API。
+
+Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill、hook、MCP 與規則的支援因宿主而異；使用 `agent list`、`hook list`、`mcp list` 檢查具體能力。請參閱[宿主契約](docs/design/harness.md)。
+
+## 常見問題 {#faq}
+
+### 必須採用 monorepo 嗎？
+
+不需要。儲存庫保留各自的分支、歷史、相依套件和建置工具；工作區根目錄為普通目錄。既有 checkout 可以[匯入並納入管理](docs/design/import.md)。
+
+### 團隊必須公開 manifest 嗎？
+
+不需要。工具與團隊維運資料分離。manifest 存放在權限適當的儲存庫，憑證仍由所屬工具管理。請參閱[公開與私有界線](docs/private-manifest.md)。
+
+### 報告結束代碼為零就代表成功嗎？
+
+不代表。doctor/release 可在檢查失敗時傳回零，init/sync 可傳回部分成功。應檢查 `ok`、`complete`、階段結果和失敗復原資訊。請參閱[回應契約](skills/fx-workspace/references/commands.md)。
+
+## 參與貢獻 {#contributing}
+
+歡迎問題回報、聚焦修正、文件改進和翻譯。先閱讀[貢獻指南](https://github.com/AngelMsger/fx-devkit/blob/main/CONTRIBUTING.md)，了解設定、驗證和 PR 要求。較大的行為或 provider 變更應先透過 issue 討論。
+
+功能變更包含文件變更：英文來源文件與對應譯文需要一起更新，網站建置會檢查翻譯是否過期。[路線圖](docs/roadmap.md)明確區分潛在擴充與目前能力。
+
+## 支援與安全 {#support-and-security}
+
+[回報問題](https://github.com/AngelMsger/fx-devkit/issues)時，請提供 `fx --version` 輸出、作業系統、命令、預期行為和去識別化的重現步驟。設定失敗時，附上相關 doctor 結果和 handoff。
+
+疑似弱點請遵循[安全報告指南](https://github.com/AngelMsger/fx-devkit/blob/main/SECURITY.md)。公開報告中不要包含憑證、個人資訊或團隊私有座標。
 
 ## 授權條款 {#license}
 

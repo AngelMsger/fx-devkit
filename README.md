@@ -1,15 +1,31 @@
 # fx-devkit
 
-`fx` turns a team's manifest into a multi-repository workspace: clone and sync
-repositories, configure companion CLIs, equip coding agents, and discover where
-to investigate a service. People use readable output; agents use structured
-results with explicit readiness and recovery steps.
+**One manifest for your repositories, tools, and coding agents.**
 
-The project is `fx-devkit`. Its npm package name is `@angelmsger/fx`, providing
-the `fx` command.
-Public npm distribution is being prepared; it will not require a private registry.
-The current checkout still has distribution blockers listed in the
-[release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/).
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-dfbf6b?style=flat-square&labelColor=101211)](https://angelmsger.github.io/fx-devkit/docs/public-release/)
+[![Node.js: 22 or newer](https://img.shields.io/badge/Node.js-%E2%89%A522-c4f36b?style=flat-square&labelColor=101211)](#requirements)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-c4f36b?style=flat-square&labelColor=101211)](https://github.com/AngelMsger/fx-devkit/blob/main/LICENSE)
+[![Structured output: JSON](https://img.shields.io/badge/output-JSON-c4f36b?style=flat-square&labelColor=101211)](#for-coding-agents)
+
+[Website](https://angelmsger.github.io/fx-devkit/) ·
+[Documentation](https://angelmsger.github.io/fx-devkit/docs/) ·
+[Quick start](#quick-start) ·
+[Changelog](https://angelmsger.github.io/fx-devkit/docs/changelog/) ·
+[Report an issue](https://github.com/AngelMsger/fx-devkit/issues)
+
+English · [日本語](https://angelmsger.github.io/fx-devkit/ja/docs/getting-started/) ·
+[简体中文](https://angelmsger.github.io/fx-devkit/zh-Hans/docs/getting-started/) ·
+[繁體中文](https://angelmsger.github.io/fx-devkit/zh-Hant/docs/getting-started/)
+
+`fx` turns a team's manifest into a working multi-repository environment. Sync
+checkouts, prepare companion tools, equip coding agents, and find the right place
+to investigate a service—all from one shared map.
+
+> **Pre-release:** the public npm package is being prepared. Build from source
+> for now. Public-registry publishing and self-update still need migration; the
+> [release checklist](https://angelmsger.github.io/fx-devkit/docs/public-release/)
+> tracks the remaining work. Repository and website URLs are configured publication
+> targets, not a claim that those destinations are already live.
 
 ## Contents
 
@@ -18,21 +34,48 @@ The current checkout still has distribution blockers listed in the
 - [Quick start](#quick-start)
 - [Concepts](#concepts)
 - [Commands](#commands)
+- [Integrations](#integrations)
 - [For coding agents](#for-coding-agents)
 - [Configuration](#configuration)
-- [Development and documentation](#development)
+- [Development](#development)
+- [FAQ](#faq)
+- [Contributing and support](#contributing)
 
 ## Why
 
-The intended users are engineering team members and the coding agents assisting
-them. The source can be shared independently of operational data: each team keeps
-its manifest, ownership, service coordinates and access configuration private.
-See [the public/private boundary](https://angelmsger.github.io/fx-devkit/docs/private-manifest/).
+A checkout is only the beginning. Engineers still need the right tools, access,
+service coordinates, team conventions, and agent context. fx makes those shared
+facts discoverable without turning independent repositories into one build system.
 
-Repository URLs, ownership, environment coordinates and tool requirements belong
-in one shared manifest. Personal selections and credentials belong on each
-machine. fx connects the two without turning workspace updates into destructive
-Git operations or taking over the companion tools' service APIs.
+- **Declare once.** Keep repositories, ownership, tools and environments in a
+  versioned [team manifest](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/).
+- **Protect work in progress.** Sync eligible clean branches while preserving
+  dirty, diverged and off-branch checkouts. Preview writes with `--dry-run`.
+- **Give agents a shared map.** Distribute team Skills and supported native host
+  resources, with structured results and explicit recovery steps.
+- **Ask what is ready.** `can` and `doctor` check current setup; `where` locates
+  a service's logs, builds, errors and cluster resources.
+- **Keep your existing tools.** Companion CLIs own authentication and service
+  protocols. Personal selections and trust records remain local.
+- **Contribute shared knowledge.** Propose selected source changes through a
+  verified personal fork using `source push`.
+
+### A working session
+
+Once the workspace is initialized, these are the everyday entry points:
+
+```sh
+fx status                                      # What changed locally?
+fx sync --dry-run                              # What would a sync do?
+fx can code-host --format json                 # Is this machine ready?
+fx where example-api --env test                # Where do I investigate?
+fx sync --only docs,skills                     # Refresh shared agent context
+fx release --format json                      # Read the release evidence
+```
+
+`example-api` and `test` stand for entries in your manifest. `where` prints
+commands; it does not execute them. Report generation and actual readiness are
+separate: inspect findings, coverage and handoffs.
 
 ## Requirements
 
@@ -229,6 +272,31 @@ changes local registration. Bare topics show their available commands. Unknown c
 selectors produce structured errors. The
 [generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) owns the full syntax and flags.
 
+## Integrations
+
+The manifest chooses which providers and companion tools a workspace uses.
+These are the currently implemented provider families:
+
+| Capability                 | Providers                                  |
+| -------------------------- | ------------------------------------------ |
+| Code hosting               | Bitbucket CLI; local bare Git repositories |
+| CI                         | Jenkins CLI                                |
+| Logs                       | OpenObserve CLI                            |
+| Error tracking             | Sentry CLI                                 |
+| Cluster discovery          | kubectl, with read-only query vectors      |
+| Issues and knowledge       | Feishu Project; Confluence CLI             |
+| Communication entry points | Lark CLI; WeCom CLI                        |
+
+Run `fx manifest providers` and `fx tool list` for your workspace's actual
+bindings. Communication and knowledge entries hand off to companion tools;
+fx does not proxy every service API.
+
+Agent discovery includes Claude Code, Codex CLI, Cursor and other registered
+hosts. **Skill delivery, hooks, MCP and rules have different support per host.**
+Use `fx agent list`, `fx hook list` and `fx mcp list` to inspect the relevant
+capabilities instead of assuming feature parity. See the
+[harness contract](https://angelmsger.github.io/fx-devkit/docs/design/harness/).
+
 ## For coding agents
 
 ```sh
@@ -291,7 +359,8 @@ Bash, zsh and fish are also available through `fx completion <shell>`.
 
 ## Development
 
-Use the versions pinned in package.json. After `npm ci`, the required local gates
+Use the versions pinned in package.json. After `npm ci` and
+`npm --prefix docs/website ci`, the required local gates
 are lint, typecheck, Node/Bun unit tests, e2e, fresh CLI docs checks and the package
 boundary scanner. Read [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md) for commands and contributor rules.
 Windows acceptance has its own `npm run check:windows` entry; a POSIX test run is
@@ -330,6 +399,52 @@ Documentation pages are generated from this repository’s Markdown. Run `npm --
 | Contributor rules and checks                   | [AGENTS.md](https://github.com/AngelMsger/fx-devkit/blob/main/AGENTS.md)                 |
 | Current delivery evidence and remaining limits | [Validation](https://angelmsger.github.io/fx-devkit/docs/validation/)                    |
 | Release contents                               | [Changelog](https://angelmsger.github.io/fx-devkit/docs/changelog/)                      |
+
+## FAQ
+
+### Does fx require a monorepo?
+
+No. Repositories keep their own branches, history, dependencies and build tools.
+The managed workspace root is a plain directory. Existing checkouts can be
+[imported and adopted](https://angelmsger.github.io/fx-devkit/docs/design/import/).
+
+### Does my team have to publish its manifest?
+
+No. The toolkit and the team's operational data are separate. Keep the manifest
+in a repository with appropriate access controls; credentials stay with their
+owning tools. Read the
+[public/private boundary](https://angelmsger.github.io/fx-devkit/docs/private-manifest/).
+
+### Is a successful exit code enough to trust a report?
+
+No. `doctor` and `release` can exit zero with failing findings; `init` and `sync`
+can return partial results. Inspect `ok`, `complete`, stage outcomes and each
+failure's recovery data. See the
+[response contracts](https://angelmsger.github.io/fx-devkit/docs/agent-commands/).
+
+## Contributing
+
+Bug reports, focused fixes, documentation improvements and translations are
+welcome. Start with the
+[contributing guide](https://github.com/AngelMsger/fx-devkit/blob/main/CONTRIBUTING.md)
+for local setup, validation and pull-request expectations. Discuss substantial
+behavior or provider changes in an issue before building them.
+
+Feature changes include their documentation. Update the English source and
+relevant translations together; the website build checks translation freshness.
+The [roadmap](https://angelmsger.github.io/fx-devkit/docs/roadmap/) lists potential
+extensions separately from current functionality.
+
+## Support and security
+
+For a reproducible bug, [open an issue](https://github.com/AngelMsger/fx-devkit/issues)
+with the output of `fx --version`, operating system, command, expected result and a redacted
+reproduction. For setup failures, include the relevant `doctor` finding and handoff.
+
+For suspected vulnerabilities, follow the
+[security reporting guide](https://github.com/AngelMsger/fx-devkit/blob/main/SECURITY.md).
+Keep credentials, personal information and private team coordinates out of public
+reports.
 
 ## License
 

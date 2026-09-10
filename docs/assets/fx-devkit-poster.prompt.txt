@@ -1,0 +1,10 @@
+Use case: ads-marketing
+Asset type: wide hero poster for the README of fx-devkit, a modern open-source engineering CLI.
+Create a finished, exceptionally precise technical brand poster. Landscape format, approximately 2.4:1 aspect ratio. The existing identity is dark graphite (#101211), warm white (#f0f2e9) and electric lime (#c4f36b). The tone is quiet confidence, deeply geeky, independent engineering culture, not generic AI marketing.
+Composition: strong editorial typography in the left 45 percent with generous margins. Across the right half, a refined axonometric topology of small matte graphite repository plates on a drafting lattice, connected by crisp lime orthogonal traces to one distinctive central fx_ node. Thin etched outlines, tiny registration crosses and subtle layered depth express a workspace manifest bringing independent repositories, tools and coding agents into a coherent system. Keep the geometry deliberate and sparse. The central node is an elegant industrial object, not a microchip stock icon. Most of the image remains charcoal negative space. Soft directional studio light, tactile almost-black surfaces, controlled lime edge accents, no bloom haze. The pattern can extend gently behind the typography but never obscure text.
+Exact text, spelled verbatim:
+Main brand: "fx-devkit"
+Large headline on two lines: "Many repos." then "One workspace."
+Small footer line: "REPOSITORIES / TOOLS / AGENTS"
+Use a beautiful clean grotesk for the headline and disciplined monospace for the brand and footer. Make the letterforms crisp at README display width. Place no additional prose or fake code. English only.
+Avoid: generic neon glow balls, particles, futuristic cityscapes, robots, brains, planets, gradients-as-the-main-design, floating browser windows, fake screenshots, corporate stock imagery, third-party logos, crowded circuitry, lorem ipsum, watermarks, rounded marketing cards. This must look like an intentional developer-tool identity poster, not a website screenshot.

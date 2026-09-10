@@ -187,6 +187,14 @@
     "docs/website/": {
       "title": "Web サイトの保守",
       "description": "静的サイトと多言語ドキュメントのビルドと保守。"
+    },
+    "docs/contributing-guide/": {
+      "title": "貢献ガイド",
+      "description": "ローカル設定、変更の範囲、検証、プルリクエストの進め方。"
+    },
+    "docs/security/": {
+      "title": "セキュリティ報告",
+      "description": "脆弱性の疑いを報告し、ワークスペースの信頼境界を守ります。"
     }
   }
 }
