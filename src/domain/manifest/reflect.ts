@@ -1,0 +1,186 @@
+// Walks a zod schema as data. Everything that needs to know a document's
+// shape without hard-coding it — the description audit, unknown-key
+// detection, `manifest explain` — comes through here, so zod's internals are
+// touched in exactly one file.
+
+import type * as z from 'zod';
+
+export interface FieldInfo {
+  readonly type: string;
+  readonly required: boolean;
+  readonly description: string | undefined;
+  readonly children: readonly string[];
+}
+
+type AnySchema = z.ZodType;
+
+// The slice of zod's definition record this file reads; `type` names the node kind.
+interface Def {
+  readonly type: string;
+  readonly innerType?: AnySchema;
+  readonly in?: AnySchema;
+  readonly shape?: Record<string, AnySchema>;
+  readonly element?: AnySchema;
+  readonly valueType?: AnySchema;
+  readonly options?: readonly AnySchema[];
+  readonly values?: readonly unknown[];
+  readonly entries?: Record<string, string | number>;
+}
+
+const defOf = (schema: AnySchema): Def => schema.def as Def;
+
+export function kindOf(schema: AnySchema): string {
+  return defOf(schema).type;
+}
+
+interface Unwrapped {
+  readonly schema: AnySchema;
+  readonly optional: boolean;
+  readonly description: string | undefined;
+}
+
+export function unwrap(schema: AnySchema): Unwrapped {
+  let current = schema;
+  let optional = false;
+  let description = schema.description;
+  for (;;) {
+    const def = defOf(current);
+    if (OPTIONAL_WRAPPERS.has(def.type)) optional = true;
+    // A pipe is read from its input side: that is what the author writes.
+    const inner = def.innerType ?? def.in;
+    if (inner === undefined) break;
+    current = inner;
+    description ??= current.description;
+  }
+  return { schema: current, optional, description };
+}
+
+const OPTIONAL_WRAPPERS = new Set(['optional', 'nullable', 'default', 'prefault']);
+
+export function shapeOf(schema: AnySchema): Record<string, AnySchema> | undefined {
+  const { schema: inner } = unwrap(schema);
+  return kindOf(inner) === 'object' ? defOf(inner).shape : undefined;
+}
+
+export function elementOf(schema: AnySchema): AnySchema | undefined {
+  const { schema: inner } = unwrap(schema);
+  const def = defOf(inner);
+  if (def.type === 'array') return def.element;
+  if (def.type === 'record') return def.valueType;
+  return undefined;
+}
+
+export function optionsOf(schema: AnySchema): readonly AnySchema[] | undefined {
+  const { schema: inner } = unwrap(schema);
+  const def = defOf(inner);
+  return def.type === 'union' ? def.options : undefined;
+}
+
+export function describeType(schema: AnySchema): string {
+  const { schema: inner } = unwrap(schema);
+  const def = defOf(inner);
+  switch (def.type) {
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'literal':
+      return `literal ${(def.values ?? []).map((v) => JSON.stringify(v)).join(' | ')}`;
+    case 'enum':
+      return `one of ${Object.values(def.entries ?? {}).join(', ')}`;
+    case 'array':
+      return `array of ${describeType(elementOf(inner) as AnySchema)}`;
+    case 'record':
+      return `map of ${describeType(elementOf(inner) as AnySchema)}`;
+    case 'object':
+      return 'object';
+    case 'union':
+      return (optionsOf(inner) ?? []).map(describeType).join(' | ');
+    default:
+      return 'any';
+  }
+}
+
+export function fieldInfo(schema: AnySchema): FieldInfo {
+  const { optional, description } = unwrap(schema);
+  const shape = shapeOf(schema);
+  return {
+    type: describeType(schema),
+    required: !optional,
+    description,
+    children: shape === undefined ? [] : Object.keys(shape),
+  };
+}
+
+// Every field reachable from the root that has no description, as paths.
+// Union members, array elements and record values are descended into.
+export function undescribedFields(schema: AnySchema, prefix = ''): string[] {
+  const missing: string[] = [];
+  const visit = (node: AnySchema, path: string): void => {
+    if (unwrap(node).description === undefined) missing.push(path === '' ? '(root)' : path);
+    const shape = shapeOf(node);
+    if (shape !== undefined) {
+      for (const [key, child] of Object.entries(shape))
+        visit(child, path === '' ? key : `${path}.${key}`);
+      return;
+    }
+    const element = elementOf(node);
+    if (element !== undefined && kindOf(unwrap(element).schema) === 'object') {
+      const suffix = kindOf(unwrap(node).schema) === 'array' ? '[]' : '.<key>';
+      for (const [key, child] of Object.entries(shapeOf(element) ?? {}))
+        visit(child, `${path}${suffix}.${key}`);
+    }
+    for (const option of optionsOf(node) ?? []) {
+      for (const [key, child] of Object.entries(shapeOf(option) ?? {}))
+        visit(child, `${path}.${key}`);
+    }
+  };
+  visit(schema, prefix);
+  return missing;
+}
+
+export interface Stripped {
+  readonly value: unknown;
+  readonly unknown: readonly (readonly (string | number)[])[];
+}
+
+// Removes the keys the schema does not know, reporting where they were.
+// Runtime tolerates them (an older fx must keep working after the manifest
+// grows); strict mode turns the report into errors.
+export function stripUnknown(schema: AnySchema, value: unknown): Stripped {
+  const unknown: (string | number)[][] = [];
+  const visit = (node: AnySchema, current: unknown, path: (string | number)[]): unknown => {
+    const shape = shapeOf(node);
+    if (shape !== undefined) {
+      if (!isPlainObject(current)) return current;
+      const out: Record<string, unknown> = {};
+      for (const [key, child] of Object.entries(current)) {
+        if (key in shape) out[key] = visit(shape[key] as AnySchema, child, [...path, key]);
+        else unknown.push([...path, key]);
+      }
+      return out;
+    }
+    const element = elementOf(node);
+    if (element !== undefined) {
+      if (Array.isArray(current))
+        return current.map((item, i) => visit(element, item, [...path, i]));
+      if (isPlainObject(current) && kindOf(unwrap(node).schema) === 'record') {
+        return Object.fromEntries(
+          Object.entries(current).map(([k, v]) => [k, visit(element, v, [...path, k])]),
+        );
+      }
+      return current;
+    }
+    const objectOption = (optionsOf(node) ?? []).find((o) => shapeOf(o) !== undefined);
+    if (objectOption !== undefined && isPlainObject(current))
+      return visit(objectOption, current, path);
+    return current;
+  };
+  return { value: visit(schema, value, []), unknown };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

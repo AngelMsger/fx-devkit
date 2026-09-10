@@ -1,0 +1,11 @@
+scope:
+  repos: [fx-example-api, fx-example-auth]
+  envs: [dev, test]
+repos:
+  - name: scratch-x
+    path: ../scratch-x
+    upstream: ssh://git@git.example.com:12345/~alice/scratch-x.git
+overrides:
+  fx-example-api: { path: fx-example-api-wt, branch: feature/x }
+setup:
+  kubectl.kubeconfig@test: { acknowledged: '2026-09-01' }

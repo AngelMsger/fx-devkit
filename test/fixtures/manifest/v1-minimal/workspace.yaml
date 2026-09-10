@@ -1,0 +1,24 @@
+# Minimal schema 1 document: no providers, host under defaults.
+schema_version: 1
+defaults:
+  host: ssh://git@git.example.com:12345
+  upstream_project: fx
+  branch: dev
+projects:
+  fx: { label: Platform, contact: '#platform' }
+repos:
+  - name: fx-example-api
+    desc: Backend monolith
+    tags: [backend]
+    obs: { svc: example-api }
+  - name: fx-example-auth
+    desc: Accounts and login
+    branch: main
+    obs:
+      overrides:
+        jenkins:
+          test: { vars: { path: services/corp/test }, confidence: unverified, note: renamed job }
+  - name: fx-example-docs
+    desc: Static help site
+    tags: [docs]
+    obs: { covered: false, note: "no runtime, nothing to observe" }

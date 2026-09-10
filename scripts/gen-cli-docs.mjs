@@ -1,0 +1,150 @@
+// Generates docs/cli/README.md from the built command registry so the
+// reference can never drift from the code; `--check` fails when the committed
+// file differs from what the registry would produce now.
+
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const target = path.join(root, 'docs', 'cli', 'README.md');
+const check = process.argv.includes('--check');
+
+const { COMMANDS: registry, EVERYDAY } = await import(
+  path.join(root, 'dist', 'cli', 'commands', 'index.js')
+);
+const COMMANDS = Object.fromEntries(
+  Object.entries(registry).filter(([, command]) => !command.hidden),
+);
+const { globalFlags } = await import(path.join(root, 'dist', 'cli', 'flags.js'));
+const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+
+const bin = pkg.oclif?.bin ?? 'fx';
+const commandName = (id) => `${bin} ${id.replaceAll(':', ' ')}`;
+const example = (text) => text.replaceAll('<%= config.bin %>', bin);
+
+function flagRow(name, flag) {
+  const spelling = [
+    flag.char ? `-${flag.char}` : null,
+    flag.allowNo ? `--${name} / --no-${name}` : `--${name}`,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const details = [];
+  if (flag.required) details.push('required');
+  if (flag.multiple) details.push('repeatable');
+  if (flag.default !== undefined && typeof flag.default !== 'function')
+    details.push(`default: ${JSON.stringify(flag.default)}`);
+  if (flag.exclusive?.length)
+    details.push(`exclusive with: ${flag.exclusive.map((name) => `--${name}`).join(', ')}`);
+  if (flag.dependsOn?.length)
+    details.push(`requires: ${flag.dependsOn.map((name) => `--${name}`).join(', ')}`);
+  if (flag.options) details.push(`one of: ${flag.options.join(', ')}`);
+  if (flag.env) details.push(`env: ${flag.env}`);
+  const description = [flag.description ?? '', details.length ? `(${details.join('; ')})` : '']
+    .filter(Boolean)
+    .join(' ');
+  return `| \`${spelling}\` | ${description} |`;
+}
+
+function flagTable(flags) {
+  const rows = Object.entries(flags)
+    .filter(([, flag]) => !flag.hidden)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, flag]) => flagRow(name, flag));
+  return ['| Flag | Description |', '|---|---|', ...rows];
+}
+
+function section(id, command) {
+  const lines = [`## \`${commandName(id)}\``, ''];
+  if (command.description) lines.push(command.description, '');
+  const args = Object.entries(command.args ?? {});
+  if (args.length) {
+    lines.push('Arguments:', '', '| Argument | Required | Description |', '|---|---|---|');
+    for (const [name, arg] of args) {
+      const variadic = arg.multiple || (command.strict === false && name === args.at(-1)?.[0]);
+      const details = [
+        arg.description ?? '',
+        variadic ? '(variadic)' : '',
+        arg.default === undefined ? '' : `(default: ${JSON.stringify(arg.default)})`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      lines.push(`| \`${name}\` | ${arg.required ? 'yes' : 'no'} | ${details} |`);
+    }
+    lines.push('');
+  }
+  const own = Object.entries(command.flags ?? {}).filter(([name]) => !(name in globalFlags));
+  if (own.length) lines.push('Flags:', '', ...flagTable(Object.fromEntries(own)), '');
+  const examples = command.examples ?? [];
+  if (examples.length) {
+    lines.push('Examples:', '', '```bash', ...examples.map(example), '```', '');
+  }
+  return lines;
+}
+
+// Everyday commands first, in their own order; then each topic in alphabetical
+// order with its commands as the registry lists them.
+const topicOf = (id) => (id.includes(':') ? id.split(':')[0] : null);
+const topics = [...new Set(Object.keys(COMMANDS).map(topicOf).filter(Boolean))].sort();
+const ordered = [
+  ...EVERYDAY.map((id) => [id, COMMANDS[id]]),
+  ...topics.flatMap((topic) => Object.entries(COMMANDS).filter(([id]) => topicOf(id) === topic)),
+];
+const summary = (command) => (command.description ?? '').split('\n')[0];
+
+const firstIdOf = new Map();
+const lines = [
+  `# ${pkg.name} command reference`,
+  '',
+  `Generated from the command registry of version ${pkg.version}. Do not edit by hand;`,
+  'run `npm run docs:gen` after changing commands or flags.',
+  '',
+  '## Everyday',
+  '',
+  '| Command | What it answers |',
+  '|---|---|',
+  ...EVERYDAY.map((id) => `| \`${commandName(id)}\` | ${summary(COMMANDS[id])} |`),
+  '',
+  '## Topics',
+  '',
+  '| Topic | Commands |',
+  '|---|---|',
+  ...topics.map(
+    (topic) => `| \`${bin} ${topic}\` | ${pkg.oclif?.topics?.[topic]?.description ?? ''} |`,
+  ),
+  '',
+  '## Global flags',
+  '',
+  'Every command accepts these.',
+  '',
+  ...flagTable(globalFlags),
+  '',
+];
+for (const [id, command] of ordered) {
+  const canonical = firstIdOf.get(command);
+  if (canonical !== undefined) {
+    lines.push(`## \`${commandName(id)}\``, '', `Alias of \`${commandName(canonical)}\`.`, '');
+    continue;
+  }
+  firstIdOf.set(command, id);
+  lines.push(...section(id, command));
+}
+const output = lines.join('\n').replace(/\n+$/, '\n');
+
+if (check) {
+  let current;
+  try {
+    current = readFileSync(target, 'utf8');
+  } catch {
+    current = '';
+  }
+  if (current !== output) {
+    console.error(`${path.relative(root, target)} is out of date; run npm run docs:gen`);
+    process.exit(1);
+  }
+} else {
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, output);
+  console.error(`wrote ${path.relative(root, target)}`);
+}

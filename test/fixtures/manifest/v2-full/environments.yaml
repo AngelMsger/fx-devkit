@@ -1,0 +1,26 @@
+schema_version: 2
+platforms:
+  sentry:
+    { provider: sentry, capability: error-tracker, vars: { host: sentry.example.com, org: fx } }
+  openobserve: { provider: openobserve-cli, capability: log-store }
+  jenkins: { provider: jenkins-cli, capability: ci, vars: { host: jenkins.example.com } }
+  kube: { provider: kubectl, capability: cluster, note: read-only }
+envs:
+  test:
+    label: Test
+    platforms:
+      sentry: { vars: { team: fx-test, slug: 'fx-{svc}-test' } }
+      openobserve: { vars: { context: test, stream: 'fx_{svc}_test' } }
+      jenkins: { vars: { path: 'services/{repo}/feature%2Ftest' } }
+      kube:
+        vars: { kubeconfig: ~/.kube/config.test, context: test, namespace: default }
+        setup: { source: https://rancher.example.com/dashboard/c/c-test/explorer }
+  selfhosted:
+    label: Self-hosted
+    platforms:
+      sentry:
+        {
+          vars: { team: fx-oem, slug: 'oem-{svc}' },
+          confidence: unverified,
+          note: customer-operated,
+        }

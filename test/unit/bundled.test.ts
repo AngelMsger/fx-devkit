@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest';
+
+import { bundledToolsText } from '../../src/composition/bundled.js';
+import { loadTools } from '../../src/domain/manifest/loader.js';
+
+describe('bundled defaults/tools.yaml', () => {
+  it('loads with no problems and gives every tool an install method', () => {
+    const result = loadTools(bundledToolsText(), undefined, { cliVersion: '0.0.0' });
+    expect(result.problems).toEqual([]);
+    expect(result.dropped).toEqual([]);
+    expect(result.unknown).toEqual([]);
+    const names = result.doc.tools.map((t) => t.name);
+    expect(names).toContain('bitbucket-cli');
+    expect(names).toContain('kubectl');
+    for (const tool of result.doc.tools) {
+      expect((tool.install ?? result.doc.defaults?.install ?? []).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('marks exactly bitbucket-cli as required', () => {
+    const result = loadTools(bundledToolsText(), undefined, { cliVersion: '0.0.0' });
+    expect(result.doc.tools.filter((t) => t.required).map((t) => t.name)).toEqual([
+      'bitbucket-cli',
+    ]);
+  });
+});

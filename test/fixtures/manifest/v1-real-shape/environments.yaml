@@ -1,0 +1,49 @@
+schema_version: 1
+platforms:
+  sentry:
+    label: Sentry
+    vars: { host: sentry.example.com, org: fx }
+    command: 'sentry issue list {org}/{slug} --query is:unresolved --json'
+    note: production projects are shared across teams
+  openobserve:
+    label: OpenObserve
+    command: 'openobserve-cli search run --use-context {context} --stream {stream}'
+  jenkins:
+    label: Jenkins
+    vars: { host: jenkins.example.com }
+    command: 'jenkins-cli job get {path}'
+  kube:
+    label: Kubernetes
+    command: 'kubectl --kubeconfig {kubeconfig} --context {context} -n {namespace} get pods'
+    note: read-only; changes go through ArgoCD
+envs:
+  dev:
+    label: Development
+    platforms:
+      sentry: { vars: { team: fx-dev, slug: 'fx-{svc}-dev' }, confidence: unverified }
+      openobserve: { vars: { context: dev, stream: 'fx_{svc}_dev' } }
+      jenkins: { vars: { path: 'services/{repo}/feature%2Fdev' } }
+      kube: { vars: { kubeconfig: ~/.kube/config.dev, context: dev, namespace: default } }
+    note: shared by everyone; expect noise
+  prod:
+    label: Production
+    platforms:
+      sentry: { vars: { team: fx, slug: 'fx-{svc}' } }
+      openobserve: { vars: { context: prod, stream: 'fx_{svc}' } }
+      jenkins: { vars: { path: 'services/{repo}/master' } }
+      kube:
+        {
+          vars: { kubeconfig: ~/.kube/config.prod, context: prod, namespace: fx },
+          confidence: unverified,
+        }
+  selfhosted:
+    label: Self-hosted
+    platforms:
+      sentry:
+        {
+          vars: { team: fx-oem, slug: 'oem-{svc}' },
+          confidence: unverified,
+          note: customer-operated,
+        }
+      jenkins: { vars: { path: 'oem/{repo}/release' } }
+    note: no central log store

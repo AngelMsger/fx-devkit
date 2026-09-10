@@ -1,0 +1,5 @@
+schema_version: 1
+defaults: { host: ssh://git@git.example.com:12345, branch: dev }
+repos:
+  - desc: nameless
+  - path: /absolute

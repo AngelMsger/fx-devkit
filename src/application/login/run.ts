@@ -1,0 +1,233 @@
+// Guided setup. Every step is verified before it is offered, so a run is always
+// resumable; a person only sees what is not done. Without a person, the undone human
+// steps become one LOGIN_REQUIRED error whose handoff is the to-do list — nothing waits,
+// nothing half-happens.
+
+import { DevkitError } from '../../domain/errors.js';
+import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
+import { assertWritable, type WritePosture } from '../safety/posture.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
+
+import { buildPlan } from './collect.js';
+import type { LoginDeps } from './deps.js';
+import { handoffStep, loginCommand } from './handoff.js';
+import { ensureScopeEnvs } from './scope-envs.js';
+import { expandHomeIn, Verifier } from './verify.js';
+
+export interface LoginInput {
+  readonly tools?: readonly string[] | undefined;
+  readonly envs?: readonly string[] | undefined;
+  readonly skipManual: boolean;
+  readonly dryRun: boolean;
+  readonly noInput: boolean;
+  readonly posture: WritePosture;
+}
+
+export type StepResult =
+  'verified' | 'done' | 'failed' | 'skipped' | 'blocked' | 'would_run' | 'would_ask';
+
+export interface StepRow {
+  readonly id: string;
+  readonly tool: string;
+  readonly env: string | null;
+  readonly kind: SetupStep['kind'];
+  readonly title: string;
+  readonly result: StepResult;
+  readonly detail: string | null;
+}
+
+export interface LoginOutput {
+  readonly items: readonly StepRow[];
+  readonly summary: Readonly<Record<StepResult, number>>;
+  readonly problems: SetupPlan['problems'];
+}
+
+export class Login {
+  private readonly verifier: Verifier;
+
+  constructor(
+    private readonly deps: WorkspaceDeps,
+    private readonly setup: LoginDeps,
+  ) {
+    this.verifier = new Verifier(deps, setup);
+  }
+
+  async plan(input: Pick<LoginInput, 'tools' | 'envs'>): Promise<SetupPlan> {
+    return buildPlan(this.deps, this.setup, {
+      ...input,
+      scopeEnvs: this.deps.ctx.local.scope?.envs,
+    });
+  }
+
+  async execute(input: LoginInput): Promise<LoginOutput> {
+    const preview = await this.plan(input);
+    const conflicts = preview.problems.filter((problem) => problem.reason === 'step_conflict');
+    if (conflicts.length > 0)
+      throw new DevkitError(
+        'config',
+        'SETUP_PLAN_CONFLICT',
+        'Setup steps have conflicting definitions.',
+        {
+          hint: conflicts.map((problem) => problem.detail).join(' '),
+          nextSteps: ['fx login --list', 'fx manifest providers'],
+        },
+      );
+    const scopeEnvs = await ensureScopeEnvs(this.deps, this.setup.prompter, input);
+    const plan = buildPlan(this.deps, this.setup, { ...input, scopeEnvs });
+    const rows: StepRow[] = [];
+    const pending: SetupStep[] = [];
+    const undone = new Set<string>();
+    for (const step of plan.steps) {
+      const outcome = await this.attempt(step, input, undone);
+      if (outcome === 'handoff') pending.push(step);
+      else rows.push(row(step, outcome.result, outcome.detail));
+      if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
+        undone.add(step.id);
+    }
+    if (pending.length > 0) throw setupRequired(pending, input);
+    return { items: rows, summary: summarize(rows), problems: plan.problems };
+  }
+
+  private async attempt(
+    step: SetupStep,
+    input: LoginInput,
+    undone: ReadonlySet<string>,
+  ): Promise<{ result: StepResult; detail: string | null } | 'handoff'> {
+    const blocker = step.requires.find((dep) => undone.has(dep));
+    if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
+    const before = await this.verifier.verify(step, { dryRun: input.dryRun });
+    if (before.ok) return { result: 'verified', detail: before.detail };
+    if (step.kind === 'run') return this.runStep(step, input, before.detail);
+    if (input.skipManual) return { result: 'skipped', detail: '--skip-manual' };
+    if (input.dryRun) return { result: 'would_ask', detail: before.detail };
+    if (input.noInput) return 'handoff';
+    return this.manualStep(step, input);
+  }
+
+  private async runStep(
+    step: SetupStep,
+    input: LoginInput,
+    why: string,
+  ): Promise<{ result: StepResult; detail: string | null } | 'handoff'> {
+    const vector = step.run ?? [];
+    if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
+    if (input.noInput && !this.setup.trust.yes) return 'handoff';
+    assertWritable(input.posture, `setup ${step.id}`);
+    await this.setup.trust.gate.ensure({
+      workspace: this.deps.ctx.name,
+      vector,
+      label: step.id,
+      origin: step.origin,
+      yes: this.setup.trust.yes,
+      posture: input.posture,
+    });
+    if (!this.setup.trust.yes) {
+      const go = await this.setup.prompter.confirm(
+        `${describe(step)}\nRun \`${vector.join(' ')}\`?`,
+        {
+          defaultYes: true,
+        },
+      );
+      if (!go) return { result: 'skipped', detail: 'declined' };
+    }
+    this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
+    const run = await this.deps.processRun(expandHomeIn(vector, this.setup.home), {
+      interactive: !input.noInput,
+      diagnostic: { phase: `${step.id} setup` },
+    });
+    if (run.code !== 0) {
+      this.deps.reporter.progress({ id: step.id, state: 'fail', detail: `exit ${run.code}` });
+      return { result: 'failed', detail: `${vector.join(' ')} exited ${run.code}` };
+    }
+    return this.settle(step, why);
+  }
+
+  private async manualStep(
+    step: SetupStep,
+    input: LoginInput,
+  ): Promise<{ result: StepResult; detail: string | null }> {
+    assertWritable(input.posture, `setup ${step.id}`);
+    await this.setup.prompter.pause(`${describe(step)}\nPress Enter when done.`);
+    const outcome = await this.settle(step, 'not verified');
+    if (outcome.result === 'done') await this.acknowledge(step);
+    return outcome;
+  }
+
+  private async settle(
+    step: SetupStep,
+    why: string,
+  ): Promise<{ result: StepResult; detail: string | null }> {
+    const after = await this.verifier.verify(step);
+    this.deps.reporter.progress({
+      id: step.id,
+      state: after.ok ? 'done' : 'fail',
+      detail: after.detail,
+    });
+    return after.ok
+      ? { result: 'done', detail: after.detail }
+      : { result: 'failed', detail: after.detail || why };
+  }
+
+  private async acknowledge(step: SetupStep): Promise<void> {
+    const local = await this.deps.localStore.read(this.deps.ctx.name);
+    await this.deps.localStore.write(this.deps.ctx.name, {
+      ...local,
+      setup: { ...local.setup, [step.id]: { acknowledged: this.setup.clock.now().toISOString() } },
+    });
+  }
+}
+
+export function describe(step: SetupStep): string {
+  const lines = [`${step.title} (${step.id})`];
+  if (step.instructions !== undefined) lines.push(step.instructions);
+  if (step.open !== undefined) lines.push(`Open: ${step.open}`);
+  if (step.expects !== undefined) lines.push(`Expected: ${step.expects.path}`);
+  return lines.join('\n');
+}
+
+function setupRequired(pending: readonly SetupStep[], input: LoginInput): DevkitError {
+  const command = loginCommand(pending);
+  return new DevkitError(
+    'config',
+    'LOGIN_REQUIRED',
+    `${pending.length} setup step${pending.length === 1 ? '' : 's'} remain${pending.length === 1 ? 's' : ''}: ${pending.map((s) => s.id).join(', ')}`,
+    {
+      hint: input.noInput
+        ? 'Review handoff.user_steps for authorized local preparation and human interaction; verify after input changes, then resume the original task.'
+        : 'Run the command below in a terminal to be guided through them.',
+      nextSteps: [command, 'fx doctor'],
+      handoff: {
+        summary: `${pending.length} unfinished setup step${pending.length === 1 ? '' : 's'}`,
+        userSteps: pending.map(handoffStep),
+        command,
+        alternatives: ['fx login --list', 'fx doctor'],
+      },
+    },
+  );
+}
+
+function row(step: SetupStep, result: StepResult, detail: string | null): StepRow {
+  return {
+    id: step.id,
+    tool: step.tool,
+    env: step.env ?? null,
+    kind: step.kind,
+    title: step.title,
+    result,
+    detail,
+  };
+}
+
+function summarize(rows: readonly StepRow[]): Record<StepResult, number> {
+  const summary: Record<StepResult, number> = {
+    verified: 0,
+    done: 0,
+    failed: 0,
+    skipped: 0,
+    blocked: 0,
+    would_run: 0,
+    would_ask: 0,
+  };
+  for (const r of rows) summary[r.result] += 1;
+  return summary;
+}

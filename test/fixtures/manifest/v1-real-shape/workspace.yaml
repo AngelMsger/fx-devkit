@@ -1,0 +1,32 @@
+schema_version: 1
+defaults:
+  host: ssh://git@git.example.com:12345
+  upstream_project: fx
+  branch: dev
+projects:
+  fx: { label: Platform, contact: '#platform' }
+  data: { label: Data, contact: '#data' }
+repos:
+  - name: fx-example-api
+    desc: Backend monolith
+    tags: [backend, monolith]
+    obs: { svc: example-api }
+  - name: fx-example-data
+    project: data
+    desc: Data service
+    tags: [backend, data]
+    branch: master
+    path: data/server
+    obs:
+      svc: example-data
+      overrides:
+        sentry:
+          prod: { vars: { slug: fx-example-data-prod }, confidence: verified }
+  - name: fx-example-legacy
+    desc: Archived gateway
+    upstream: ssh://git@old.example.com:12345/legacy/fx-example-legacy.git
+    tags: [legacy]
+    obs: { covered: false, note: decommissioned }
+workflows:
+  - name: reserved
+    anything: goes

@@ -1,0 +1,8 @@
+schema_version: 1
+defaults: { host: ssh://git@git.example.com:12345, branch: dev }
+repos:
+  - name: good-one
+  - desc: has no name
+  - name: escapes
+    path: ../outside
+  - name: good-two

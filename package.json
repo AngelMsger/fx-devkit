@@ -1,0 +1,112 @@
+{
+  "name": "@fx/devkit",
+  "version": "0.1.0",
+  "description": "Build and maintain the fx multi-project workspace",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "fx": "./bin/fx.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "defaults",
+    "skills",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "volta": {
+    "node": "24.14.0",
+    "npm": "11.9.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.all.json --noEmit",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run test/unit",
+    "test:bun": "bun run --bun vitest run test/unit",
+    "test:e2e": "npm run build && vitest run test/e2e",
+    "test:contract": "node scripts/test-contract.mjs",
+    "check:windows": "node scripts/check-windows.mjs",
+    "docs:gen": "npm run build && node scripts/gen-cli-docs.mjs",
+    "docs:check": "npm run build && node scripts/gen-cli-docs.mjs --check",
+    "prepublishOnly": "node scripts/guard-registry.mjs && npm run build && node scripts/check-package.mjs"
+  },
+  "dependencies": {
+    "@oclif/core": "^5.0.0",
+    "cross-spawn": "7.0.6",
+    "jsonc-parser": "^3.3.1",
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "6.0.6",
+    "@types/node": "^22.20.1",
+    "ajv": "^8.20.0",
+    "eslint": "^10.9.1",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "prettier": "^3.9.6",
+    "rimraf": "^6.1.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  },
+  "oclif": {
+    "bin": "fx",
+    "dirname": "fx",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./dist/cli/commands/index.js",
+      "identifier": "COMMANDS"
+    },
+    "topicSeparator": " ",
+    "helpClass": "./dist/cli/help.js",
+    "topics": {
+      "repo": {
+        "description": "Repositories: list, show, pick, register, fork, open"
+      },
+      "env": {
+        "description": "Environments: list, show, pick"
+      },
+      "agent": {
+        "description": "Coding agents: list, pick the ones fx projects Skills into"
+      },
+      "skill": {
+        "description": "Skills: the team Skills and fx's own, with their state in each agent"
+      },
+      "tool": {
+        "description": "Companion tools: list, show, install, update"
+      },
+      "member": {
+        "description": "People: list them, show who a name refers to"
+      },
+      "manifest": {
+        "description": "The manifest: validate, lint, explain, edit, render its AGENTS.md, import a directory"
+      },
+      "config": {
+        "description": "Personal settings in ~/.fx/config.yaml, and carrying them to another machine"
+      },
+      "self": {
+        "description": "The fx tool itself: info, update"
+      },
+      "hook": {
+        "description": "Workspace lifecycle hooks: inspect, enable and remove managed entries"
+      },
+      "mcp": {
+        "description": "Workspace MCP resources, projections and readiness"
+      },
+      "source": {
+        "description": "Source contributions: validate selected files and propose a pull request"
+      }
+    }
+  }
+}

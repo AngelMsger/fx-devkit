@@ -1,0 +1,26 @@
+schema_version: 1
+sensitive: true
+scope: platform
+last_verified: '2026-01-01'
+people:
+  - id: alice
+    display: Alice
+    email: alice@example.com
+    accounts:
+      bitbucket: { username: alice }
+      feishu_project: { id: ou_alice }
+      jira: { state: not_found }
+    git_names: [Alice, alice]
+  - id: bob
+    display: Bob
+    email: bob@example.com
+    accounts: { bitbucket: { username: bob } }
+    status: resigned
+areas:
+  - group: Platform
+    lead: alice
+    scenarios:
+      - name: Login
+        dev_lead: alice
+        roles: { backend: [alice], qa: [all] }
+        repos: [fx-example-auth]

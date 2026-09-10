@@ -1,0 +1,60 @@
+import { Args, Flags } from '@oclif/core';
+
+import { Login } from '../../application/login/run.js';
+import { FxCommand } from '../base.js';
+import { dryRunFlag } from '../flags.js';
+import { loginNotices } from '../notices.js';
+
+export default class LoginCommand extends FxCommand {
+  static override description =
+    "Get this machine's access to the platforms the manifest binds: log in, place kubeconfigs, confirm permissions";
+  static override examples = [
+    '<%= config.bin %> login --list',
+    '<%= config.bin %> login',
+    '<%= config.bin %> login kubectl --env test',
+    '<%= config.bin %> login <tool> --dry-run --no-input --format json',
+    '<%= config.bin %> login --no-input --format json   # inspect pending setup; resume after verification',
+  ];
+  static override strict = false;
+  static override args = { tool: Args.string({ description: 'only these tools' }) };
+  static override flags = {
+    env: Flags.string({ multiple: true, description: 'only these environments' }),
+    list: Flags.boolean({
+      default: false,
+      exclusive: ['dry-run', 'skip-manual'],
+      description: 'print the static plan without checking current state',
+    }),
+    'skip-manual': Flags.boolean({
+      default: false,
+      exclusive: ['list'],
+      description: 'only steps fx can run itself',
+    }),
+    'dry-run': {
+      ...dryRunFlag,
+      exclusive: ['list'],
+      description: 'check current state and preview each unfinished action',
+    },
+  };
+
+  async run(): Promise<void> {
+    const { argv, flags } = await this.parse(LoginCommand);
+    const tools = argv.length === 0 ? undefined : (argv as string[]);
+    const login = new Login(await this.workspaceDeps(), this.loginDeps());
+    if (flags.list) {
+      const plan = await login.plan({ tools, envs: flags.env });
+      this.renderer.list(plan.steps, { columns: ['id', 'kind', 'title', 'origin'] });
+      for (const notice of loginNotices(plan.problems)) this.renderer.notice(notice);
+      return;
+    }
+    const out = await login.execute({
+      tools,
+      envs: flags.env,
+      skipManual: flags['skip-manual'],
+      dryRun: flags['dry-run'],
+      noInput: this.noInput,
+      posture: this.posture,
+    });
+    this.renderer.list(out.items, { columns: ['id', 'kind', 'result', 'detail'] });
+    for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
+  }
+}

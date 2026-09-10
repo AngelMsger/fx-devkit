@@ -1,0 +1,23 @@
+# Workspace registry.   Hand-maintained; keep the grouping.
+schema_version: 1
+defaults:
+  host: ssh://git@git.example.com:12345   # ssh, port 12345
+  branch: dev
+
+repos:
+  # --- platform ---
+  - name: fx-example-api
+    desc: "Backend monolith"
+    branch: 'dev'   # pinned on purpose
+    tags: [backend, monolith]
+
+  - name: fx-example-auth
+    desc: Accounts and login
+    tags: [backend]
+  - { name: fx-example-docs, desc: Static help site, tags: [docs] }
+
+  # --- data ---
+  - name: fx-example-data
+    project: data
+    obs:
+      svc: example-data

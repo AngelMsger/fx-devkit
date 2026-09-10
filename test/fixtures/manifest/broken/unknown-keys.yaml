@@ -1,0 +1,6 @@
+schema_version: 1
+defaults: { host: ssh://git@git.example.com:12345, branch: dev }
+colour: blue
+repos:
+  - name: fx-example-api
+    owner: alice

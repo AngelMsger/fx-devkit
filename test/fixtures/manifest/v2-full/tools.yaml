@@ -1,0 +1,18 @@
+schema_version: 2
+tools:
+  - name: worklog-cli
+    desc: Team worklog
+    install: [{ via: npm, spec: '@example/worklog-cli', registry: https://npm.example.com/ }]
+    skill: { command: [skill, install], agent_flag: --agent }
+    auth: { command: [auth, status] }
+    setup:
+      - id: token
+        kind: manual
+        title: Obtain a worklog JWT
+        open: https://token.example.com/
+        instructions: Sign in, copy the JWT, then run `worklog-cli auth login` and paste it.
+        verify: { command: [auth, status] }
+  - name: bitbucket-cli
+    min_version: '0.16.0'
+  - name: jira-cli
+    enabled: false

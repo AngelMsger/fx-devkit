@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+windows-acceptance.json
+
+# Private evaluation data belongs outside the public source tree.
+.eval/
+docs/eval/runs/
+docs/eval/private/

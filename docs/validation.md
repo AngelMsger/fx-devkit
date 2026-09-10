@@ -1,0 +1,75 @@
+# Validation and support boundaries
+
+This page describes how to verify a checkout and which conclusions each check
+supports. Team-specific trial reports, source patches, issue identifiers and
+machine/account state belong outside the public repository.
+
+## Required local checks
+
+Use the development runtime versions from `package.json`:
+
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run test:bun
+npm run test:e2e
+npm run docs:check
+node scripts/check-package.mjs
+```
+
+The unit suite covers domain decisions and application workflows with injected
+ports. E2e tests run the built CLI with temporary configuration and repository
+fixtures. The CLI documentation check rebuilds before comparing generated help.
+The package check scans the declared distributable paths, including the bundled
+Skill and public entry documents.
+
+Passing local checks does not establish a real account's permissions, remote
+resource existence, publication status or native agent activation. Capture the
+revision, runtime and exact command when recording results in your team's
+private validation store. Do not commit live credentials, responses or transcripts.
+
+## Live integrations
+
+`npm run test:contract` is opt-in and read-only. It uses explicit environment
+coordinates described in the [README](../README.md#development). Missing inputs
+skip the corresponding contract; configured but failing access is a failure.
+
+Companions own authentication. Reuse supported local credentials rather than
+copying them into fixtures. A native host's project trust is a separate boundary;
+syntactically correct hook or MCP files do not prove that the host activated them.
+Source contributions additionally require verified fork parentage from the
+installed companion before a real push or pull request can be authorized.
+
+## Platform coverage
+
+POSIX automated checks cover process supervision, filesystem ownership and CLI
+behavior. Native Windows adapters exist, but Windows execution, cross-volume
+junction behavior and host activation require the separate
+[`check:windows` acceptance](design/windows.md). Do not infer those results from
+a POSIX run or injected platform flags.
+
+Agent protocols vary. Use `fx hook list` and `fx mcp list/show` for supported,
+unsupported and unverified states. Preserve these distinctions in release notes.
+
+## Independent agent evaluation
+
+The [evaluation protocol](eval/README.md) covers workspace discovery, readiness,
+Skill selection, source provenance and task quality. Run it against fixtures or
+an explicitly authorized private manifest. Keep the complete private evidence
+outside this repository and publish only reviewed aggregate conclusions.
+
+## Preparing a public source snapshot
+
+The npm package scanner is not a review of the entire Git repository. Review
+source, tests, examples, documentation, patches, ignored files and Git history
+separately. Fictional examples must preserve meaningful protocol cases without
+using an organization's actual topology or identifiers.
+
+Removing a file from the working tree does not erase earlier commits. A public
+source snapshot can omit `.git` entirely and begin a new public history. Preserve
+the private original; rewriting or publishing that history is a separate action.
+An open-source release also requires an explicitly selected license and review
+of third-party notices. Public source does not require publishing the team's
+manifest or changing its private package distribution policy.

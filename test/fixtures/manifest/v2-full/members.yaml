@@ -1,0 +1,16 @@
+schema_version: 1
+sensitive: true
+people:
+  - id: alice
+    display: Alice
+    email: alice@example.com
+    accounts: { bitbucket: alice, feishu-project: ou_alice, confluence: alice }
+    git_names: [Alice]
+areas:
+  - group: Platform
+    lead: alice
+    scenarios:
+      - name: Login
+        dev_lead: alice
+        roles: { backend: [alice] }
+        repos: [fx-example-auth]

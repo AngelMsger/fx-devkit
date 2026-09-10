@@ -1,0 +1,120 @@
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { AutomaticSync } from '../../../src/application/hook/automatic-sync.js';
+import { createContainer } from '../../../src/composition/container.js';
+import { createHookServices } from '../../../src/composition/hook-services.js';
+import type { HookState } from '../../../src/domain/harness/state.js';
+import { FakeClock } from '../../fakes/fake-clock.js';
+
+describe('automatic workspace synchronization', () => {
+  it('does not describe an unconfigured manifest source as a static or current source', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'fx-source-observation-'));
+    try {
+      const services = await createHookServices({
+        container: createContainer({ FX_HOME: home }),
+        request: {
+          event: 'session-start',
+          workspace: 'test',
+          root: path.resolve('/workspace'),
+          home,
+          agent: 'codex',
+          owner: 'fx:test',
+        },
+        env: {},
+        canWrite: async () => true,
+      });
+      expect((await services.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+  it('throttles failed refreshes while retrying local projections independently', async () => {
+    let state: HookState | null = null;
+    let refreshes = 0;
+    let docs = 0;
+    const clock = new FakeClock();
+    const sync = new AutomaticSync({
+      clock,
+      lock: { acquire: async () => ({ release: async () => {} }) },
+      state: {
+        read: async () => state,
+        write: async (_name, next) => {
+          state = next;
+        },
+      },
+      canWrite: async () => true,
+      refresh: async () => {
+        refreshes++;
+        throw new Error('network');
+      },
+      docs: async () => {
+        docs++;
+        return [];
+      },
+      skills: async () => [],
+      checks: async () => [],
+    });
+    await sync.execute({ workspace: 'test', root: path.resolve('/workspace') });
+    clock.advance(16000);
+    await sync.execute({ workspace: 'test', root: path.resolve('/workspace') });
+    expect(refreshes).toBe(1);
+    expect(docs).toBe(2);
+    expect(
+      (state as HookState | null)?.observations.some((o) => o.code === 'MANIFEST_REFRESH_FAILED'),
+    ).toBe(true);
+  });
+  it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
+    const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));
+    const root = path.join(home, 'workspace');
+    mkdirSync(root);
+    const container = createContainer({ FX_HOME: home });
+    const source = container.manifestDirFor('test');
+    mkdirSync(path.join(source, 'manifest'), { recursive: true });
+    writeFileSync(
+      path.join(source, 'manifest/workspace.yaml'),
+      'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /tmp/example-hosts}}}\ndefaults: {branch: main}\nrepos: [{name: example, desc: Example}]\n',
+    );
+    writeFileSync(
+      path.join(source, 'manifest/harness.yaml'),
+      'schema_version: 2\nmcp: [{name: knowledge, transport: stdio, command: [never-run-server], check: {command: [never-run-check]}}]\n',
+    );
+    writeFileSync(path.join(source, 'AGENTS.md'), 'Workspace guide.\n');
+    await container.config.write({ workspaces: { test: { root } }, agents: ['gemini'] });
+    const lease = await container.lock.acquire({ key: 'workspace:test', waitMs: 0 });
+    expect(lease).not.toBeNull();
+    try {
+      const services = await createHookServices({
+        container,
+        request: {
+          event: 'session-start',
+          workspace: 'test',
+          root,
+          home,
+          agent: 'gemini',
+          owner: 'fx:test',
+        },
+        env: { FX_UPDATE_CHECK: '0' },
+        canWrite: async () => true,
+      });
+      await services.docs(lease!);
+      expect(readFileSync(path.join(root, 'GEMINI.md'), 'utf8')).toContain('AGENTS.md');
+      expect(existsSync(path.join(root, '.gemini/settings.json'))).toBe(false);
+      expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);
+    } finally {
+      await lease?.release();
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});

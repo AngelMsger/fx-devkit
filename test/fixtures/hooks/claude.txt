@@ -1,0 +1,1 @@
+{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"'fx' 'hook' 'dispatch' 'session-start' '--owner' 'fx:test' 2>/dev/null || :","timeout":3}]}]}}

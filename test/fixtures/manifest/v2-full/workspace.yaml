@@ -1,0 +1,30 @@
+schema_version: 2
+min_cli: 0.1.0
+providers:
+  code-host:
+    {
+      provider: bitbucket-cli,
+      vars: { host: ssh://git@git.example.com:12345, web: https://git.example.com },
+    }
+  issue-tracker: { provider: feishu-project, vars: { space: space-1 } }
+  knowledge-base: { provider: confluence-cli, vars: { base: https://wiki.example.com } }
+  im: { provider: lark-cli }
+defaults:
+  upstream_project: fx
+  origin_pattern: '~{user}/{repo}'
+  branch: dev
+projects:
+  fx: { label: Platform, contact: '#platform' }
+repos:
+  - name: fx-example-api
+    desc: Backend monolith
+    tags: [backend]
+    obs: { svc: example-api }
+  - name: fx-example-auth
+    desc: Accounts and login
+    tags: [backend]
+    branch: main
+release:
+  env: test
+  ci: { source_env: test, target_env: selfhosted }
+  bots: [ci-bot]

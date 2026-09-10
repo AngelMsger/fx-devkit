@@ -1,0 +1,46 @@
+// The responsibilities a workspace needs, independent of who provides them. Workspace-
+// scoped ones are bound once in workspace.yaml; environment-scoped ones are bound per
+// platform instance in environments.yaml; internal ones are wired by the tool itself.
+
+export const CAPABILITIES = [
+  'code-host',
+  'issue-tracker',
+  'knowledge-base',
+  'im',
+  'error-tracker',
+  'log-store',
+  'ci',
+  'cluster',
+  'installer',
+  'agent-host',
+  'git',
+  'manifest-source',
+] as const;
+
+export type Capability = (typeof CAPABILITIES)[number];
+
+export type CapabilityScope = 'workspace' | 'environment' | 'internal';
+
+export interface CapabilityInfo {
+  readonly scope: CapabilityScope;
+  readonly desc: string;
+}
+
+export const CAPABILITY_INFO: Record<Capability, CapabilityInfo> = {
+  'code-host': { scope: 'workspace', desc: 'where repositories, forks and pull requests live' },
+  'issue-tracker': { scope: 'workspace', desc: 'where work items are tracked' },
+  'knowledge-base': { scope: 'workspace', desc: 'where team documentation lives' },
+  im: { scope: 'workspace', desc: 'how people are reached' },
+  'error-tracker': { scope: 'environment', desc: 'where runtime errors are collected' },
+  'log-store': { scope: 'environment', desc: 'where logs are searched' },
+  ci: { scope: 'environment', desc: 'where builds run' },
+  cluster: { scope: 'environment', desc: 'where services run; read-only from fx' },
+  installer: { scope: 'internal', desc: 'how a companion tool is installed' },
+  'agent-host': { scope: 'internal', desc: 'a coding agent that loads Skills' },
+  git: { scope: 'internal', desc: 'the local git executable' },
+  'manifest-source': { scope: 'internal', desc: 'where the manifest is fetched from' },
+};
+
+export function capabilitiesInScope(scope: CapabilityScope): Capability[] {
+  return CAPABILITIES.filter((c) => CAPABILITY_INFO[c].scope === scope);
+}

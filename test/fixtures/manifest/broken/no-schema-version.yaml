@@ -1,0 +1,3 @@
+defaults: { host: ssh://git@git.example.com:12345, branch: dev }
+repos:
+  - name: fx-example-api

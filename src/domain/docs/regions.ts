@@ -1,0 +1,68 @@
+// Generated regions inside a hand-written document. Between a begin and an end marker
+// the text is fx's; everything else is a person's and is never touched. A region the
+// document lacks is reported, not inserted — where it goes is the author's decision.
+// Retired generated rules blocks are removed; their durable instructions belong in
+// prose.
+
+export const begin = (name: string): string => `<!-- fx:begin ${name} -->`;
+export const end = (name: string): string => `<!-- fx:end ${name} -->`;
+
+export interface RenderedRegions {
+  readonly text: string;
+  readonly replaced: readonly string[];
+  readonly missing: readonly string[];
+  readonly unknown: readonly string[];
+}
+
+const MARKER = /<!-- fx:begin ([a-z0-9-]+) -->/g;
+const BOUNDARY = /<!-- fx:(begin|end) ([a-z0-9-]+) -->/g;
+const RETIRED = new Set(['rules']);
+
+export function renderRegions(
+  doc: string,
+  regions: Readonly<Record<string, string>>,
+): RenderedRegions {
+  const present = [...doc.matchAll(MARKER)].map((m) => m[1] ?? '');
+  const replaced: string[] = [];
+  let text = removeRetired(doc);
+  for (const [name, body] of Object.entries(regions)) {
+    const from = text.indexOf(begin(name));
+    const to = text.indexOf(end(name), from);
+    if (from === -1 || to === -1) continue;
+    text = `${text.slice(0, from + begin(name).length)}\n${body.trim()}\n${text.slice(to)}`;
+    replaced.push(name);
+  }
+  return {
+    text,
+    replaced,
+    missing: Object.keys(regions).filter((name) => !replaced.includes(name)),
+    unknown: present.filter((name) => !(name in regions)),
+  };
+}
+
+// Only an unambiguous top-level pair is removable. A nested or malformed
+// block may contain human-owned markers, so leave that whole block alone.
+function removeRetired(doc: string): string {
+  const stack: RegExpExecArray[] = [];
+  const spans: { readonly start: number; readonly end: number }[] = [];
+  let nested = false;
+  for (const marker of doc.matchAll(BOUNDARY)) {
+    if (marker[1] === 'begin') {
+      if (stack.length === 0) nested = false;
+      else nested = true;
+      stack.push(marker);
+      continue;
+    }
+    const opening = stack.pop();
+    if (opening === undefined || stack.length > 0 || nested) continue;
+    if (opening[2] === marker[2] && RETIRED.has(opening[2] ?? ''))
+      spans.push({ start: opening.index, end: marker.index + marker[0].length });
+  }
+  let text = doc;
+  for (const span of spans.reverse()) text = text.slice(0, span.start) + text.slice(span.end);
+  return text;
+}
+
+export function region(name: string, body: string): string {
+  return `${begin(name)}\n${body.trim()}\n${end(name)}`;
+}

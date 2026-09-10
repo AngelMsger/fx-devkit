@@ -1,0 +1,64 @@
+# The toolchain baseline bundled with fx. A team's manifest/tools.yaml is a
+# patch over this file: entries match by name, objects merge, a null deletes
+# a field, `enabled: false` retires a tool. Nothing here is team-specific;
+# internal registries, hosts and team-only tools belong in the patch.
+schema_version: 2
+defaults:
+  version_args: [--version]
+  install: [{ via: npm }]
+  skill: { command: [skill, install], dir_flag: --dir }
+  auth: { command: [auth, status] }
+tools:
+  - name: bitbucket-cli
+    desc: Repositories, forks, pull requests and code review on Bitbucket
+    required: true
+    min_version: '0.14.0'
+    install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
+    docs: https://github.com/AngelMsger/bitbucket-cli
+  - name: confluence-cli
+    desc: Pages, spaces and comments in Confluence
+    install: [{ via: npm, spec: '@angelmsger/confluence-cli' }]
+    docs: https://github.com/AngelMsger/confluence-cli
+  - name: jenkins-cli
+    desc: Jobs, builds and console output in Jenkins
+    install: [{ via: npm, spec: '@angelmsger/jenkins-cli' }]
+    docs: https://github.com/AngelMsger/jenkins-cli
+  - name: openobserve-cli
+    desc: Logs, metrics and traces in OpenObserve
+    install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
+    docs: https://github.com/AngelMsger/openobserve-cli
+  - name: jira-cli
+    desc: Issues, comments and transitions in Jira
+    install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
+    docs: https://github.com/AngelMsger/jira-cli
+  - name: sentry
+    desc: Issues, events and releases in Sentry
+    install: [{ via: manual }]
+    skill: { command: [] }
+    auth: { command: [auth, status] }
+    docs: https://cli.sentry.dev/getting-started/installation/
+  - name: kubectl
+    desc: Read-only access to Kubernetes clusters
+    version_args: [version, --client]
+    install:
+      - { via: brew, spec: kubectl }
+      - { via: manual }
+    skill: { command: [] }
+    auth: { command: [] }
+    docs: https://kubernetes.io/docs/reference/kubectl/
+  - name: lark-cli
+    desc: Feishu / Lark messaging, documents, calendar and more
+    install: [{ via: npm, spec: '@larksuite/cli' }]
+    skill: { command: [] }
+    auth: { command: [auth, status] }
+  - name: meegle
+    desc: Feishu Project (Meegle) work items
+    install: [{ via: npm, spec: '@lark-project/meegle' }]
+    skill: { command: [] }
+    auth: { command: [] }
+  - name: wecom-cli
+    min_version: '1.1.0'
+    desc: WeCom messaging, documents and calendar
+    install: [{ via: npm, spec: '@wecom/cli' }]
+    skill: { command: [] }
+    auth: { command: [] }

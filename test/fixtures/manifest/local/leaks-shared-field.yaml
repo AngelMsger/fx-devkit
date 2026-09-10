@@ -1,0 +1,2 @@
+overrides:
+  fx-example-api: { upstream: ssh://git@elsewhere.example.com/fx-example-api.git }

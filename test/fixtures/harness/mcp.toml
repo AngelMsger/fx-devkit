@@ -1,0 +1,6 @@
+# fx:mcp:fx-knowledge:start
+[mcp_servers.fx-knowledge]
+command = "server"
+args = [ "serve" ]
+env_vars = [ "TOKEN" ]
+# fx:mcp:fx-knowledge:end

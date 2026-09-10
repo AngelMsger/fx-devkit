@@ -1,0 +1,20 @@
+// Everything the templates read, taken from one loaded manifest.
+
+import type { TemplateInput } from '../../domain/docs/templates.js';
+import type { LoginDeps } from '../login/deps.js';
+import type { ManifestContext } from '../manifest/context.js';
+import { toolsOf } from '../tool/toolchain.js';
+
+export function templateInputOf(
+  context: ManifestContext,
+  login: Pick<LoginDeps, 'describeProvider'>,
+): TemplateInput {
+  return {
+    workspace: context.bundle.workspace.result.doc,
+    environments: context.bundle.environments?.result.doc,
+    bindings: context.bindings,
+    platforms: context.platforms,
+    tools: toolsOf(context.bundle),
+    toolsOf: (provider: string) => login.describeProvider(provider)?.tools ?? [provider],
+  };
+}

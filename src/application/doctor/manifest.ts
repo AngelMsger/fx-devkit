@@ -1,0 +1,124 @@
+// The manifest the workspace was loaded with, re-read the strict way:
+// quarantined entries and unbound platforms are failures here even though
+// the load tolerated them. The derived root documents are a convenience for
+// agents, so missing or stale ones only warn.
+
+import { DevkitError } from '../../domain/errors.js';
+import { DeriveDocs } from '../docs/derive.js';
+import type { LoginDeps } from '../login/deps.js';
+import { LintManifest } from '../manifest/lint.js';
+import { ValidateManifest } from '../manifest/validate.js';
+import type { ManifestUpdateCheck } from '../update/manifest.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
+
+import { NOT_CHECKED } from './self.js';
+import { finding, type Finding } from './types.js';
+
+export async function checkManifest(
+  deps: WorkspaceDeps,
+  login: Pick<LoginDeps, 'describeProvider'>,
+  bundledTools: () => string,
+  upstream: UpstreamCheck,
+): Promise<Finding[]> {
+  const input = { dir: deps.ctx.manifest.dir, cliVersion: deps.cliVersion };
+  const report = await new ValidateManifest(deps.fs, bundledTools).execute({
+    ...input,
+    strict: false,
+  });
+  const findings: Finding[] = [];
+  for (const doc of report.documents) {
+    for (const p of doc.problems)
+      findings.push(
+        finding('manifest', `${doc.kind}:${p.path}`, 'fail', p.message, {
+          fix: 'fx manifest validate',
+        }),
+      );
+    for (const d of doc.dropped)
+      findings.push(
+        finding('manifest', `${doc.kind}:${d.name}`, 'fail', `entry skipped: ${d.reason}`, {
+          fix: 'fx manifest validate',
+        }),
+      );
+  }
+  for (const binding of deps.ctx.platforms) {
+    if (binding.source === 'unbound')
+      findings.push(
+        finding(
+          'manifest',
+          `environments:platforms.${binding.platform}`,
+          'fail',
+          'no provider serves this platform',
+          {
+            fix: 'fx manifest providers',
+          },
+        ),
+      );
+  }
+  for (const lint of await new LintManifest(deps.fs, bundledTools, login.describeProvider).execute(
+    input,
+  ))
+    findings.push(
+      finding('manifest', `${lint.kind}:${lint.path}`, 'warn', `${lint.code}: ${lint.message}`, {
+        fix: 'fx manifest lint',
+      }),
+    );
+  const docs = await checkDocs(deps, login);
+  if (findings.length === 0 && docs.level === 'ok')
+    findings.push(finding('manifest', 'all', 'ok', 'valid, nothing to tidy'));
+  findings.push(docs, await checkUpstream(deps, upstream));
+  return findings;
+}
+
+interface UpstreamCheck {
+  readonly manifest: ManifestUpdateCheck;
+  readonly enabled: boolean;
+}
+
+async function checkUpstream(deps: WorkspaceDeps, check: UpstreamCheck): Promise<Finding> {
+  if (!check.enabled)
+    return finding('manifest', 'upstream', 'ok', NOT_CHECKED, { coverage: 'not_applicable' });
+  const v = await check.manifest.execute({
+    workspace: deps.ctx.name,
+    sourceDir: deps.ctx.manifestDir,
+    force: true,
+  });
+  if (v.source === 'skipped')
+    return finding(
+      'manifest',
+      'upstream',
+      'ok',
+      'the source is not a repository; nothing to check',
+      { coverage: 'not_applicable' },
+    );
+  if (v.error !== undefined)
+    return finding('manifest', 'upstream', 'warn', `could not reach upstream: ${v.error}`, {
+      coverage: 'incomplete',
+    });
+  if (v.behind)
+    return finding('manifest', 'upstream', 'warn', 'new commits upstream since the last fx sync', {
+      fix: 'fx sync',
+    });
+  return finding('manifest', 'upstream', 'ok', 'up to date with upstream');
+}
+
+async function checkDocs(
+  deps: WorkspaceDeps,
+  login: Pick<LoginDeps, 'describeProvider'>,
+): Promise<Finding> {
+  try {
+    const out = await new DeriveDocs(deps, login).execute({
+      check: true,
+      dryRun: true,
+      posture: { readOnly: true, source: 'default' },
+    });
+    const foreign = out.files.filter((f) => f.action === 'foreign').map((f) => f.path);
+    if (foreign.length > 0)
+      return finding('manifest', 'docs', 'warn', `${foreign.join(', ')} not written by fx`, {
+        fix: 'move the file aside, then fx sync --only docs',
+      });
+    return finding('manifest', 'docs', 'ok', 'the root AGENTS.md and CLAUDE.md match the manifest');
+  } catch (err) {
+    if (!(err instanceof DevkitError) || err.code !== 'DOCS_STALE') throw err;
+    return finding('manifest', 'docs', 'warn', err.message, { fix: 'fx sync --only docs' });
+  }
+}

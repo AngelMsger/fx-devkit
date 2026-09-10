@@ -1,0 +1,40 @@
+// Every binding in one table: the workspace-scoped capabilities and the
+// platform instances, each with where its provider came from.
+
+import { bindPlatforms, bindProviders, type Binding } from '../../domain/manifest/providers.js';
+import type { FileSystem } from '../../ports/fs.js';
+
+import { LoadManifest } from './load.js';
+
+export interface ProvidersManifestInput {
+  readonly dir: string;
+  readonly cliVersion: string;
+}
+
+export interface BindingRow extends Binding {
+  readonly scope: 'workspace' | 'environment';
+  readonly platform: string | null;
+}
+
+export class ProvidersManifest {
+  constructor(
+    private readonly fs: FileSystem,
+    private readonly bundledTools: () => string,
+  ) {}
+
+  async execute(input: ProvidersManifestInput): Promise<BindingRow[]> {
+    const bundle = await new LoadManifest(this.fs, this.bundledTools).execute(input);
+    return [
+      ...bindProviders(bundle.workspace.result.doc).map((b) => ({
+        scope: 'workspace' as const,
+        platform: null,
+        ...b,
+      })),
+      ...bindPlatforms(bundle.environments?.result.doc).map(({ platform, ...b }) => ({
+        scope: 'environment' as const,
+        platform,
+        ...b,
+      })),
+    ];
+  }
+}
