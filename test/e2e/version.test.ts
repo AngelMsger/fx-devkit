@@ -7,7 +7,7 @@ describe('fx --version and self info', () => {
     for (const flag of ['--version', '-v']) {
       const run = fx([flag]);
       expect(run.status, run.stderr).toBe(0);
-      expect(run.stdout).toMatch(/^@fx\/devkit\/\d+\.\d+\.\d+ /);
+      expect(run.stdout).toMatch(/^@angelmsger\/fx\/\d+\.\d+\.\d+ /);
     }
     expect(fx(['version']).status).toBe(2);
   });
@@ -15,11 +15,11 @@ describe('fx --version and self info', () => {
   it('carries the version and runtime in self info, honouring FX_FORMAT under the flag', () => {
     const info = fx(['self', 'info', '--format', 'json']);
     expect(info.status).toBe(0);
-    expect(info.json()).toMatchObject({ name: '@fx/devkit', version: expect.any(String) });
+    expect(info.json()).toMatchObject({ name: '@angelmsger/fx', version: expect.any(String) });
     expect((info.json() as { runtime: string }).runtime).toMatch(/^node /);
     expect(() => fx(['self', 'info'], { FX_FORMAT: 'json' }).json()).not.toThrow();
     expect(fx(['self', 'info', '--format', 'human'], { FX_FORMAT: 'json' }).stdout).toMatch(
-      /^name\s+@fx\/devkit/,
+      /^name\s+@angelmsger\/fx/,
     );
   });
 

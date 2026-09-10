@@ -115,7 +115,7 @@ describe('fx config', () => {
     const run = fx(['self', 'info'], env);
     expect(run.status, run.stderr).toBe(0);
     const payload = run.json() as Record<string, unknown>;
-    expect(payload).toMatchObject({ name: '@fx/devkit', version: expect.any(String) });
+    expect(payload).toMatchObject({ name: '@angelmsger/fx', version: expect.any(String) });
     expect(payload).not.toHaveProperty('error');
   });
 

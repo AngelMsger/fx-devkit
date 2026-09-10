@@ -1,12 +1,12 @@
-# fx-devkit-next
+# fx-devkit
 
 `fx` turns a team's manifest into a multi-repository workspace: clone and sync
 repositories, configure companion CLIs, equip coding agents, and discover where
 to investigate a service. People use readable output; agents use structured
 results with explicit readiness and recovery steps.
 
-This repository maintains the `fx` CLI. The current package identifier remains
-`@fx/devkit`; the repository name does not select a new package or registry.
+The project is `fx-devkit`. Its target npm package is `@angelmsger/fx`, providing
+the `fx` command.
 Public distribution is being prepared; see the [release checklist](docs/public-release.md).
 
 ## Contents
@@ -50,7 +50,7 @@ The following coordinate is an example:
 
 ```sh
 export FX_REGISTRY='https://npm.example.com/'
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm install -g @angelmsger/fx --registry="$FX_REGISTRY" --@angelmsger:registry="$FX_REGISTRY"
 fx --version
 ```
 
@@ -59,7 +59,7 @@ shims; fx does not require changing that policy:
 
 ```powershell
 $env:FX_REGISTRY = 'https://npm.example.com/'
-npm.cmd install -g @fx/devkit --registry=$env:FX_REGISTRY --@fx:registry=$env:FX_REGISTRY
+npm.cmd install -g @angelmsger/fx --registry=$env:FX_REGISTRY --@angelmsger:registry=$env:FX_REGISTRY
 fx.cmd --version
 ```
 

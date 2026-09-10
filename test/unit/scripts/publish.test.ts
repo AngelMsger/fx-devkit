@@ -18,7 +18,7 @@ function fixture() {
     mkdirSync(path.join(root, directory), { recursive: true });
   writeFileSync(
     path.join(root, 'package.json'),
-    JSON.stringify({ name: '@fx/devkit', type: 'module' }),
+    JSON.stringify({ name: '@angelmsger/fx', type: 'module' }),
   );
   for (const file of [
     'scripts/publish.mjs',
@@ -71,7 +71,7 @@ describe('private publishing boundary', () => {
       'publish',
       '--registry',
       'https://npm.example.com/',
-      '--@fx:registry=https://npm.example.com/',
+      '--@angelmsger:registry=https://npm.example.com/',
       '--ignore-scripts=false',
       '--dry-run',
     ]);

@@ -1,7 +1,7 @@
 # Public release preparation
 
-The repository name is `fx-devkit-next`. The CLI remains `fx`, and the package
-identifier remains `@fx/devkit` until a distribution identity is selected.
+The project name is `fx-devkit`, the target npm package is `@angelmsger/fx`,
+and the binary name is `fx`.
 This checkout is a source baseline, not evidence of a published package.
 
 ## Remaining release decisions
@@ -9,8 +9,8 @@ This checkout is a source baseline, not evidence of a published package.
 - Select the public repository owner and verify the destination before adding a remote.
 - Confirm the copyright owner, choose a license and review third-party notices.
   `UNLICENSED` remains intentional until that decision is made.
-- Confirm the package name and registry ownership. The existing publisher permits
-  private registries only and package access remains restricted. Public npm
+- Verify access to the `@angelmsger` scope and the intended registry. The existing
+  publisher permits private registries only and package access remains restricted. Public npm
   distribution requires coordinated changes to publication, metadata lookup,
   self-update, tests and installation documentation; do not bypass the guard.
 - Configure public CI without private credentials or a private manifest. Preserve

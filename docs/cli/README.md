@@ -1,4 +1,4 @@
-# @fx/devkit command reference
+# @angelmsger/fx command reference
 
 Generated from the command registry of version 0.1.0. Do not edit by hand;
 run `npm run docs:gen` after changing commands or flags.

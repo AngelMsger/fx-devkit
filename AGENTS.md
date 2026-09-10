@@ -1,4 +1,4 @@
-# Working on fx-devkit-next
+# Working on fx-devkit
 
 Read this file before changing the repository. It defines engineering constraints;
 [architecture and contracts](docs/design/README.md) explain the implementation,

@@ -14,10 +14,10 @@ describe('runtime registry coordinates', () => {
         'npm',
         'install',
         '-g',
-        '@fx/devkit@latest',
+        '@angelmsger/fx@latest',
         '--registry',
         'https://npm.example.com/',
-        '--@fx:registry=https://npm.example.com/',
+        '--@angelmsger:registry=https://npm.example.com/',
       ],
     });
   });

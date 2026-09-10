@@ -44,7 +44,7 @@ For example, replace the example address before using:
 
 ```sh
 export FX_REGISTRY='https://npm.example.com/'
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm install -g @angelmsger/fx --registry="$FX_REGISTRY" --@angelmsger:registry="$FX_REGISTRY"
 fx self info --format json
 fx self update --dry-run --format json
 ```

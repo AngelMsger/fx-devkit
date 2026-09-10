@@ -3,7 +3,9 @@
 ## Unreleased
 
 Initial source baseline for the `fx` workspace CLI. This is not a publication
-announcement; package naming, licensing and public distribution are pending.
+announcement; licensing and public distribution are pending.
+The project is `fx-devkit`, the target npm package is `@angelmsger/fx`, and the
+binary name is `fx`.
 
 - Manifest-driven workspace initialization, synchronization and repository selection.
 - Structured configuration, discovery, readiness and release reports.
