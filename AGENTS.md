@@ -250,6 +250,10 @@ Untranslated references must have an explicit English notice and `lang="en"`,
 not silently appear as translated content. Commands, flags, identifiers and real
 CLI output stay verbatim. Preserve the current page when switching languages.
 
+For visual website changes, open a running local preview for the user to inspect.
+Wait for the user's approval before pushing or deploying the change. Screenshots
+supplement the live preview; they do not replace this review step.
+
 Keep the site static, accessible, responsive and respectful of reduced-motion
 preferences. Website dependencies and output remain separate from the CLI npm
 package. Public pages must not include private manifests, real coordinates,

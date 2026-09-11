@@ -41,7 +41,7 @@
   "companionCLIs": "連携 CLI",
   "codingAgents": "コーディングエージェント",
   "closingKicker": "03 / あなたのワークスペースから。",
-  "closingTitle": "ここを、<br /><span class=\"accent\">あなたの ~/home に。</span>",
+  "closingTitle": "コンテキストをロード。<br /><span class=\"accent\">次は、あなたの番。</span>",
   "closingBody": "既存のマニフェストを使う。<br />または、最初の一つをここから作る。",
   "buildWorkspace": "ワークスペースを作る",
   "closingNote": "あなたのコード。ツール。コンテキスト。",

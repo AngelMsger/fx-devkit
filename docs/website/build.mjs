@@ -16,6 +16,16 @@ import { basePath, siteOrigin, relativeHref as href, localizedRoute } from './pa
 const site = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(site, '../..');
 const output = path.join(site, 'dist');
+// Content versions prevent a new page from reusing a cached stylesheet or script.
+const assetVersions = Object.fromEntries(
+  await Promise.all(
+    ['site.css', 'site.js', 'probe.js'].map(async (name) => {
+      const bytes = await readFile(path.join(site, 'src', name));
+      return [name, createHash('sha256').update(bytes).digest('hex').slice(0, 16)];
+    }),
+  ),
+);
+const versionedAsset = (name) => `assets/${name}?v=${assetVersions[name]}`;
 const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const { version } = pkg;
 const channel = process.env.FX_DISTRIBUTION || packageChannel(pkg.name);
@@ -134,7 +144,7 @@ function frame({
     ? `<link rel="canonical" href="${escapeHtml(origin + base + route)}">${locales.map(({ id, tag }) => `<link rel="alternate" hreflang="${tag}" href="${escapeHtml(origin + base + localizedRoute(id, canonicalRoute))}">`).join('')}<link rel="alternate" hreflang="x-default" href="${escapeHtml(origin + base + canonicalRoute)}">`
     : '';
   return `<!doctype html>
-<html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${escapeHtml(description)}">${channel === 'internal' ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#101211"><title>${escapeHtml(title)} — fx-devkit</title>${seo}<link rel="icon" href="${asset('assets/favicon.svg')}" type="image/svg+xml"><link rel="stylesheet" href="${asset('assets/site.css')}"><script src="${asset('assets/site.js')}" defer></script><noscript><style>@media(max-width:620px){.sidebar{display:block;position:static;height:auto;border:0}.docs-menu{display:none}}</style></noscript></head>
+<html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${escapeHtml(description)}">${channel === 'internal' ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#101211"><title>${escapeHtml(title)} — fx-devkit</title>${seo}<link rel="icon" href="${asset('assets/favicon.svg')}" type="image/svg+xml"><link rel="stylesheet" href="${asset(versionedAsset('site.css'))}"><script src="${asset(versionedAsset('site.js'))}" defer></script><noscript><style>@media(max-width:620px){.sidebar{display:block;position:static;height:auto;border:0}.docs-menu{display:none}}</style></noscript></head>
 <body class="${docs ? 'docs-page' : 'home-page'}" data-messages="${escapeHtml(JSON.stringify(runtime))}"><a href="#main" class="skip">${t('skip')}</a><header class="site-header"><nav class="nav shell" aria-label="${t('mainNav')}"><a href="${url('')}" class="brand" aria-label="${t('home')}"><span class="brand-symbol" aria-hidden="true">f<i>x</i>_</span> fx-devkit <small>${escapeHtml(series)}</small></a><div class="nav-links"><a class="nav-optional" href="${url('')}#capabilities">${t('why')}</a><a href="${url('docs/')}"${docs ? ' aria-current="page"' : ''}>${t('docs')}</a><a class="nav-optional" href="${url('docs/changelog/')}">${t('changelog')}</a>${languageMenu}<a class="nav-cta" href="${url('docs/getting-started/#install')}">${t('navInstall')} <span aria-hidden="true">↗</span></a></div></nav></header>${body}
 <footer class="footer"><div class="shell footer-inner"><span>fx-devkit / ${t('footer')}</span><div class="footer-links">${repository ? `<a href="${escapeHtml(repository)}">Source ↗</a>` : ''}<a href="${asset('LICENSE.txt')}">Apache-2.0</a><a href="${url('docs/getting-started/#concepts')}">${t('architecture')}</a><a href="${url('docs/support/')}">${t('releaseStatus')}</a><button class="motion-toggle" aria-pressed="false">${t('pause')}</button></div></div></footer><div class="copy-status" role="status" aria-live="polite"></div></body></html>`;
 }
@@ -229,7 +239,7 @@ for (const { id: locale } of locales) {
           ? selectedDistribution.packageName
           : message(catalog, key),
     )
-    .replace('src="./assets/probe.js"', `src="${href(homeRoute, 'assets/probe.js')}"`);
+    .replace('src="./assets/probe.js"', `src="${href(homeRoute, versionedAsset('probe.js'))}"`);
   await mkdir(path.join(output, homeRoute), { recursive: true });
   await writeFile(
     path.join(output, homeRoute, 'index.html'),

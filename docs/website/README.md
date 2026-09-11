@@ -142,6 +142,15 @@ team manifests, live transcripts and private evaluation data must never be expor
 Raw HTML from Markdown is escaped. Mermaid source is displayed in a readable code
 block with a copy button, without a third-party browser runtime.
 
+## Preview and cache consistency
+
+Review website changes through the running local preview before pushing or deploying.
+The preview server disables caching. Generated stylesheet and script URLs include
+content versions, checked against their actual bytes by `site:check`, so refreshed
+HTML cannot reuse an older cached asset. The NGINX container revalidates responses
+before reuse. This cannot retroactively invalidate responses already cached by a
+previous deployment; a hard reload may be needed once when upgrading from it.
+
 ## Homepage hierarchy
 
 The hero has one value statement, followed by the primary installation-guide link

@@ -41,7 +41,7 @@
   "companionCLIs": "配套 CLI",
   "codingAgents": "编码 Agent",
   "closingKicker": "03 / 从你的工作区开始。",
-  "closingTitle": "让开发<br /><span class=\"accent\">回到 ~/home。</span>",
+  "closingTitle": "上下文已加载，<br /><span class=\"accent\">接下来由你。</span>",
   "closingBody": "使用现有 manifest，<br />或用几个步骤创建第一份。",
   "buildWorkspace": "构建你的工作区",
   "closingNote": "你的代码。你的工具。你的上下文。",

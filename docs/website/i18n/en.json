@@ -41,7 +41,7 @@
   "companionCLIs": "Companion CLIs",
   "codingAgents": "Coding agents",
   "closingKicker": "03 / START WITH YOUR WORKSPACE",
-  "closingTitle": "Make yourself<br /><span class=\"accent\">at ~/home.</span>",
+  "closingTitle": "Context loaded.<br /><span class=\"accent\">Your move.</span>",
   "closingBody": "Bring an existing manifest.<br />Or build your first one in a few steps.",
   "buildWorkspace": "Build your workspace",
   "closingNote": "Your code. Your tools. Your context.",

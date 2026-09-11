@@ -1106,6 +1106,21 @@ button {
     font-size: 32px;
   }
 }
+/* Switch before the two columns squeeze localized copy and command examples. */
+@media (min-width: 851px) and (max-width: 1000px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .hero-copy {
+    max-width: 640px;
+    padding-top: 0;
+  }
+  .terminal-wrap {
+    max-width: 680px;
+    width: 100%;
+  }
+}
 @media (max-width: 850px) {
   .hero-copy {
     padding-top: 0;
