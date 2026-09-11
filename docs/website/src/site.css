@@ -154,8 +154,9 @@ button {
 }
 .nav-links .nav-cta {
   padding: 8px 16px;
-  border: 1px solid #687257;
-  color: var(--accent);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #182010;
   border-radius: 3px;
 }
 .eyebrow {
@@ -256,7 +257,7 @@ button {
 .actions {
   display: flex;
   gap: 12px;
-  margin-top: 30px;
+  margin-block: 20px 16px;
 }
 .button {
   display: inline-flex;
@@ -287,17 +288,51 @@ button {
 .secondary:hover {
   background: #22281f;
 }
+.hero-copy {
+  min-width: 0;
+}
+.install-card {
+  margin-top: 26px;
+  border: 1px solid #657a48;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: #192016;
+  padding: 18px;
+  scroll-margin-top: 110px;
+}
+.install-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.install-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.install-heading > span {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
 .install-line {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 29px;
-  font-size: 13px;
+  padding: 8px 8px 8px 14px;
+  background: #0f130d;
+  border: 1px solid #38432e;
+  border-radius: 3px;
+  font-size: 15px;
 }
 .install-line .prompt {
   color: var(--accent);
 }
 .install-line code {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 .copy {
@@ -312,10 +347,32 @@ button {
   color: var(--accent);
   border-color: var(--accent);
 }
+.install-line .install-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #182010;
+  border-color: var(--accent);
+}
+.install-line .install-copy:hover {
+  background: #d3ff89;
+  color: #182010;
+}
+.nav-links .nav-cta:hover {
+  color: #182010;
+  background: #d3ff89;
+}
 .install-note {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 9px;
+  margin: 12px 0 0;
   max-width: 470px;
 }
 .install-note a {
@@ -1191,16 +1248,19 @@ button {
     padding-inline: 15px;
     gap: 16px;
   }
+  .install-card {
+    padding: 14px;
+    margin-top: 22px;
+  }
   .install-line {
+    flex-wrap: wrap;
     gap: 8px;
-    font-size: 11px;
+    font-size: 14px;
+    padding: 12px;
   }
-  .install-line .copy {
-    font-size: 10px;
-    padding: 3px 5px;
-  }
-  .install-note {
-    font-size: 11px;
+  .install-line .install-copy {
+    width: 100%;
+    margin-top: 4px;
   }
   .terminal-orbit {
     display: none;
@@ -1441,10 +1501,24 @@ html:not([lang='en']) .doc-title {
 }
 @media (max-width: 620px) {
   .nav-links {
-    gap: 13px;
+    gap: 8px;
   }
-  .nav-cta {
-    display: none !important;
+  .brand,
+  .language-menu summary {
+    white-space: nowrap;
+  }
+  .nav-links > a:not(.nav-cta) {
+    display: none;
+  }
+  .nav-links .nav-cta {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .nav-cta > span {
+    display: none;
+  }
+  .brand-symbol {
+    display: none;
   }
   .language-menu {
     font-size: 12px;

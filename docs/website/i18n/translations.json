@@ -1,6 +1,6 @@
 {
   "ja": {
-    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
+    "_catalog_sha256": "b2ef40938900c97935f39e8b81bff6dc4402dcdf83d195857c0342c4de0465b6",
     "docs/user-guide.md": {
       "file": "getting-started.md",
       "source_sha256": "8219f5a78b84db35008a43993b4ca2af3672048b3c81ad9cdaa8c50c79c5acb4"
@@ -23,7 +23,7 @@
     }
   },
   "zh-Hans": {
-    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
+    "_catalog_sha256": "b2ef40938900c97935f39e8b81bff6dc4402dcdf83d195857c0342c4de0465b6",
     "docs/user-guide.md": {
       "file": "getting-started.md",
       "source_sha256": "8219f5a78b84db35008a43993b4ca2af3672048b3c81ad9cdaa8c50c79c5acb4"
@@ -46,7 +46,7 @@
     }
   },
   "zh-Hant": {
-    "_catalog_sha256": "b86899a34be1adb5890e6b51ce40fd0c8909d05e5806212d83c10c8a3d154a25",
+    "_catalog_sha256": "b2ef40938900c97935f39e8b81bff6dc4402dcdf83d195857c0342c4de0465b6",
     "docs/user-guide.md": {
       "file": "getting-started.md",
       "source_sha256": "8219f5a78b84db35008a43993b4ca2af3672048b3c81ad9cdaa8c50c79c5acb4"

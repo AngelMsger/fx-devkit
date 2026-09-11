@@ -8,7 +8,7 @@
   "heroDetail": "fx turns a shared manifest into a working environment.<br class=\"desktop-break\" /> Know what’s here. Know what’s ready. Get to work.",
   "readDocs": "Read the docs",
   "seeAction": "See it in action",
-  "installNote": "Set your team’s FX_REGISTRY first. See the installation guide.",
+  "installNote": "Configure your team’s npm registry before installing.",
   "releaseLink": "Installation guide ↗",
   "copy": "Copy",
   "copyInstall": "Copy install command",
@@ -123,5 +123,7 @@
     }
   },
   "publicRelease": "PUBLIC PREVIEW",
-  "publicInstallNote": "Public npm package. See the installation guide for availability."
+  "publicInstallNote": "Public npm package. See the installation guide for availability.",
+  "installTitle": "Install fx",
+  "navInstall": "Install fx"
 }
