@@ -57,7 +57,7 @@ for (const route of manifest.routes) {
   const menu = /<details class="language-menu">([\s\S]*?)<\/details>/.exec(page.text)?.[1] ?? '';
   if ((menu.match(/hreflang=/g) ?? []).length !== 4)
     throw new Error(`Missing language switch destinations: ${route}`);
-  if (route.includes('docs/') && page.text.includes('src="./assets/probe.js"'))
+  if (route.includes('docs/') && /src="[^"]*\/probe\.js(?:[?"])/.test(page.text))
     throw new Error(`Pointer probe must remain homepage-only: ${route}`);
 }
 if (
@@ -78,6 +78,11 @@ for (const [file, page] of pages) {
     const relative = decodeURIComponent(url.pathname).slice(manifest.base.length);
     const target = !relative || relative.endsWith('/') ? `${relative}index.html` : relative;
     if (!known.has(target)) throw new Error(`Broken ${attribute}: ${file} -> ${value}`);
+    if (/^assets\/(?:site\.css|site\.js|probe\.js)$/.test(target)) {
+      const expectedVersion = hash(await readFile(path.join(output, target))).slice(0, 16);
+      if (url.searchParams.get('v') !== expectedVersion)
+        throw new Error(`Stale asset version: ${file} -> ${value}`);
+    }
     if (
       url.hash &&
       pages.has(target) &&
