@@ -8,7 +8,7 @@
   "heroDetail": "fx 將共用 manifest 變成可用的開發環境。<br class=\"desktop-break\" />了解有哪些資源、哪些已就緒，然後開始工作。",
   "readDocs": "閱讀文件",
   "seeAction": "看看它如何運作",
-  "installNote": "先設定團隊的 FX_REGISTRY，詳見安裝指南。",
+  "installNote": "安裝前請先設定團隊的 npm Registry。",
   "releaseLink": "安裝指南 ↗",
   "copy": "複製",
   "copyInstall": "複製安裝命令",
@@ -123,5 +123,7 @@
     }
   },
   "publicRelease": "公開預覽",
-  "publicInstallNote": "公開 npm 套件，版本提供情況請查看安裝指南。"
+  "publicInstallNote": "公開 npm 套件，版本提供情況請查看安裝指南。",
+  "installTitle": "安裝 fx",
+  "navInstall": "安裝 fx"
 }

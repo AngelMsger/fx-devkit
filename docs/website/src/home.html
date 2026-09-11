@@ -11,27 +11,47 @@
           ><span class="cursor" aria-hidden="true">_</span>
         </h1>
         <p class="lead">{{heroLead}}</p>
-        <p class="hero-detail">{{heroDetail}}</p>
+        <section class="install-card" id="install" aria-labelledby="install-title">
+          <div class="install-heading">
+            <h2 id="install-title">{{installTitle}}</h2>
+            <span class="mono">Node.js ≥22</span>
+          </div>
+          <div class="install-line">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code>npm install -g {{packageName}}</code>
+            <button
+              class="copy install-copy"
+              data-copy="npm install -g {{packageName}}"
+              aria-label="{{copyInstall}}"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="8" y="8" width="12" height="12" rx="2" />
+                <path d="M16 8V4H4v12h4" />
+              </svg>
+              {{copy}}
+            </button>
+          </div>
+          <p class="install-note">
+            {{installNote}} <a href="./docs/getting-started/#install">{{releaseLink}}</a>
+          </p>
+        </section>
         <div class="actions">
-          <a class="button primary" href="./docs/">{{readDocs}} <span aria-hidden="true">↗</span></a
-          ><a class="button secondary" href="#workflow"
+          <a class="button secondary" href="./docs/"
+            >{{readDocs}} <span aria-hidden="true">↗</span></a
+          >
+          <a class="button secondary" href="#workflow"
             >{{seeAction}} <span aria-hidden="true">↓</span></a
           >
         </div>
-        <div class="install-line">
-          <span class="prompt">$</span><code>npm install -g {{packageName}}</code
-          ><button
-            class="copy"
-            data-copy="npm install -g {{packageName}}"
-            aria-label="{{copyInstall}}"
-          >
-            {{copy}}
-          </button>
-        </div>
-        <p class="install-note">
-          {{installNote}}
-          <a href="./docs/getting-started/#install">{{releaseLink}}</a>
-        </p>
+        <p class="hero-detail">{{heroDetail}}</p>
       </div>
       <div class="terminal-wrap" id="workflow">
         <div class="terminal-orbit" aria-hidden="true"></div>

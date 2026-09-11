@@ -8,7 +8,7 @@
   "heroDetail": "共有マニフェストから、使える開発環境へ。<br class=\"desktop-break\" />何があり、何が使えるかを知って、開発を始めよう。",
   "readDocs": "ドキュメントを読む",
   "seeAction": "動作を見る",
-  "installNote": "チームの FX_REGISTRY を設定してください。インストールガイドを参照。",
+  "installNote": "インストール前にチームの npm レジストリを設定してください。",
   "releaseLink": "インストールガイド ↗",
   "copy": "コピー",
   "copyInstall": "インストールコマンドをコピー",
@@ -123,5 +123,7 @@
     }
   },
   "publicRelease": "公開プレビュー",
-  "publicInstallNote": "公開 npm パッケージ。提供状況はインストールガイドを参照。"
+  "publicInstallNote": "公開 npm パッケージ。提供状況はインストールガイドを参照。",
+  "installTitle": "fx をインストール",
+  "navInstall": "インストール"
 }
