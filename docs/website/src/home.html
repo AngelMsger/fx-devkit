@@ -7,15 +7,22 @@
     <div class="hero-grid">
       <div class="hero-copy">
         <h1>
-          {{heroMany}}<br />{{heroOne}}<span class="accent">{{heroWorkspace}}</span
-          ><span class="cursor" aria-hidden="true">_</span>
+          <span class="headline-line">{{heroMany}}</span
+          ><span class="headline-line"
+            >{{heroOne}}<span class="accent">{{heroWorkspace}}</span></span
+          >
         </h1>
         <p class="lead">{{heroLead}}</p>
-        <section class="install-card" id="install" aria-labelledby="install-title">
-          <div class="install-heading">
-            <h2 id="install-title">{{installTitle}}</h2>
-            <span class="mono">Node.js ≥22</span>
-          </div>
+        <div class="actions" id="install">
+          <a class="button primary" href="./docs/getting-started/#install"
+            >{{installTitle}} <span aria-hidden="true">↗</span></a
+          >
+          <a class="button secondary" href="./docs/"
+            >{{readDocs}} <span aria-hidden="true">→</span></a
+          >
+        </div>
+        <div class="install-shortcut">
+          <p class="install-note">{{installNote}}</p>
           <div class="install-line">
             <span class="prompt" aria-hidden="true">$</span>
             <code>npm install -g {{packageName}}</code>
@@ -36,24 +43,17 @@
                 <rect x="8" y="8" width="12" height="12" rx="2" />
                 <path d="M16 8V4H4v12h4" />
               </svg>
-              {{copy}}
+              <span>{{copy}}</span>
             </button>
           </div>
-          <p class="install-note">
-            {{installNote}} <a href="./docs/getting-started/#install">{{releaseLink}}</a>
-          </p>
-        </section>
-        <div class="actions">
-          <a class="button secondary" href="./docs/"
-            >{{readDocs}} <span aria-hidden="true">↗</span></a
-          >
-          <a class="button secondary" href="#workflow"
-            >{{seeAction}} <span aria-hidden="true">↓</span></a
-          >
+          <a class="install-help" href="./docs/getting-started/#install">{{releaseLink}}</a>
         </div>
-        <p class="hero-detail">{{heroDetail}}</p>
       </div>
       <div class="terminal-wrap" id="workflow">
+        <div class="demo-heading">
+          <h2>{{demoTitle}}</h2>
+          <span>{{demoHint}}</span>
+        </div>
         <div class="terminal-orbit" aria-hidden="true"></div>
         <div class="terminal">
           <div class="terminal-top">
@@ -67,8 +67,9 @@
               aria-controls="terminal-panel"
               aria-selected="true"
               data-demo="sync"
+              data-description="{{demoSyncDescription}}"
             >
-              01 / sync</button
+              {{demoSync}}</button
             ><button
               role="tab"
               id="tab-where"
@@ -76,8 +77,9 @@
               aria-selected="false"
               tabindex="-1"
               data-demo="where"
+              data-description="{{demoWhereDescription}}"
             >
-              02 / where</button
+              {{demoWhere}}</button
             ><button
               role="tab"
               id="tab-agent"
@@ -85,11 +87,21 @@
               aria-selected="false"
               tabindex="-1"
               data-demo="agent"
+              data-description="{{demoAgentDescription}}"
             >
-              03 / agents
+              {{demoAgent}}
             </button>
           </div>
-          <div id="terminal-panel" role="tabpanel" aria-labelledby="tab-sync" tabindex="0">
+          <p class="demo-description" id="demo-description" aria-live="polite">
+            {{demoSyncDescription}}
+          </p>
+          <div
+            id="terminal-panel"
+            role="tabpanel"
+            aria-labelledby="tab-sync"
+            aria-describedby="demo-description"
+            tabindex="0"
+          >
             <div class="terminal-command"><span>❯</span> fx sync --dry-run</div>
             <pre class="terminal-output"><span class="muted">Reading workspace manifest…</span>
 
@@ -97,8 +109,7 @@
 <span class="lime">✓</span> example-web       up to date
 <span class="amber">↳</span> example-worker    skip · dirty
 
-<span class="muted">docs       skills       hooks</span>
-  ready      ready        ready
+<span class="muted">docs · skills · hooks</span>  ready
 
 <span class="lime">Plan ready.</span> Your changes stay yours.
 <span class="muted">Dry run. No files changed.</span></pre>
@@ -175,7 +186,7 @@
     </div>
     <div class="closing-right">
       <p>{{closingBody}}</p>
-      <a class="button primary" href="./docs/manifest-guide/"
+      <a class="button primary" href="./docs/getting-started/"
         >{{buildWorkspace}} <span aria-hidden="true">↗</span></a
       ><span class="muted mono">{{closingNote}}</span>
     </div>

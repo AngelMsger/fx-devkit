@@ -4,12 +4,10 @@
   "heroMany": "Many repos.",
   "heroOne": "One ",
   "heroWorkspace": "workspace.",
-  "heroLead": "Your repositories, tools, and coding agents.<br />Finally speaking the same language.",
-  "heroDetail": "fx turns a shared manifest into a working environment.<br class=\"desktop-break\" /> Know what’s here. Know what’s ready. Get to work.",
+  "heroLead": "One shared manifest to sync your repositories, connect your tools, and give coding agents the context they need.",
   "readDocs": "Read the docs",
-  "seeAction": "See it in action",
-  "installNote": "Configure your team’s npm registry before installing.",
-  "releaseLink": "Installation guide ↗",
+  "installNote": "Already configured your team’s npm registry?",
+  "releaseLink": "Registry setup & installation guide ↗",
   "copy": "Copy",
   "copyInstall": "Copy install command",
   "demo": "EXAMPLE",
@@ -123,7 +121,15 @@
     }
   },
   "publicRelease": "PUBLIC PREVIEW",
-  "publicInstallNote": "Public npm package. See the installation guide for availability.",
+  "publicInstallNote": "Install from npm. Then connect your team’s manifest.",
   "installTitle": "Install fx",
-  "navInstall": "Install fx"
+  "navInstall": "Install fx",
+  "demoTitle": "One workspace. Three ways in.",
+  "demoHint": "Select a command ↓",
+  "demoSync": "01 / Sync",
+  "demoWhere": "02 / Locate",
+  "demoAgent": "03 / Agents",
+  "demoSyncDescription": "Preview repository updates. Keep unfinished work untouched.",
+  "demoWhereDescription": "Find a service’s builds, logs, and errors from one place.",
+  "demoAgentDescription": "Give your agent a clear answer about what is ready."
 }

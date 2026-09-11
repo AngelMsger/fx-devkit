@@ -223,41 +223,36 @@ button {
 }
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  align-items: center;
-  gap: 55px;
-  padding-block: 42px 78px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 64px;
+  padding-block: 48px 64px;
   position: relative;
 }
 .hero h1 {
-  font-size: clamp(45px, 5.2vw, 76px);
-  line-height: 1.08;
-  letter-spacing: -4.3px;
+  font-size: clamp(42px, 4.6vw, 64px);
+  line-height: 1.12;
+  letter-spacing: -0.055em;
   font-weight: 550;
-  margin: 0 0 28px;
-  white-space: nowrap;
+  margin: 0;
 }
-.cursor {
-  animation: blink 1.4s step-end 6;
-  color: var(--accent);
-  font-weight: 300;
+.headline-line {
+  display: block;
 }
 .lead {
-  font-size: 21px;
-  line-height: 1.55;
-  letter-spacing: -0.45px;
-  margin: 0 0 14px;
-}
-.hero-detail {
-  font-size: 15px;
-  color: var(--muted);
-  line-height: 1.75;
-  margin: 0;
+  max-width: 46ch;
+  font-size: 18px;
+  line-height: 1.65;
+  color: #b5bdb3;
+  margin: 24px 0 0;
+  text-wrap: pretty;
 }
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  margin-block: 20px 16px;
+  margin-top: 30px;
+  scroll-margin-top: 110px;
 }
 .button {
   display: inline-flex;
@@ -290,42 +285,21 @@ button {
 }
 .hero-copy {
   min-width: 0;
+  padding-top: 28px;
 }
-.install-card {
-  margin-top: 26px;
-  border: 1px solid #657a48;
-  border-left: 3px solid var(--accent);
-  border-radius: 4px;
-  background: #192016;
-  padding: 18px;
-  scroll-margin-top: 110px;
-}
-.install-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.install-heading h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-.install-heading > span {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
+.install-shortcut {
+  margin-top: 28px;
+  max-width: 490px;
 }
 .install-line {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 8px 8px 14px;
-  background: #0f130d;
-  border: 1px solid #38432e;
-  border-radius: 3px;
-  font-size: 15px;
+  gap: 10px;
+  padding: 6px 6px 6px 16px;
+  background: #161b17;
+  border: 1px solid #414b3d;
+  border-radius: 4px;
+  font-size: 14px;
 }
 .install-line .prompt {
   color: var(--accent);
@@ -353,36 +327,69 @@ button {
   justify-content: center;
   gap: 8px;
   flex-shrink: 0;
+  min-width: 44px;
   min-height: 44px;
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  background: var(--accent);
-  color: #182010;
-  border-color: var(--accent);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: #252e22;
+  border-color: #414b3d;
 }
 .install-line .install-copy:hover {
-  background: #d3ff89;
-  color: #182010;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .nav-links .nav-cta:hover {
   color: #182010;
   background: #d3ff89;
 }
 .install-note {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.install-help {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #c4cdbf;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.install-help:hover {
+  color: var(--accent);
+}
+.demo-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  position: relative;
+}
+.demo-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.demo-heading > span {
   font-size: 12px;
   color: var(--muted);
-  margin: 12px 0 0;
-  max-width: 470px;
 }
-.install-note a {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.demo-description {
+  margin: 0;
+  padding: 18px 24px 0;
+  min-height: 62px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c4cdbf;
 }
 .terminal-wrap {
   position: relative;
   min-width: 0;
-  padding-top: 25px;
+  padding-top: 0;
   scroll-margin-top: 120px;
 }
 .terminal {
@@ -395,7 +402,7 @@ button {
 }
 .terminal-orbit {
   position: absolute;
-  inset: 0 -18px 28px 20px;
+  inset: 44px -12px 24px 16px;
   border: 1px solid #4c5c343f;
   transform: rotate(4deg);
   border-radius: 7px;
@@ -439,8 +446,8 @@ button {
   background: #c4f36b07;
 }
 #terminal-panel {
-  padding: 25px 24px;
-  min-height: 340px;
+  padding: 20px 24px;
+  min-height: 300px;
 }
 .terminal-command {
   font-size: 14px;
@@ -452,7 +459,7 @@ button {
   margin-right: 9px;
 }
 .terminal-output {
-  font: 13px/1.9 var(--mono);
+  font: 13px/1.75 var(--mono);
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1037,11 +1044,6 @@ button {
   scroll-behavior: auto !important;
   transition: none !important;
 }
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
 @keyframes flow {
   0% {
     top: 0;
@@ -1083,13 +1085,6 @@ button {
   .hero-grid {
     gap: 28px;
   }
-  .hero h1 {
-    font-size: 56px;
-    letter-spacing: -3px;
-  }
-  .hero-detail {
-    font-size: 14px;
-  }
   .terminal-output {
     font-size: 12px;
   }
@@ -1112,16 +1107,16 @@ button {
   }
 }
 @media (max-width: 850px) {
+  .hero-copy {
+    padding-top: 0;
+  }
   .hero-grid {
     grid-template-columns: 1fr;
     padding-top: 36px;
     gap: 36px;
   }
   .hero h1 {
-    font-size: clamp(46px, 8.5vw, 72px);
-  }
-  .hero-detail {
-    font-size: 16px;
+    font-size: clamp(40px, 7.2vw, 60px);
   }
   .terminal-wrap {
     max-width: 600px;
@@ -1231,15 +1226,11 @@ button {
     padding: 4px 6px;
   }
   .hero h1 {
-    font-size: clamp(37px, 9.5vw, 58px);
-    letter-spacing: -2.4px;
-    white-space: normal;
+    font-size: clamp(34px, 8.8vw, 52px);
   }
   .lead {
-    font-size: 18px;
-  }
-  .hero-detail {
-    font-size: 14px;
+    font-size: 16px;
+    margin-top: 20px;
   }
   .desktop-break {
     display: none;
@@ -1248,19 +1239,28 @@ button {
     padding-inline: 15px;
     gap: 16px;
   }
-  .install-card {
-    padding: 14px;
-    margin-top: 22px;
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 380px;
+    margin-top: 24px;
+  }
+  .actions .button {
+    justify-content: center;
+  }
+  .install-shortcut {
+    margin-top: 24px;
   }
   .install-line {
-    flex-wrap: wrap;
     gap: 8px;
-    font-size: 14px;
-    padding: 12px;
+    font-size: 12px;
+    padding-left: 12px;
   }
-  .install-line .install-copy {
-    width: 100%;
-    margin-top: 4px;
+  .install-copy > span {
+    display: none;
+  }
+  .demo-description {
+    padding-inline: 16px;
   }
   .terminal-orbit {
     display: none;
@@ -1465,13 +1465,13 @@ button {
   color: var(--accent);
 }
 html:not([lang='en']) .hero h1 {
-  font-size: clamp(35px, 4.4vw, 62px);
-  letter-spacing: -0.04em;
-  line-height: 1.25;
+  font-size: clamp(34px, 4.1vw, 58px);
+  letter-spacing: -0.035em;
+  line-height: 1.22;
   white-space: normal;
 }
 html[lang='ja'] .hero h1 {
-  font-size: clamp(32px, 3.5vw, 51px);
+  font-size: clamp(30px, 3.4vw, 48px);
 }
 html:not([lang='en']) .closing h2 {
   font-size: clamp(36px, 4.1vw, 56px);
@@ -1527,10 +1527,10 @@ html:not([lang='en']) .doc-title {
     flex-wrap: wrap;
   }
   html:not([lang='en']) .hero h1 {
-    font-size: 37px;
+    font-size: clamp(30px, 8vw, 42px);
   }
   html[lang='ja'] .hero h1 {
-    font-size: 33px;
+    font-size: clamp(27px, 7.2vw, 38px);
   }
 }
 
@@ -1546,4 +1546,10 @@ html:not([lang='en']) .doc-title {
   max-width: 100%;
   height: auto;
   vertical-align: middle;
+}
+
+@media (max-width: 380px) {
+  .actions .button > span {
+    display: none;
+  }
 }

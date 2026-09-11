@@ -34,7 +34,7 @@ for (const button of document.querySelectorAll('[data-copy], [data-code-copy]'))
 const demos = {
   sync: [
     'fx sync --dry-run',
-    '<span class="muted">Reading workspace manifest…</span>\n\n<span class="lime">✓</span> example-api       fast-forward\n<span class="lime">✓</span> example-web       up to date\n<span class="amber">↳</span> example-worker    skip · dirty\n\n<span class="muted">docs       skills       hooks</span>\n  ready      ready        ready\n\n<span class="lime">Plan ready.</span> Your changes stay yours.\n<span class="muted">Dry run. No files changed.</span>',
+    '<span class="muted">Reading workspace manifest…</span>\n\n<span class="lime">✓</span> example-api       fast-forward\n<span class="lime">✓</span> example-web       up to date\n<span class="amber">↳</span> example-worker    skip · dirty\n\n<span class="muted">docs · skills · hooks</span>  ready\n\n<span class="lime">Plan ready.</span> Your changes stay yours.\n<span class="muted">Dry run. No files changed.</span>',
   ],
   where: [
     'fx where example-api --env test',
@@ -54,6 +54,7 @@ function selectTab(tab) {
   const panel = document.getElementById('terminal-panel');
   const [command, output] = demos[tab.dataset.demo];
   panel.setAttribute('aria-labelledby', tab.id);
+  document.getElementById('demo-description').textContent = tab.dataset.description;
   panel.querySelector('.terminal-command').innerHTML = `<span>❯</span> ${command}`;
   panel.querySelector('.terminal-output').innerHTML = output;
 }
