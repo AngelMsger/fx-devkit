@@ -4,12 +4,10 @@
   "heroMany": "多個儲存庫，",
   "heroOne": "一個",
   "heroWorkspace": "工作區。",
-  "heroLead": "儲存庫、工具與編碼 Agent，<br />終於有了共同語言。",
-  "heroDetail": "fx 將共用 manifest 變成可用的開發環境。<br class=\"desktop-break\" />了解有哪些資源、哪些已就緒，然後開始工作。",
+  "heroLead": "用一份共用 manifest 同步程式碼儲存庫、接入工具，並為 Coding Agent 提供所需的工程上下文。",
   "readDocs": "閱讀文件",
-  "seeAction": "看看它如何運作",
-  "installNote": "安裝前請先設定團隊的 npm Registry。",
-  "releaseLink": "安裝指南 ↗",
+  "installNote": "已設定團隊的 npm Registry？",
+  "releaseLink": "Registry 設定與安裝指南 ↗",
   "copy": "複製",
   "copyInstall": "複製安裝命令",
   "demo": "示範範例",
@@ -123,7 +121,15 @@
     }
   },
   "publicRelease": "公開預覽",
-  "publicInstallNote": "公開 npm 套件，版本提供情況請查看安裝指南。",
+  "publicInstallNote": "從 npm 安裝，再接入團隊的 manifest。",
   "installTitle": "安裝 fx",
-  "navInstall": "安裝 fx"
+  "navInstall": "安裝 fx",
+  "demoTitle": "一個工作區，三種使用方式。",
+  "demoHint": "選擇指令查看 ↓",
+  "demoSync": "01 / 同步",
+  "demoWhere": "02 / 定位",
+  "demoAgent": "03 / Agent",
+  "demoSyncDescription": "預覽儲存庫更新，保留尚未完成的本機工作。",
+  "demoWhereDescription": "集中找到服務的建置、日誌與錯誤入口。",
+  "demoAgentDescription": "讓 Agent 明確知道哪些工具與能力已經就緒。"
 }

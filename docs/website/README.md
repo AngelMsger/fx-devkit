@@ -142,6 +142,21 @@ team manifests, live transcripts and private evaluation data must never be expor
 Raw HTML from Markdown is escaped. Mermaid source is displayed in a readable code
 block with a copy button, without a third-party browser runtime.
 
+## Homepage hierarchy
+
+The hero has one value statement, followed by the primary installation-guide link
+and a secondary documentation link. Keep their filled and outlined treatments
+distinct. The compact command row is a shortcut for users whose registry is ready;
+requirements belong in the guide and the quiet baseline, not beside a competing
+card title. Navigation installation links go directly to the guide. The closing
+workspace action follows the complete getting-started flow.
+
+Keep headline and body typography consistent across breakpoints; avoid manual
+line breaks in the value statement. Review all four languages visually, including
+320px screens. Command tabs own exploration: selecting one changes both its
+localized purpose and illustrative output, with keyboard support and an announced
+purpose. Do not add a hero action that only scrolls to an already visible demo.
+
 ## Accessibility and motion
 
 Pages include semantic navigation, a skip link, visible keyboard focus, responsive
