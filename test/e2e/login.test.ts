@@ -21,7 +21,7 @@ interface Stage {
 
 const SHIMS: Record<string, string> = {
   'bitbucket-cli':
-    'if(process.argv[2]==="--version") console.log("bitbucket-cli 1.0.0"); else process.exit(Number(process.env.FAKE_BB_OK??1));',
+    'if(process.argv[2]==="--version") console.log("bitbucket-cli 1.0.0"); else { console.log(JSON.stringify({configured: process.env.FAKE_BB_OK === \"0\"})); process.exit(Number(process.env.FAKE_BB_OK??1)); }',
   'openobserve-cli':
     'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("openobserve-cli 1.0.0"); else process.exit(a==="auth status --use-context test"?Number(process.env.FAKE_OO_OK??1):2);',
   kubectl:

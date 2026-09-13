@@ -14,7 +14,9 @@ export default class CompletionCommand extends FxCommand {
     '<%= config.bin %> completion fish > ~/.config/fish/completions/fx.fish',
     '<%= config.bin %> completion powershell | Out-File -Encoding utf8 fx-completion.ps1',
   ];
-  static override args = { shell: Args.string({ required: true, description: SHELLS.join(', ') }) };
+  static override args = {
+    shell: Args.string({ ignoreStdin: true, required: true, description: SHELLS.join(', ') }),
+  };
   static override flags = {};
 
   async run(): Promise<void> {

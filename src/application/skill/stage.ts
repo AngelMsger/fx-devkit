@@ -6,6 +6,7 @@
 
 import path from 'node:path';
 
+import { asDevkitError, DevkitError, exitCodeFor, toEnvelope } from '../../domain/errors.js';
 import { shellLine } from '../../domain/shell.js';
 import {
   decideCopy,
@@ -18,6 +19,7 @@ import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
+import { isTrustRequired } from '../safety/trust.js';
 import type { TrustContext } from '../safety/trust.js';
 import type { StageSummary } from '../sync.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -76,7 +78,7 @@ export class SkillStage {
     const links = await this.planLinks(input.agents);
     const fx = await this.planCopies(input.agents);
     const plannedTools = await this.planTools(input);
-    const tools = input.background
+    let tools = input.background
       ? await this.trustedTools(plannedTools, input.trust)
       : plannedTools;
     const writes =
@@ -85,7 +87,7 @@ export class SkillStage {
       tools.some((t) => t.vector !== null);
     if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
     if (!input.dryRun) {
-      if (!input.background) await this.trustAll(tools, input.trust);
+      if (!input.background) tools = await this.trustAll(tools, input.trust);
       const conflicts: (SkillLinkItem | FxSkillItem)[] = fx.filter(
         (item) => item.action === 'foreign',
       );
@@ -167,6 +169,7 @@ export class SkillStage {
   private async planTools(input: SkillStageInput): Promise<ToolSkillItem[]> {
     const targets = await skillTargets(this.skills, input.agents);
     const agents = targets.map((t) => t.agent);
+    if (agents.length === 0) return [];
     const items: ToolSkillItem[] = [];
     for (const tool of input.toolchain ?? []) {
       if (!tool.enabled || tool.skill === undefined) {
@@ -179,7 +182,10 @@ export class SkillStage {
         });
         continue;
       }
-      if ((await this.deps.processWhich(tool.binary)) === undefined) {
+      if (
+        (await this.deps.processWhich(tool.binary)) === undefined &&
+        !(input.dryRun && tool.installOnInit)
+      ) {
         items.push({
           tool: tool.name,
           vector: null,
@@ -228,29 +234,65 @@ export class SkillStage {
     }
   }
 
-  private async applyCopies(items: readonly FxSkillItem[]): Promise<void> {
-    for (const item of items) {
-      if (item.action === 'install' || item.action === 'upgrade')
-        await this.deps.fs.replaceDir(this.skills.bundledSkillDir, item.path);
+  private async applyCopies(items: FxSkillItem[]): Promise<void> {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index]!;
+      if (item.action !== 'install' && item.action !== 'upgrade') continue;
+      const lease = await this.skills.globalLock?.acquire({
+        key: `skill:${item.path}`,
+        waitMs: 2000,
+      });
+      if (lease === null)
+        throw new DevkitError('conflict', 'SKILL_BUSY', 'The user Skill is being updated', {
+          nextSteps: ['Retry fx sync --only skills.'],
+        });
+      try {
+        const action = decideCopy(await observeCopy(this.deps.fs, item.path), this.deps.cliVersion);
+        items[index] = { ...item, action };
+        if (action === 'install' || action === 'upgrade')
+          await this.deps.fs.replaceDir(this.skills.bundledSkillDir, item.path);
+      } finally {
+        await lease?.release();
+      }
     }
   }
 
-  // Trust is recorded on disk, so it comes after the write gate; and every
-  // vector is trusted before anything is applied or run, so a refusal
-  // leaves the stage as it found it.
-  private async trustAll(items: readonly ToolSkillItem[], trust?: TrustContext): Promise<void> {
-    if (trust === undefined) return;
+  // Approve executable vectors before running them. A missing approval is a
+  // blocked tool row; independent owned local projections can still proceed.
+  private async trustAll(
+    items: readonly ToolSkillItem[],
+    trust?: TrustContext,
+  ): Promise<ToolSkillItem[]> {
+    if (trust === undefined) return [...items];
+    const approved: ToolSkillItem[] = [];
     for (const item of items) {
-      if (item.vector === null) continue;
-      await trust.gate.ensure({
-        workspace: trust.workspace,
-        vector: item.vector,
-        label: `${item.tool} skill install`,
-        origin: item.origin,
-        yes: trust.yes,
-        posture: trust.posture,
-      });
+      if (item.vector === null) {
+        approved.push(item);
+        continue;
+      }
+      try {
+        await trust.gate.ensure({
+          workspace: trust.workspace,
+          vector: item.vector,
+          label: `${item.tool} skill install`,
+          origin: item.origin,
+          yes: trust.yes,
+          posture: trust.posture,
+        });
+        approved.push(item);
+      } catch (error) {
+        if (!isTrustRequired(error)) throw error;
+        const failure = asDevkitError(error);
+        approved.push({
+          ...item,
+          vector: null,
+          code: exitCodeFor(failure.category),
+          note: 'approval required',
+          failure: toEnvelope(failure).error,
+        });
+      }
     }
+    return approved;
   }
 
   private async runTools(items: readonly ToolSkillItem[]): Promise<ToolSkillItem[]> {
@@ -260,8 +302,18 @@ export class SkillStage {
         ran.push(item);
         continue;
       }
+      this.deps.reporter.progress({
+        id: item.tool,
+        state: 'start',
+        detail: 'local Skill installation; caller approval was checked before execution',
+      });
       const result = await this.deps.processRun(item.vector, {
         diagnostic: { phase: `${item.tool} skill install` },
+      });
+      this.deps.reporter.progress({
+        id: item.tool,
+        state: result.code === 0 ? 'done' : 'fail',
+        detail: 'Skill installation finished',
       });
       ran.push({
         ...item,
@@ -324,6 +376,7 @@ function summarize(
     tools_run: 0,
     tools_failed: 0,
     tools_skipped: 0,
+    tools_blocked: 0,
   };
   const bump = (key: string): void => {
     summary[key] = (summary[key] ?? 0) + 1;
@@ -331,7 +384,8 @@ function summarize(
   for (const item of links) bump(item.action);
   for (const item of fx) bump(COPY_KEY[item.action]);
   for (const item of tools) {
-    if (item.vector === null) bump('tools_skipped');
+    if (item.note === 'approval required') bump('tools_blocked');
+    else if (item.vector === null) bump('tools_skipped');
     else bump(item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed');
   }
   return summary;

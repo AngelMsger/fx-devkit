@@ -184,7 +184,7 @@ describe('SkillStage: the fx copy and the tools', () => {
     expect(out.tools.map((t) => t.code)).toEqual([0, 0, 0]);
     expect(out.summary).toMatchObject({ tools_run: 3, tools_failed: 0 });
     const empty = await stage.execute({ toolchain, agents: [], dryRun: false, posture: writable });
-    expect(empty.tools).toMatchObject([{ vector: null, note: 'no selected agents' }]);
+    expect(empty.tools).toEqual([]);
   });
 
   it('keeps legacy agent targeting when a patch supplies agent_flag over directory defaults', async () => {
@@ -277,7 +277,15 @@ describe('SkillStage: the fx copy and the tools', () => {
         dryRun: false,
         posture: writable,
       }),
-    ).rejects.toMatchObject({ code: 'VECTOR_UNTRUSTED' });
+    ).resolves.toMatchObject({
+      summary: { tools_blocked: 1 },
+      tools: expect.arrayContaining([
+        expect.objectContaining({
+          vector: null,
+          failure: expect.objectContaining({ code: 'VECTOR_UNTRUSTED' }),
+        }),
+      ]),
+    });
     const out = await new SkillStage(h.deps, skills).execute({
       toolchain: tools,
       trust: { gate, workspace: 'fx', yes: true, posture: writable },
@@ -348,7 +356,15 @@ describe('SkillStage: the fx copy and the tools', () => {
         dryRun: false,
         posture: writable,
       }),
-    ).rejects.toMatchObject({ code: 'VECTOR_UNTRUSTED' });
+    ).resolves.toMatchObject({
+      summary: { tools_blocked: 1 },
+      tools: expect.arrayContaining([
+        expect.objectContaining({
+          vector: null,
+          failure: expect.objectContaining({ code: 'VECTOR_UNTRUSTED' }),
+        }),
+      ]),
+    });
     expect(h.process.calls).toEqual([]);
     const background = await new SkillStage(h.deps, skills).execute({
       toolchain: resolveTools(loaded.doc, loaded.provenance),
@@ -364,12 +380,12 @@ describe('SkillStage: the fx copy and the tools', () => {
     });
     expect(background.tools[0]).toMatchObject({ vector: null, note: 'untrusted' });
     expect(h.process.calls).toEqual([]);
-    expect(background.fx.some((item) => item.action === 'install')).toBe(true);
+    expect(background.fx.every((item) => item.action === 'unchanged')).toBe(true);
   });
 });
 
-describe('SkillStage: trust comes before any effect', () => {
-  it('rejects the whole stage when a later vector is untrusted; nothing is linked, copied or run', async () => {
+describe('SkillStage: independent local effects and command trust', () => {
+  it('blocks only the untrusted tool while projecting local resources and running approved tools', async () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
@@ -417,13 +433,22 @@ describe('SkillStage: trust comes before any effect', () => {
         dryRun: false,
         posture: writable,
       }),
-    ).rejects.toMatchObject({ code: 'VECTOR_UNTRUSTED' });
-    expect(h.fs.links.size, 'no team link was made').toBe(0);
-    expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace')), 'no fx copy').toBe(false);
+    ).resolves.toMatchObject({
+      summary: { tools_blocked: 1 },
+      tools: expect.arrayContaining([
+        expect.objectContaining({
+          vector: null,
+          failure: expect.objectContaining({ code: 'VECTOR_UNTRUSTED' }),
+        }),
+      ]),
+    });
+    expect(h.fs.links.size, 'owned team links were made').toBe(2);
+    expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace')), 'owned fx copy').toBe(true);
     expect(
       h.process.calls.some((c) => c.vector[1] === 'skill'),
-      'no vector ran',
-    ).toBe(false);
+      'the approved vector ran',
+    ).toBe(true);
+    expect(h.process.calls.some((c) => c.vector[0] === 'gamma')).toBe(false);
     expect(store.entries.map((e) => e.label)).toEqual(['alpha']);
   });
 });

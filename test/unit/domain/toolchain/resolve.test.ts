@@ -27,6 +27,20 @@ const bundled = [
 const cli = { cliVersion: '1.0.0' };
 
 describe('resolveTools', () => {
+  it('retains a quarantined base diagnostic unless the overlay repairs that entry', () => {
+    const base =
+      'schema_version: 2\ntools: [{name: good, install: [{via: npm}]}, {name: bad, required: nope}]';
+    const patched = loadTools(base, 'schema_version: 2\ntools: [{name: good, desc: changed}]', cli);
+    expect(patched.dropped.map((entry) => entry.name)).toContain('bad');
+    expect(patched.problems.length).toBeGreaterThan(0);
+    const fixed = loadTools(
+      base,
+      'schema_version: 2\ntools: [{name: bad, required: false, install: [{via: npm}]}]',
+      cli,
+    );
+    expect(fixed.dropped).toEqual([]);
+    expect(fixed.problems).toEqual([]);
+  });
   it('fills a bare entry from defaults and the built-in fallbacks', () => {
     const loaded = loadTools(bundled, undefined, cli);
     const alpha = resolveTools(loaded.doc, loaded.provenance).find((t) => t.name === 'alpha')!;

@@ -433,3 +433,5 @@ reports.
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
+
+Initialization can complete partially. For phase results, progress, tool readiness and Skill ownership, see the [recovery guide](docs/user-guide.md#reading-initialization-and-recovery-results). Git transport and code-host API setup are independent.

@@ -14,7 +14,11 @@ export default class ManifestImportCommand extends FxCommand {
     '<%= config.bin %> manifest import ~/Workspaces/fx -o fx-workspace/manifest/workspace.yaml',
   ];
   static override args = {
-    dir: Args.string({ required: true, description: 'the directory to describe' }),
+    dir: Args.string({
+      ignoreStdin: true,
+      required: true,
+      description: 'the directory to describe',
+    }),
   };
   static override flags = {
     out: Flags.string({

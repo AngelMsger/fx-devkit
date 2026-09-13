@@ -9,8 +9,9 @@ export async function runHookEntry(
   argv: readonly string[],
   input: Promise<string>,
   background: boolean,
+  failed?: (code: string) => void,
 ): Promise<string> {
-  return new NodeLifecycleRunner().run({
+  return new NodeLifecycleRunner(failed).run({
     vector: [
       process.execPath,
       fileURLToPath(new URL('../cli/hook-worker.js', import.meta.url)),

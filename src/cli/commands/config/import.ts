@@ -12,7 +12,9 @@ export default class ConfigImportCommand extends FxCommand {
     '<%= config.bin %> config import me.yaml --dry-run',
     '<%= config.bin %> config import me.yaml',
   ];
-  static override args = { file: Args.string({ required: true, description: 'the profile file' }) };
+  static override args = {
+    file: Args.string({ ignoreStdin: true, required: true, description: 'the profile file' }),
+  };
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {

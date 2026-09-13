@@ -14,6 +14,41 @@ const run = { dryRun: false, posture: writable, jobs: 4 };
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 
 describe('Sync', () => {
+  it('clones over Git when the optional code-host CLI is missing', async () => {
+    const h = await harness();
+    h.deps.codeHost().canRead = async () => {
+      throw new DevkitError('config', 'TOOL_MISSING', 'optional API unavailable');
+    };
+    const result = await new Sync(h.deps).execute(run);
+    expect(result.summary.failed).toBe(0);
+    expect(h.git.calls.some((call) => call.startsWith('clone '))).toBe(true);
+  });
+  it('retains repository and completed stage results on a later failure', async () => {
+    const h = await harness();
+    await expect(
+      new Sync(h.deps).execute({
+        ...run,
+        stages: {
+          docs: async () => ({ summary: { created: 1 } }),
+          skills: async () => {
+            throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
+          },
+          hooks: async () => ({ summary: { created: 1 } }),
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'VECTOR_UNTRUSTED',
+      partialResult: {
+        summary: { failed: 0 },
+        stages: {
+          docs: { created: 1 },
+          skills: { status: 'failed' },
+          hooks: { status: 'not_started' },
+        },
+      },
+    });
+  });
+
   it('keeps stage details separate from compatible summary counts', async () => {
     const h = await harness();
     const details = { tools: [{ tool: 'example', code: 5, failure: { code: 'DENIED' } }] };

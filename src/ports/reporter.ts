@@ -12,8 +12,12 @@ export interface Notice {
 
 export interface ProgressEvent {
   readonly id: string;
-  readonly state: 'start' | 'done' | 'skip' | 'fail';
+  readonly state: 'start' | 'running' | 'done' | 'skip' | 'fail';
   readonly detail?: string;
+  readonly total?: number;
+  readonly completed?: number;
+  readonly elapsed_ms?: number;
+  readonly active?: readonly string[];
 }
 
 export interface Reporter {

@@ -46,6 +46,17 @@ async function stage(files: Record<string, string> = {}) {
 }
 
 describe('RenderRegions, inside a checkout of the manifest repository', () => {
+  it('resolves existing source document links while leaving business and external references intact', async () => {
+    const s = await stage({
+      [ORIGIN]:
+        '[guide](docs/guide.md#entry) [repo](../service/README.md) [web](https://example.com)',
+      [`${MANIFEST_DIR}/docs/guide.md`]: '# entry',
+    });
+    await s.derive.execute(write);
+    const result = await s.h.fs.readText(AGENTS);
+    expect(result).toContain(`](<${MANIFEST_DIR}/docs/guide.md#entry>)`);
+    expect(result).toContain('[repo](../service/README.md) [web](https://example.com)');
+  });
   it('creates both documents from the skeleton, then leaves them alone', async () => {
     const s = await stage();
     const first = await s.regions.execute(write);

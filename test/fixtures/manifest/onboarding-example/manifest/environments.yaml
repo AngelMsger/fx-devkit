@@ -1,0 +1,14 @@
+schema_version: 2
+platforms:
+  logs:
+    provider: openobserve-cli
+    capability: log-store
+    label: Application logs
+    command: openobserve-cli search run --use-context {context} --stream {stream}
+envs:
+  test:
+    label: Test
+    platforms:
+      logs:
+        vars: { context: test, stream: 'example_{svc}_test' }
+        confidence: unverified

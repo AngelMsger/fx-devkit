@@ -13,6 +13,7 @@ export default class ManifestExplain extends FxCommand {
   ];
   static override args = {
     path: Args.string({
+      ignoreStdin: true,
       description: 'field path, e.g. repos[].branch; omit for the document root',
     }),
   };

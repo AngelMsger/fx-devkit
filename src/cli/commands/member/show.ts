@@ -12,6 +12,7 @@ export default class MemberShowCommand extends FxCommand {
   ];
   static override args = {
     query: Args.string({
+      ignoreStdin: true,
       required: true,
       description: 'email, id, account handle, name or git name',
     }),

@@ -67,7 +67,7 @@ repos:
     desc: Example API service
 ```
 
-將虛構的網域、專案、儲存庫和分支替換為已確認的值。範例需要 Bitbucket 配套 CLI 和對應存取權限，並非可連線的示範服務。使用 `fx tool show bitbucket-cli` 查看設定需求。另一個已實作的程式碼託管 provider `local-git` 用於本機 bare 儲存庫目錄，不是任意 Git 託管服務的介接器。
+將虛構的網域、專案、儲存庫和分支替換為已確認的值。Git 複製需要 Git 存取權限, API 操作需要 Bitbucket 配套 CLI，並非可連線的示範服務。使用 `fx tool show bitbucket-cli` 查看設定需求。另一個已實作的程式碼託管 provider `local-git` 用於本機 bare 儲存庫目錄，不是任意 Git 託管服務的介接器。
 
 在包含 team-workspace/ 的目錄執行：
 
@@ -116,3 +116,54 @@ fx init ./existing-work --from ./team-workspace
 註冊後的來源位於 `~/.fx/workspaces/<name>/source`。`sync` 先更新符合條件的 Git 來源；目錄和 stdin 快照不會持續追蹤原始來源。使用 `fx self info --format json` 定位目前的工作區及來源。再次指定不同來源不會隱含遷移已註冊工作區。
 
 在來源 checkout 維護共用宣告；使用 `repo pick/unpick`、`env pick/unpick` 和 `agent pick/unpick` 管理個人選擇。Agent 選擇影響同一 FX_HOME 的全部工作區。透過已驗證個人 fork 提交變更的流程，請參閱[共用來源貢獻](cli/README.md#fx-source-push)。
+
+## 環境範例
+
+以下使用虛構值展示真實來源結構. 第一段放入 manifest/workspace.yaml, 第二段放入 manifest/environments.yaml. obs.svc=api 將串流名稱推導為 example_api_test. unverified 座標與 CLI 設定、資源權限分別判斷. JSON 是初始化失敗結果的節錄, 不代表設定成功.
+
+```yaml
+schema_version: 2
+defaults: { branch: main }
+repos:
+  - name: example-api
+    upstream: https://git.example.com/team/example-api.git
+    obs: { svc: api }
+```
+
+```yaml
+schema_version: 2
+platforms:
+  logs:
+    provider: openobserve-cli
+    capability: log-store
+    label: Application logs
+    command: openobserve-cli search run --use-context {context} --stream {stream}
+envs:
+  test:
+    label: Test
+    platforms:
+      logs:
+        vars: { context: test, stream: 'example_{svc}_test' }
+        confidence: unverified
+```
+
+```sh
+fx manifest validate --strict --format json
+fx where example-api --env test --format json
+fx doctor --tool openobserve-cli --format json
+```
+
+```json
+{
+  "registered": true,
+  "failed_phase": "sync",
+  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
+  "sync": {
+    "stages": {
+      "docs": { "created": 2 },
+      "skills": { "status": "failed" },
+      "hooks": { "status": "not_started" }
+    }
+  }
+}
+```

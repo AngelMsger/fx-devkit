@@ -13,12 +13,14 @@ export default class ManifestSet extends FxCommand {
     '<%= config.bin %> manifest set fx-example-api aka \'["backend", "app-builder"]\' --dry-run',
   ];
   static override args = {
-    repo: Args.string({ required: true, description: 'repository name' }),
+    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
     field: Args.string({
+      ignoreStdin: true,
       required: true,
       description: 'path, desc, branch, project, upstream or aka',
     }),
     value: Args.string({
+      ignoreStdin: true,
       required: true,
       description: 'new scalar value, or a JSON/YAML string array for aka',
     }),

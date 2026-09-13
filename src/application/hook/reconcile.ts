@@ -126,13 +126,6 @@ export class ReconcileHooks {
     input: ReconcileInput,
     plan: Awaited<ReturnType<ReconcileHooks['plan']>>,
   ): Promise<HookOutput> {
-    if (input.action === 'inject' || input.action === 'remove') {
-      const local = await this.deps.local.read(input.workspace);
-      await this.deps.local.write(input.workspace, {
-        ...local,
-        hooks: { enabled: input.action === 'inject' },
-      });
-    }
     const receipts = [
       ...(plan.state !== null && samePath(plan.state.root, input.root) ? plan.state.receipts : []),
     ];
@@ -156,6 +149,15 @@ export class ReconcileHooks {
       const at = receipts.findIndex((r) => r.agent === item.receipt!.agent);
       if (at >= 0) receipts.splice(at, 1);
       if (item.row.action !== 'remove') receipts.push(item.receipt);
+      // Persist each completed projection before the next IO can fail. Preferences
+      // commit only after all projections and receipts have succeeded.
+      await this.deps.state.write(input.workspace, {
+        root: input.root,
+        receipts: [...receipts],
+        lastAttempt: plan.state?.lastAttempt ?? null,
+        lastRefresh: plan.state?.lastRefresh ?? null,
+        observations: plan.state?.observations ?? [],
+      });
     }
     const state: HookState = {
       root: input.root,
@@ -165,7 +167,27 @@ export class ReconcileHooks {
       observations: plan.state?.observations ?? [],
     };
     await this.deps.state.write(input.workspace, state);
-    return { workspace: input.workspace, root: input.root, items, enabled: plan.enabled, state };
+    await this.commitPreference(input, items);
+    const local = await this.deps.local.read(input.workspace);
+    return {
+      workspace: input.workspace,
+      root: input.root,
+      items,
+      enabled: input.globalEnabled && local.hooks?.enabled !== false,
+      state,
+    };
+  }
+  private async commitPreference(input: ReconcileInput, items: readonly HookRow[]): Promise<void> {
+    const complete = items.every(
+      (item) => !['busy', 'conflict', 'foreign', 'invalid'].includes(item.action),
+    );
+    if (complete && (input.action === 'inject' || input.action === 'remove')) {
+      const local = await this.deps.local.read(input.workspace);
+      await this.deps.local.write(input.workspace, {
+        ...local,
+        hooks: { enabled: input.action === 'inject' },
+      });
+    }
   }
 }
 
@@ -250,11 +272,12 @@ function managedPlan(input: {
     row: {
       ...base.row,
       action,
-      activation: remove ? 'disabled' : 'unverified',
+      activation: remove ? 'disabled' : base.row.activation,
       handoff: remove
         ? null
         : hookHandoff(
-            'The projection does not prove native activation; review project and hook trust in the host',
+            base.row.handoff?.summary ??
+              'The projection does not prove native activation; review project and hook trust in the host',
             'fx hook list',
           ),
     },
@@ -322,9 +345,13 @@ function basePlan(host: AgentHost): Planned {
   const support = host.hooks;
   return {
     row: {
-      activation: support === null ? 'unsupported' : 'unverified',
+      activation:
+        support === null || support.activationLimit !== undefined ? 'unsupported' : 'unverified',
       handoff: hookHandoff(
-        'Lifecycle support is unavailable for this host',
+        support?.activationLimit ??
+          (support === null
+            ? 'Lifecycle support is unavailable for this host'
+            : 'The projection does not prove native activation; review project and hook trust in the host'),
         'fx sync --only docs,skills',
       ),
       agent: host.id,

@@ -180,9 +180,16 @@ export function loadTools(
   if (!patch.valid) return { ...patch, provenance: mergeTools(base.doc, undefined).provenance };
   const merged = mergeTools(base.doc, patch.doc, { deletions });
   const result = finish(TOOLS, merged.toolchain as unknown as Raw, opts, NO_LINES);
+  const retainedDrops = base.dropped.filter(
+    (entry) => !result.doc?.tools.some((tool) => tool.name === entry.name),
+  );
+  const retainedProblems = base.problems.filter((problem) =>
+    retainedDrops.some((entry) => entry.reason.includes(`${problem.path}: ${problem.message}`)),
+  );
   return {
     ...result,
-    problems: [...patch.problems, ...result.problems],
+    problems: [...retainedProblems, ...patch.problems, ...result.problems],
+    dropped: [...retainedDrops, ...result.dropped],
     unknown: [...base.unknown, ...patch.unknown],
     provenance: merged.provenance,
   };

@@ -21,7 +21,14 @@ import { toolchainOf } from './tool/toolchain.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 
 export type ReadyStatus =
-  'ready' | 'missing_tool' | 'unconfigured' | 'no_access' | 'not_covered' | 'unknown';
+  | 'ready'
+  | 'missing_tool'
+  | 'outdated_tool'
+  | 'disabled_tool'
+  | 'unconfigured'
+  | 'no_access'
+  | 'not_covered'
+  | 'unknown';
 
 export interface Target {
   readonly capability: Capability | null;
@@ -41,7 +48,7 @@ type PendingSteps = SetupStep[] | 'untrusted' | { readonly problems: readonly st
 export class Readiness {
   private readonly toolStates = new Map<
     string,
-    Promise<'ok' | 'missing' | 'outdated' | 'unknown' | 'untrusted'>
+    Promise<'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown' | 'untrusted'>
   >();
   private readonly pending = new Map<string, Promise<PendingSteps>>();
 
@@ -109,13 +116,18 @@ export class Readiness {
     if (state === 'untrusted') return this.untrusted(target.tool.name);
     if (state === 'unknown') return this.versionUnknown(target.tool);
     if (state !== 'ok')
-      return verdict('missing_tool', {
-        handoff: handoffEnvelope({
-          summary: `${target.tool.name} is ${state}`,
-          userSteps: [],
-          command: `fx tool ${state === 'outdated' ? 'update' : 'install'} ${target.tool.name}`,
-        }),
-      });
+      return verdict(
+        (
+          { outdated: 'outdated_tool', disabled: 'disabled_tool', missing: 'missing_tool' } as const
+        )[state],
+        {
+          handoff: handoffEnvelope({
+            summary: `${target.tool.name} is ${state}`,
+            userSteps: [],
+            command: `fx tool ${{ disabled: 'show', outdated: 'update', missing: 'install' }[state]} ${target.tool.name}`,
+          }),
+        },
+      );
 
     const setupEnv = target.binding !== null && 'platform' in target.binding ? env : null;
     const pending = await this.pendingSteps(target.tool.name, setupEnv);
@@ -233,7 +245,7 @@ export class Readiness {
 
   private async toolState(
     tool: ResolvedTool,
-  ): Promise<'ok' | 'missing' | 'outdated' | 'unknown' | 'untrusted'> {
+  ): Promise<'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown' | 'untrusted'> {
     const cached = this.toolStates.get(tool.name);
     if (cached !== undefined) return cached;
     const state = this.inspectToolState(tool);
@@ -243,7 +255,7 @@ export class Readiness {
 
   private async inspectToolState(
     tool: ResolvedTool,
-  ): Promise<'ok' | 'missing' | 'outdated' | 'unknown' | 'untrusted'> {
+  ): Promise<'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown' | 'untrusted'> {
     try {
       const [status] = await new ToolCheck({
         run: this.deps.processRun,
@@ -257,7 +269,7 @@ export class Readiness {
           posture: this.login.trust.posture,
         },
       });
-      if (status === undefined || status.state === 'disabled') return 'missing';
+      if (status === undefined) return 'unknown';
       return status.state;
     } catch (err) {
       if (isTrustRequired(err)) return 'untrusted';

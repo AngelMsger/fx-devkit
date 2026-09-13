@@ -10,25 +10,27 @@ import { mergeEnvironment } from './executable.js';
 import { terminateChild } from './terminate.js';
 
 export class NodeLifecycleRunner implements LifecycleRunner {
+  constructor(private readonly failed?: (code: string) => void) {}
   run(input: LifecycleRun): Promise<string> {
     return new Promise((resolve) => {
       let child: ChildProcess | undefined;
       let text = '';
       let done = false;
-      const finish = (value: string): void => {
+      const finish = (value: string, reason?: string): void => {
         if (done) return;
         done = true;
+        if (reason !== undefined) this.failed?.(reason);
         releaseSignals();
         clearTimeout(timer);
         if (child) dispose(child);
         resolve(value);
       };
       const releaseSignals = listenForTermination(() => finish(''));
-      const timer = setTimeout(() => finish(''), input.timeoutMs);
+      const timer = setTimeout(() => finish('', 'HOOK_TIMEOUT'), input.timeoutMs);
       try {
         child = startWorker(input);
       } catch {
-        finish('');
+        finish('', 'HOOK_START_FAILED');
         return;
       }
       if (!child) {
@@ -42,9 +44,10 @@ export class NodeLifecycleRunner implements LifecycleRunner {
         isDone: () => done,
         receive: (chunk) => {
           text += chunk;
-          if (Buffer.byteLength(text) > 8192) finish('');
+          if (Buffer.byteLength(text) > 8192) finish('', 'HOOK_OUTPUT_LIMIT');
         },
-        complete: (code) => finish(code === 0 ? text : ''),
+        complete: (code) =>
+          finish(code === 0 ? text : '', code === 0 ? undefined : 'HOOK_WORKER_FAILED'),
       });
     });
   }
@@ -64,7 +67,7 @@ function startWorker(input: LifecycleRun): ChildProcess | undefined {
 interface WorkerObservation {
   readonly child: ChildProcess;
   readonly input: LifecycleRun;
-  readonly finish: (value: string) => void;
+  readonly finish: (value: string, reason?: string) => void;
   readonly isDone: () => boolean;
   readonly receive: (chunk: string) => void;
   readonly complete: (code: number | null) => void;
@@ -79,11 +82,11 @@ function observeWorker(scope: WorkerObservation): void {
       typeof message === 'object' &&
       message !== null &&
       'kind' in message &&
-      message.kind === 'abort'
+      (message.kind === 'abort' || message.kind === 'failure')
     )
-      finish('');
+      finish('', message.kind === 'failure' ? 'HOOK_WORKER_FAILED' : 'HOOK_ABORTED');
   });
-  child.on('error', () => finish(''));
+  child.on('error', () => finish('', 'HOOK_START_FAILED'));
   child.on('close', scope.complete);
   child.stdin!.on('error', () => {});
   void input.input.then(

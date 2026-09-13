@@ -7,7 +7,9 @@ export default class EnvShowCommand extends FxCommand {
   static override description =
     "One environment's platform matrix: provider, variables, confidence, notes";
   static override examples = ['<%= config.bin %> env show test'];
-  static override args = { name: Args.string({ required: true, description: 'environment name' }) };
+  static override args = {
+    name: Args.string({ ignoreStdin: true, required: true, description: 'environment name' }),
+  };
   static override flags = {};
 
   async run(): Promise<void> {

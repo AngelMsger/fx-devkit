@@ -13,7 +13,9 @@ export default class WhereCommand extends FxCommand {
     '<%= config.bin %> where fx-example-api --env test --format json',
     '<%= config.bin %> where fx-example-api --env test --platform jenkins --probe --record --dry-run',
   ];
-  static override args = { repo: Args.string({ required: true, description: 'repository name' }) };
+  static override args = {
+    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+  };
   static override flags = whereFlags;
 
   async run(): Promise<void> {

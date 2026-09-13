@@ -14,6 +14,7 @@ export default class CanCommand extends FxCommand {
   ];
   static override args = {
     target: Args.string({
+      ignoreStdin: true,
       required: true,
       description: 'a capability (e.g. log-store) or a tool name',
     }),

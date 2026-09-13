@@ -86,7 +86,7 @@ A matching file proves projection, not host activation. The command reports
 `activation: unverified` and a handoff until the person verifies native project
 and hook trust. fx does not edit native trust stores or invoke bypass flags.
 Claude Code and Codex have native context output; Pi uses a bounded project
-extension; Grok uses automatic sync plus on-demand fx status queries.
+extension; Grok requires explicit sync at plain workspace roots; see the activation limitation below.
 
 Each protocol has a golden fixture. Unit tests also execute the generated Pi
 bridge and exercise independent process supervision, UTF-8 boundaries, locking
@@ -99,3 +99,5 @@ Native Windows projection and acceptance details are in [Windows](windows.md).
 
 Stop is a reserved event type. No high-frequency hook, transcript parser,
 friction prompt, MCP projection or contribution write runs in lifecycle dispatch.
+
+Hook preferences commit after successful projections and receipt writes. Conflict, busy and IO failures preserve the previous preference; completed projections keep recovery receipts. Dispatch errors fail open with bounded metadata on stderr. Grok 1.0.25 project hook discovery requires a Git root, which plain workspace roots deliberately lack. Its projection carries an unsupported activation handoff to explicit fx sync --only docs,skills. Normal directory trust is still required for guide/Skill discovery and does not remove this limitation.

@@ -37,7 +37,7 @@ export class SetConfig {
     };
     if (input.dryRun) return plan;
     assertWritable(input.posture, `config set ${key.name}`);
-    await this.store.write({ ...file, [key.name]: value });
+    await this.store.update((current) => ({ ...current, [key.name]: value }));
     return { ...plan, written: true };
   }
 }

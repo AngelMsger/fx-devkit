@@ -11,7 +11,11 @@ export default class AgentUnpickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> agent unpick claude-code codex'];
   static override strict = false;
   static override args = {
-    id: Args.string({ required: true, description: 'agent id(s), e.g. claude-code' }),
+    id: Args.string({
+      ignoreStdin: true,
+      required: true,
+      description: 'agent id(s), e.g. claude-code',
+    }),
   };
   static override flags = { 'dry-run': dryRunFlag };
 

@@ -86,7 +86,7 @@ repos:
 ```
 
 Replace the fictional host, project, repository and branch with verified values.
-This example requires the Bitbucket companion and access to the configured host;
+Git cloning requires Git access to the configured host; API operations require the Bitbucket companion;
 it is not a live demo service. Use `fx tool show bitbucket-cli` to inspect setup.
 The other implemented code-host provider, `local-git`, works with a directory of
 bare repositories; it is not an adapter for an arbitrary hosted Git service.
@@ -157,3 +157,54 @@ selections through `repo pick/unpick`, `env pick/unpick` and `agent pick/unpick`
 Agent selection applies across workspaces in the same FX_HOME. For contributing
 source changes through a verified personal fork, see
 [source contribution commands](cli/README.md#fx-source-push).
+
+## Environment example
+
+These fictional documents show the actual source shape. Put the first block in manifest/workspace.yaml and the second in manifest/environments.yaml. obs.svc=api makes the stream example_api_test. The unverified coordinate remains separate from CLI configuration and resource access. The JSON below is an excerpt of a failed init, not a successful onboarding guarantee.
+
+```yaml
+schema_version: 2
+defaults: { branch: main }
+repos:
+  - name: example-api
+    upstream: https://git.example.com/team/example-api.git
+    obs: { svc: api }
+```
+
+```yaml
+schema_version: 2
+platforms:
+  logs:
+    provider: openobserve-cli
+    capability: log-store
+    label: Application logs
+    command: openobserve-cli search run --use-context {context} --stream {stream}
+envs:
+  test:
+    label: Test
+    platforms:
+      logs:
+        vars: { context: test, stream: 'example_{svc}_test' }
+        confidence: unverified
+```
+
+```sh
+fx manifest validate --strict --format json
+fx where example-api --env test --format json
+fx doctor --tool openobserve-cli --format json
+```
+
+```json
+{
+  "registered": true,
+  "failed_phase": "sync",
+  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
+  "sync": {
+    "stages": {
+      "docs": { "created": 2 },
+      "skills": { "status": "failed" },
+      "hooks": { "status": "not_started" }
+    }
+  }
+}
+```

@@ -34,7 +34,16 @@ export function humanRecord(value: object, describe: Describers = {}): string {
   const lines = (k: string, v: unknown): string[] => {
     const describer = describe[k];
     if (describer !== undefined) return [k, ...describer(v).map((l) => `  ${l}`)];
+    if (isObjectList(v) && v.length > 8)
+      return [`${k}  [${v.length} items; use --format json for details]`];
     if (isObjectList(v)) return [k, ...v.map((item) => `  - ${pairs(item)}`)];
+    if (typeof v === 'object' && v !== null && !Array.isArray(v))
+      return [
+        k,
+        ...humanRecord(v)
+          .split('\n')
+          .map((line) => `  ${line}`),
+      ];
     return [`${k.padEnd(width)}  ${cell(v)}`];
   };
   return entries.flatMap(([k, v]) => lines(k, v)).join('\n');
@@ -56,6 +65,8 @@ function pairs(item: Record<string, unknown>): string {
 
 export function humanNotice(notice: Notice): string {
   const lines = [`notice ${notice.code}: ${notice.message}`];
+  if (notice.code === 'INIT_PREPARED' && notice.data?.['plan'] !== undefined)
+    lines.push(humanRecord(notice.data['plan'] as object));
   for (const step of notice.nextSteps ?? []) lines.push(`  ${step}`);
   if (notice.silence !== undefined) lines.push(`  silence with ${notice.silence}`);
   return lines.join('\n');
@@ -63,7 +74,10 @@ export function humanNotice(notice: Notice): string {
 
 function cell(value: unknown): string {
   if (value === undefined || value === null) return '';
-  if (Array.isArray(value)) return value.map(cell).join(',');
+  if (Array.isArray(value))
+    return value.length > 5
+      ? `[${value.length} items; use --format json for details]`
+      : value.map(cell).join(',');
   if (typeof value === 'object')
     return Object.entries(value as Record<string, unknown>)
       .map(([k, v]) => `${k}=${cell(v)}`)

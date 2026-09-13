@@ -5,6 +5,7 @@
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import { shellLine } from '../../domain/shell.js';
 import {
   parseAheadBehind,
   parsePorcelainStatus,
@@ -31,12 +32,15 @@ export class SystemGit implements Git {
     const result = await this.git(vector);
     if (result.code !== 0) {
       throw new DevkitError(
-        'network',
+        gitFailureCategory(result.stderr),
         'GIT_CLONE_FAILED',
         `git clone ${request.upstream} failed: ${lastLine(result.stderr)}`,
         {
-          hint: 'The remote may be unreachable, or you may lack access to it.',
-          nextSteps: ['fx repo list --unreadable', `git clone ${request.upstream}`],
+          hint: gitFailureHint(result.stderr),
+          nextSteps: [
+            shellLine(['git', 'ls-remote', '--heads', request.upstream, request.branch]),
+            shellLine(['git', ...vector]),
+          ],
         },
       );
     }
@@ -44,10 +48,10 @@ export class SystemGit implements Git {
   }
 
   async fetch(dir: string, remote: string): Promise<void> {
-    const result = await this.git(['-C', dir, 'fetch', '--quiet', remote]);
+    const result = await this.git(['-C', dir, 'fetch', '--quiet', '--prune', remote]);
     if (result.code !== 0) {
       throw new DevkitError(
-        'network',
+        gitFailureCategory(result.stderr),
         'GIT_FETCH_FAILED',
         `git fetch ${remote} in ${dir} failed: ${lastLine(result.stderr)}`,
         {
@@ -66,7 +70,21 @@ export class SystemGit implements Git {
     const result = onBranch
       ? await this.git(['-C', dir, 'merge', '--ff-only', '--quiet', `${remote}/${branch}`])
       : await this.git(['-C', dir, 'fetch', '--quiet', remote, `${branch}:${branch}`]);
-    if (result.code !== 0) return 'diverged';
+    if (result.code !== 0) {
+      if (/not possible to fast-forward|non-fast-forward/i.test(result.stderr)) return 'diverged';
+      throw new DevkitError(
+        gitFailureCategory(result.stderr),
+        'GIT_FAST_FORWARD_FAILED',
+        `Could not update ${branch}: ${lastLine(result.stderr)}`,
+        {
+          hint: gitFailureHint(result.stderr),
+          nextSteps: [
+            shellLine(['git', '-C', dir, 'status']),
+            shellLine(['git', '-C', dir, 'ls-remote', '--heads', remote, branch]),
+          ],
+        },
+      );
+    }
     const after = await this.revParse(dir, ref);
     return before === after ? 'up_to_date' : 'updated';
   }
@@ -160,7 +178,10 @@ export class SystemGit implements Git {
   }
 
   private async git(args: readonly string[], options: RunOptions = {}): Promise<ProcessResult> {
-    const result = await this.process.run(['git', ...args], options);
+    const result = await this.process.run(['git', ...args], {
+      ...options,
+      env: { ...options.env, LC_ALL: 'C' },
+    });
     if (result.code === 127) {
       throw new DevkitError('config', 'TOOL_MISSING', 'git is not installed or not on PATH', {
         nextSteps: ['fx can git'],
@@ -173,4 +194,31 @@ export class SystemGit implements Git {
 function lastLine(text: string): string {
   const lines = text.trim().split('\n');
   return lines[lines.length - 1] ?? '';
+}
+
+function gitFailureCategory(stderr: string): 'not_found' | 'auth' | 'network' | 'conflict' {
+  if (
+    /remote branch .*not found|couldn't find remote ref|not something we can merge|repository .* does not exist/i.test(
+      stderr,
+    )
+  )
+    return 'not_found';
+  if (/permission denied|authentication failed|could not read username|access denied/i.test(stderr))
+    return 'auth';
+  if (
+    /could not resolve|unable to access|connection|timed out|network|could not read from remote/i.test(
+      stderr,
+    )
+  )
+    return 'network';
+  return 'conflict';
+}
+function gitFailureHint(stderr: string): string {
+  const category = gitFailureCategory(stderr);
+  if (category === 'not_found') return 'Verify the configured branch still exists on the remote.';
+  if (category === 'auth')
+    return 'Verify Git transport credentials and repository access; API login is separate.';
+  if (category === 'network')
+    return 'Check Git transport connectivity and retry after it is restored.';
+  return 'Inspect Git diagnostics and local checkout state before retrying; no divergence was inferred.';
 }

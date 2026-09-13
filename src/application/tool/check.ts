@@ -21,6 +21,7 @@ export interface ToolStatus {
   readonly installed: string | null;
   readonly min_version: string | null;
   readonly binary: string;
+  readonly binary_path?: string | null;
   readonly install: { readonly via: string; readonly spec: string | null } | null;
   readonly docs: string | null;
 }
@@ -49,6 +50,7 @@ export class ToolCheck {
       enabled: tool.enabled,
       min_version: tool.minVersion ?? null,
       binary: tool.binary,
+      binary_path: (await this.process.which(tool.binary)) ?? null,
       install:
         tool.install[0] === undefined
           ? null
@@ -56,8 +58,7 @@ export class ToolCheck {
       docs: tool.docs ?? null,
     };
     if (!tool.enabled) return { ...base, state: 'disabled', installed: null };
-    if ((await this.process.which(tool.binary)) === undefined)
-      return { ...base, state: 'missing', installed: null };
+    if (base.binary_path === null) return { ...base, state: 'missing', installed: null };
     if (trust !== undefined) {
       const probe = {
         workspace: trust.workspace,

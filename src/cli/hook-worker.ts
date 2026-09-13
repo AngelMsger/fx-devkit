@@ -10,6 +10,7 @@ try {
   const output = await runHookWorker(process.argv.slice(3), raw, process.argv[2] === 'background');
   if (output) process.stdout.write(output);
 } catch {
-  /* The supervisor must receive no partial error payload. */
+  // Send only a bounded failure marker over IPC; stdout stays protocol-only.
+  process.send?.({ kind: 'failure' });
 }
 process.disconnect?.();

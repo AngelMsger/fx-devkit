@@ -56,6 +56,7 @@ export function routeArgv(
     if (afterTerminator === undefined) return { kind: 'run' };
     return unknown(afterTerminator, discoverableIds, '--help');
   }
+  if (words[0]?.includes(' ')) return unknown(words[0], discoverableIds, '--help');
   if (hasCommandPrefix(words, commandIds)) return { kind: 'run' };
 
   const topic = words[0] ?? '';

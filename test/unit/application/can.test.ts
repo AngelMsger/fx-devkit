@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { BITBUCKET_RECIPES } from '../../../src/adapters/code-host/bitbucket-cli/recipes.js';
 import { localGitProvider } from '../../../src/adapters/code-host/local-git/provider.js';
 import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
 import { Can } from '../../../src/application/can.js';
@@ -82,6 +83,38 @@ async function stage(options: { local?: LocalLayer; tools?: string; yes?: boolea
 }
 
 describe('Can', () => {
+  it.each([false, true])(
+    'requires configured=true in Bitbucket auth status (%s)',
+    async (configured) => {
+      const { h } = await stage();
+      h.process.binaries.add('bitbucket-cli');
+      h.process.when((v) => v.includes('status'), {
+        code: 0,
+        stdout: JSON.stringify({ configured }),
+        stderr: '',
+      });
+      const can = new Can(
+        h.deps,
+        fakeLoginDeps({
+          ...DESCRIPTORS,
+          'bitbucket-cli': { ...DESCRIPTORS['bitbucket-cli']!, recipes: BITBUCKET_RECIPES },
+        }),
+      );
+      expect(await can.execute({ target: 'code-host' })).toMatchObject({
+        status: configured ? 'ready' : 'unconfigured',
+      });
+    },
+  );
+  it.each([
+    ['enabled: false', 'disabled_tool'],
+    ['min_version: 99.0.0', 'outdated_tool'],
+  ])('preserves tool state %s', async (declaration, status) => {
+    const s = await stage({
+      tools: `schema_version: 2\ntools: [{ name: bitbucket-cli, ${declaration} }]`,
+    });
+    s.h.process.binaries.add('bitbucket-cli');
+    expect(await s.can.execute({ target: 'code-host' })).toMatchObject({ status });
+  });
   it('shares readiness with release for a bound provider without a companion tool', async () => {
     const { h } = await stage();
     const binding = {

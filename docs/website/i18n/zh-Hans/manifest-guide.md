@@ -67,7 +67,7 @@ repos:
     desc: Example API service
 ```
 
-将虚构的域名、项目、仓库和分支替换为已确认的值。示例需要 Bitbucket 配套 CLI 和相应访问权限，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。另一个已实现的代码托管 provider `local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。
+将虚构的域名、项目、仓库和分支替换为已确认的值。Git 克隆需要 Git 访问权限, API 操作需要 Bitbucket 配套 CLI，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。另一个已实现的代码托管 provider `local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。
 
 在包含 team-workspace/ 的目录执行：
 
@@ -116,3 +116,54 @@ fx init ./existing-work --from ./team-workspace
 注册后的来源位于 `~/.fx/workspaces/<name>/source`。`sync` 先刷新符合条件的 Git 来源；目录和 stdin 快照不会持续跟踪原始来源。用 `fx self info --format json` 定位当前工作区及来源。再次指定不同来源不会隐式迁移已注册工作区。
 
 在来源 checkout 维护共享声明；使用 `repo pick/unpick`、`env pick/unpick` 和 `agent pick/unpick` 管理个人选择。Agent 选择影响同一 FX_HOME 的全部工作区。通过已验证个人 fork 提交变更的流程见[共享源贡献](cli/README.md#fx-source-push)。
+
+## 环境示例
+
+以下使用虚构值展示真实源结构. 第一段放入 manifest/workspace.yaml, 第二段放入 manifest/environments.yaml. obs.svc=api 将流名推导为 example_api_test. unverified 坐标与 CLI 配置、资源权限分别判断. JSON 是初始化失败结果的节选, 不代表引导成功.
+
+```yaml
+schema_version: 2
+defaults: { branch: main }
+repos:
+  - name: example-api
+    upstream: https://git.example.com/team/example-api.git
+    obs: { svc: api }
+```
+
+```yaml
+schema_version: 2
+platforms:
+  logs:
+    provider: openobserve-cli
+    capability: log-store
+    label: Application logs
+    command: openobserve-cli search run --use-context {context} --stream {stream}
+envs:
+  test:
+    label: Test
+    platforms:
+      logs:
+        vars: { context: test, stream: 'example_{svc}_test' }
+        confidence: unverified
+```
+
+```sh
+fx manifest validate --strict --format json
+fx where example-api --env test --format json
+fx doctor --tool openobserve-cli --format json
+```
+
+```json
+{
+  "registered": true,
+  "failed_phase": "sync",
+  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
+  "sync": {
+    "stages": {
+      "docs": { "created": 2 },
+      "skills": { "status": "failed" },
+      "hooks": { "status": "not_started" }
+    }
+  }
+}
+```

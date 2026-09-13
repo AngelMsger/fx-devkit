@@ -176,3 +176,25 @@ manifest 選擇工作區使用的 provider 和配套 CLI。目前實作包括：
 使用 `fx manifest providers` 與 `fx tool list` 查看實際繫結。通訊和知識入口交接給配套工具，不代表 fx 代理了所有服務 API。
 
 Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill、hook、MCP 與規則的支援因宿主而異；使用 `agent list`、`hook list`、`mcp list` 檢查具體能力。請參閱[宿主契約](user-guide.md#for-coding-agents)。
+
+## 判讀初始化與復原結果
+
+位置參數僅來自 argv; 只有明確要求時才讀取 stdin, 例如 `init --from -`. 將多詞命令整體加引號會傳回用法錯誤. Git 複製使用獨立的 Git 憑證, 不強制依賴程式碼託管 API CLI. Git 錯誤區分分支不存在、傳輸驗證、網路與本機衝突, 復原命令保留分支和目標目錄.
+
+來源驗證並註冊後, `INIT_PREPARED` 會在執行工具和複製前顯示安裝命令及 Skill 目標位置. 安裝缺少工具後可能產生額外 Skill 命令, 仍須逐條通過精確信任檢查. 新遠端來源的 `init --dry-run` 不擷取來源, 也不宣稱已知其內容. 取代外來檔案始終需要核准與備份.
+
+後續初始化階段擲出例外時, stdout 保留含 `failed_phase`、`phases`、結構化 `failure`、已完成儲存庫結果和復原步驟的部分結果. 失敗結果中的階段狀態為 `done`、`failed` 或 `not_started`; 成功的同步階段仍使用原有統計計數. stderr 保留原錯誤, 結束代碼非零. 未信任的 Skill 命令單獨標記為 blocked (`tools_blocked`), 獨立的自有本機投影仍可完成. 即使結束代碼為零也應查看 blocked 和 failed 列.
+
+儲存庫操作期間每五秒在 stderr 報告完成數/總數、目前儲存庫和經過時間. 這是心跳, 不是 Git 位元組進度或預計完成時間. 人類輸出彙總未選擇儲存庫和較大清單; `--verbose` 顯示未選擇列, `--format json` 保留完整詳情. `FIELDS_UNMATCHED` 表示要求欄位未出現在本次結果中, 也可能是選用欄位; 投影繼續寬鬆處理, 空集合不會產生此提示.
+
+就緒結果區分 `missing_tool`、`outdated_tool` 與 `disabled_tool`. Doctor 工具證據提供 `binary_path`, 與執行使用相同的 PATH 解析規則, 可能指向執行階段管理器的 shim. 狀態程序成功但 `configured=false` 不代表就緒; 設定完整也不證明資源權限或遠端查詢成功. `no_access` 表示環境不在個人選擇範圍, 並非遠端 ACL 拒絕.
+
+個人設定採用加鎖讀改寫與原子取代. 遇到 `CONFIG_BUSY` 時, 等競爭更新結束再重試. 初始化失敗留下的 Git source checkout 可用於相同來源的重試, 仍保護不相符的 upstream 和本機工作.
+
+### Skill 所有權與宿主啟用
+
+團隊 Skill 連結屬於工作區; fx 內建 Skill 副本屬於使用者和所選宿主, 多工作區共用, 不用舊版覆蓋已識別的新版. 更新在使用者層級鎖內重新核對所有權和版本, 外來副本保留. 第三方工具擁有各自的 Skill 安裝與版本策略, 因此 fx 仍可能在另一工作區同步時再次呼叫其安裝程式. 本機 Skill 安裝不必然需要網路; 應區分呼叫器核准等待與已啟動子程序.
+
+`agent list` 提供 `detected`、`selected`、`selection` (automatic 或 explicit) 和 `active: null`, 因為偵測不能證明目前活躍. 初始化前明確設定 `fx config set agents <id,...>` 可限制投影範圍. `FX_HOME` 只隔離 fx 設定, 不隔離全域 Skill; 實驗還應使用獨立 HOME.
+
+Grok 1.0.25 僅在 Git 根發現專案 hook. 普通工作區根完成正常目錄信任後可以發現指南和 Skill, 但不能因此修復 hook 發現. `hook list` 會說明啟用限制; 需明確執行 `fx sync --only docs,skills`, 不要在工作區根初始化 Git. 宿主執行核准或取消獨立於 fx 執行, auto 模式也不關閉宿主權限檢查. Hook 維持 fail-open, 在 stderr 輸出有界的 `HOOK_FAILED_OPEN` 診斷, 不含原始輸入或例外文字; 檔案投影本身不能證明啟用.

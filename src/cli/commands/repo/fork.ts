@@ -6,7 +6,9 @@ import { dryRunFlag } from '../../flags.js';
 
 export default class RepoForkCommand extends FxCommand {
   static override description = 'Create your personal fork on the code host and point origin at it';
-  static override args = { name: Args.string({ required: true, description: 'repository name' }) };
+  static override args = {
+    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+  };
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {

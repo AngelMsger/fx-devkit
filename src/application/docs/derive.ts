@@ -37,7 +37,7 @@ export class DeriveDocs {
     const rendered = renderRegions(source, renderAll(templateInputOf(ctx.context, this.login)));
     const agents = await this.file(
       input.out ?? path.join(ctx.root, 'AGENTS.md'),
-      derive(rendered.text, origin),
+      derive(await this.sourceLinks(rendered.text), origin),
       rendered,
     );
     reportRegions(reporter, origin, agents.file);
@@ -62,6 +62,17 @@ export class DeriveDocs {
         nextSteps: ['Move the file aside if fx should own it, then `fx sync --only docs`.'],
       });
     return finish(fs, input, files);
+  }
+
+  private async sourceLinks(text: string): Promise<string> {
+    const links = [...text.matchAll(/\]\((<?)((?:\.\/)?(?:README\.md|docs\/[^)#>]+))([^)]*)\)/g)];
+    for (const match of links) {
+      const target = path.resolve(this.deps.ctx.manifestDir, match[2]!);
+      if (!(await this.deps.fs.exists(target))) continue;
+      const suffix = match[3]!.replace(/>$/, '');
+      text = text.replace(match[0], `](<${target}${suffix}>)`);
+    }
+    return text;
   }
 
   private async file(

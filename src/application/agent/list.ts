@@ -9,6 +9,9 @@ export interface AgentRow {
   readonly label: string;
   readonly detected: boolean;
   readonly enabled: boolean;
+  readonly selected: boolean;
+  readonly selection: 'automatic' | 'explicit';
+  readonly active: null;
   readonly skills_dir: string;
   readonly note: string | null;
 }
@@ -30,6 +33,9 @@ export class AgentList {
         label: host.label,
         detected,
         enabled,
+        selected: enabled,
+        selection: input.configured === undefined ? 'automatic' : 'explicit',
+        active: null,
         skills_dir: host.skillsDir('global'),
         note: enabled && !detected ? 'enabled in config but not detected on this machine' : null,
       });

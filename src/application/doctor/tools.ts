@@ -31,7 +31,17 @@ export async function checkTools(
         tools: [tool],
         trust: { ...options.trust, workspace: deps.ctx.name },
       });
-      if (status !== undefined) findings.push(fromStatus(status));
+      if (status !== undefined)
+        findings.push({
+          ...fromStatus(status),
+          evidence: {
+            binary: status.binary,
+            binary_path: status.binary_path ?? null,
+            state: status.state,
+            installed: status.installed,
+            min_version: status.min_version,
+          },
+        });
     } catch (err) {
       if (!(err instanceof DevkitError)) throw err;
       if (!isTrustRequired(err)) {

@@ -5,7 +5,7 @@
 
 import path from 'node:path';
 
-import { DevkitError } from '../domain/errors.js';
+import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
 import { samePath, windowsPathProblem } from '../domain/path.js';
 import { changeDirectoryCommand, type ResolvedShell } from '../domain/shell.js';
 import { assertWorkspaceName, assertWorkspaceNames } from '../domain/workspace/name.js';
@@ -34,6 +34,7 @@ export interface InitDeps {
   readonly reporter: Reporter;
   readonly manifestDirFor: (name: string) => string;
   readonly workspaceDepsFor: (ctx: WorkspaceContext) => WorkspaceDeps;
+  readonly preview?: (ctx: WorkspaceContext) => Promise<object>;
   readonly installTools?: (ctx: WorkspaceContext) => Promise<readonly ToolInstallOutput[]>;
   readonly stagesFor: (ctx: WorkspaceContext) => SyncStages;
   readonly settleManifest: (name: string, manifestDir: string) => Promise<void>;
@@ -124,7 +125,63 @@ export class Init {
   }
 
   private async apply(plan: Plan, input: InitInput): Promise<InitOutput> {
-    const { output, config } = plan;
+    const { output } = plan;
+    let phase = 'manifest';
+    let registered = plan.config.workspaces?.[output.name] !== undefined;
+    let materialized = false;
+    let prepared: object | null = null;
+    let toolInstall: readonly ToolInstallOutput[] | null = null;
+    try {
+      await this.materialize(output, input);
+      materialized = true;
+      phase = 'validation';
+      await new LoadManifest(this.deps.fs, this.deps.bundledTools).execute({
+        dir: output.manifest_dir,
+        cliVersion: this.deps.cliVersion,
+      });
+      if (output.manifest === 'materialized')
+        await this.deps.settleManifest(output.name, output.manifest_dir);
+      phase = 'registration';
+      await this.register(output, input);
+      registered = true;
+      phase = 'tools';
+      const ctx = await this.context(output);
+      prepared = (await this.deps.preview?.(ctx)) ?? null;
+      if (prepared !== null)
+        this.deps.reporter.notice({
+          code: 'INIT_PREPARED',
+          message:
+            'Initialization effects planned before tool execution and repository cloning; inspect the plan and exact command trust prompts.',
+          data: { plan: prepared },
+        });
+      toolInstall = (await this.deps.installTools?.(ctx)) ?? [];
+      phase = 'sync';
+      const sync = await new Sync(this.deps.workspaceDepsFor(ctx)).execute({
+        dryRun: false,
+        posture: input.posture,
+        jobs: input.jobs,
+        stages: this.deps.stagesFor(ctx),
+      });
+      const done = {
+        ...output,
+        sync,
+        tool_install: toolInstall,
+        prepared,
+        next_steps: nextSteps(output.root, sync, this.deps.commandShell),
+        written: true,
+      };
+      this.deps.reporter.notice({
+        code: 'INIT_DONE',
+        message: `workspace ${done.name} is registered at ${done.root}; inspect synchronization results and doctor readiness`,
+        nextSteps: done.next_steps,
+      });
+      return done;
+    } catch (error) {
+      throw initFailure(output, error, { phase, registered, materialized, prepared, toolInstall });
+    }
+  }
+
+  private async materialize(output: InitOutput, input: InitInput): Promise<void> {
     if (output.manifest === 'refreshed') {
       await new RefreshManifest(this.deps.reporter).execute({
         manifestDir: output.manifest_dir,
@@ -136,21 +193,28 @@ export class Init {
     } else {
       await input.source.materialize(output.manifest_dir);
     }
-    await new LoadManifest(this.deps.fs, this.deps.bundledTools).execute({
-      dir: output.manifest_dir,
-      cliVersion: this.deps.cliVersion,
+  }
+
+  private async register(output: InitOutput, input: InitInput): Promise<void> {
+    await this.deps.config.update((current) => {
+      const existing = current.workspaces?.[output.name];
+      if (existing && !samePath(existing.root, output.root))
+        throw nameTaken(output.name, output.root, existing, input.source);
+      if (existing?.source !== undefined && existing.source !== output.source)
+        throw sourceMismatch(output.name, existing.source, input.source);
+      return {
+        ...current,
+        default_workspace: current.default_workspace ?? output.name,
+        workspaces: {
+          ...current.workspaces,
+          [output.name]: { root: output.root, source: output.source },
+        },
+      };
     });
-    if (output.manifest === 'materialized')
-      await this.deps.settleManifest(output.name, output.manifest_dir);
-    await this.deps.config.write({
-      ...config,
-      ...(output.default_workspace ? { default_workspace: output.name } : {}),
-      workspaces: {
-        ...config.workspaces,
-        [output.name]: { root: output.root, source: output.source },
-      },
-    });
-    const ctx = await WorkspaceContext.locate({
+  }
+
+  private context(output: InitOutput): Promise<WorkspaceContext> {
+    return WorkspaceContext.locate({
       cwd: output.root,
       name: output.name,
       config: this.deps.config,
@@ -162,26 +226,6 @@ export class Init {
       reporter: this.deps.reporter,
       manifestDirFor: this.deps.manifestDirFor,
     });
-    const toolInstall = (await this.deps.installTools?.(ctx)) ?? [];
-    const sync = await new Sync(this.deps.workspaceDepsFor(ctx)).execute({
-      dryRun: false,
-      posture: input.posture,
-      jobs: input.jobs,
-      stages: this.deps.stagesFor(ctx),
-    });
-    const done = {
-      ...output,
-      sync,
-      tool_install: toolInstall,
-      next_steps: nextSteps(output.root, sync, this.deps.commandShell),
-      written: true,
-    };
-    this.deps.reporter.notice({
-      code: 'INIT_DONE',
-      message: `workspace ${done.name} is registered at ${done.root}; inspect synchronization results and doctor readiness`,
-      nextSteps: done.next_steps,
-    });
-    return done;
   }
 
   private async dirState(root: string, registered: boolean): Promise<DirState> {
@@ -245,4 +289,44 @@ function nextSteps(root: string, sync: SyncOutput, shell?: ResolvedShell): strin
     );
   }
   return steps;
+}
+
+interface InitProgress {
+  readonly phase: string;
+  readonly registered: boolean;
+  readonly materialized: boolean;
+  readonly prepared: object | null;
+  readonly toolInstall: readonly ToolInstallOutput[] | null;
+}
+
+function initFailure(output: InitOutput, error: unknown, progress: InitProgress): DevkitError {
+  const failure = asDevkitError(error);
+  const { phase, registered, materialized, prepared, toolInstall } = progress;
+  const names = ['manifest', 'validation', 'registration', 'tools', 'sync'];
+  const failedAt = names.indexOf(phase);
+  const phases = Object.fromEntries(
+    names.map((name, index) => {
+      if (index < failedAt) return [name, 'done'];
+      return [name, index === failedAt ? 'failed' : 'not_started'];
+    }),
+  );
+  const install = failure.partialResult as
+    { tool_install?: readonly ToolInstallOutput[] } | undefined;
+  return withPartialResult(failure, {
+    ...output,
+    registered,
+    written: materialized,
+    prepared,
+    tool_install: toolInstall ?? install?.tool_install ?? null,
+    sync: phase === 'sync' ? (failure.partialResult ?? null) : null,
+    phases,
+    failed_phase: phase,
+    failure: toEnvelope(failure).error,
+    next_steps: registered
+      ? [`fx sync --workspace ${output.name} --format json`, ...failure.nextSteps]
+      : [
+          'Correct the reported source problem and retry the same init command.',
+          ...failure.nextSteps,
+        ],
+  });
 }

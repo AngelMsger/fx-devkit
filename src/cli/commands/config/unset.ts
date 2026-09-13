@@ -7,7 +7,9 @@ import { dryRunFlag } from '../../flags.js';
 export default class ConfigUnset extends FxCommand {
   static override description = 'Remove a config key from ~/.fx/config.yaml';
   static override examples = ['<%= config.bin %> config unset format'];
-  static override args = { key: Args.string({ required: true, description: 'config key' }) };
+  static override args = {
+    key: Args.string({ ignoreStdin: true, required: true, description: 'config key' }),
+  };
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {
