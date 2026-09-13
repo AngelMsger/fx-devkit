@@ -174,7 +174,11 @@ describe('GitRepoSource against real git', () => {
     expect(git(['remote'], root)).toBe('upstream');
 
     publish(2, 'two');
-    expect(await source.refresh(root)).toEqual({ result: 'updated' });
+    // An unregistered clone left by failed validation is reusable with the same source.
+    await source.materialize(root);
+    expect(manifest()).toBe('schema_version: 2\n');
+
+    expect(await source.refresh(root)).toEqual({ result: 'up_to_date' });
     expect(manifest()).toBe('schema_version: 2\n');
 
     git(['checkout', '-q', '-b', 'skill-x'], root);

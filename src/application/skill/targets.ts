@@ -6,9 +6,11 @@
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import type { AgentHost } from '../../ports/agent-host.js';
+import type { Lock } from '../../ports/lock.js';
 import { enabledHosts } from '../agent/list.js';
 
 export interface SkillDeps {
+  readonly globalLock?: Lock;
   readonly hosts: readonly AgentHost[];
   readonly configured: readonly string[] | undefined;
   readonly bundledSkillDir: string;

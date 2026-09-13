@@ -67,7 +67,19 @@ export async function readabilityOf(deps: WorkspaceDeps, repo: ResolvedRepo): Pr
   if (cached !== undefined) return cached;
   const host = tryCodeHost(deps);
   if (host === undefined) return 'unknown';
-  const answer = await host.canRead(ref);
+  let answer: Readability;
+  try {
+    answer = await host.canRead(ref);
+  } catch (err) {
+    // API prerequisites are optional for Git transport; explicit access denials
+    // returned by the provider remain authoritative. Programming errors still fail.
+    if (
+      !(err instanceof DevkitError) ||
+      !['TOOL_MISSING', 'LOGIN_REQUIRED', 'VECTOR_UNTRUSTED'].includes(err.code)
+    )
+      throw err;
+    return 'unknown';
+  }
   if (answer !== 'unknown') await deps.cache.set(key, answer, READABILITY_TTL_MS);
   return answer;
 }

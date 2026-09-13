@@ -9,6 +9,28 @@ import { FileConfigStore } from '../../../src/infra/config-store.js';
 const home = (): string => mkdtempSync(path.join(tmpdir(), 'fx-home-'));
 
 describe('FileConfigStore', () => {
+  it('serializes independent registrations without losing settings or exposing partial YAML', async () => {
+    const dir = home();
+    await new FileConfigStore(dir).write({ user: 'example' });
+    await Promise.all(
+      Array.from({ length: 24 }, (_, i) =>
+        new FileConfigStore(dir).update((current) => ({
+          ...current,
+          workspaces: { ...current.workspaces, [`ws-${i}`]: { root: `/work/ws-${i}` } },
+        })),
+      ),
+    );
+    const current = await new FileConfigStore(dir).read();
+    expect(Object.keys(current.workspaces ?? {})).toHaveLength(24);
+    expect(current.user).toBe('example');
+    await expect(
+      new FileConfigStore(dir).update(() => {
+        throw new Error('cancelled');
+      }),
+    ).rejects.toThrow('cancelled');
+    expect(await new FileConfigStore(dir).read()).toEqual(current);
+  });
+
   it('returns actionable configuration errors for malformed YAML without echoing its contents', async () => {
     const dir = home();
     writeFileSync(path.join(dir, 'config.yaml'), 'user: [private-value\n');

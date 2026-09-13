@@ -3,7 +3,12 @@
 // clones into an empty place, fetches, and fast-forwards, and a repository
 // that fails is a row in the result, not the end of the run.
 
-import { asDevkitError, toEnvelope, type ErrorEnvelope } from '../domain/errors.js';
+import {
+  asDevkitError,
+  toEnvelope,
+  withPartialResult,
+  type ErrorEnvelope,
+} from '../domain/errors.js';
 import {
   planSync,
   type DiskState,
@@ -81,7 +86,11 @@ export class Sync {
       only === undefined || (typeof only === 'string' ? only === 'repos' : only.includes('repos'))
         ? await this.repos(input)
         : empty;
-    return { ...repos, ...(await this.laterStages(input)) };
+    try {
+      return { ...repos, ...(await this.laterStages(input)) };
+    } catch (error) {
+      throw withPartialResult(error, { ...repos, ...asDevkitError(error).partialResult });
+    }
   }
 
   private async repos(input: SyncInput): Promise<SyncOutput> {
@@ -89,7 +98,38 @@ export class Sync {
     if (input.dryRun) return finish(plan.map((item) => ({ ...item, result: 'planned' })));
     if (plan.some((item) => item.action === 'clone' || item.fetch || item.origin !== undefined))
       assertWritable(input.posture, 'sync');
-    const items = await pooled(plan, input.jobs, (item) => this.apply(item));
+    const total = plan.filter((item) => item.action !== 'skip_unpicked').length;
+    let completed = 0;
+    const active = new Set<string>();
+    const started = Date.now();
+    const progress = (): void =>
+      this.deps.reporter.progress({
+        id: 'repos',
+        state: 'running',
+        total,
+        completed,
+        elapsed_ms: Date.now() - started,
+        active: [...active],
+        detail: `${completed}/${total} complete; ${[...active].join(', ')}; ${Math.floor((Date.now() - started) / 1000)}s elapsed`,
+      });
+    progress();
+    const heartbeat = setInterval(progress, 5000);
+    let items: SyncItem[];
+    try {
+      items = await pooled(plan, input.jobs, async (item) => {
+        if (item.action === 'skip_unpicked') return { ...item, result: 'skipped' };
+        active.add(item.name);
+        try {
+          return await this.apply(item);
+        } finally {
+          active.delete(item.name);
+          completed += 1;
+        }
+      });
+    } finally {
+      clearInterval(heartbeat);
+      progress();
+    }
     const output = finish(items);
     if (output.summary.failed > 0) {
       this.deps.reporter.notice({
@@ -117,9 +157,19 @@ export class Sync {
       if (run === undefined) {
         stages[stage] = 'not_implemented';
       } else {
-        const result = await run();
-        stages[stage] = result.summary;
-        if (result.details !== undefined) details[stage] = result.details;
+        try {
+          const result = await run();
+          stages[stage] = result.summary;
+          if (result.details !== undefined) details[stage] = result.details;
+        } catch (error) {
+          stages[stage] = { status: 'failed' };
+          details[stage] = { failure: toEnvelope(asDevkitError(error)).error };
+          for (const pending of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
+            if (pending !== 'repos' && wanted(pending) && stages[pending] === undefined)
+              stages[pending] = { status: 'not_started' };
+          }
+          throw withPartialResult(error, { stages, stage_details: details });
+        }
       }
     }
     return { stages, ...(Object.keys(details).length === 0 ? {} : { stage_details: details }) };

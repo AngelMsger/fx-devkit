@@ -39,7 +39,11 @@ export default class SyncCommand extends FxCommand {
       only,
       stages: this.stages(deps, run.dryRun),
     });
-    this.renderer.list(out.items, {
+    const visible =
+      this.format === 'human' && !flags.verbose
+        ? out.items.filter((item) => item.action !== 'skip_unpicked')
+        : out.items;
+    this.renderer.list(visible, {
       columns: ['name', 'action', 'result', 'outcome', 'reason'],
       trailer: {
         summary: out.summary,

@@ -305,6 +305,7 @@ export abstract class FxCommand extends Command {
         phase: 'error boundary',
         cause_chain: causeChain(failure),
       });
+    if (failure.partialResult !== undefined) this.renderer.record(failure.partialResult);
     this.renderer.error(failure);
     return this.exit(exitCodeFor(failure.category));
   }

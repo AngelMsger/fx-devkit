@@ -10,7 +10,7 @@ export default class EnvPickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> env pick dev test'];
   static override strict = false;
   static override args = {
-    name: Args.string({ required: true, description: 'environment name(s)' }),
+    name: Args.string({ ignoreStdin: true, required: true, description: 'environment name(s)' }),
   };
   static override flags = { 'dry-run': dryRunFlag };
 

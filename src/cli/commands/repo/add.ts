@@ -10,7 +10,11 @@ export default class RepoAddCommand extends FxCommand {
     '<%= config.bin %> repo add ../scratch-x --upstream ssh://git@git.example.com/lab/scratch-x.git',
   ];
   static override args = {
-    path: Args.string({ required: true, description: 'directory of the checkout' }),
+    path: Args.string({
+      ignoreStdin: true,
+      required: true,
+      description: 'directory of the checkout',
+    }),
   };
   static override flags = {
     upstream: Flags.string({

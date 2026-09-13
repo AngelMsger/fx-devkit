@@ -45,6 +45,57 @@ function advance(work: string, name: string): void {
 }
 
 describe('SystemGit command vectors', () => {
+  it.each([
+    ["fatal: couldn't find remote ref gone", 'not_found'],
+    ['Permission denied (publickey).', 'auth'],
+    ['fatal: Could not resolve host: example.com', 'network'],
+    ['fatal: Unable to create index.lock: File exists', 'conflict'],
+  ])('does not classify failed fast-forward as divergence: %s', async (stderr, category) => {
+    const proc = new FakeProcess();
+    proc.when((vector) => !vector.includes('merge'), {
+      code: 0,
+      stdout: '# branch.head main\n',
+      stderr: '',
+    });
+    proc.when((vector) => vector.includes('merge'), { code: 1, stdout: '', stderr });
+    await expect(
+      new SystemGit(proc).fastForward('/work/repo', 'upstream', 'main'),
+    ).rejects.toMatchObject({ code: 'GIT_FAST_FORWARD_FAILED', category });
+  });
+  it('retains divergence as a non-destructive outcome', async () => {
+    const proc = new FakeProcess();
+    proc.when((vector) => !vector.includes('merge'), {
+      code: 0,
+      stdout: '# branch.head main\n',
+      stderr: '',
+    });
+    proc.when((vector) => vector.includes('merge'), {
+      code: 128,
+      stdout: '',
+      stderr: 'fatal: Not possible to fast-forward, aborting.',
+    });
+    expect(await new SystemGit(proc).fastForward('/work/repo', 'upstream', 'main')).toBe(
+      'diverged',
+    );
+  });
+  it('preserves clone branch and destination in recovery commands', async () => {
+    const proc = new FakeProcess();
+    proc.always({
+      code: 128,
+      stdout: '',
+      stderr: 'fatal: Remote branch absent not found in upstream origin',
+    });
+    await expect(
+      new SystemGit(proc).clone({
+        dir: '/work/a space',
+        upstream: 'https://git.example.com/team/repo.git',
+        branch: 'absent',
+      }),
+    ).rejects.toMatchObject({
+      category: 'not_found',
+      nextSteps: expect.arrayContaining([expect.stringContaining('--branch absent')]),
+    });
+  });
   it('clones with upstream as the primary remote and adds origin separately', async () => {
     const proc = new FakeProcess();
     proc.always({ code: 0, stdout: '', stderr: '' });
@@ -155,12 +206,12 @@ describe('SystemGit against real git', () => {
     expect(git(['rev-parse', 'HEAD'], dir)).toBe(before);
   });
 
-  it('turns a failing clone into a network error naming the remote', async () => {
+  it('classifies an absent local clone source as not found', async () => {
     const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
     await expect(
       sut.clone({ dir, upstream: '/nonexistent/repo.git', branch: 'dev' }),
     ).rejects.toMatchObject({
-      category: 'network',
+      category: 'not_found',
       code: 'GIT_CLONE_FAILED',
     });
   });

@@ -10,6 +10,7 @@ export type { ConfigFile, WorkspaceEntry } from '../domain/config/file.js';
 export interface ConfigStore {
   read(): Promise<ConfigFile>;
   write(next: ConfigFile): Promise<void>;
+  update(change: (current: ConfigFile) => ConfigFile): Promise<ConfigFile>;
   path(): string;
 }
 

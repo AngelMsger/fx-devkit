@@ -143,6 +143,8 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     binaries: ['grok'],
     hooks: {
       projectPath: '.grok/hooks/fx.json',
+      activationLimit:
+        'Grok 1.0.25 discovers project hooks only at a Git root. Plain workspace roots require explicit fx sync --only docs,skills; do not initialize Git at the workspace root.',
       windowsCommand: 'cmd',
       protocol: 'command-json',
       events: { 'session-start': 'SessionStart' },

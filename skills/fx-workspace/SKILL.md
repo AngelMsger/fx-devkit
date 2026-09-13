@@ -385,3 +385,7 @@ configuration presence does not prove native host activation.
 startup/check vectors and reference bindings before actual projection. Rules
 pointers are maintained by `sync --only docs`. Foreign entries stay untouched;
 `agent unpick` removes only owned resources and preserves shared entries.
+
+## Result and ownership details
+
+Read partial init stdout even after a nonzero exit: failed_phase, phases and sync retain completed effects. Do not repeat completed work blindly. Skill tools_blocked rows preserve exact-command trust while independent local projections may succeed. Diagnose caller approval waits separately from local Skill copies. Readiness distinguishes outdated_tool and disabled_tool from missing_tool; doctor evidence.binary_path identifies the resolved executable. Per-user fx Skills are shared across workspaces and never downgraded; FX_HOME does not isolate HOME. Grok 1.0.25 cannot discover project hooks at a plain workspace root: use explicit fx sync --only docs,skills after normal host trust, never git init as a workaround.

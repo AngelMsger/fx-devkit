@@ -15,7 +15,10 @@ export default class ReleaseCommand extends FxCommand {
   ];
   static override strict = false;
   static override args = {
-    repo: Args.string({ description: 'repository name(s); default: every one on the checklist' }),
+    repo: Args.string({
+      ignoreStdin: true,
+      description: 'repository name(s); default: every one on the checklist',
+    }),
   };
   static override flags = {
     tag: Flags.string({ multiple: true, description: 'only repositories carrying this tag' }),

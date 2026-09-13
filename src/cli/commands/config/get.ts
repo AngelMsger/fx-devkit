@@ -8,7 +8,9 @@ import { configFlagValues } from '../../config-flags.js';
 export default class ConfigGet extends FxCommand {
   static override description = 'Show the effective value of a config key and where it comes from';
   static override examples = ['<%= config.bin %> config get format --explain'];
-  static override args = { key: Args.string({ required: true, description: 'config key' }) };
+  static override args = {
+    key: Args.string({ ignoreStdin: true, required: true, description: 'config key' }),
+  };
   static override flags = {
     explain: Flags.boolean({
       default: false,

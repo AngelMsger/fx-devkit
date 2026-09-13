@@ -15,7 +15,11 @@ export default class InitCommand extends FxCommand {
     'cat workspace.yaml | <%= config.bin %> init ./ws --from -',
   ];
   static override args = {
-    dir: Args.string({ required: true, description: 'directory to create, reuse or adopt' }),
+    dir: Args.string({
+      ignoreStdin: true,
+      required: true,
+      description: 'directory to create, reuse or adopt',
+    }),
   };
   static override flags = {
     from: Flags.string({

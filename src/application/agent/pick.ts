@@ -62,9 +62,27 @@ export class AgentPick {
     };
     if (input.dryRun || (!changed && !plan.hooks)) return plan;
     assertWritable(input.posture, `agent ${input.action} ${input.ids.join(' ')}`);
-    if (changed) await this.config.write({ ...file, agents: after });
+    let appliedAfter = after;
+    if (changed) {
+      const saved = await this.config.update((current) => {
+        const selected = current.agents ?? base;
+        return {
+          ...current,
+          agents:
+            input.action === 'pick'
+              ? [...new Set([...selected, ...input.ids])]
+              : selected.filter((id) => !input.ids.includes(id)),
+        };
+      });
+      appliedAfter = [...(saved.agents ?? after)];
+    }
     const hooks = input.action === 'unpick' ? await this.cleanup?.apply(input.ids) : undefined;
-    return { ...plan, written: changed, ...(hooks === undefined ? {} : cleanupOutput(hooks)) };
+    return {
+      ...plan,
+      after: appliedAfter,
+      written: changed,
+      ...(hooks === undefined ? {} : cleanupOutput(hooks)),
+    };
   }
 
   private assertKnown(id: string): void {

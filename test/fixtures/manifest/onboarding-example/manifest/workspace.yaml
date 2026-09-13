@@ -1,0 +1,6 @@
+schema_version: 2
+defaults: { branch: main }
+repos:
+  - name: example-api
+    upstream: https://git.example.com/team/example-api.git
+    obs: { svc: api }

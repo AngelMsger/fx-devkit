@@ -2,6 +2,7 @@
 // ordinary command renderer, update notices and trace finalization.
 
 import { runHookEntry } from '../composition/hook-entry.js';
+import { asDevkitError } from '../domain/errors.js';
 
 export async function hookMain(argv: readonly string[], background = false): Promise<void> {
   try {
@@ -9,10 +10,21 @@ export async function hookMain(argv: readonly string[], background = false): Pro
       argv,
       background ? Promise.resolve('{}') : readInput(),
       background,
+      reportHookFailure,
     );
     if (output) process.stdout.write(output);
-  } catch {
-    /* Hooks never fail a host session. */
+  } catch (error) {
+    const failure = asDevkitError(error);
+    // Never echo argv, stdin, paths or provider output into the host session.
+    process.stderr.write(
+      JSON.stringify({
+        _notice: {
+          code: 'HOOK_FAILED_OPEN',
+          category: failure.category,
+          nextSteps: ['fx hook list --format json', 'fx doctor --format json'],
+        },
+      }) + '\n',
+    );
   }
   process.stdin.destroy();
   process.exitCode = 0;
@@ -32,4 +44,16 @@ function readInput(): Promise<string> {
     process.stdin.on('end', () => resolve(text));
     process.stdin.on('error', reject);
   });
+}
+
+function reportHookFailure(reason: string): void {
+  process.stderr.write(
+    JSON.stringify({
+      _notice: {
+        code: 'HOOK_FAILED_OPEN',
+        reason,
+        nextSteps: ['fx hook list --format json', 'fx doctor --format json'],
+      },
+    }) + '\n',
+  );
 }

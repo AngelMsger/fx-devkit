@@ -10,7 +10,7 @@ export default class RepoUnpickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> repo unpick fx-example-docs'];
   static override strict = false;
   static override args = {
-    name: Args.string({ required: true, description: 'repository name(s)' }),
+    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name(s)' }),
   };
   static override flags = { 'dry-run': dryRunFlag };
 

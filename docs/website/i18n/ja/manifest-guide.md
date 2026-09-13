@@ -67,7 +67,7 @@ repos:
     desc: Example API service
 ```
 
-架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。この例には Bitbucket 連携 CLI とアクセス権が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。もう一つの実装済み code-host provider、`local-git` はローカルの bare リポジトリ用であり、任意の Git ホスティングサービスのアダプターではありません。
+架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。もう一つの実装済み code-host provider、`local-git` はローカルの bare リポジトリ用であり、任意の Git ホスティングサービスのアダプターではありません。
 
 team-workspace/ を含むディレクトリから実行します。
 
@@ -116,3 +116,54 @@ fx init ./existing-work --from ./team-workspace
 登録後のソースは `~/.fx/workspaces/<name>/source` にあります。`sync` は条件を満たす Git ソースを先に更新します。ディレクトリや stdin のスナップショットは元のソースの編集を追跡しません。`fx self info --format json` で現在のワークスペースとソースを確認できます。登録済みルートに別のソースを指定しても暗黙の移行は行われません。
 
 共有宣言はソース checkout で管理し、個人の選択は `repo pick/unpick`、`env pick/unpick`、`agent pick/unpick` で管理します。エージェント選択は同じ FX_HOME の全ワークスペースに適用されます。検証済み個人フォークからの提案は[ソースへの貢献](cli/README.md#fx-source-push)を参照してください。
+
+## 環境の例
+
+以下は架空の値を使った実際のソース形式です. 最初のブロックを manifest/workspace.yaml, 次を manifest/environments.yaml に保存します. obs.svc=api によりストリームは example_api_test になります. unverified の座標は CLI 設定やリソースへのアクセスとは別です. JSON は初期化失敗の抜粋であり, セットアップ成功を意味しません.
+
+```yaml
+schema_version: 2
+defaults: { branch: main }
+repos:
+  - name: example-api
+    upstream: https://git.example.com/team/example-api.git
+    obs: { svc: api }
+```
+
+```yaml
+schema_version: 2
+platforms:
+  logs:
+    provider: openobserve-cli
+    capability: log-store
+    label: Application logs
+    command: openobserve-cli search run --use-context {context} --stream {stream}
+envs:
+  test:
+    label: Test
+    platforms:
+      logs:
+        vars: { context: test, stream: 'example_{svc}_test' }
+        confidence: unverified
+```
+
+```sh
+fx manifest validate --strict --format json
+fx where example-api --env test --format json
+fx doctor --tool openobserve-cli --format json
+```
+
+```json
+{
+  "registered": true,
+  "failed_phase": "sync",
+  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
+  "sync": {
+    "stages": {
+      "docs": { "created": 2 },
+      "skills": { "status": "failed" },
+      "hooks": { "status": "not_started" }
+    }
+  }
+}
+```

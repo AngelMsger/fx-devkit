@@ -7,7 +7,9 @@ export default class HookDispatchCommand extends FxCommand {
   static override description =
     'Dispatch a host lifecycle event; failures never fail the host session';
   static override hidden = true;
-  static override args = { event: Args.string({ required: true, description: 'lifecycle event' }) };
+  static override args = {
+    event: Args.string({ ignoreStdin: true, required: true, description: 'lifecycle event' }),
+  };
   static override flags = {
     agent: Flags.string({ required: true, description: 'host agent' }),
     root: Flags.string({ description: 'bound workspace root' }),

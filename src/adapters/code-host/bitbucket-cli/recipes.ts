@@ -14,6 +14,6 @@ export const BITBUCKET_RECIPES: readonly SetupRecipe[] = [
     instructions:
       'Create an HTTP access token with Project read and Repository read (add Repository write to open pull requests), then paste it when asked. Run `bitbucket-cli config init` first if the server URL is not set yet.',
     run: ['auth', 'login'],
-    verify: { command: ['auth', 'status'] },
+    verify: { command: ['auth', 'status'], json: { path: 'configured', equals: true } },
   },
 ];

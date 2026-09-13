@@ -5,6 +5,8 @@
 // otherwise move only the branch ref. The checkout is where a person edits
 // the manifest, so their branch or changes are never in the way.
 
+import { realpath } from 'node:fs/promises';
+
 import { DevkitError } from '../../domain/errors.js';
 import type { Git } from '../../ports/git.js';
 import type { ManifestSource, RefreshOutcome } from '../../ports/manifest-source.js';
@@ -24,6 +26,19 @@ export class GitRepoSource implements ManifestSource {
   }
 
   async materialize(dir: string): Promise<void> {
+    const top = await this.git.toplevel(dir);
+    if (top !== undefined && top === (await realpath(dir))) {
+      const remotes = await this.git.remotes(dir);
+      if (remotes['upstream'] !== this.url)
+        throw new DevkitError(
+          'conflict',
+          'SOURCE_MISMATCH',
+          'Existing manifest checkout has a different upstream',
+          { nextSteps: ['Inspect the existing source checkout before retrying.'] },
+        );
+      await this.refresh(dir);
+      return;
+    }
     const result = await this.process.run([
       'git',
       'clone',

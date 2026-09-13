@@ -16,7 +16,9 @@ export default class LoginCommand extends FxCommand {
     '<%= config.bin %> login --no-input --format json   # inspect pending setup; resume after verification',
   ];
   static override strict = false;
-  static override args = { tool: Args.string({ description: 'only these tools' }) };
+  static override args = {
+    tool: Args.string({ ignoreStdin: true, description: 'only these tools' }),
+  };
   static override flags = {
     env: Flags.string({ multiple: true, description: 'only these environments' }),
     list: Flags.boolean({

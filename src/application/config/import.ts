@@ -53,7 +53,11 @@ export class ConfigImport {
       output.config === 'unchanged' && workspaces.every((w) => w.action === 'unchanged');
     if (input.dryRun || nothing) return output;
     assertWritable(input.posture, 'profile import');
-    if (output.config === 'changed') await this.deps.config.write(merged);
+    if (output.config === 'changed')
+      await this.deps.config.update((latest) => ({
+        ...latest,
+        ...named(profile.config),
+      }));
     for (const [name, layer] of Object.entries(profile.workspaces)) {
       if (workspaces.find((w) => w.name === name)?.action !== 'unchanged')
         await this.deps.localStore.write(name, layer);

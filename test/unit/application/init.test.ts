@@ -85,6 +85,62 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
 const settled: string[] = [];
 
 describe('Init', () => {
+  it('retains an existing registration when source validation fails on re-entry', async () => {
+    const s = setup(
+      {},
+      { workspaces: { new: { root: ROOT, source: path.resolve('/src/manifest') } } },
+    );
+    await expect(
+      new Init(s.deps).execute({
+        dir: ROOT,
+        source: new ScriptedSource(s.fs, 'schema_version: 999\nrepos: []'),
+        adopt: false,
+        dryRun: false,
+        posture: writable,
+        jobs: 2,
+      }),
+    ).rejects.toMatchObject({
+      partialResult: {
+        registered: true,
+        failed_phase: 'validation',
+        next_steps: expect.arrayContaining(['fx sync --workspace new --format json']),
+      },
+    });
+    expect((await s.config.read()).workspaces?.new?.root).toBe(ROOT);
+  });
+
+  it('returns completed registration and repository evidence when a later stage fails', async () => {
+    const s = setup();
+    const deps = {
+      ...s.deps,
+      stagesFor: () => ({
+        docs: async () => ({ summary: { created: 2 } }),
+        skills: async () => {
+          throw new Error('fixture failure');
+        },
+      }),
+    };
+    await expect(
+      new Init(deps).execute({
+        dir: ROOT,
+        source: s.source,
+        adopt: false,
+        dryRun: false,
+        posture: writable,
+        jobs: 2,
+      }),
+    ).rejects.toMatchObject({
+      partialResult: {
+        registered: true,
+        written: true,
+        next_steps: expect.arrayContaining(['fx sync --workspace new --format json']),
+        failed_phase: 'sync',
+        phases: { registration: 'done', tools: 'done', sync: 'failed' },
+        sync: { stages: { docs: { created: 2 }, skills: { status: 'failed' } } },
+      },
+    });
+  });
+
   it('reports registration without claiming readiness when repository synchronization fails', async () => {
     const { deps, source, git, reporter, config } = setup();
     vi.spyOn(git, 'clone').mockRejectedValue(new Error('fixture clone failed'));

@@ -86,3 +86,5 @@ installs and unverified/below-minimum installed versions stop init with an error
 the source registration may already exist and the same invocation can be retried.
 Normal `sync` continues to run only tool checks; lifecycle hooks do not gain this
 installation path. npm retains ownership of Registry authentication.
+
+Readiness preserves missing_tool, outdated_tool and disabled_tool separately. Doctor evidence records binary_path from the execution PATH resolver. The Bitbucket status recipe requires configured=true; this verifies configuration, not arbitrary resource permissions. Skill trust failures are blocked tool rows, allowing independent owned projections to proceed. No selected hosts means no companion Skill invocation. User-owned fx copies share a lock and recheck version/ownership before writing; third-party installers retain their own idempotence contracts. Agent detection is distinct from selection; current activity remains unknown. Init emits a prepared installation/Skill plan after source validation and registration, before tools and clones; fresh remote dry-runs defer content-dependent effects.

@@ -3,6 +3,7 @@
 
 import { existsSync } from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
 
 import { SystemClock } from '../adapters/clock/system-clock.js';
 import { NodeFs } from '../adapters/fs/node-fs.js';
@@ -186,5 +187,10 @@ export function skillDeps(
   container: Container,
   configured: readonly string[] | undefined,
 ): SkillDeps {
-  return { hosts: container.agents, configured, bundledSkillDir: bundledSkillDir() };
+  return {
+    hosts: container.agents,
+    configured,
+    bundledSkillDir: bundledSkillDir(),
+    globalLock: new FileLock(path.join(container.userHome, '.fx')),
+  };
 }

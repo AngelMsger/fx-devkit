@@ -11,8 +11,12 @@ export default class ConfigSet extends FxCommand {
     '<%= config.bin %> config set read_only true --dry-run',
   ];
   static override args = {
-    key: Args.string({ required: true, description: 'config key' }),
-    value: Args.string({ required: true, description: 'new value; lists are comma-separated' }),
+    key: Args.string({ ignoreStdin: true, required: true, description: 'config key' }),
+    value: Args.string({
+      ignoreStdin: true,
+      required: true,
+      description: 'new value; lists are comma-separated',
+    }),
   };
   static override flags = { 'dry-run': dryRunFlag };
 

@@ -300,3 +300,25 @@ fx.cmd completion powershell | Out-File -Encoding utf8 "$HOME\fx-completion.ps1"
 ```
 
 Bash, zsh and fish are also available through `fx completion <shell>`.
+
+## Reading initialization and recovery results
+
+Positional arguments come only from argv; stdin is read only when explicitly requested, such as `init --from -`. A quoted multiword command is a usage error. Git clone uses Git credentials independently of the optional code-host API CLI. Git errors distinguish absent branches, transport authentication, connectivity and local conflicts; retry guidance retains the branch and destination.
+
+After source validation and registration, `INIT_PREPARED` shows planned installation vectors and Skill destinations before tool execution or cloning. Missing tools can reveal additional Skill vectors after installation; those still require exact-command approval. A fresh remote-source `init --dry-run` does not fetch the source or claim to know its contents. Foreign-file replacement always needs approval and a backup.
+
+If a later initialization phase throws, stdout retains a partial result with `failed_phase`, `phases`, the structured `failure`, completed repository results and recovery steps. Stages use `done`, `failed` or `not_started` in failure results; successful sync stages keep their normal summary counters. stderr retains the original error and the exit code remains nonzero. An untrusted Skill command is a blocked tool row (`tools_blocked`); independent owned local projections can complete. Inspect blocked and failed rows even when the command exits zero.
+
+Repository progress on stderr reports completed/total, active repositories and elapsed time every five seconds while work is pending. It is a heartbeat, not Git byte progress or an ETA. Human output summarizes unselected repositories and large result lists; `--verbose` exposes unselected rows and `--format json` retains all details. A `FIELDS_UNMATCHED` notice means requested fields are absent from this response, possibly because they are optional; projection stays permissive and empty collections produce no such notice.
+
+`missing_tool`, `outdated_tool` and `disabled_tool` are distinct readiness verdicts. Doctor tool evidence includes `binary_path`, resolved by the same PATH policy used for execution; it can point to a runtime-manager shim. A successful status process with `configured=false` does not establish readiness. Even configured prerequisites do not prove resource permissions or a successful remote query. `no_access` describes an environment outside your personal selection, not a remote ACL denial.
+
+Personal config updates serialize read/modify/write and atomically replace the file. Retry `CONFIG_BUSY` after the competing update finishes. A validated Git-source checkout left by a failed initialization can be reused for the same source; foreign upstreams and local work remain protected.
+
+### Skill ownership and host activation
+
+Team Skill links belong to a workspace. The bundled fx Skill belongs to the user and selected host, is reused across workspaces, and never replaces a newer recognized copy with an older version. Updates recheck ownership/version under a user-wide lock; foreign copies remain protected. Companion tools own their own Skill installer and version behavior, so fx can invoke those installers again during another workspace sync. Local Skill installation is not inherently a network operation; distinguish caller approval waits from an executing subprocess.
+
+`agent list` exposes `detected`, `selected`, `selection` (automatic or explicit), and `active: null` because detection is not evidence of current activity. Set `fx config set agents <id,...>` explicitly before initialization to limit projections. `FX_HOME` isolates fx configuration, not global user Skills; use a separate HOME as well for experiments.
+
+Grok 1.0.25 requires a Git root to discover project hooks. At a plain workspace root, normal directory trust can enable guides and Skills but does not fix hook discovery. `hook list` reports this activation limitation; run `fx sync --only docs,skills` explicitly. Do not initialize Git at the workspace root. Host execution approval or cancellation is separate from fx execution; auto mode does not disable host permission checks. Hooks fail open with a bounded `HOOK_FAILED_OPEN` diagnostic on stderr that omits raw input and exception text; a projection alone never proves activation.

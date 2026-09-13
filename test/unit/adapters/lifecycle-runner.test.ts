@@ -8,6 +8,30 @@ import { describe, expect, it } from 'vitest';
 import { NodeLifecycleRunner } from '../../../src/adapters/process/lifecycle-runner.js';
 
 describe('independent lifecycle supervision', () => {
+  it('reports bounded worker failures and timeouts without leaking worker text', async () => {
+    const reasons: string[] = [];
+    const diagnosed = new NodeLifecycleRunner((reason) => reasons.push(reason));
+    expect(
+      await diagnosed.run({
+        vector: [
+          process.execPath,
+          '-e',
+          "process.send({kind:'failure', secret:'private-value'});setInterval(()=>{},1000)",
+        ],
+        input: Promise.resolve('{}'),
+        timeoutMs: 2000,
+      }),
+    ).toBe('');
+    expect(
+      await diagnosed.run({
+        vector: [process.execPath, '-e', 'while(true) {}'],
+        input: Promise.resolve('{}'),
+        timeoutMs: 100,
+      }),
+    ).toBe('');
+    expect(reasons).toEqual(['HOOK_WORKER_FAILED', 'HOOK_TIMEOUT']);
+  });
+
   const runner = new NodeLifecycleRunner();
   it('reaps descendants together with an expired worker', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-supervised-'));

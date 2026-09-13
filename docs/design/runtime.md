@@ -96,3 +96,5 @@ because interactive commands, queries, hooks and MCP have different IO lifetimes
 
 [Lifecycle](lifecycle.md) owns hook scheduling, output limits and projection
 recovery; [Windows](windows.md) owns platform-specific behavior and acceptance.
+
+Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat with completed/total, active names and elapsed milliseconds. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.

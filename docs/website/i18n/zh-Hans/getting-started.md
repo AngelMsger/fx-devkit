@@ -176,3 +176,25 @@ manifest 选择工作区使用的 provider 和配套 CLI。当前实现包括：
 使用 `fx manifest providers` 与 `fx tool list` 查看实际绑定。通讯和知识入口交接给配套工具，不代表 fx 代理了所有服务 API。
 
 Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力。参见[宿主契约](user-guide.md#for-coding-agents)。
+
+## 判读初始化与恢复结果
+
+位置参数仅来自 argv; 只有显式请求时才读取 stdin, 例如 `init --from -`. 将多词命令整体加引号会返回用法错误. Git 克隆使用独立的 Git 凭据, 不强制依赖代码托管 API CLI. Git 错误区分分支不存在、传输认证、网络与本地冲突, 恢复命令保留分支和目标目录.
+
+源验证并注册后, `INIT_PREPARED` 会在执行工具和克隆前展示安装命令及 Skill 目标位置. 安装缺失工具后可能产生额外 Skill 命令, 仍须逐条通过精确信任检查. 新远端来源的 `init --dry-run` 不拉取源, 也不声称已获知其内容. 替换外来文件始终需要批准与备份.
+
+后续初始化阶段抛出异常时, stdout 保留含 `failed_phase`、`phases`、结构化 `failure`、已完成仓库结果和恢复步骤的部分结果. 失败结果中的阶段状态为 `done`、`failed` 或 `not_started`; 成功的同步阶段仍使用原有统计计数. stderr 保留原错误, 退出码非零. 未信任的 Skill 命令单独标记为 blocked (`tools_blocked`), 独立的自有本地投影仍可完成. 即使退出码为零也应查看 blocked 和 failed 行.
+
+仓库操作期间每五秒在 stderr 报告完成数/总数、当前仓库和耗时. 这是心跳, 不是 Git 字节进度或预计完成时间. 人类输出汇总未选择仓库和较大列表; `--verbose` 显示未选择行, `--format json` 保留完整详情. `FIELDS_UNMATCHED` 表示请求字段未出现在本次结果中, 也可能是可选字段; 投影继续宽松处理, 空集合不会产生该提示.
+
+就绪结果区分 `missing_tool`、`outdated_tool` 与 `disabled_tool`. Doctor 工具证据提供 `binary_path`, 与执行使用相同的 PATH 解析规则, 可能指向运行时管理器的 shim. 状态进程成功但 `configured=false` 不代表就绪; 配置完整也不证明资源权限或远端查询成功. `no_access` 表示环境不在个人选择范围, 并非远端 ACL 拒绝.
+
+个人配置采用加锁读改写与原子替换. 遇到 `CONFIG_BUSY` 时, 等竞争更新结束再重试. 初始化失败留下的 Git source checkout 可用于相同来源的重试, 仍保护不匹配的 upstream 和本地工作.
+
+### Skill 所有权与宿主激活
+
+团队 Skill 链接属于工作区; fx 内置 Skill 副本属于用户和所选宿主, 多工作区复用, 不用旧版覆盖已识别的新版. 更新在用户级锁内重新核对所有权和版本, 外来副本保留. 第三方工具拥有各自的 Skill 安装与版本策略, 因此 fx 仍可能在另一工作区同步时再次调用其安装器. 本地 Skill 安装不天然需要网络; 应区分调用器审批等待与已启动子进程.
+
+`agent list` 提供 `detected`、`selected`、`selection` (automatic 或 explicit) 和 `active: null`, 因为检出并不能证明当前活跃. 初始化前显式设置 `fx config set agents <id,...>` 可限制投影范围. `FX_HOME` 只隔离 fx 配置, 不隔离全局 Skill; 实验还应使用独立 HOME.
+
+Grok 1.0.25 仅在 Git 根发现项目 hook. 普通工作区根完成正常目录信任后可以发现指南和 Skill, 但不能因此修复 hook 发现. `hook list` 会说明激活限制; 需显式执行 `fx sync --only docs,skills`, 不要在工作区根初始化 Git. 宿主执行批准或取消独立于 fx 执行, auto 模式也不关闭宿主权限检查. Hook 保持 fail-open, 在 stderr 输出有界的 `HOOK_FAILED_OPEN` 诊断, 不含原始输入或异常文本; 文件投影本身不能证明激活.

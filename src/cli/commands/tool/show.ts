@@ -8,7 +8,9 @@ export default class ToolShowCommand extends FxCommand {
   static override description =
     'Show one tool: its resolved entry, where each field comes from, who depends on it';
   static override examples = ['<%= config.bin %> tool show bitbucket-cli'];
-  static override args = { tool: Args.string({ required: true, description: 'tool name' }) };
+  static override args = {
+    tool: Args.string({ ignoreStdin: true, required: true, description: 'tool name' }),
+  };
   static override flags = {};
 
   async run(): Promise<void> {

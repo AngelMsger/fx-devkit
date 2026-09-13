@@ -6,7 +6,9 @@ import { FxCommand } from '../../base.js';
 export default class RepoOpenCommand extends FxCommand {
   static override description =
     'Print the code-host page of a repository, and open it when on a terminal';
-  static override args = { name: Args.string({ required: true, description: 'repository name' }) };
+  static override args = {
+    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+  };
   static override flags = {};
 
   async run(): Promise<void> {

@@ -1,6 +1,6 @@
 // Explicit manifest opt-ins install missing tools before init synchronizes resources.
 // All installation/probe vectors are approved before any package manager runs.
-import { DevkitError } from '../../domain/errors.js';
+import { DevkitError, withPartialResult } from '../../domain/errors.js';
 import { atLeast } from '../../domain/semver.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
@@ -33,13 +33,18 @@ export class ToolInitialize {
     });
     for (const result of results) {
       if (!result.ran || result.code !== 0)
-        throw installFailure(result, 'package installation failed');
+        throw withPartialResult(installFailure(result, 'package installation failed'), {
+          tool_install: results,
+        });
       const tool = tools.find((tool) => tool.name === result.name)!;
       if (
         result.version_after === null ||
         (tool.minVersion && !atLeast(result.version_after, tool.minVersion))
       )
-        throw installFailure(result, 'installed version could not satisfy the requirement');
+        throw withPartialResult(
+          installFailure(result, 'installed version could not satisfy the requirement'),
+          { tool_install: results },
+        );
     }
     return results;
   }

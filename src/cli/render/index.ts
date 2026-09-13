@@ -9,7 +9,7 @@ import type { Format } from '../../domain/format.js';
 import type { DiagnosticEvent, DiagnosticReporter } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
-import { project } from './fields.js';
+import { unmatchedFields, project } from './fields.js';
 import { humanDiagnostic, humanList, humanNotice, humanProgress, humanRecord } from './human.js';
 
 export { parseFields, project } from './fields.js';
@@ -60,8 +60,7 @@ export function createRenderer(
   io: RenderIo,
   options: RenderOptions = {},
 ): Renderer {
-  const shape = (value: unknown): unknown =>
-    options.fields === undefined ? value : project(value, options.fields);
+  const shape = (value: unknown): unknown => shapeResult(value, options, io);
   const line = (stream: Writable, text: string): void => {
     stream.write(text + '\n');
   };
@@ -108,10 +107,7 @@ export function createRenderer(
         record: (value, opts = {}) =>
           line(io.out, humanRecord(shape(value) as object, opts.describe ?? {})),
         list: (items, opts = {}) =>
-          line(
-            io.out,
-            humanList(shape(items) as object[], options.fields ?? opts.columns, options.noHeader),
-          ),
+          line(io.out, humanCollection(shape(items) as object[], opts, options)),
       };
   }
 }
@@ -123,4 +119,31 @@ function envelope(items: unknown, options: ListOptions): Record<string, unknown>
     ...(options.next === undefined ? {} : { next: options.next }),
     ...(options.trailer ?? {}),
   };
+}
+
+function shapeResult(value: unknown, options: RenderOptions, io: RenderIo): unknown {
+  if (options.fields === undefined) return value;
+  const unmatched = unmatchedFields(value, options.fields);
+  if (unmatched.length > 0 && !options.quiet)
+    io.err.write(
+      JSON.stringify({
+        _notice: {
+          code: 'FIELDS_UNMATCHED',
+          message: `Fields absent from this result (possibly optional): ${unmatched.join(', ')}`,
+          nextSteps: ['Inspect the result without --fields.'],
+        },
+      }) + '\n',
+    );
+  return project(value, options.fields);
+}
+
+function humanCollection(items: object[], opts: ListOptions, options: RenderOptions): string {
+  const lines = [humanList(items, options.fields ?? opts.columns, options.noHeader)];
+  if (opts.trailer !== undefined) {
+    const trailer = options.verbose
+      ? opts.trailer
+      : Object.fromEntries(Object.entries(opts.trailer).filter(([key]) => key !== 'stage_details'));
+    lines.push(humanRecord(trailer));
+  }
+  return lines.join('\n');
 }

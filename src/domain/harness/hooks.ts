@@ -11,6 +11,7 @@ export interface HookSpec {
 }
 
 export interface HookSupport {
+  readonly activationLimit?: string;
   readonly windowsCommand?: 'powershell' | 'override' | 'cmd';
   readonly projectPath: string;
   readonly protocol: string;

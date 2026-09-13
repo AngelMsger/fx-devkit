@@ -35,8 +35,10 @@ export class UnsetConfig {
     };
     if (input.dryRun || before === null) return plan;
     assertWritable(input.posture, `config unset ${key.name}`);
-    const { [key.name]: _removed, ...rest } = file;
-    await this.store.write(rest);
+    await this.store.update((current) => {
+      const { [key.name]: _removed, ...rest } = current;
+      return rest;
+    });
     return { ...plan, written: true };
   }
 }

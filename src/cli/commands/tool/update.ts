@@ -9,7 +9,10 @@ export default class ToolUpdateCommand extends FxCommand {
   static override examples = ['<%= config.bin %> tool update bitbucket-cli'];
   static override strict = false;
   static override args = {
-    tool: Args.string({ description: 'tool name(s); default: every enabled tool' }),
+    tool: Args.string({
+      ignoreStdin: true,
+      description: 'tool name(s); default: every enabled tool',
+    }),
   };
   static override flags = { 'dry-run': dryRunFlag };
 

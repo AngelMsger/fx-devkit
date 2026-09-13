@@ -2,7 +2,9 @@
 import type { DoctorExtension } from '../application/doctor/types.js';
 import type { InitDeps } from '../application/init.js';
 import type { LoginDeps } from '../application/login/deps.js';
+import { PreviewInitialization } from '../application/preview-initialization.js';
 import type { TrustGate } from '../application/safety/trust.js';
+import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync.js';
 import { ToolInitialize } from '../application/tool/initialize.js';
@@ -76,6 +78,7 @@ export class CommandServices {
       cliVersion: this.input.cliVersion,
       reporter: this.input.reporter,
       workspaceDepsFor: depsFor,
+      preview: (ctx) => this.previewInit(ctx, depsFor(ctx)),
       installTools: (ctx) =>
         new ToolInitialize(
           new ToolInstall(this.input.container.installers, this.input.container.process),
@@ -93,6 +96,19 @@ export class CommandServices {
       settleManifest: (name, dir) =>
         updateChecks(this.input.container).manifest.markCurrent(name, dir),
     };
+  }
+
+  private previewInit(ctx: WorkspaceContext, deps: WorkspaceDeps): Promise<object> {
+    return new PreviewInitialization(
+      new ToolInstall(this.input.container.installers, this.input.container.process),
+      new SkillStage(deps, skillDeps(this.input.container, this.input.agents)),
+    ).execute(ctx, {
+      gate: this.input.trust,
+      workspace: ctx.name,
+      yes: this.input.yes,
+      posture: this.input.posture,
+      dryRun: true,
+    });
   }
 
   stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {

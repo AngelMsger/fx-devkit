@@ -41,3 +41,11 @@ function lookup(value: unknown, path: readonly string[]): Lookup {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+// Absence is a notice, not a schema rejection: optional and dynamic fields
+// remain valid, and an empty collection supplies no evidence either way.
+export function unmatchedFields(value: unknown, fields: readonly string[]): string[] {
+  const rows = Array.isArray(value) ? value : [value];
+  if (rows.length === 0) return [];
+  return fields.filter((field) => !rows.some((row) => lookup(row, field.split('.')).present));
+}

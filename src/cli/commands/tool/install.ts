@@ -12,7 +12,7 @@ export default class ToolInstallCommand extends FxCommand {
     '<%= config.bin %> tool install --all --dry-run',
   ];
   static override strict = false;
-  static override args = { tool: Args.string({ description: 'tool name(s)' }) };
+  static override args = { tool: Args.string({ ignoreStdin: true, description: 'tool name(s)' }) };
   static override flags = {
     all: Flags.boolean({ default: false, description: 'every enabled tool that is missing' }),
     'dry-run': dryRunFlag,

@@ -2,6 +2,7 @@
 // key would otherwise be silently ignored and the user left wondering why a
 // setting has no effect.
 
+import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -11,6 +12,8 @@ import { configFileSchema } from '../domain/config/file.js';
 import { DevkitError } from '../domain/errors.js';
 import { assertWorkspaceNames } from '../domain/workspace/name.js';
 import type { ConfigFile, ConfigStore } from '../ports/stores.js';
+
+import { FileLock } from './lock.js';
 
 // Every key this store accepts; the config contract keeps the key
 // registry, this schema and the profile schema in agreement.
@@ -39,9 +42,31 @@ export class FileConfigStore implements ConfigStore {
   }
 
   async write(next: ConfigFile): Promise<void> {
-    assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
-    await fs.mkdir(this.home, { recursive: true });
-    await fs.writeFile(this.path(), stringify(next), 'utf8');
+    await this.update(() => next);
+  }
+
+  async update(change: (current: ConfigFile) => ConfigFile): Promise<ConfigFile> {
+    const lease = await new FileLock(this.home).acquire({ key: 'config', waitMs: 5000 });
+    if (lease === null)
+      throw new DevkitError('conflict', 'CONFIG_BUSY', 'Personal configuration is being updated', {
+        nextSteps: ['Retry the configuration change.'],
+      });
+    const temporary = `${this.path()}.${randomUUID()}.tmp`;
+    try {
+      const next = change(await this.read());
+      assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
+      if (!configFileSchema.safeParse(next).success)
+        throw new DevkitError('config', 'CONFIG_INVALID', 'Invalid configuration update');
+      await fs.writeFile(temporary, stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+      await fs.rename(temporary, this.path());
+      return next;
+    } finally {
+      try {
+        await fs.rm(temporary, { force: true });
+      } finally {
+        await lease.release();
+      }
+    }
   }
 
   private async readRaw(): Promise<string | undefined> {

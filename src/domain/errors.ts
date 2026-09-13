@@ -101,6 +101,7 @@ export interface ErrorOptions {
   readonly handoff?: Handoff;
   readonly cause?: unknown;
   readonly diagnostics?: readonly DiagnosticEvent[];
+  readonly partialResult?: object;
 }
 
 export class DevkitError extends Error {
@@ -109,6 +110,7 @@ export class DevkitError extends Error {
   readonly retryable: boolean;
   readonly handoff: Handoff | undefined;
   readonly diagnostics: readonly DiagnosticEvent[];
+  readonly partialResult: object | undefined;
 
   constructor(
     readonly category: Category,
@@ -123,6 +125,7 @@ export class DevkitError extends Error {
     this.retryable = options.retryable ?? RETRYABLE.has(category);
     this.handoff = options.handoff;
     this.diagnostics = options.diagnostics ?? [];
+    this.partialResult = options.partialResult;
   }
 }
 
@@ -180,4 +183,19 @@ export function handoffEnvelope(handoff: Handoff): HandoffEnvelope {
     ...(handoff.command === undefined ? {} : { command: handoff.command }),
     ...(handoff.alternatives === undefined ? {} : { alternatives: handoff.alternatives }),
   };
+}
+
+// A failed workflow can still have completed effects. Preserve the original
+// failure contract while carrying a separately rendered machine result.
+export function withPartialResult(error: unknown, result: object): DevkitError {
+  const failure = asDevkitError(error);
+  return new DevkitError(failure.category, failure.code, failure.message, {
+    hint: failure.hint,
+    nextSteps: failure.nextSteps,
+    retryable: failure.retryable,
+    ...(failure.handoff === undefined ? {} : { handoff: failure.handoff }),
+    diagnostics: failure.diagnostics,
+    cause: failure,
+    partialResult: result,
+  });
 }
