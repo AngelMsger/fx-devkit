@@ -303,6 +303,12 @@ Bash, zsh and fish are also available through `fx completion <shell>`.
 
 ## Reading initialization and recovery results
 
+Bitbucket's optional repository and user probes each have a five-second process deadline. An unavailable or timed-out probe does not prevent Git transport; explicit repository access refusals and missing repositories remain authoritative. Cancellation and unexpected exceptions stop the operation. Progress begins during `preflight`, then switches to `apply` for repository changes.
+
+On an interrupted Skill stage, `sync.stage_details.skills` retains `links`, `fx` and `tools`; tool installation retains `tool_install`. Item `status` distinguishes `done`, `failed`, `not_started`, `skipped` and dry-run `planned`. Resource rows include `observed` disk state on failure (`unknown` if observation also fails). A failed write may already have changed the destination. Installer `ran: true` means execution was attempted; `code: null` means no exit result was obtained. A `phase: version` failure with `code: 0` retains the successful package installation. Resolve the failed item before retrying; exceptions do not trigger later writes.
+
+Retrying the same workspace name and source accepts a symlink alias of the registered root. Registration rechecks physical path identity under the configuration lock; a genuinely different root remains a conflict.
+
 Positional arguments come only from argv; stdin is read only when explicitly requested, such as `init --from -`. A quoted multiword command is a usage error. Git clone uses Git credentials independently of the optional code-host API CLI. Git errors distinguish absent branches, transport authentication, connectivity and local conflicts; retry guidance retains the branch and destination.
 
 After source validation and registration, `INIT_PREPARED` shows planned installation vectors and Skill destinations before tool execution or cloning. Missing tools can reveal additional Skill vectors after installation; those still require exact-command approval. A fresh remote-source `init --dry-run` does not fetch the source or claim to know its contents. Foreign-file replacement always needs approval and a backup.

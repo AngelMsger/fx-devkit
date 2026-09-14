@@ -1,7 +1,4 @@
-// Where Skills go. fx's own Skill: the enabled agents' global skill
-// directories. The team Skills: the same agents' project skill directories
-// at the workspace root, one target per directory because several agents
-// share `.agents/skills`. Both narrow to the agents named, when any are.
+// Resolve selected hosts to user Skill directories and deduplicated project links.
 
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';

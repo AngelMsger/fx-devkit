@@ -1,6 +1,4 @@
-// Which agents fx projects Skills into: the detected ones, unless
-// config.agents names a list — then that list, with a note on any entry
-// the machine does not actually have.
+// Resolve agent selection from explicit configuration or host detection.
 
 import type { AgentHost } from '../../ports/agent-host.js';
 

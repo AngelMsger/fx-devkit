@@ -1,11 +1,14 @@
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { BitbucketCodeHost } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
 import { Sync } from '../../../src/application/sync.js';
 import { DevkitError } from '../../../src/domain/errors.js';
+import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeGit } from '../../fakes/fake-git.js';
+import { FakeProcess } from '../../fakes/fake-process.js';
 import { harness, MANIFEST_DIR, ROOT } from '../../fakes/workspace.js';
 
 const writable: WritePosture = { readOnly: false, source: 'default' };
@@ -14,6 +17,83 @@ const run = { dryRun: false, posture: writable, jobs: 4 };
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 
 describe('Sync', () => {
+  it('reports preflight while a bounded optional probe waits, then clones after timeout', async () => {
+    const h = await harness({ user: 'test' });
+    const proc = new FakeProcess();
+    proc.run = async (_vector, options) => {
+      expect(options?.timeoutMs).toBe(5000);
+      await new Promise((resolve) => setTimeout(resolve, options!.timeoutMs));
+      throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'optional probe timed out');
+    };
+    const host = new BitbucketCodeHost(
+      { process: proc, fs: h.fs, clock: new FakeClock() },
+      { host: 'ssh://git@git.example.com' },
+    );
+    vi.useFakeTimers();
+    try {
+      const pending = new Sync({ ...h.deps, codeHost: () => host }).execute(run);
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(h.git.calls).toEqual([]);
+      expect(h.reporter.progress_).toEqual(
+        expect.arrayContaining([expect.objectContaining({ phase: 'preflight' })]),
+      );
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await pending).summary.done).toBe(3);
+      expect(h.reporter.progress_).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ phase: 'preflight', elapsed_ms: 5000 }),
+          expect.objectContaining({ phase: 'apply' }),
+        ]),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['canRead', 'whoami'] as const)(
+    'propagates cancellation and programming failures from %s before cloning',
+    async (method) => {
+      for (const failure of [
+        new DevkitError('internal', 'PROCESS_ABORTED', 'cancelled'),
+        new TypeError('programming failure'),
+      ]) {
+        const h = await harness();
+        h.codeHost[method] = async () => {
+          throw failure;
+        };
+        await expect(new Sync(h.deps).execute(run)).rejects.toBe(failure);
+        expect(h.git.calls).toEqual([]);
+      }
+    },
+  );
+
+  it('keeps explicit Git upstreams usable without an API binding', async () => {
+    const h = await harness({
+      workspace:
+        'schema_version: 2\nrepos: [{name: sample, upstream: "ssh://git@git.example.com/team/sample.git", branch: main}]',
+    });
+    const codeHost = () => {
+      throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no API binding');
+    };
+    expect((await new Sync({ ...h.deps, codeHost }).execute(run)).summary.done).toBe(1);
+    expect(h.reporter.codes()).toContain('CODE_HOST_USER_UNKNOWN');
+  });
+
+  it('does not disguise provider construction errors as missing optional configuration', async () => {
+    const h = await harness({ user: 'test' });
+    const failure = new TypeError('broken provider');
+    await expect(
+      new Sync({
+        ...h.deps,
+        codeHost: () => {
+          throw failure;
+        },
+      }).execute(run),
+    ).rejects.toBe(failure);
+    expect(h.git.calls).toEqual([]);
+  });
+
   it('clones over Git when the optional code-host CLI is missing', async () => {
     const h = await harness();
     h.deps.codeHost().canRead = async () => {

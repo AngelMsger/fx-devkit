@@ -1,6 +1,6 @@
 // Explicit manifest opt-ins install missing tools before init synchronizes resources.
 // All installation/probe vectors are approved before any package manager runs.
-import { DevkitError, withPartialResult } from '../../domain/errors.js';
+import { DevkitError, toEnvelope, withPartialResult } from '../../domain/errors.js';
 import { atLeast } from '../../domain/semver.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
@@ -33,17 +33,16 @@ export class ToolInitialize {
     });
     for (const result of results) {
       if (!result.ran || result.code !== 0)
-        throw withPartialResult(installFailure(result, 'package installation failed'), {
-          tool_install: results,
-        });
+        throw partialInstallFailure(result, 'package installation failed', results);
       const tool = tools.find((tool) => tool.name === result.name)!;
       if (
         result.version_after === null ||
         (tool.minVersion && !atLeast(result.version_after, tool.minVersion))
       )
-        throw withPartialResult(
-          installFailure(result, 'installed version could not satisfy the requirement'),
-          { tool_install: results },
+        throw partialInstallFailure(
+          result,
+          'installed version could not satisfy the requirement',
+          results,
         );
     }
     return results;
@@ -59,5 +58,18 @@ function installFailure(result: ToolInstallOutput, reason: string): DevkitError 
       `fx tool install ${result.name} --dry-run`,
       `fx tool install ${result.name}`,
     ],
+  });
+}
+
+function partialInstallFailure(
+  result: ToolInstallOutput,
+  reason: string,
+  results: readonly ToolInstallOutput[],
+): DevkitError {
+  const failure = installFailure(result, reason);
+  return withPartialResult(failure, {
+    tool_install: results.map((item) =>
+      item === result ? { ...item, status: 'failed', failure: toEnvelope(failure).error } : item,
+    ),
   });
 }

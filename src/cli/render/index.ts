@@ -1,6 +1,4 @@
-// The three output formats behind one interface. Whatever the format, stdout carries
-// data only and every diagnostic goes to stderr; the error envelope is JSON even in
-// human mode so an agent can always parse it.
+// Render results, progress and structured errors with separate data and diagnostic streams.
 
 import type { Writable } from 'node:stream';
 

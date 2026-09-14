@@ -1,7 +1,4 @@
-// The family's thirteen first-class agents, as data: where each keeps its Skills, what
-// marks it as present. Detection also accepts a binary on PATH, one more signal than the
-// family uses, because a directory like .github says less about Copilot than the
-// `copilot` command does.
+// Native agent capabilities, discovery signals and resource paths.
 
 import type { HookSupport } from '../../domain/harness/hooks.js';
 import type { McpSupport, RulesSupport } from '../../domain/harness/mcp.js';

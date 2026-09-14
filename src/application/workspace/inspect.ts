@@ -1,6 +1,4 @@
-// The two questions every workspace command asks about a repository: what
-// is on disk, and where does it live on the code host. Answered once here so
-// status, sync and repo commands agree.
+// Inspect repository state and resolve code-host coordinates for workspace commands.
 
 import path from 'node:path';
 
@@ -34,9 +32,6 @@ export async function inspectDisk(deps: WorkspaceDeps, repo: ResolvedRepo): Prom
   return { kind: 'checkout', state, remotes };
 }
 
-// URLs come from the bound code host; a repository with an explicit
-// upstream needs no host at all, and a workspace without a host still
-// works for everything that does not clone.
 export function urlsFor(
   deps: WorkspaceDeps,
   repo: ResolvedRepo,
@@ -75,7 +70,7 @@ export async function readabilityOf(deps: WorkspaceDeps, repo: ResolvedRepo): Pr
     // returned by the provider remain authoritative. Programming errors still fail.
     if (
       !(err instanceof DevkitError) ||
-      !['TOOL_MISSING', 'LOGIN_REQUIRED', 'VECTOR_UNTRUSTED'].includes(err.code)
+      !['TOOL_MISSING', 'LOGIN_REQUIRED', 'VECTOR_UNTRUSTED', 'PROCESS_TIMEOUT'].includes(err.code)
     )
       throw err;
     return 'unknown';
@@ -155,7 +150,12 @@ function missingRepo(name: string, known: readonly string[]): never {
 function tryCodeHost(deps: WorkspaceDeps): ReturnType<WorkspaceDeps['codeHost']> | undefined {
   try {
     return deps.codeHost();
-  } catch {
+  } catch (error) {
+    if (
+      !(error instanceof DevkitError) ||
+      !['PROVIDER_UNBOUND', 'PROVIDER_UNKNOWN', 'PROVIDER_VAR_MISSING'].includes(error.code)
+    )
+      throw error;
     return undefined;
   }
 }

@@ -1,6 +1,4 @@
-// A version command is a bounded read, including after an installation. Only a
-// successful process with recognizable version output establishes a version.
-// Callers own command trust and how an unavailable version affects their workflow.
+// Probe tool versions with a deadline; callers decide whether exceptions propagate.
 
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { extractSemver } from '../../domain/toolchain/version.js';
@@ -9,6 +7,7 @@ import type { Process } from '../../ports/process.js';
 export async function probeToolVersion(
   process: Pick<Process, 'run'>,
   tool: Pick<ResolvedTool, 'name' | 'binary' | 'versionArgs'>,
+  options: { readonly propagateErrors?: boolean } = {},
 ): Promise<string | undefined> {
   try {
     const result = await process.run([tool.binary, ...tool.versionArgs], {
@@ -16,7 +15,8 @@ export async function probeToolVersion(
       diagnostic: { phase: `${tool.name} version probe` },
     });
     return result.code === 0 ? extractSemver(`${result.stdout}\n${result.stderr}`) : undefined;
-  } catch {
+  } catch (error) {
+    if (options.propagateErrors) throw error;
     return undefined;
   }
 }

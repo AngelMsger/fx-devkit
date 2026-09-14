@@ -1,6 +1,4 @@
-// ~/.fx/config.yaml on disk. The schema is strict on purpose: a misspelled
-// key would otherwise be silently ignored and the user left wondering why a
-// setting has no effect.
+// Validate and atomically update personal configuration under a cross-process lease.
 
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
@@ -15,8 +13,6 @@ import type { ConfigFile, ConfigStore } from '../ports/stores.js';
 
 import { FileLock } from './lock.js';
 
-// Every key this store accepts; the config contract keeps the key
-// registry, this schema and the profile schema in agreement.
 export const CONFIG_FILE_KEYS = Object.keys(configFileSchema.shape).sort();
 
 export class FileConfigStore implements ConfigStore {
@@ -45,7 +41,9 @@ export class FileConfigStore implements ConfigStore {
     await this.update(() => next);
   }
 
-  async update(change: (current: ConfigFile) => ConfigFile): Promise<ConfigFile> {
+  async update(
+    change: (current: ConfigFile) => ConfigFile | Promise<ConfigFile>,
+  ): Promise<ConfigFile> {
     const lease = await new FileLock(this.home).acquire({ key: 'config', waitMs: 5000 });
     if (lease === null)
       throw new DevkitError('conflict', 'CONFIG_BUSY', 'Personal configuration is being updated', {
@@ -53,7 +51,7 @@ export class FileConfigStore implements ConfigStore {
       });
     const temporary = `${this.path()}.${randomUUID()}.tmp`;
     try {
-      const next = change(await this.read());
+      const next = await change(await this.read());
       assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
       if (!configFileSchema.safeParse(next).success)
         throw new DevkitError('config', 'CONFIG_INVALID', 'Invalid configuration update');

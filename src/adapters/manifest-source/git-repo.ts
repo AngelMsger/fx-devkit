@@ -1,9 +1,4 @@
-// The manifest repository: cloned into the workspace's source directory
-// with the workspace convention for remotes (`upstream` is the team's
-// repository, `origin` a personal fork), and refreshed by the rule every
-// checkout follows: fast-forward a clean tree on the default branch,
-// otherwise move only the branch ref. The checkout is where a person edits
-// the manifest, so their branch or changes are never in the way.
+// Materialize and safely refresh Git manifest checkouts, preserving local work.
 
 import { realpath } from 'node:fs/promises';
 

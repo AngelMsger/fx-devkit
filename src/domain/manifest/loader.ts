@@ -1,8 +1,4 @@
-// text → LoadResult, for every document kind. One pipeline: parse, negotiate
-// the schema version, strip and record unknown keys, validate each entry of
-// the quarantinable collection under its own index, validate the document,
-// run the cross-field rules, then either report everything (allowInvalid) or
-// drop the broken entries and fail on document-level problems.
+// Decode manifest documents, negotiate versions and quarantine invalid entries.
 
 import { LineCounter, parseDocument } from 'yaml';
 import type * as z from 'zod';

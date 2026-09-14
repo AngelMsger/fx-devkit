@@ -72,7 +72,8 @@ export class FakeCodeHost implements CodeHost {
   }
 
   async whoami(): Promise<{ user: string }> {
-    if (this.user === undefined) throw new Error('fake code host: not signed in');
+    if (this.user === undefined)
+      throw new DevkitError('auth', 'CODE_HOST_AUTH', 'fake code host: not signed in');
     return { user: this.user };
   }
 

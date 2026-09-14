@@ -9,6 +9,40 @@ import { FileConfigStore } from '../../../src/infra/config-store.js';
 const home = (): string => mkdtempSync(path.join(tmpdir(), 'fx-home-'));
 
 describe('FileConfigStore', () => {
+  it('holds the lease across async decisions and releases it after rejection', async () => {
+    const dir = home();
+    const first = new FileConfigStore(dir);
+    let release!: () => void;
+    let entered!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const write = first.update(async () => {
+      entered();
+      await pending;
+      return { user: 'first' };
+    });
+    await started;
+    const second = new FileConfigStore(dir).update(async (current) => ({
+      ...current,
+      hooks: false,
+    }));
+    expect(await first.read()).toEqual({});
+    release();
+    await Promise.all([write, second]);
+    expect(await first.read()).toMatchObject({ user: 'first', hooks: false });
+    await expect(
+      first.update(async () => {
+        throw new Error('rejected');
+      }),
+    ).rejects.toThrow('rejected');
+    await first.update(async (current) => ({ ...current, hooks: true }));
+    expect(await first.read()).toMatchObject({ user: 'first', hooks: true });
+  });
+
   it('serializes independent registrations without losing settings or exposing partial YAML', async () => {
     const dir = home();
     await new FileConfigStore(dir).write({ user: 'example' });

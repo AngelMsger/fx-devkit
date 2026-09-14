@@ -85,6 +85,55 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
 const settled: string[] = [];
 
 describe('Init', () => {
+  it('uses physical root identity both during planning and inside registration', async () => {
+    const s = setup(
+      {},
+      { workspaces: { new: { root: ROOT, source: path.resolve('/src/manifest') } } },
+    );
+    const alias = path.resolve('/alias/new');
+    vi.spyOn(s.fs, 'realpath').mockImplementation(async (value) =>
+      value === alias ? ROOT : value,
+    );
+    const out = await new Init(s.deps).execute({
+      dir: alias,
+      name: 'new',
+      source: s.source,
+      adopt: false,
+      dryRun: false,
+      posture: writable,
+      jobs: 2,
+    });
+    expect(out.written).toBe(true);
+    expect((await s.config.read()).workspaces?.new?.root).toBe(alias);
+  });
+
+  it('rechecks a competing registration inside the transaction', async () => {
+    const s = setup();
+    const original = s.source.materialize.bind(s.source);
+    s.source.materialize = async (dir) => {
+      await original(dir);
+      await s.config.write({
+        user: 'preserved',
+        workspaces: { new: { root: path.resolve('/other/new'), source: s.source.description } },
+      });
+    };
+    await expect(
+      new Init(s.deps).execute({
+        dir: ROOT,
+        source: s.source,
+        adopt: false,
+        dryRun: false,
+        posture: writable,
+        jobs: 2,
+      }),
+    ).rejects.toMatchObject({
+      code: 'WORKSPACE_NAME_TAKEN',
+      partialResult: { failed_phase: 'registration' },
+    });
+    expect((await s.config.read()).user).toBe('preserved');
+    expect((await s.config.read()).workspaces?.new?.root).toBe(path.resolve('/other/new'));
+  });
+
   it('retains an existing registration when source validation fails on re-entry', async () => {
     const s = setup(
       {},
