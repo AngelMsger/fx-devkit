@@ -1,4 +1,4 @@
-// Writing one setting, and the shape every write use case follows: plan, posture, apply.
+// Plan and apply a validated personal setting.
 
 import type { ConfigStore } from '../../ports/stores.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';

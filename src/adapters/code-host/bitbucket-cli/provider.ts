@@ -1,8 +1,4 @@
-// Bitbucket Data Center through bitbucket-cli. The CLI classifies HTTP
-// failures into the family categories, so readability is read off its exit
-// code; a duplicate fork answers 409, which is "already there", not a fault.
-// Queries take `--all` so a long branch list or a long diff never stops at
-// the first page.
+// Bitbucket code-host operations through the companion CLI.
 
 import type {
   ContributionPullRequest,
@@ -55,7 +51,7 @@ export class BitbucketCodeHost implements CodeHost {
   }
 
   async whoami(): Promise<{ user: string }> {
-    const call = await this.cli.call(['whoami']);
+    const call = await this.cli.call(['whoami'], { timeoutMs: 5000 });
     const data = objectOf(call.data);
     const user = data?.['name'] ?? data?.['slug'];
     if (call.code !== 0 || typeof user !== 'string' || user === '') {
@@ -74,7 +70,7 @@ export class BitbucketCodeHost implements CodeHost {
   }
 
   async canRead(ref: RepoRef): Promise<Readability> {
-    const call = await this.cli.call(['repo', 'get', slug(ref)]);
+    const call = await this.cli.call(['repo', 'get', slug(ref)], { timeoutMs: 5000 });
     if (call.code === 0) return 'readable';
     if (call.code === EXIT.permission) return 'forbidden';
     if (call.code === EXIT.not_found) return 'missing';

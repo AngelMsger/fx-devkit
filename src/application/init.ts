@@ -1,7 +1,4 @@
-// init: make a workspace from a manifest source. The source lands under ~/.fx, the root
-// only ever receives checkouts and the derived documents, and the registry decides
-// identity: a second run on a registered root is a refresh, a run with another source is
-// a conflict.
+// Materialize, validate and register a workspace before synchronizing its resources.
 
 import path from 'node:path';
 
@@ -91,10 +88,7 @@ export class Init {
     const config = await this.deps.config.read();
     assertWorkspaceNames([...new Set([...Object.keys(config.workspaces ?? {}), name])]);
     const existing = config.workspaces?.[name];
-    if (
-      existing !== undefined &&
-      !samePath(await this.deps.fs.realpath(existing.root), await this.deps.fs.realpath(root))
-    )
+    if (existing !== undefined && !(await this.sameRoot(existing.root, root)))
       throw nameTaken(name, root, existing, input.source);
     if (existing?.source !== undefined && existing.source !== input.source.description)
       throw sourceMismatch(name, existing.source, input.source);
@@ -196,9 +190,9 @@ export class Init {
   }
 
   private async register(output: InitOutput, input: InitInput): Promise<void> {
-    await this.deps.config.update((current) => {
+    await this.deps.config.update(async (current) => {
       const existing = current.workspaces?.[output.name];
-      if (existing && !samePath(existing.root, output.root))
+      if (existing && !(await this.sameRoot(existing.root, output.root)))
         throw nameTaken(output.name, output.root, existing, input.source);
       if (existing?.source !== undefined && existing.source !== output.source)
         throw sourceMismatch(output.name, existing.source, input.source);
@@ -211,6 +205,10 @@ export class Init {
         },
       };
     });
+  }
+
+  private async sameRoot(left: string, right: string): Promise<boolean> {
+    return samePath(await this.deps.fs.realpath(left), await this.deps.fs.realpath(right));
   }
 
   private context(output: InitOutput): Promise<WorkspaceContext> {
@@ -235,8 +233,6 @@ export class Init {
     return 'adopted';
   }
 
-  // The root is a plain directory; one that is itself a repository will
-  // confuse tools and people, and fx never runs git there.
   private async warnIfRepository(root: string): Promise<void> {
     const top = await this.deps.git.toplevel(root);
     if (top === undefined) return;

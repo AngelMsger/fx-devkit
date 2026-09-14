@@ -7,6 +7,8 @@ import { replacementFor } from '../../../src/application/safety/replace-files.js
 import { TrustGate } from '../../../src/application/safety/trust.js';
 import { SkillList } from '../../../src/application/skill/list.js';
 import { SkillStage } from '../../../src/application/skill/stage.js';
+import { Sync } from '../../../src/application/sync.js';
+import { DevkitError } from '../../../src/domain/errors.js';
 import { loadTools } from '../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../src/domain/toolchain/resolve.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
@@ -45,6 +47,121 @@ async function setup(extra: Record<string, string> = {}) {
   const skills = { hosts: agents, configured: undefined, bundledSkillDir: bundledSkill.dir };
   return { h, skills };
 }
+
+describe('SkillStage partial execution', () => {
+  it.each(['PROCESS_ABORTED', 'PROCESS_TIMEOUT', 'INTERNAL'])(
+    'preserves completed resources and tool rows on %s',
+    async (code) => {
+      const { h, skills } = await setup();
+      const loaded = loadTools(
+        'schema_version: 2\ndefaults: { install: [{via: manual}], skill: { command: [skill, install] } }\ntools: [{name: alpha}, {name: beta}, {name: gamma}]',
+        undefined,
+        { cliVersion: '1.0.0' },
+      );
+      const calls: string[] = [];
+      const error =
+        code === 'INTERNAL'
+          ? new TypeError('synthetic failure')
+          : new DevkitError('internal', code, 'synthetic failure');
+      const deps = {
+        ...h.deps,
+        processWhich: async () => '/synthetic/bin',
+        processRun: async (vector: readonly string[]) => {
+          calls.push(vector[0]!);
+          if (vector[0] === 'beta') throw error;
+          return { code: 0, stdout: '', stderr: '' };
+        },
+      };
+      const stage = new SkillStage(deps, skills);
+      await expect(
+        new Sync(deps).execute({
+          dryRun: false,
+          posture: writable,
+          jobs: 1,
+          only: 'skills',
+          stages: {
+            skills: async () => {
+              const { summary, ...details } = await stage.execute({
+                dryRun: false,
+                posture: writable,
+                toolchain: resolveTools(loaded.doc, loaded.provenance),
+              });
+              return { summary, details };
+            },
+            hooks: async () => {
+              throw new Error('must not run');
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code,
+        category: 'internal',
+        partialResult: {
+          stage_details: {
+            skills: {
+              links: expect.arrayContaining([
+                expect.objectContaining({
+                  status: 'done',
+                  observed: { kind: 'link', target: teamSkills },
+                }),
+              ]),
+              fx: expect.arrayContaining([
+                expect.objectContaining({
+                  status: 'done',
+                  observed: { kind: 'ours', version: '1.0.0' },
+                }),
+              ]),
+              tools: [
+                { tool: 'alpha', code: 0, status: 'done' },
+                { tool: 'beta', code: null, status: 'failed', failure: { code } },
+                { tool: 'gamma', code: null, status: 'not_started' },
+              ],
+              summary: { tools_run: 1, tools_failed: 1, tools_not_started: 1 },
+            },
+          },
+        },
+      });
+      expect(calls).toEqual(['alpha', 'beta']);
+      expect(await h.fs.readLink(claudeLink)).toBe(teamSkills);
+      expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace', 'SKILL.md'))).toBe(true);
+    },
+  );
+
+  it.each(['link', 'replaceDir'] as const)(
+    'retains disk observations when %s throws after writing',
+    async (method) => {
+      const { h, skills } = await setup();
+      const original = h.fs[method].bind(h.fs);
+      let calls = 0;
+      h.fs[method] = async (from, to) => {
+        await original(from, to);
+        if (++calls === 1) throw new Error('after write');
+      };
+      await expect(
+        new SkillStage(h.deps, skills).execute({ dryRun: false, posture: writable }),
+      ).rejects.toMatchObject({
+        code: 'INTERNAL',
+        partialResult:
+          method === 'link'
+            ? {
+                links: [
+                  { status: 'failed', observed: { kind: 'link', target: teamSkills } },
+                  { status: 'not_started' },
+                ],
+                fx: [{ status: 'not_started' }, { status: 'not_started' }],
+              }
+            : {
+                links: [{ status: 'done' }, { status: 'done' }],
+                fx: [
+                  { status: 'failed', observed: { kind: 'ours', version: '1.0.0' } },
+                  { status: 'not_started' },
+                ],
+              },
+      });
+      expect(calls).toBe(1);
+    },
+  );
+});
 
 describe('SkillStage: the team link', () => {
   it('backs up a user Skill directory on approval and never changes it on refusal', async () => {

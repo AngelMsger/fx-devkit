@@ -15,8 +15,10 @@ export class FakeConfigStore implements ConfigStore {
     return structuredClone(this.file);
   }
 
-  async update(change: (current: ConfigFile) => ConfigFile): Promise<ConfigFile> {
-    const next = change(await this.read());
+  async update(
+    change: (current: ConfigFile) => ConfigFile | Promise<ConfigFile>,
+  ): Promise<ConfigFile> {
+    const next = await change(await this.read());
     await this.write(next);
     return next;
   }

@@ -1,6 +1,4 @@
-// Personal storage under ~/.fx: the config file, one personal layer per workspace, the
-// trust record of confirmed manifest commands, and a cache that may be deleted at any
-// time.
+// Ports for personal configuration, workspace selections, command trust and caches.
 
 import type { ConfigFile } from '../domain/config/file.js';
 import type { LocalLayer } from '../domain/manifest/types.js';
@@ -10,7 +8,7 @@ export type { ConfigFile, WorkspaceEntry } from '../domain/config/file.js';
 export interface ConfigStore {
   read(): Promise<ConfigFile>;
   write(next: ConfigFile): Promise<void>;
-  update(change: (current: ConfigFile) => ConfigFile): Promise<ConfigFile>;
+  update(change: (current: ConfigFile) => ConfigFile | Promise<ConfigFile>): Promise<ConfigFile>;
   path(): string;
 }
 

@@ -1,7 +1,4 @@
-// Tool checking, behind doctor, can, where and the tools stage of sync:
-// what is actually installed, against what the manifest
-// expects. Probing never throws — a tool that cannot say its version is
-// `unknown`, which is an answer.
+// Compare installed tools with declared requirements and report readiness.
 
 import { atLeast } from '../../domain/semver.js';
 import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';

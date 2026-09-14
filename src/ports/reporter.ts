@@ -1,6 +1,4 @@
-// How a use case talks to the outside while it runs. It knows nothing about
-// formats: the CLI decides whether a progress event becomes a line, a bar or
-// an ndjson record.
+// Format-independent workflow notices and progress events.
 
 export interface Notice {
   readonly code: string;
@@ -14,6 +12,7 @@ export interface ProgressEvent {
   readonly id: string;
   readonly state: 'start' | 'running' | 'done' | 'skip' | 'fail';
   readonly detail?: string;
+  readonly phase?: string;
   readonly total?: number;
   readonly completed?: number;
   readonly elapsed_ms?: number;

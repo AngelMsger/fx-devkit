@@ -1,10 +1,8 @@
-// sync: plan every repository from facts, show or apply the plan. The plan
-// is the same object under --dry-run and for real; execution only ever
-// clones into an empty place, fetches, and fast-forwards, and a repository
-// that fails is a row in the result, not the end of the run.
+// Plan repository updates and aggregate repository and resource-stage outcomes.
 
 import {
   asDevkitError,
+  DevkitError,
   toEnvelope,
   withPartialResult,
   type ErrorEnvelope,
@@ -36,8 +34,6 @@ export interface StageResult {
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
-// The later stages are use cases of their own; the caller hands them in so
-// sync stays the orchestrator and knows nothing about Skills or tools.
 export interface SyncStages {
   readonly [id: string]: (() => Promise<StageResult>) | undefined;
 }
@@ -94,11 +90,8 @@ export class Sync {
   }
 
   private async repos(input: SyncInput): Promise<SyncOutput> {
-    const plan = await this.plan(input.jobs);
-    if (input.dryRun) return finish(plan.map((item) => ({ ...item, result: 'planned' })));
-    if (plan.some((item) => item.action === 'clone' || item.fetch || item.origin !== undefined))
-      assertWritable(input.posture, 'sync');
-    const total = plan.filter((item) => item.action !== 'skip_unpicked').length;
+    const total = this.deps.ctx.workspace.repos.length;
+    let phase = 'preflight';
     let completed = 0;
     const active = new Set<string>();
     const started = Date.now();
@@ -110,12 +103,22 @@ export class Sync {
         completed,
         elapsed_ms: Date.now() - started,
         active: [...active],
-        detail: `${completed}/${total} complete; ${[...active].join(', ')}; ${Math.floor((Date.now() - started) / 1000)}s elapsed`,
+        phase,
+        detail: `${phase}: ${completed}/${total} complete; ${[...active].join(', ')}; ${Math.floor((Date.now() - started) / 1000)}s elapsed`,
       });
     progress();
     const heartbeat = setInterval(progress, 5000);
     let items: SyncItem[];
     try {
+      const plan = await this.plan(input.jobs, active, () => {
+        completed += 1;
+      });
+      if (input.dryRun) return finish(plan.map((item) => ({ ...item, result: 'planned' })));
+      if (plan.some((item) => item.action === 'clone' || item.fetch || item.origin !== undefined))
+        assertWritable(input.posture, 'sync');
+      phase = 'apply';
+      completed = 0;
+      progress();
       items = await pooled(plan, input.jobs, async (item) => {
         if (item.action === 'skip_unpicked') return { ...item, result: 'skipped' };
         active.add(item.name);
@@ -163,7 +166,10 @@ export class Sync {
           if (result.details !== undefined) details[stage] = result.details;
         } catch (error) {
           stages[stage] = { status: 'failed' };
-          details[stage] = { failure: toEnvelope(asDevkitError(error)).error };
+          details[stage] = {
+            ...asDevkitError(error).partialResult,
+            failure: toEnvelope(asDevkitError(error)).error,
+          };
           for (const pending of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
             if (pending !== 'repos' && wanted(pending) && stages[pending] === undefined)
               stages[pending] = { status: 'not_started' };
@@ -175,13 +181,23 @@ export class Sync {
     return { stages, ...(Object.keys(details).length === 0 ? {} : { stage_details: details }) };
   }
 
-  private async plan(jobs: number): Promise<readonly PlanItem[]> {
+  private async plan(
+    jobs: number,
+    active: Set<string>,
+    complete: () => void,
+  ): Promise<readonly PlanItem[]> {
     const { ctx } = this.deps;
     const inspected = await pooled(ctx.workspace.repos, jobs, async (repo) => {
-      const state = await inspectDisk(this.deps, repo);
-      const readability =
-        state.kind === 'absent' ? await readabilityOf(this.deps, repo) : undefined;
-      return { repo, state, readability };
+      active.add(repo.name);
+      try {
+        const state = await inspectDisk(this.deps, repo);
+        const readability =
+          state.kind === 'absent' ? await readabilityOf(this.deps, repo) : undefined;
+        return { repo, state, readability };
+      } finally {
+        active.delete(repo.name);
+        complete();
+      }
     });
     const states: Record<string, DiskState> = Object.fromEntries(
       inspected.map(({ repo, state }) => [repo.name, state]),
@@ -213,12 +229,24 @@ export class Sync {
     }).items;
   }
 
-  // Forks need the code-host user name; without one, checkouts get only
-  // upstream and the person hears why.
   private async user(): Promise<string | undefined> {
     try {
       return await resolveUser(this.deps);
     } catch (err) {
+      if (
+        !(err instanceof DevkitError) ||
+        ![
+          'CODE_HOST_AUTH',
+          'TOOL_MISSING',
+          'LOGIN_REQUIRED',
+          'VECTOR_UNTRUSTED',
+          'PROCESS_TIMEOUT',
+          'PROVIDER_UNBOUND',
+          'PROVIDER_UNKNOWN',
+          'PROVIDER_VAR_MISSING',
+        ].includes(err.code)
+      )
+        throw err;
       this.deps.reporter.notice({
         code: 'CODE_HOST_USER_UNKNOWN',
         message: `no origin remote can be set: ${err instanceof Error ? err.message : String(err)}`,

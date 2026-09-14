@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WritePosture } from '../../../src/application/safety/posture.js';
+import { TrustGate } from '../../../src/application/safety/trust.js';
+import { ToolInitialize } from '../../../src/application/tool/initialize.js';
 import { ToolInstall } from '../../../src/application/tool/install.js';
 import { ToolShow } from '../../../src/application/tool/show.js';
+import { DevkitError } from '../../../src/domain/errors.js';
 import { loadTools } from '../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../src/domain/toolchain/resolve.js';
+import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../fakes/fake-installer.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { FakePrompter } from '../../fakes/fake-prompter.js';
+import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 
 const bundled = [
   'schema_version: 2',
@@ -37,6 +43,69 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
 }
 
 describe('ToolInstall', () => {
+  it.each(['install', 'version'] as const)(
+    'keeps partial results and stops on thrown %s errors, including cancellation',
+    async (phase) => {
+      for (const initialize of [false, true])
+        for (const code of ['PROCESS_ABORTED', 'PROCESS_TIMEOUT', 'INTERNAL']) {
+          const s = setup(undefined, ['npm']);
+          const tools = ['alpha', 'beta', 'gamma'].map((name) => ({
+            ...s.tools.find((t) => t.name === 'beta')!,
+            name,
+            binary: name,
+            install: [{ via: 'npm' as const, spec: name }],
+            installOnInit: true,
+          }));
+          const calls: string[][] = [];
+          s.proc.run = async (vector) => {
+            calls.push([...vector]);
+            if (
+              (phase === 'install' && vector.includes('beta@latest')) ||
+              (phase === 'version' && vector[0] === 'beta')
+            )
+              throw code === 'INTERNAL'
+                ? new TypeError('broken')
+                : new DevkitError('internal', code, 'interrupted');
+            return { code: 0, stdout: '1.2.3', stderr: '' };
+          };
+          const trust = {
+            gate: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+            workspace: 'test',
+            yes: true,
+            posture: writable,
+          };
+          const pending = initialize
+            ? new ToolInitialize(s.install).execute({ tools, posture: writable, trust })
+            : s.install.execute({
+                tools,
+                names: ['alpha', 'beta', 'gamma'],
+                update: false,
+                dryRun: false,
+                posture: writable,
+              });
+          await expect(pending).rejects.toMatchObject({
+            code,
+            category: 'internal',
+            partialResult: {
+              tool_install: [
+                { name: 'alpha', status: 'done', ran: true, code: 0, version_after: '1.2.3' },
+                {
+                  name: 'beta',
+                  status: 'failed',
+                  ran: true,
+                  code: phase === 'install' ? null : 0,
+                  phase,
+                  failure: { code },
+                },
+                { name: 'gamma', status: 'not_started', ran: false, code: null },
+              ],
+            },
+          });
+          expect(calls.flat().some((arg) => arg.startsWith('gamma'))).toBe(false);
+        }
+    },
+  );
+
   it('keeps installation success separate from a failed, bounded version check', async () => {
     const s = setup(undefined, ['npm']);
     s.proc

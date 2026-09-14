@@ -1,8 +1,12 @@
-// `tool install` / `tool update`: fx assembles the vector from the entry's
-// installer, package and registry — a manifest names a package, never a
-// command — shows it under --dry-run, and runs it once the posture allows.
+// Plan trusted package-manager operations and retain installation outcomes.
 
-import { DevkitError } from '../../domain/errors.js';
+import {
+  asDevkitError,
+  DevkitError,
+  toEnvelope,
+  withPartialResult,
+  type ErrorEnvelope,
+} from '../../domain/errors.js';
 import {
   commandOrigin,
   type InstallMethod,
@@ -38,6 +42,9 @@ export interface ToolInstallOutput {
   readonly code: number | null;
   readonly version_after: string | null;
   readonly error?: string;
+  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
+  readonly phase?: 'install' | 'version';
+  readonly failure?: ErrorEnvelope['error'];
 }
 
 interface ToolInstallPlan {
@@ -82,8 +89,21 @@ export class ToolInstall {
           });
       }
     }
-    const results: ToolInstallOutput[] = [];
-    for (const plan of plans) results.push(await this.apply(plan, input.trust));
+    const results: ToolInstallOutput[] = plans.map((plan) => ({
+      ...plan.output,
+      status: 'not_started',
+    }));
+    for (const [index, plan] of plans.entries()) {
+      try {
+        results[index] = await this.apply(plan, input.trust, (result) => {
+          results[index] = result;
+        });
+      } catch (error) {
+        const failure = toEnvelope(asDevkitError(error)).error;
+        results[index] = { ...results[index]!, status: 'failed', error: failure.message, failure };
+        throw withPartialResult(error, { tool_install: results });
+      }
+    }
     return results;
   }
 
@@ -104,6 +124,7 @@ export class ToolInstall {
         ran: false,
         code: null,
         version_after: null,
+        status: 'planned',
       },
     };
   }
@@ -111,10 +132,12 @@ export class ToolInstall {
   private async apply(
     plan: ToolInstallPlan,
     trust: ToolInstallInput['trust'],
+    record: (result: ToolInstallOutput) => void,
   ): Promise<ToolInstallOutput> {
     const { tool, output } = plan;
     const { vector } = output;
-    if (vector === null) return output;
+    if (vector === null) return { ...output, status: 'skipped' };
+    record({ ...output, ran: true, status: 'not_started', phase: 'install' });
     const result = await this.process.run(vector, {
       diagnostic: { phase: `${tool.name} package install` },
     });
@@ -124,13 +147,17 @@ export class ToolInstall {
         ran: true,
         code: result.code,
         error: result.stderr.trim() || result.stdout.trim(),
+        status: 'failed',
+        phase: 'install',
       };
+    record({ ...output, ran: true, code: 0, status: 'done', phase: 'version' });
     const probe = await this.probe(tool, trust);
     return {
       ...output,
       ran: true,
       code: 0,
       version_after: probe ?? null,
+      status: 'done',
     };
   }
 
@@ -150,9 +177,13 @@ export class ToolInstall {
           posture: trust.posture,
         });
       }
-      return await probeToolVersion(this.process, tool);
-    } catch {
-      // The install succeeded; an unverifiable version is reported as null.
+      return await probeToolVersion(this.process, tool, { propagateErrors: true });
+    } catch (error) {
+      if (
+        !(error instanceof DevkitError) ||
+        !['VECTOR_UNTRUSTED', 'VECTOR_REJECTED'].includes(error.code)
+      )
+        throw error;
       return undefined;
     }
   }

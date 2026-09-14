@@ -1,12 +1,14 @@
-// The skills stage of `fx sync`: every Skill projection in one pass. The team
-// Skills are linked, fx's own Skill is copied under its version, and each
-// installed tool runs its own `skill install` — a manifest vector, so it
-// passes the trust gate. Foreign paths need explicit replacement approval
-// and a backup; otherwise they are reported and kept.
+// Plan and execute Skill projections, retaining per-item outcomes for recovery.
 
 import path from 'node:path';
 
-import { asDevkitError, DevkitError, exitCodeFor, toEnvelope } from '../../domain/errors.js';
+import {
+  asDevkitError,
+  DevkitError,
+  exitCodeFor,
+  toEnvelope,
+  withPartialResult,
+} from '../../domain/errors.js';
 import { shellLine } from '../../domain/shell.js';
 import {
   decideCopy,
@@ -37,7 +39,12 @@ export interface SkillStageInput {
   readonly posture: WritePosture;
 }
 
-export interface SkillLinkItem {
+interface ItemOutcome {
+  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
+  readonly failure?: Readonly<Record<string, unknown>>;
+}
+
+export interface SkillLinkItem extends ItemOutcome {
   readonly agent: string;
   readonly path: string;
   readonly target: string;
@@ -45,14 +52,14 @@ export interface SkillLinkItem {
   readonly reason?: string;
 }
 
-export interface FxSkillItem {
+export interface FxSkillItem extends ItemOutcome {
   readonly agent: string;
   readonly path: string;
   readonly action: CopyAction;
   readonly version: string;
 }
 
-export interface ToolSkillItem {
+export interface ToolSkillItem extends ItemOutcome {
   readonly tool: string;
   readonly vector: readonly string[] | null;
   readonly code: number | null;
@@ -75,45 +82,114 @@ export class SkillStage {
   ) {}
 
   async execute(input: SkillStageInput): Promise<SkillStageOutput> {
-    const links = await this.planLinks(input.agents);
-    const fx = await this.planCopies(input.agents);
-    const plannedTools = await this.planTools(input);
+    const status = input.dryRun ? 'planned' : 'not_started';
+    const links: SkillLinkItem[] = (await this.planLinks(input.agents)).map((item) => ({
+      ...item,
+      status,
+    }));
+    const fx: FxSkillItem[] = (await this.planCopies(input.agents)).map((item) => ({
+      ...item,
+      status,
+    }));
+    const plannedTools: ToolSkillItem[] = (await this.planTools(input)).map((item) => ({
+      ...item,
+      status,
+    }));
     let tools = input.background
       ? await this.trustedTools(plannedTools, input.trust)
       : plannedTools;
-    const writes =
-      links.some((i) => i.action === 'create' || i.action === 'prune') ||
-      fx.some((i) => i.action === 'install' || i.action === 'upgrade') ||
-      tools.some((t) => t.vector !== null);
-    if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
-    if (!input.dryRun) {
-      if (!input.background) tools = await this.trustAll(tools, input.trust);
-      const conflicts: (SkillLinkItem | FxSkillItem)[] = fx.filter(
-        (item) => item.action === 'foreign',
-      );
-      for (const item of links) {
-        if (item.action === 'foreign' && (await this.deps.fs.isDirectory(item.target)))
-          conflicts.push(item);
+    try {
+      const writes =
+        links.some((i) => i.action === 'create' || i.action === 'prune') ||
+        fx.some((i) => i.action === 'install' || i.action === 'upgrade') ||
+        tools.some((t) => t.vector !== null);
+      if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
+      if (!input.dryRun) {
+        if (!input.background) tools = await this.trustAll(tools, input.trust);
+        await this.replaceConflicts(input, links, fx);
+        await this.applyLinks(links);
+        await this.applyCopies(fx);
       }
-      if (input.replace !== undefined && conflicts.length > 0) {
-        assertWritable(input.posture, 'replace Skill paths');
-        if (await input.replace(conflicts.map((item) => item.path))) {
-          for (let index = 0; index < links.length; index++) {
-            const item = links[index]!;
-            if (conflicts.includes(item)) links[index] = { ...item, action: 'create' };
-          }
-          for (let index = 0; index < fx.length; index++) {
-            const item = fx[index]!;
-            if (conflicts.includes(item)) fx[index] = { ...item, action: 'install' };
-          }
+      if (!input.dryRun) await this.runTools(tools);
+      this.reportForeign(links);
+      return { links, fx, tools, summary: summarize(links, fx, tools) };
+    } catch (error) {
+      // An IO failure can occur after a write; report disk observations separately from completion.
+      const observedLinks = await Promise.all(
+        links.map(async (item) => ({
+          ...item,
+          observed: await this.observe(() => observeLink(this.deps.fs, item.path)),
+        })),
+      );
+      const observedCopies = await Promise.all(
+        fx.map(async (item) => ({
+          ...item,
+          observed: await this.observe(() => observeCopy(this.deps.fs, item.path)),
+        })),
+      );
+      throw withPartialResult(error, {
+        links: observedLinks,
+        fx: observedCopies,
+        tools,
+        summary: summarize(links, fx, tools),
+      });
+    }
+  }
+
+  private async replaceConflicts(
+    input: SkillStageInput,
+    links: SkillLinkItem[],
+    fx: FxSkillItem[],
+  ): Promise<void> {
+    const conflicts: (SkillLinkItem | FxSkillItem)[] = fx.filter(
+      (item) => item.action === 'foreign',
+    );
+    for (const item of links) {
+      if (item.action === 'foreign' && (await this.deps.fs.isDirectory(item.target)))
+        conflicts.push(item);
+    }
+    if (input.replace !== undefined && conflicts.length > 0) {
+      assertWritable(input.posture, 'replace Skill paths');
+      if (await input.replace(conflicts.map((item) => item.path))) {
+        for (let index = 0; index < links.length; index++) {
+          const item = links[index]!;
+          if (conflicts.includes(item)) links[index] = { ...item, action: 'create' };
+        }
+        for (let index = 0; index < fx.length; index++) {
+          const item = fx[index]!;
+          if (conflicts.includes(item)) fx[index] = { ...item, action: 'install' };
         }
       }
-      await this.applyLinks(links);
-      await this.applyCopies(fx);
     }
-    const ran = input.dryRun ? tools : await this.runTools(tools);
-    this.reportForeign(links);
-    return { links, fx, tools: ran, summary: summarize(links, fx, ran) };
+  }
+
+  private async observe<T>(read: () => Promise<T>): Promise<T | { kind: 'unknown' }> {
+    try {
+      return await read();
+    } catch {
+      return { kind: 'unknown' };
+    }
+  }
+
+  private async applyItem<T extends ItemOutcome>(
+    items: T[],
+    index: number,
+    apply: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await apply();
+      items[index] = {
+        ...items[index]!,
+        status: items[index]!.status === 'skipped' ? 'skipped' : 'done',
+      };
+    } catch (error) {
+      items[index] = {
+        ...items[index]!,
+        status: 'failed',
+        failure: toEnvelope(asDevkitError(error)).error,
+      };
+      throw error;
+    }
   }
 
   private async planLinks(agents: readonly string[] | undefined): Promise<SkillLinkItem[]> {
@@ -227,33 +303,48 @@ export class SkillStage {
     return items;
   }
 
-  private async applyLinks(items: readonly SkillLinkItem[]): Promise<void> {
-    for (const item of items) {
-      if (item.action === 'create') await this.deps.fs.link(item.target, item.path);
-      if (item.action === 'prune') await this.deps.fs.remove(item.path);
+  private async applyLinks(items: SkillLinkItem[]): Promise<void> {
+    for (const [index, item] of items.entries()) {
+      await this.applyItem(items, index, async () => {
+        if (item.action === 'create') await this.deps.fs.link(item.target, item.path);
+        else if (item.action === 'prune') await this.deps.fs.remove(item.path);
+        else items[index] = { ...item, status: 'skipped' };
+      });
     }
   }
 
   private async applyCopies(items: FxSkillItem[]): Promise<void> {
     for (let index = 0; index < items.length; index++) {
       const item = items[index]!;
-      if (item.action !== 'install' && item.action !== 'upgrade') continue;
-      const lease = await this.skills.globalLock?.acquire({
-        key: `skill:${item.path}`,
-        waitMs: 2000,
-      });
-      if (lease === null)
-        throw new DevkitError('conflict', 'SKILL_BUSY', 'The user Skill is being updated', {
-          nextSteps: ['Retry fx sync --only skills.'],
-        });
-      try {
-        const action = decideCopy(await observeCopy(this.deps.fs, item.path), this.deps.cliVersion);
-        items[index] = { ...item, action };
-        if (action === 'install' || action === 'upgrade')
-          await this.deps.fs.replaceDir(this.skills.bundledSkillDir, item.path);
-      } finally {
-        await lease?.release();
+      if (item.action !== 'install' && item.action !== 'upgrade') {
+        items[index] = { ...item, status: 'skipped' };
+        continue;
       }
+      await this.applyItem(items, index, async () => {
+        const lease = await this.skills.globalLock?.acquire({
+          key: `skill:${item.path}`,
+          waitMs: 2000,
+        });
+        if (lease === null)
+          throw new DevkitError('conflict', 'SKILL_BUSY', 'The user Skill is being updated', {
+            nextSteps: ['Retry fx sync --only skills.'],
+          });
+        try {
+          const action = decideCopy(
+            await observeCopy(this.deps.fs, item.path),
+            this.deps.cliVersion,
+          );
+          items[index] = {
+            ...item,
+            action,
+            ...(action === 'install' || action === 'upgrade' ? {} : { status: 'skipped' as const }),
+          };
+          if (action === 'install' || action === 'upgrade')
+            await this.deps.fs.replaceDir(this.skills.bundledSkillDir, item.path);
+        } finally {
+          await lease?.release();
+        }
+      });
     }
   }
 
@@ -295,33 +386,32 @@ export class SkillStage {
     return approved;
   }
 
-  private async runTools(items: readonly ToolSkillItem[]): Promise<ToolSkillItem[]> {
-    const ran: ToolSkillItem[] = [];
-    for (const item of items) {
+  private async runTools(items: ToolSkillItem[]): Promise<void> {
+    for (const [index, item] of items.entries()) {
       if (item.vector === null) {
-        ran.push(item);
+        items[index] = { ...item, status: 'skipped' };
         continue;
       }
-      this.deps.reporter.progress({
-        id: item.tool,
-        state: 'start',
-        detail: 'local Skill installation; caller approval was checked before execution',
+      await this.applyItem(items, index, async () => {
+        this.deps.reporter.progress({
+          id: item.tool,
+          state: 'start',
+          detail: 'Skill installation',
+        });
+        const result = await this.deps.processRun(item.vector!, {
+          diagnostic: { phase: `${item.tool} skill install` },
+        });
+        items[index] = { ...item, code: result.code };
+        this.deps.reporter.progress({
+          id: item.tool,
+          state: result.code === 0 ? 'done' : 'fail',
+          detail: 'Skill installation finished',
+        });
+        if (result.code !== 0)
+          items[index] = { ...items[index]!, ...this.installFailure(item.tool, result) };
       });
-      const result = await this.deps.processRun(item.vector, {
-        diagnostic: { phase: `${item.tool} skill install` },
-      });
-      this.deps.reporter.progress({
-        id: item.tool,
-        state: result.code === 0 ? 'done' : 'fail',
-        detail: 'Skill installation finished',
-      });
-      ran.push({
-        ...item,
-        code: result.code,
-        ...(result.code === 0 ? {} : this.installFailure(item.tool, result)),
-      });
+      if (items[index]!.code !== 0) items[index] = { ...items[index]!, status: 'failed' };
     }
-    return ran;
   }
 
   private installFailure(
@@ -351,7 +441,6 @@ export class SkillStage {
   }
 }
 
-// fx's copy counts under its own words; "foreign" is one word for both.
 const COPY_KEY: Record<CopyAction, string> = {
   install: 'install',
   upgrade: 'upgrade',
@@ -381,10 +470,14 @@ function summarize(
   const bump = (key: string): void => {
     summary[key] = (summary[key] ?? 0) + 1;
   };
-  for (const item of links) bump(item.action);
-  for (const item of fx) bump(COPY_KEY[item.action]);
+  for (const item of links)
+    if (item.status !== 'not_started' && item.status !== 'failed') bump(item.action);
+  for (const item of fx)
+    if (item.status !== 'not_started' && item.status !== 'failed') bump(COPY_KEY[item.action]);
   for (const item of tools) {
-    if (item.note === 'approval required') bump('tools_blocked');
+    if (item.status === 'failed') bump('tools_failed');
+    else if (item.status === 'not_started') bump('tools_not_started');
+    else if (item.note === 'approval required') bump('tools_blocked');
     else if (item.vector === null) bump('tools_skipped');
     else bump(item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed');
   }

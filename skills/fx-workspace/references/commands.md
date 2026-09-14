@@ -109,6 +109,12 @@ End-of-command notices (stderr, any format, every command except `self update`, 
 `retryable` and optional `handoff`. Use that recovery data to decide what to
 retry; the other rows may already have succeeded. Exit zero can accompany
 partial results: inspect `summary.failed`, `summary.unreadable` and stage counts.
+
+Interrupted Skill stages retain item `status` and disk `observed` values in
+`stage_details.skills`; package failures retain `tool_install`, including completed,
+failed and not-started rows. `code: null` is not success. A package row with
+`phase: version` and `code: 0` completed installation before verification failed.
+Inspect these records before retrying; cancellation stops execution.
 `stage_details` adds document `files`, Skill `links`/`fx`/`tools`, and tool-check,
 hook and MCP `items` where those stages ran. Rules rows are nested under
 `stage_details.docs.rules.items`. Skill tool rows retain exit `code`, a concise

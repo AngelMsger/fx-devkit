@@ -191,6 +191,12 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 个人配置采用加锁读改写与原子替换. 遇到 `CONFIG_BUSY` 时, 等竞争更新结束再重试. 初始化失败留下的 Git source checkout 可用于相同来源的重试, 仍保护不匹配的 upstream 和本地工作.
 
+Bitbucket 的可选仓库与用户探测各有 5 秒进程执行期限. 工具不可用或探测超时不会阻止 Git 传输; 明确的仓库访问拒绝或缺仓结论仍然有效. 用户取消和非预期异常会停止操作. 进度从 `preflight` 预检查开始, 随后切换为仓库变更的 `apply` 阶段.
+
+Skill 阶段中断时, `sync.stage_details.skills` 保留 `links`、`fx` 和 `tools`; 工具安装保留 `tool_install`. 条目 `status` 区分 `done`、`failed`、`not_started`、`skipped` 和预览的 `planned`. 资源条目在失败时附带 `observed` 磁盘状态, 若观察也失败则为 `unknown`. 写入报错时目标可能已经改变. 安装器 `ran: true` 表示已尝试执行, `code: null` 表示未取得退出结果. `phase: version` 失败且 `code: 0` 表示包安装已成功. 先处理失败条目再重试; 抛异常后不会执行后续写入.
+
+相同工作区名称和来源可通过已注册根目录的符号链接别名重试. 注册在配置锁内重新核对物理路径, 真正不同的目录仍会冲突.
+
 ### Skill 所有权与宿主激活
 
 团队 Skill 链接属于工作区; fx 内置 Skill 副本属于用户和所选宿主, 多工作区复用, 不用旧版覆盖已识别的新版. 更新在用户级锁内重新核对所有权和版本, 外来副本保留. 第三方工具拥有各自的 Skill 安装与版本策略, 因此 fx 仍可能在另一工作区同步时再次调用其安装器. 本地 Skill 安装不天然需要网络; 应区分调用器审批等待与已启动子进程.

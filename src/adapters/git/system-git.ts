@@ -1,6 +1,4 @@
-// The Git port over the system `git`. Every vector is assembled here and
-// nowhere else; a failure to reach a remote is a network error carrying
-// git's own explanation, and a refused fast-forward is a value, not a fault.
+// Git transport and checkout operations with structured failure recovery.
 
 import path from 'node:path';
 

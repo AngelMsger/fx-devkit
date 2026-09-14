@@ -2,7 +2,15 @@
 // in for the code host through the local-git provider, a temporary FX_HOME
 // holds the personal state, and nothing leaves the machine.
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  symlinkSync,
+  realpathSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -63,6 +71,22 @@ function advance(author: string, file: string): void {
 }
 
 describe('workspace end to end', () => {
+  it('retries the same physical root through a symlink alias but rejects another root', () => {
+    const s = stage();
+    const source = path.dirname(s.manifestDir);
+    const args = ['--from', source, '--name', 'alias-test', '--format', 'json'];
+    const first = fx(['init', s.ws, ...args], s.env);
+    expect(first.status, first.stderr).toBe(0);
+    const alias = path.join(path.dirname(s.ws), 'alias');
+    symlinkSync(realpathSync(s.ws), alias, process.platform === 'win32' ? 'junction' : 'dir');
+    const retried = fx(['init', alias, ...args], s.env);
+    expect(retried.status, retried.stderr).toBe(0);
+    expect(retried.json()).toMatchObject({ written: true, sync: { summary: { failed: 0 } } });
+    const different = fx(['init', path.join(path.dirname(s.ws), 'other'), ...args], s.env);
+    expect(different.status).toBe(11);
+    expect(different.error().code).toBe('WORKSPACE_NAME_TAKEN');
+  });
+
   it('inits, syncs safely, selects, registers and forks', () => {
     const s = stage();
 

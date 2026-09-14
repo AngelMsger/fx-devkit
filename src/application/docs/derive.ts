@@ -1,7 +1,4 @@
-// The two files fx keeps in the workspace root: AGENTS.md is the manifest
-// source's own AGENTS.md with its regions re-rendered from the manifest in
-// hand, CLAUDE.md the pointer; both carry the derived marker. A file at
-// either path without the marker is a person's, reported and kept.
+// Derive marked workspace guides while preserving foreign files.
 
 import path from 'node:path';
 

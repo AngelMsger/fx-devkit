@@ -1,8 +1,4 @@
-// Decides, before oclif sees the argv, whether it names a real command. Left alone,
-// oclif answers an unknown child of a topic with the topic's help and exit 0, treats a
-// leading flag as the command name, and lets a bad --format value hide behind bare-topic
-// help — each a success answer to a broken invocation. This router turns all of them
-// into usage errors before oclif runs.
+// Validate command routing before oclif can turn invalid invocations into topic help.
 
 import { nearest } from '../domain/fuzzy.js';
 
@@ -149,14 +145,11 @@ function scanArgv(argv: readonly string[]): Scan {
     }
     if (words.length === 0 && !(PRE_OK.has(name) && inline === undefined))
       return { words, leadingFlag: token };
-    // A flag that takes no value but was given one is a bad spelling too.
     if (!PRE_OK.has(name) && !GLOBAL_FLAGS.has(name)) strayFlag ??= name;
     else if (inline !== undefined && !VALUE_FLAGS.has(name)) strayFlag ??= token;
     if (!VALUE_FLAGS.has(name)) continue;
     const next = inline ?? argv[i + 1];
     const usable = next !== undefined && next !== '' && !next.startsWith('-');
-    // A missing or impossible value is wrong however the rest parses;
-    // report it, not the topic help.
     if (!usable) badValue ??= { flag: name, ...(inline === undefined ? {} : { value: inline }) };
     else if (!acceptsGlobalValue(name, next)) badValue ??= { flag: name, value: next };
     if (inline === undefined && usable) i++;
@@ -253,7 +246,6 @@ const fixed =
     const globals = render(rest.filter((t) => t.flag !== undefined && KEPT_BY_FIXED.has(t.flag)));
     return to.map((command) => join(command, ...globals));
   };
-// `--version` takes no flag at all.
 const bare =
   (to: string): Rewrite =>
   () => [to];
