@@ -166,6 +166,9 @@ describe('agent list', () => {
 describe('the skills stage of sync: the team link at the root, the fx copy in the agent', () => {
   it('preserves a companion failure in sync data even though the command reports partial success', () => {
     const s = stage();
+    writeFileSync(path.join(s.env.FX_HOME, 'config.yaml'), 'agents: [claude-code]\n', {
+      flag: 'a',
+    });
     const failure = {
       category: 'permission',
       code: 'EXAMPLE_DENIED',
