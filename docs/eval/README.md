@@ -6,6 +6,11 @@ team's private manifest; they are not maintained in this public directory.
 
 ## Prepare an isolated workspace
 
+For cold installation, real clone timings and terminal-progress evaluation in
+one disposable Linux container, use the [container harness](docker/README.md).
+It keeps the complete HOME and FX_HOME in independent per-round state and
+records raw output without adding progress of its own.
+
 ```sh
 MANIFEST=/path/to/private/manifest EVAL=/tmp/fx-evaluation \
   EVAL_REPOS=api-service,identity-service bash docs/eval/sandbox.sh
