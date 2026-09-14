@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
+
+Publication pending.
 
 - Correct explicit input, readiness, Git-source recovery and concurrent configuration updates.
 - Preserve partial initialization results, summarize human output and report repository heartbeats.
 - Isolate blocked Skill commands, protect shared user copies and document host activation limits.
+- Bound optional code-host probes and report preflight progress while preserving cancellation.
+- Accept workspace root aliases and retain per-item installation and resource state after interruptions.
 
 ## 0.1.1
 
