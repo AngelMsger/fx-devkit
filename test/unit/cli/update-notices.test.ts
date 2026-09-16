@@ -37,6 +37,15 @@ describe('shouldCheckUpdates', () => {
     expect(shouldCheckUpdates({ id: 'status', quiet: true, enabled: true })).toBe(false);
     expect(shouldCheckUpdates({ id: 'self:update', quiet: false, enabled: true })).toBe(false);
     expect(shouldCheckUpdates({ id: 'completion', quiet: false, enabled: true })).toBe(false);
+    for (const id of [
+      'skill:install',
+      'skill:uninstall',
+      'skill:status',
+      'skill:path',
+      'skill:show',
+      'skill:list',
+    ])
+      expect(shouldCheckUpdates({ id, quiet: false, enabled: true })).toBe(false);
     expect(shouldCheckUpdates({ id: undefined, quiet: false, enabled: true })).toBe(false);
   });
 });

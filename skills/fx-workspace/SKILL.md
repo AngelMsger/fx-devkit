@@ -17,6 +17,31 @@ of its two users; the other is a person. Read this before composing commands.
 Outside such a workspace, generic platform work belongs to that platform's
 own Skill unless the user explicitly asks to initialize or inspect fx itself.
 
+## Bootstrap and two Skill layers
+
+Before initializing a workspace, `fx skill install` installs this companion for
+locally detected agents. `--agent <id>` (repeatable or comma-separated) selects
+hosts explicitly; `--project` targets cwd; `--dir <parent>` targets
+`<parent>/fx-workspace` and excludes both other flags. Workspace selection is not
+required and configured workspace agents do not select standalone install targets.
+`fx skill path` lists destinations; `fx skill status` separates installed copies,
+version alignment and this session's loaded handshake. `fx skill show` prints the
+bundled SKILL.md verbatim, including with `--format json`. `self info` supplies its
+source directory for reading references.
+
+Explicit install refreshes a recognized copy to the invoking CLI version, including
+same-version repair and downgrading a newer copy. Init/sync only install missing or
+upgrade older copies. Writes accept `--dry-run` and preserve read-only posture;
+foreign replacement needs confirmation and backup. Uninstall requires confirmation
+and removes only recognized copies. A later workspace sync may reinstall them.
+These commands perform local work without network update checks or companion probes.
+
+The manifest's project Skills supply team workflows. Read the matching entry in
+the workspace root AGENTS.md's Team Skills catalog, then follow its references as
+needed. The catalog links directly to source files; native installation or loading
+may still need host trust. Do not install this companion into a manifest-linked
+project Skill directory: use a user target or independent `--dir` instead.
+
 ## Rules that never bend
 
 - Always pass `--format json`, and run fx with `FX_SKILL_LOADED=1` in the
@@ -179,7 +204,7 @@ Topics:
 | Which environments exist, what each has            | `fx env list --format json`; `fx env show <env> --format json`; `fx env pick <env...>` to scope      |
 | Who a person is across systems                     | `fx member show <name>`; `fx member list --area <area>`                                              |
 | Which coding agents are here                       | `fx agent list --format json`; `fx agent pick\|unpick <id...>` to choose                             |
-| Which Skills each agent has                        | `fx skill list --format json`; `fx sync --only skills` links and copies them                         |
+| Which workspace Skills each agent has              | `fx skill list --format json`; `fx sync --only skills` links and copies them                         |
 | Workspace lifecycle configuration and observations | `fx hook list --format json`; `fx hook inject --dry-run` / `fx hook remove --dry-run`                |
 | Declared MCP resources and readiness               | `fx mcp list --format json`; `fx can mcp:<name> --format json`                                       |
 | Propose selected shared source files               | `fx source push <paths...> --issue <id> --title <title> --dry-run`                                   |
@@ -311,12 +336,12 @@ table or an incident list is your work, from these findings.
 
 ## When fx says something is behind
 
-Every command may end with one or two notices on stderr; the command's own
+Commands other than Skill management, self-update, completion and lifecycle dispatch may end with one or two notices on stderr; the command's own
 result is unchanged. `MANIFEST_OUTDATED`: the manifest repository has new
 commits upstream since the last sync; run `fx sync` (a checkout parked on a
 branch answers `MANIFEST_REFRESH_KEPT`, which is intended). `FX_OUTDATED`:
 a newer fx is published; tell the user, and with their agreement run
-`fx self update --yes`, then `fx sync --only skills` so the Skill copies
+`fx self update --yes`, then `fx skill install` so the Skill copies
 follow. `fx doctor` asks both upstreams live (`self:version`,
 `manifest:upstream`). The checks are cached (a day for fx, an hour for the
 manifest), give an upstream at most two seconds (local reads and writes of
@@ -369,8 +394,8 @@ canonical name. Use canonical names for mutations; an ambiguous alias is
 a conflict, not permission to choose arbitrarily. Named links are
 references, not commands to execute.
 
-The source AGENTS.md owns team rules as prose. Its four generated regions
-are project-index, capabilities, environments and ask-fx. Before rendering
+The source AGENTS.md owns team rules as prose. Its five generated regions
+are project-index, capabilities, environments, ask-fx and team-skills. Before rendering
 a source that still has the retired rules block, preserve any unique
 instructions in prose; complete standalone retired blocks are removed.
 

@@ -168,10 +168,50 @@ Acknowledging a manual step never substitutes for a successful verification.
 
 ### Skills
 
-Selected agents receive a link to the manifest's team Skills and a versioned copy
-of fx's bundled Skill. Foreign directories and files are preserved. Windows uses
-directory junctions for the live team tree. Use `skill list` to inspect delivery
-and `sync --only skills` to reconcile it.
+The bundled **fx-workspace** Skill teaches agents to use fx, including workspace
+initialization and readiness recovery. Install it before creating a workspace:
+
+```sh
+fx skill install
+fx skill install --agent codex
+fx skill status
+fx skill path
+fx skill show
+```
+
+`install` and `uninstall` detect agents in the selected scope by default; explicit
+`--agent` accepts repeated or comma-separated IDs. `path` and `status` list all
+known agents unless narrowed. Use `--project` for the current directory, or
+`--dir ./custom-skills` for `<dir>/fx-workspace`; `--dir` excludes `--agent` and
+`--project`. No workspace or service login is needed. Standalone target selection
+is independent of configured workspace agents. Project detection uses native
+markers; user detection also recognizes agent executables on PATH.
+
+Explicit `skill install` refreshes recognized copies to this CLI's bundled version,
+including same-version repairs and replacing a newer copy. `init` and `sync`
+reuse same-version copies and never downgrade newer copies. Foreign paths need
+confirmation and a backup. Preview with `--dry-run`; read-only posture applies.
+`skill uninstall` removes recognized copies after confirmation (`--yes` for a
+non-interactive call), preserves foreign paths, and leaves workspace selection
+unchanged: a later sync can reinstall a selected host's user copy.
+
+`status` distinguishes installation, version alignment and the `FX_SKILL_LOADED=1`
+handshake. Installation does not prove the agent loaded the Skill. `path` reports
+installation destinations; `self info` locates the bundled source. `show` prints
+raw SKILL.md in every output format. Skill commands are local: no update checks,
+manifest refresh, companion installers or service login probes. Non-TTY business
+commands provide a structured discovery notice until the Skill is loaded; setup
+and Skill commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
+
+**Team Skills** are maintained in the manifest's `skills/` tree and linked into
+selected agents' project Skill directories by `init` and `sync`. Windows uses
+junctions. The workspace root AGENTS.md also lists each Skill's trigger description
+and a source link, so agents can read a matching Skill explicitly. Start agents at
+the workspace root; this does not promise discovery from child repositories.
+Use `skill list` to inspect workspace delivery and `sync --only docs,skills` to
+refresh guides and Skills. Never install the fx companion through a shared team
+Skill link: such targets are rejected with `SKILL_SOURCE_PROTECTED`. Use a user
+installation or an independent directory.
 
 ### Team MCP and rules
 
@@ -265,7 +305,7 @@ a handoff, never a reason to invent authentication or override host trust.
 
 Use the bundled [fx-workspace Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/) and its
 [command guide](https://angelmsger.github.io/fx-devkit/docs/agent-commands/) for response semantics.
-`fx self info --format json` locates the installed Skill. Set `FX_SKILL_LOADED=1`
+`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1`
 after reading it, using your shell's environment syntax. The Skill is shipped in
 the package; source architecture and verification pages are additional references.
 
@@ -323,7 +363,7 @@ Personal config updates serialize read/modify/write and atomically replace the f
 
 ### Skill ownership and host activation
 
-Team Skill links belong to a workspace. The bundled fx Skill belongs to the user and selected host, is reused across workspaces, and never replaces a newer recognized copy with an older version. Updates recheck ownership/version under a user-wide lock; foreign copies remain protected. Companion tools own their own Skill installer and version behavior, so fx can invoke those installers again during another workspace sync. Local Skill installation is not inherently a network operation; distinguish caller approval waits from an executing subprocess.
+Team Skill links belong to a workspace. The bundled fx Skill belongs to the user and selected host, is reused across workspaces, and during init/sync never replaces a newer recognized copy with an older version. Explicit `fx skill install` refreshes it to the invoking CLI version. Updates recheck ownership/version under a user-wide lock; foreign copies remain protected. Companion tools own their own Skill installer and version behavior, so fx can invoke those installers again during another workspace sync. Local Skill installation is not inherently a network operation; distinguish caller approval waits from an executing subprocess.
 
 `agent list` exposes `detected`, `selected`, `selection` (automatic or explicit), and `active: null` because detection is not evidence of current activity. Set `fx config set agents <id,...>` explicitly before initialization to limit projections. `FX_HOME` isolates fx configuration, not global user Skills; use a separate HOME as well for experiments.
 

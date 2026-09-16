@@ -12,6 +12,6 @@ export interface AgentHost {
   readonly hooks: HookSupport | null;
   readonly mcp: McpSupport;
   readonly rules: RulesSupport | null;
-  detect(): Promise<boolean>;
+  detect(scope?: SkillScope, projectRoot?: string): Promise<boolean>;
   skillsDir(scope: SkillScope, projectRoot?: string): string;
 }

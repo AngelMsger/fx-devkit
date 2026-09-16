@@ -7,10 +7,23 @@ import type { Binding, PlatformBinding } from '../manifest/providers.js';
 import type { Environments, Workspace } from '../manifest/types.js';
 import type { ResolvedTool } from '../toolchain/resolve.js';
 
-export const REGIONS = ['project-index', 'capabilities', 'environments', 'ask-fx'] as const;
+export const REGIONS = [
+  'project-index',
+  'capabilities',
+  'environments',
+  'ask-fx',
+  'team-skills',
+] as const;
 export type Region = (typeof REGIONS)[number];
 
+export interface TeamSkillEntry {
+  readonly name: string;
+  readonly description: string;
+  readonly source: string;
+}
+
 export interface TemplateInput {
+  readonly teamSkills?: readonly TeamSkillEntry[];
   readonly workspace: Workspace;
   readonly environments: Environments | undefined;
   readonly bindings: readonly Binding[];
@@ -25,6 +38,7 @@ export function renderAll(input: TemplateInput): Record<Region, string> {
     capabilities: capabilities(input),
     environments: environments(input.environments),
     'ask-fx': askFx(),
+    'team-skills': teamSkillIndex(input.teamSkills ?? []),
   };
 }
 
@@ -157,4 +171,22 @@ export function askFx(): string {
 
 function cell(text: string | undefined): string {
   return (text ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
+}
+
+export function teamSkillIndex(skills: readonly TeamSkillEntry[]): string {
+  const lines = [
+    '## Team Skills',
+    '',
+    'The fx-workspace companion Skill teaches the fx CLI and readiness recovery. These manifest Skills supply team workflows. Read the matching SKILL.md when its description fits the task; follow its references only as needed. Do not load every Skill at once.',
+    '',
+    'These source links provide discovery even when native project Skill delivery is unavailable. A listing does not prove installation, host trust or loading. Start the agent at the workspace root; child-repository sessions are not covered by this guide.',
+    '',
+  ];
+  if (skills.length === 0) return [...lines, 'This manifest contains no team Skills.'].join('\n');
+  lines.push('| Skill | When to use | Read |', '| --- | --- | --- |');
+  for (const skill of skills) {
+    const target = skill.source.split('/').map(encodeURIComponent).join('/');
+    lines.push(`| ${cell(skill.name)} | ${cell(skill.description)} | [SKILL.md](<${target}>) |`);
+  }
+  return lines.join('\n');
 }

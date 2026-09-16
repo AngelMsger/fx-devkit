@@ -167,3 +167,14 @@ fx doctor --tool openobserve-cli --format json
   }
 }
 ```
+
+## 在 AGENTS.md 宣告團隊 Skill
+
+每個團隊 Skill 放在 `skills/<name>/SKILL.md`，frontmatter 提供 `name` 與 `description`。在來源 AGENTS.md 中需要目錄的位置加入：
+
+```markdown
+<!-- fx:begin team-skills -->
+<!-- fx:end team-skills -->
+```
+
+`fx manifest render` 自動填入名稱、觸發說明與來源連結。新指南預設包含此區域；既有指南缺少時只提示維護者加入，不自動插入人工內容。來源指南使用相對連結，派生至工作區根的指南使用解析後的來源路徑，不依賴宿主的 Skill 連結。`fx sync --only docs,skills` 更新新增、移除及中繼資料變更。目錄協助探索，不代表宿主已安裝或載入。僅涵蓋工作區根，不修改業務儲存庫指南。

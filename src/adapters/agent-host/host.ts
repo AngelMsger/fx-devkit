@@ -48,10 +48,13 @@ export class SpecAgentHost implements AgentHost {
     return this.spec.rules ?? null;
   }
 
-  async detect(): Promise<boolean> {
-    for (const marker of this.spec.markers) {
-      if (await this.deps.fs.exists(path.join(this.deps.home, marker))) return true;
+  async detect(scope: SkillScope = 'global', projectRoot = '.'): Promise<boolean> {
+    const base = scope === 'project' ? projectRoot : this.deps.home;
+    const markers = scope === 'project' ? this.spec.projectMarkers : this.spec.markers;
+    for (const marker of markers) {
+      if (await this.deps.fs.exists(path.join(base, marker))) return true;
     }
+    if (scope === 'project') return false;
     for (const binary of this.spec.binaries) {
       if ((await this.deps.process.which(binary)) !== undefined) return true;
     }

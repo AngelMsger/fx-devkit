@@ -2,13 +2,7 @@
 
 import path from 'node:path';
 
-import {
-  asDevkitError,
-  DevkitError,
-  exitCodeFor,
-  toEnvelope,
-  withPartialResult,
-} from '../../domain/errors.js';
+import { asDevkitError, exitCodeFor, toEnvelope, withPartialResult } from '../../domain/errors.js';
 import { shellLine } from '../../domain/shell.js';
 import {
   decideCopy,
@@ -26,6 +20,7 @@ import type { TrustContext } from '../safety/trust.js';
 import type { StageSummary } from '../sync.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
+import { SkillCopies } from './copies.js';
 import { FX_SKILL, observeCopy, observeLink, teamSkillsRoot } from './observe.js';
 import { projectSkillTargets, skillTargets, type SkillDeps } from './targets.js';
 
@@ -106,9 +101,9 @@ export class SkillStage {
       if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
       if (!input.dryRun) {
         if (!input.background) tools = await this.trustAll(tools, input.trust);
-        await this.replaceConflicts(input, links, fx);
+        await this.replaceConflicts(input, links);
         await this.applyLinks(links);
-        await this.applyCopies(fx);
+        await this.applyCopies(fx, input);
       }
       if (!input.dryRun) await this.runTools(tools);
       this.reportForeign(links);
@@ -136,14 +131,8 @@ export class SkillStage {
     }
   }
 
-  private async replaceConflicts(
-    input: SkillStageInput,
-    links: SkillLinkItem[],
-    fx: FxSkillItem[],
-  ): Promise<void> {
-    const conflicts: (SkillLinkItem | FxSkillItem)[] = fx.filter(
-      (item) => item.action === 'foreign',
-    );
+  private async replaceConflicts(input: SkillStageInput, links: SkillLinkItem[]): Promise<void> {
+    const conflicts: SkillLinkItem[] = [];
     for (const item of links) {
       if (item.action === 'foreign' && (await this.deps.fs.isDirectory(item.target)))
         conflicts.push(item);
@@ -154,10 +143,6 @@ export class SkillStage {
         for (let index = 0; index < links.length; index++) {
           const item = links[index]!;
           if (conflicts.includes(item)) links[index] = { ...item, action: 'create' };
-        }
-        for (let index = 0; index < fx.length; index++) {
-          const item = fx[index]!;
-          if (conflicts.includes(item)) fx[index] = { ...item, action: 'install' };
         }
       }
     }
@@ -313,37 +298,19 @@ export class SkillStage {
     }
   }
 
-  private async applyCopies(items: FxSkillItem[]): Promise<void> {
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index]!;
-      if (item.action !== 'install' && item.action !== 'upgrade') {
-        items[index] = { ...item, status: 'skipped' };
-        continue;
-      }
+  private async applyCopies(items: FxSkillItem[], input: SkillStageInput): Promise<void> {
+    const copies = new SkillCopies(this.deps.fs, this.deps.cliVersion, this.skills);
+    for (const [index, item] of items.entries()) {
       await this.applyItem(items, index, async () => {
-        const lease = await this.skills.globalLock?.acquire({
-          key: `skill:${item.path}`,
-          waitMs: 2000,
+        const action = await copies.install(item.path, {
+          posture: input.posture,
+          ...(input.background || input.replace === undefined ? {} : { replace: input.replace }),
         });
-        if (lease === null)
-          throw new DevkitError('conflict', 'SKILL_BUSY', 'The user Skill is being updated', {
-            nextSteps: ['Retry fx sync --only skills.'],
-          });
-        try {
-          const action = decideCopy(
-            await observeCopy(this.deps.fs, item.path),
-            this.deps.cliVersion,
-          );
-          items[index] = {
-            ...item,
-            action,
-            ...(action === 'install' || action === 'upgrade' ? {} : { status: 'skipped' as const }),
-          };
-          if (action === 'install' || action === 'upgrade')
-            await this.deps.fs.replaceDir(this.skills.bundledSkillDir, item.path);
-        } finally {
-          await lease?.release();
-        }
+        items[index] = {
+          ...item,
+          action,
+          ...(action === 'install' || action === 'upgrade' ? {} : { status: 'skipped' as const }),
+        };
       });
     }
   }

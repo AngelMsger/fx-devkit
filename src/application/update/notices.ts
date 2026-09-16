@@ -11,7 +11,7 @@ export function fxOutdated(verdict: FxVerdict): Notice | undefined {
   return {
     code: 'FX_OUTDATED',
     message: `fx ${verdict.current} is behind ${verdict.latest}`,
-    nextSteps: ['fx self update --yes', 'fx sync --only skills'],
+    nextSteps: ['fx self update --yes', 'fx skill install'],
     silence: SILENCE,
   };
 }

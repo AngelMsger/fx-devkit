@@ -167,3 +167,14 @@ fx doctor --tool openobserve-cli --format json
   }
 }
 ```
+
+## AGENTS.md にチーム Skill を宣言する
+
+各 Skill を `skills/<name>/SKILL.md` に置き、frontmatter に `name` と `description` を記述します。ソースの AGENTS.md の希望する位置に次の領域を追加します。
+
+```markdown
+<!-- fx:begin team-skills -->
+<!-- fx:end team-skills -->
+```
+
+`fx manifest render` が名前、利用条件、ソースへのリンクを生成します。新規ガイドには領域を含めます。既存ガイドにない場合は追加を案内し、人が書いた文章には自動挿入しません。ソースガイドは相対リンク、派生したルートガイドは解決済みソースパスを使うため、特定ホストの Skill リンクに依存しません。`fx sync --only docs,skills` が追加、削除、メタデータ変更を反映します。カタログは探索の補助であり、ネイティブのインストールやロードを証明しません。対象はワークスペースルートのみで、業務リポジトリのガイドは変更しません。

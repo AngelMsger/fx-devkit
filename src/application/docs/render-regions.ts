@@ -53,7 +53,10 @@ export class RenderRegions {
     // A draft written elsewhere is always fresh: the skeleton, fully rendered.
     const existing = out === undefined ? await this.deps.fs.readText(source) : undefined;
     const base = existing ?? agentsSkeleton(path.basename(this.deps.context.dir));
-    const rendered = renderRegions(base, renderAll(templateInputOf(this.deps.context, this.deps)));
+    const rendered = renderRegions(
+      base,
+      renderAll(await templateInputOf(this.deps.context, this.deps, this.deps.fs)),
+    );
     const current = out === undefined ? existing : await this.deps.fs.readText(target);
     return pending(target, actionFor(current, rendered.text), rendered.text, rendered);
   }

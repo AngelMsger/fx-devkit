@@ -47,7 +47,12 @@ import RepoShow from './repo/show.js';
 import RepoUnpick from './repo/unpick.js';
 import SelfInfo from './self/info.js';
 import SelfUpdate from './self/update.js';
+import SkillInstall from './skill/install.js';
 import SkillList from './skill/list.js';
+import SkillPath from './skill/path.js';
+import SkillShow from './skill/show.js';
+import SkillStatus from './skill/status.js';
+import SkillUninstall from './skill/uninstall.js';
 import SourcePushCommand from './source/push.js';
 import StatusCommand from './status.js';
 import SyncCommand from './sync.js';
@@ -89,7 +94,12 @@ export const COMMANDS = {
   'agent:list': AgentList,
   'agent:pick': AgentPick,
   'agent:unpick': AgentUnpick,
+  'skill:install': SkillInstall,
   'skill:list': SkillList,
+  'skill:path': SkillPath,
+  'skill:show': SkillShow,
+  'skill:status': SkillStatus,
+  'skill:uninstall': SkillUninstall,
   'tool:list': ToolList,
   'tool:show': ToolShow,
   'tool:install': ToolInstall,

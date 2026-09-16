@@ -41,12 +41,19 @@ describe('skillNotice', () => {
     );
   });
 
-  it('says nothing to a person, to an agent that loaded it, when silenced, or when no agent is enabled', async () => {
+  it('says nothing to a person, to an agent that loaded it, or when silenced; offers bootstrap without detected agents', async () => {
     const none = FakeFs.from({});
     expect(await skillNotice(none, skills, { ...ask, format: 'human' })).toBeUndefined();
+    expect(await skillNotice(none, skills, { ...ask, terminal: true })).toBeUndefined();
+    expect(
+      await skillNotice(none, skills, { ...ask, format: 'human', terminal: false }),
+    ).toMatchObject({ code: 'SKILL_MISSING' });
     expect(await skillNotice(none, skills, { ...ask, loaded: true })).toBeUndefined();
     expect(await skillNotice(none, skills, { ...ask, enabled: false })).toBeUndefined();
     const nobody: SkillDeps = { ...skills, hosts: [new FakeAgentHost('cursor', false)] };
-    expect(await skillNotice(none, nobody, ask)).toBeUndefined();
+    expect(await skillNotice(none, nobody, ask)).toMatchObject({
+      code: 'SKILL_MISSING',
+      nextSteps: ['fx skill status', 'fx skill install'],
+    });
   });
 });

@@ -9,6 +9,7 @@ export interface AgentHostSpec {
   readonly homeSub: string;
   readonly projectSkills: string;
   readonly markers: readonly string[];
+  readonly projectMarkers: readonly string[];
   readonly binaries: readonly string[];
   readonly hooks?: HookSupport;
   readonly mcp?: McpSupport;
@@ -29,6 +30,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.claude',
     projectSkills: '.claude/skills',
     markers: ['.claude'],
+    projectMarkers: ['.claude'],
     binaries: ['claude'],
     hooks: {
       projectPath: '.claude/settings.local.json',
@@ -52,6 +54,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.codex',
     projectSkills: '.agents/skills',
     markers: ['.codex'],
+    projectMarkers: ['.agents', 'AGENTS.md'],
     binaries: ['codex'],
     hooks: {
       projectPath: '.codex/hooks.json',
@@ -68,6 +71,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.cursor',
     projectSkills: '.cursor/skills',
     markers: ['.cursor'],
+    projectMarkers: ['.cursor'],
     binaries: ['cursor-agent', 'cursor'],
   },
   {
@@ -76,6 +80,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.agents',
     projectSkills: '.agents/skills',
     markers: ['.agents'],
+    projectMarkers: ['.agents', 'AGENTS.md'],
     binaries: [],
   },
   {
@@ -92,6 +97,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.gemini',
     projectSkills: '.gemini/skills',
     markers: ['.gemini'],
+    projectMarkers: ['.gemini'],
     binaries: ['gemini'],
   },
   {
@@ -100,6 +106,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.copilot',
     projectSkills: '.agents/skills',
     markers: ['.copilot'],
+    projectMarkers: ['.github', '.agents'],
     binaries: ['copilot'],
   },
   {
@@ -108,6 +115,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.config/opencode',
     projectSkills: '.opencode/skills',
     markers: ['.config/opencode'],
+    projectMarkers: ['.opencode'],
     binaries: ['opencode'],
   },
   {
@@ -116,6 +124,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.continue',
     projectSkills: '.continue/skills',
     markers: ['.continue'],
+    projectMarkers: ['.continue'],
     binaries: ['cn'],
   },
   {
@@ -124,6 +133,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.codeium/windsurf',
     projectSkills: '.windsurf/skills',
     markers: ['.codeium/windsurf'],
+    projectMarkers: ['.windsurf', '.codeium'],
     binaries: ['windsurf'],
   },
   {
@@ -137,6 +147,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.grok',
     projectSkills: '.grok/skills',
     markers: ['.grok'],
+    projectMarkers: ['.grok'],
     binaries: ['grok'],
     hooks: {
       projectPath: '.grok/hooks/fx.json',
@@ -161,6 +172,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.pi/agent',
     projectSkills: '.pi/skills',
     markers: ['.pi'],
+    projectMarkers: ['.pi'],
     binaries: ['pi'],
     hooks: {
       projectPath: '.pi/extensions/fx.ts',
@@ -176,6 +188,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.kilocode',
     projectSkills: '.kilocode/skills',
     markers: ['.kilocode'],
+    projectMarkers: ['.kilocode'],
     binaries: ['kilocode'],
   },
   {
@@ -184,6 +197,7 @@ export const AGENT_SPECS: readonly AgentHostSpec[] = [
     homeSub: '.roo',
     projectSkills: '.roo/skills',
     markers: ['.roo'],
+    projectMarkers: ['.roo'],
     binaries: ['roo'],
   },
 ];

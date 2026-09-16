@@ -88,3 +88,33 @@ Normal `sync` continues to run only tool checks; lifecycle hooks do not gain thi
 installation path. npm retains ownership of Registry authentication.
 
 Readiness preserves missing_tool, outdated_tool and disabled_tool separately. Doctor evidence records binary_path from the execution PATH resolver. The Bitbucket status recipe requires configured=true; this verifies configuration, not arbitrary resource permissions. Skill trust failures are blocked tool rows, allowing independent owned projections to proceed. No selected hosts means no companion Skill invocation. User-owned fx copies share a lock and recheck version/ownership before writing; third-party installers retain their own idempotence contracts. Agent detection is distinct from selection; current activity remains unknown. Init emits a prepared installation/Skill plan after source validation and registration, before tools and clones; fresh remote dry-runs defer content-dependent effects.
+
+## Standalone companion lifecycle
+
+`skill install/uninstall/path/status/show` work without WorkspaceDeps. Target flags
+follow the maintained oa-cli family: repeatable/comma-separated `--agent`, optional
+`--project`, mutually exclusive `--dir` as a Skill parent. Writes detect targets;
+inspection enumerates all hosts. AgentHostSpec owns native paths and project
+markers. Standalone detection ignores workspace selection; init/sync retain it.
+Global detection retains fx's executable probes in addition to home markers.
+
+SkillCopies shares canonical destination locking, ownership rechecks and recoverable
+replacement. Explicit install refreshes recognized copies, while background and
+workspace maintenance preserve equal/newer versions. Foreign replacement retains
+fx's confirmation and backup contract; uninstall removes only identified copies.
+Source overlap checks precede standalone writes and repeat inside the lease,
+including canonical paths reached through team links. Partial failures retain
+per-target outcomes and observations. Dry-run is allowed under read-only posture.
+
+Discovery runs locally before workspace resolution for non-TTY business commands.
+Existing FX_SKILL_LOADED and FX_SKILL_NOTICE settings remain compatible. Meta/setup
+and all Skill commands are quiet; Skill commands also skip network update probes.
+The family `status` fields report loaded, embedded_version and installs separately;
+fx additionally reports each copy's version and alignment. `show` is raw text in all
+formats. Other results retain fx's human default and structured collection contract.
+
+The team-skills generated guide region is rendered from current manifest Skill
+frontmatter. Application reads metadata; domain templates render escaped text.
+Source guides use relative links, derived root guides resolve source locations.
+Existing guides keep their prose and receive a missing-region notice until their
+maintainer adds the markers. Companion installers do not edit AGENTS.md.

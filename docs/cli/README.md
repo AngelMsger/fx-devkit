@@ -937,6 +937,27 @@ fx self update --dry-run
 fx self update --yes
 ```
 
+## `fx skill install`
+
+Install or refresh the bundled fx companion Skill without a workspace
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | target agent ids (repeatable or comma-separated) (repeatable) |
+| `--dir` | explicit Skill parent directory; excludes --agent and --project |
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
+
+Examples:
+
+```bash
+fx skill install
+fx skill install --agent codex --project
+fx skill install --dir ./skills --dry-run
+```
+
 ## `fx skill list`
 
 List team Skills and the fx Skill, with their state in each enabled agent
@@ -946,6 +967,47 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--agent` | only these agent ids (repeatable) |
+
+## `fx skill path`
+
+Show companion Skill installation targets and their current state
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | target agent ids (repeatable or comma-separated) (repeatable) |
+| `--dir` | explicit Skill parent directory; excludes --agent and --project |
+| `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
+
+## `fx skill show`
+
+Print the bundled SKILL.md verbatim (raw text in every output format)
+
+## `fx skill status`
+
+Report companion Skill installation, version alignment and loaded handshake separately
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | target agent ids (repeatable or comma-separated) (repeatable) |
+| `--dir` | explicit Skill parent directory; excludes --agent and --project |
+| `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
+
+## `fx skill uninstall`
+
+Remove identified fx companion Skill copies after confirmation
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | target agent ids (repeatable or comma-separated) (repeatable) |
+| `--dir` | explicit Skill parent directory; excludes --agent and --project |
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
 
 ## `fx source push`
 

@@ -1,6 +1,4 @@
-// The M10 reshape retired a set of command names. Nothing fx generates,
-// prints as a next step, or documents may still say them; the changelog's
-// migration table is the one place they belong.
+// Retired workspace command names stay absent. Standalone skill install is supported.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -8,7 +6,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const RETIRED =
-  /fx (bootstrap|setup|need|obs (where|probe)|docs render|profile (export|import)|skill (sync|install)|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version|version(?!\s[a-z])|import)\b/;
+  /fx (bootstrap|setup|need|obs (where|probe)|docs render|profile (export|import)|skill sync|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version|version(?!\s[a-z])|import)\b/;
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -20,7 +18,7 @@ function files(dir: string): string[] {
 // Prose may also name a retired command bare, in backticks; code may not be
 // held to that (a `setup` recipe is a domain word).
 const BARE =
-  /`(bootstrap|obs (where|probe)|docs render|profile (export|import)|skill (sync|install)|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version)`/;
+  /`(bootstrap|obs (where|probe)|docs render|profile (export|import)|skill sync|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version)`/;
 const PROSE = /\.md$/;
 
 const ROOTS = ['src', 'skills', 'docs/design', 'docs/cli', 'README.md', 'AGENTS.md'];

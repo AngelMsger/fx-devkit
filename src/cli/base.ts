@@ -109,6 +109,7 @@ export abstract class FxCommand extends Command {
     this.yes = flags.yes;
     this.workspaceName = flags.workspace;
     this.posture = resolvePosture({ allowWrites: flags['allow-writes'], env: process.env, file });
+    await this.handshake();
   }
 
   protected get configAgents(): readonly string[] | undefined {
@@ -135,17 +136,24 @@ export abstract class FxCommand extends Command {
     return { ...deps, commandShell: this.commandShell };
   }
 
-  // Once per command, and only inside a workspace: is the agent equipped?
+  // Discovery is local and available before a workspace exists.
   private async handshake(): Promise<void> {
-    if (this.skillNoticeSent) return;
+    if (this.skillNoticeSent || this.quietOn || process.stderr.isTTY) return;
+    const topic = this.id?.split(':')[0];
+    if (
+      !topic ||
+      ['skill', 'self', 'config', 'login', 'init', 'completion', 'hook'].includes(topic)
+    )
+      return;
     this.skillNoticeSent = true;
     const notice = await skillNotice(this.container.fs, this.skillDeps(), {
       format: this.format,
+      terminal: false,
       loaded: process.env[SKILL_LOADED_ENV] === '1',
       enabled: this.skillNoticeOn,
       cliVersion: this.config.version,
     });
-    if (notice !== undefined) this.renderer.notice(notice);
+    if (notice !== undefined) createRenderer('json', processIo()).notice(notice);
   }
 
   protected harnessInput(): HarnessCommandInput {

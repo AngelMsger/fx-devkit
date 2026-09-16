@@ -357,6 +357,6 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     expect(
       fx(['repo', 'list', ...json], { ...agentEnv, FX_SKILL_LOADED: '1' }, s.ws).stderr,
     ).not.toContain('SKILL_');
-    expect(fx(['repo', 'list'], agentEnv, s.ws).stderr).not.toContain('SKILL_');
+    expect(fx(['repo', 'list'], agentEnv, s.ws).stderr).toContain('SKILL_MISSING');
   });
 });
