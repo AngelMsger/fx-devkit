@@ -16,7 +16,13 @@ export interface UpdateCheckGate {
 }
 
 export function shouldCheckUpdates(gate: UpdateCheckGate): boolean {
-  return gate.enabled && !gate.quiet && gate.id !== undefined && !NEVER.has(gate.id);
+  return (
+    gate.enabled &&
+    !gate.quiet &&
+    gate.id !== undefined &&
+    !gate.id.startsWith('skill:') &&
+    !NEVER.has(gate.id)
+  );
 }
 
 // The two checks run side by side and contain their own remote deadlines;

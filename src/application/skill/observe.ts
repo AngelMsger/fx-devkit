@@ -21,6 +21,7 @@ export async function observeLink(fs: FileSystem, at: string): Promise<LinkObser
 export async function observeCopy(fs: FileSystem, at: string): Promise<CopyObservation> {
   if ((await fs.readLink(at)) !== undefined) return { kind: 'foreign' };
   if (!(await fs.exists(at))) return { kind: 'absent' };
+  if (!(await fs.isDirectory(at))) return { kind: 'foreign' };
   const text = await fs.readText(path.join(at, 'SKILL.md'));
   const front = text === undefined ? {} : parseFrontmatter(text);
   if (front.name === FX_SKILL && front.version !== undefined)

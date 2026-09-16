@@ -31,7 +31,10 @@ export class DeriveDocs {
     const { ctx, fs, reporter } = this.deps;
     const origin = path.join(ctx.manifestDir, 'AGENTS.md');
     const source = (await fs.readText(origin)) ?? agentsSkeleton(ctx.name);
-    const rendered = renderRegions(source, renderAll(templateInputOf(ctx.context, this.login)));
+    const rendered = renderRegions(
+      source,
+      renderAll(await templateInputOf(ctx.context, this.login, fs)),
+    );
     const agents = await this.file(
       input.out ?? path.join(ctx.root, 'AGENTS.md'),
       derive(await this.sourceLinks(rendered.text), origin),
@@ -62,9 +65,11 @@ export class DeriveDocs {
   }
 
   private async sourceLinks(text: string): Promise<string> {
-    const links = [...text.matchAll(/\]\((<?)((?:\.\/)?(?:README\.md|docs\/[^)#>]+))([^)]*)\)/g)];
+    const links = [
+      ...text.matchAll(/\]\((<?)((?:\.\/)?(?:README\.md|(?:docs|skills)\/[^)#>]+))([^)]*)\)/g),
+    ];
     for (const match of links) {
-      const target = path.resolve(this.deps.ctx.manifestDir, match[2]!);
+      const target = path.resolve(this.deps.ctx.manifestDir, decodeLink(match[2]!));
       if (!(await this.deps.fs.exists(target))) continue;
       const suffix = match[3]!.replace(/>$/, '');
       text = text.replace(match[0], `](<${target}${suffix}>)`);
@@ -83,5 +88,13 @@ export class DeriveDocs {
     const current = occupied ? undefined : await this.deps.fs.readText(target);
     const foreign = occupied || (current !== undefined && !isDerived(current));
     return pending(target, foreign ? 'foreign' : actionFor(current, text), text, regions);
+  }
+}
+
+function decodeLink(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
 }

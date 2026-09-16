@@ -110,9 +110,25 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 `tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
-### Skill、MCP 与生命周期
+### fx 伴生 Skill 与团队 Skill
 
-所选 Agent 获得团队 Skill 目录链接和带版本的 fx Skill 副本。非 fx 所有的文件会被保留；Windows 用 junction 链接团队目录。用 `skill list` 查看交付状态，用 `sync --only skills` 协调资源。
+fx 伴生 Skill 用于引导 Agent 使用 CLI、初始化工作区和恢复就绪状态。初始化前即可执行：
+
+```sh
+fx skill install
+fx skill install --agent codex
+fx skill status
+fx skill path
+fx skill show
+```
+
+`install/uninstall` 默认检测所选作用域的 Agent；`--agent` 可重复或用逗号分隔。`path/status` 默认列出全部支持的 Agent。`--project` 使用当前目录，`--dir ./custom-skills` 安装到 `<dir>/fx-workspace`，且与 `--agent`、`--project` 互斥。无需注册工作区或登录服务。独立安装不使用工作区 Agent 选择；项目检测使用原生标记，用户级检测还识别 PATH 中的 Agent 程序。
+
+显式 `skill install` 将已识别副本刷新到当前 CLI 版本，包括同版修复和覆盖较新副本；`init/sync` 则同版复用且不降级。外来路径替换需要确认和备份。写操作支持 `--dry-run` 和只读限制。`skill uninstall` 确认后移除已识别副本，非交互使用 `--yes`；外来路径保留。卸载不修改工作区选择，后续同步可能重新安装所选宿主的用户级副本。
+
+`status` 分别报告安装状态、版本匹配和 `FX_SKILL_LOADED=1` 加载握手。安装成功不等于 Agent 已加载。`path` 查询安装目标，`self info` 提供包内源路径。`show` 在所有输出格式下都输出 SKILL.md 原文。Skill 命令仅做本地操作，不检查在线更新、不刷新 manifest、不调用配套安装器或登录探测。非 TTY 的业务命令会在未加载 Skill 时向 stderr 输出结构化发现提示；setup 和 Skill 命令保持安静。`FX_SKILL_NOTICE=0` 可关闭提示。
+
+团队 Skill 保存在 manifest 的 `skills/`，由 `init/sync` 链接到所选 Agent 的 Project Skill 目录，Windows 使用 junction。工作区根 AGENTS.md 还列出每个 Skill 的触发说明和源文件链接，供 Agent 按任务读取。请从工作区根启动 Agent；不承诺子仓库内启动时能发现。`skill list` 检查工作区分发，`sync --only docs,skills` 刷新指南和 Skill。不要经团队共享链接安装 fx 伴生 Skill；CLI 会返回 `SKILL_SOURCE_PROTECTED`。请使用用户级安装或独立目录。
 
 harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环境变量引用。`mcp list/show` 和 `can mcp:<name>` 说明前置条件；配置正确不证明宿主已激活。见 [MCP 契约](user-guide.md#for-coding-agents)。
 
@@ -147,7 +163,7 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 
 doctor/release 即使有失败检查也退出零；init/sync 也可能在部分成功时退出零。init 查看 `sync.summary`、`sync.stages`；sync 查看 `summary`、`stages` 和每个失败条目的 `failure`。`stage_details` 保留资源阶段结果和 handoff。不要把退出码当作就绪证据，不要捏造认证或绕过宿主信任。
 
-先读[内置 Skill](../skills/fx-workspace/SKILL.md)和[响应指南](../skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1`。`self info` 可定位安装后的 Skill。
+先读[内置 Skill](../skills/fx-workspace/SKILL.md)和[响应指南](../skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1`。`self info` 定位随包源，`skill path` 查询安装目标。
 
 ## 配置 {#configuration}
 
@@ -199,7 +215,7 @@ Skill 阶段中断时, `sync.stage_details.skills` 保留 `links`、`fx` 和 `to
 
 ### Skill 所有权与宿主激活
 
-团队 Skill 链接属于工作区; fx 内置 Skill 副本属于用户和所选宿主, 多工作区复用, 不用旧版覆盖已识别的新版. 更新在用户级锁内重新核对所有权和版本, 外来副本保留. 第三方工具拥有各自的 Skill 安装与版本策略, 因此 fx 仍可能在另一工作区同步时再次调用其安装器. 本地 Skill 安装不天然需要网络; 应区分调用器审批等待与已启动子进程.
+团队 Skill 链接属于工作区; fx 内置 Skill 副本属于用户和所选宿主, 多工作区复用, 初始化和同步不用旧版覆盖已识别的新版. 更新在用户级锁内重新核对所有权和版本, 外来副本保留. 第三方工具拥有各自的 Skill 安装与版本策略, 因此 fx 仍可能在另一工作区同步时再次调用其安装器. 本地 Skill 安装不天然需要网络; 应区分调用器审批等待与已启动子进程.
 
 `agent list` 提供 `detected`、`selected`、`selection` (automatic 或 explicit) 和 `active: null`, 因为检出并不能证明当前活跃. 初始化前显式设置 `fx config set agents <id,...>` 可限制投影范围. `FX_HOME` 只隔离 fx 配置, 不隔离全局 Skill; 实验还应使用独立 HOME.
 

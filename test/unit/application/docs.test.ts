@@ -46,6 +46,31 @@ async function stage(files: Record<string, string> = {}) {
 }
 
 describe('RenderRegions, inside a checkout of the manifest repository', () => {
+  it('derives a live Skill catalog with descriptions and readable source links', async () => {
+    const skillPath = `${MANIFEST_DIR}/skills/review/SKILL.md`;
+    const s = await stage({
+      [ORIGIN]: `# Team\n\nHuman routing.\n\n${begin('team-skills')}\nstale\n${end('team-skills')}\n`,
+      [skillPath]:
+        '---\nname: review\ndescription: >-\n  Review a change | carefully\n  and preserve evidence.\n---\nPrivate body',
+    });
+    await s.regions.execute(write);
+    const source = (await s.h.fs.readText(ORIGIN))!;
+    expect(source).toContain('Review a change \\| carefully and preserve evidence.');
+    expect(source).toContain('[SKILL.md](<skills/review/SKILL.md>)');
+    expect(source).not.toContain('Private body');
+    await s.derive.execute(write);
+    const derived = (await s.h.fs.readText(AGENTS))!;
+    expect(derived).toContain(`[SKILL.md](<${skillPath}>)`);
+    expect(derived).toContain('Human routing.');
+    expect((await s.derive.execute(write)).files.every((f) => f.action === 'unchanged')).toBe(true);
+    await s.h.fs.remove(skillPath);
+    await s.derive.execute(write);
+    expect(await s.h.fs.readText(AGENTS)).toContain('contains no team Skills');
+    await s.h.fs.writeText(skillPath, '---\nname: review\n---\n');
+    await s.derive.execute(write);
+    expect(await s.h.fs.readText(AGENTS)).toContain('No description provided');
+  });
+
   it('resolves existing source document links while leaving business and external references intact', async () => {
     const s = await stage({
       [ORIGIN]:
@@ -82,7 +107,7 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
       action: 'updated',
       replaced: [],
       unknown: ['rules'],
-      missing: ['project-index', 'capabilities', 'environments', 'ask-fx'],
+      missing: ['project-index', 'capabilities', 'environments', 'ask-fx', 'team-skills'],
     });
     expect(out.files[1]?.action).toBe('unchanged');
     const text = (await s.h.fs.readText(ORIGIN)) ?? '';
@@ -92,7 +117,7 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(s.h.reporter.codes()).toContain('DOCS_REGION_UNKNOWN');
     expect(text).not.toContain('fx:begin project-index');
     expect(await s.h.fs.readText(ORIGIN_CLAUDE)).toBe('keep');
-    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(4);
+    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(5);
   });
 
   it('objects under --check when stale, writes nothing under --dry-run or --out', async () => {
@@ -136,6 +161,7 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.exists(ORIGIN)).toBe(true);
     expect(s.h.fs.writes).toEqual([AGENTS, CLAUDE]);
     expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toMatchObject([
+      { message: expect.stringContaining(ORIGIN) },
       { message: expect.stringContaining(ORIGIN) },
       { message: expect.stringContaining(ORIGIN) },
       { message: expect.stringContaining(ORIGIN) },

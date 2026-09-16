@@ -16,6 +16,7 @@ export const SKILL_LOADED_ENV = 'FX_SKILL_LOADED';
 
 export interface SkillNoticeInput {
   readonly format: Format;
+  readonly terminal?: boolean;
   readonly loaded: boolean;
   readonly enabled: boolean;
   readonly cliVersion: string;
@@ -28,20 +29,20 @@ export async function skillNotice(
   skills: SkillDeps,
   input: SkillNoticeInput,
 ): Promise<Notice | undefined> {
-  if (input.format === 'human' || !input.enabled || input.loaded) return undefined;
+  if ((input.terminal ?? input.format === 'human') || !input.enabled || input.loaded)
+    return undefined;
   const targets = await skillTargets(skills, undefined);
-  if (targets.length === 0) return undefined;
   const actions: CopyAction[] = [];
   for (const target of targets) {
     actions.push(
       decideCopy(await observeCopy(fs, path.join(target.dir, FX_SKILL)), input.cliVersion),
     );
   }
-  if (actions.includes('install')) {
+  if (actions.length === 0 || actions.includes('install')) {
     return {
       code: 'SKILL_MISSING',
       message: `the ${FX_SKILL} Skill is not installed for every enabled agent; agents drive fx better with it`,
-      nextSteps: ['fx sync --only skills'],
+      nextSteps: ['fx skill status', 'fx skill install'],
       silence: SILENCE,
     };
   }
@@ -49,10 +50,18 @@ export async function skillNotice(
     return {
       code: 'SKILL_OUTDATED',
       message: `the installed ${FX_SKILL} Skill is older than this fx (${input.cliVersion})`,
-      nextSteps: ['fx sync --only skills'],
+      nextSteps: ['fx skill status', 'fx skill install'],
       silence: SILENCE,
     };
   }
+  if (actions.includes('foreign'))
+    return {
+      code: 'SKILL_FOREIGN',
+      message:
+        'A companion Skill location contains foreign content; inspect it before installation.',
+      nextSteps: ['fx skill path', 'fx skill show'],
+      silence: SILENCE,
+    };
   return {
     code: 'SKILL_AVAILABLE',
     message: `the ${FX_SKILL} Skill is installed but was not loaded for this call`,

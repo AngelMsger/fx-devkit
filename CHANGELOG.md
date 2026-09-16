@@ -1,8 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add standalone companion Skill install, uninstall, path, status and show commands.
+- Generate team Skill discovery links and trigger descriptions in workspace guides.
+- Separate explicit Skill refresh from automatic maintenance and protect shared sources.
+
 ## 0.1.2
 
-Publication pending.
+Available through the internal Registry. Public publication remains on hold.
 
 - Correct explicit input, readiness, Git-source recovery and concurrent configuration updates.
 - Preserve partial initialization results, summarize human output and report repository heartbeats.

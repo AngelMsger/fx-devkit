@@ -208,3 +208,22 @@ fx doctor --tool openobserve-cli --format json
   }
 }
 ```
+
+## Declaring team Skills in AGENTS.md
+
+Keep each team Skill at `skills/<name>/SKILL.md`, with frontmatter `name` and
+`description`. Add this generated region where the discovery catalog belongs:
+
+```markdown
+<!-- fx:begin team-skills -->
+<!-- fx:end team-skills -->
+```
+
+`fx manifest render` fills it with names, trigger descriptions and source links.
+New guide skeletons include the region. Existing guides without it receive a
+missing-region notice; fx does not insert blocks into human prose automatically.
+The manifest source uses relative links. Workspace-derived guides use resolved
+source links so manual discovery does not depend on a host-specific Skill link.
+Metadata changes, additions and removals are picked up by `fx sync --only docs,skills`.
+The catalog is a discovery aid, not proof of native installation or loaded context.
+It applies at the workspace root and does not modify business-repository guides.

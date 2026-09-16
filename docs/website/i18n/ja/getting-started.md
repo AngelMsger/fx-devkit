@@ -110,9 +110,25 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 `tool list/show` は要件を表示し、`tool install/update` は宣言されたインストーラーを使い、`login` は設定を案内します。認証は各ツールの責任です。マニフェストの実行ベクトルには信頼が必要で、変更後は再確認します。手動手順の完了を申告するだけでは検証成功の代わりになりません。
 
-### Skill、MCP、ライフサイクル
+### fx 同梱 Skill とチーム Skill
 
-選択したエージェントには、チームの Skill ディレクトリへのリンクと、バージョン付き fx Skill のコピーを配布します。fx の所有物でないファイルは保持します。Windows ではチームのディレクトリに junction を使います。`skill list` で状態を確認し、`sync --only skills` で調整します。
+fx 同梱 Skill は CLI の操作、ワークスペースの初期化、準備状態の復旧を案内します。初期化前から利用できます。
+
+```sh
+fx skill install
+fx skill install --agent codex
+fx skill status
+fx skill path
+fx skill show
+```
+
+`install/uninstall` は指定スコープの Agent を検出します。`--agent` は繰り返し指定またはカンマ区切りに対応します。`path/status` は既定で全対応 Agent を列挙します。`--project` は現在のディレクトリを使い、`--dir ./custom-skills` は `<dir>/fx-workspace` を指定します。`--dir` は `--agent`、`--project` と併用できません。ワークスペースの登録やサービスへのログインは不要です。単独インストールはワークスペースの Agent 選択を使いません。プロジェクト検出はネイティブのマーカーを使い、ユーザー単位の検出では PATH 上の Agent 実行ファイルも認識します。
+
+明示的な `skill install` は認識済みコピーを現在の CLI の版に更新します。同じ版の修復や新しい版からの置換も含みます。`init/sync` は同じ版を再利用し、新しい版をダウングレードしません。外部所有パスの置換には確認とバックアップが必要です。書き込みは `--dry-run` と読み取り専用設定に従います。`skill uninstall` は確認後に認識済みコピーのみを削除します。非対話実行では `--yes` を使い、外部所有パスは保持します。Agent 選択は変更しないため、後続の同期でユーザー単位のコピーが再インストールされる場合があります。
+
+`status` はインストール状態、版の一致、`FX_SKILL_LOADED=1` のロード済みハンドシェイクを分けて報告します。インストール成功は Agent のロード成功を意味しません。`path` は配置先、`self info` は同梱ソースの場所を示します。`show` はすべての出力形式で SKILL.md の原文を返します。Skill コマンドはローカル処理のみで、更新の通信、マニフェスト取得、連携インストーラーやログイン確認を実行しません。非 TTY の業務コマンドは未ロード時に構造化した探索通知を stderr に出します。setup と Skill コマンドは通知せず、`FX_SKILL_NOTICE=0` でも無効にできます。
+
+チーム Skill はマニフェストの `skills/` にあり、`init/sync` が選択した Agent のプロジェクトディレクトリへリンクします。Windows では junction を使います。ルート AGENTS.md にも説明とソースへのリンクを列挙し、Agent がタスクに合う Skill を読めるようにします。Agent はワークスペースのルートから起動してください。子リポジトリからの検出は保証しません。`skill list` で配布状態を確認し、`sync --only docs,skills` で更新します。共有チームリンクへの同梱 Skill のインストールは `SKILL_SOURCE_PROTECTED` で拒否します。ユーザー単位または独立ディレクトリを指定してください。
 
 harness は MCP エントリーとルールへの参照をホストに投影します。秘密の値は環境変数への参照に留めます。`mcp list/show` と `can mcp:<name>` は前提条件を説明しますが、設定の存在だけではホストでの有効化を証明できません。[MCP の契約](user-guide.md#for-coding-agents)を参照してください。
 
@@ -147,7 +163,7 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 doctor/release は失敗項目があっても終了コード 0 を返します。init/sync も部分成功で 0 を返す場合があります。init では `sync.summary` と `sync.stages`、sync では `summary`、`stages`、失敗項目の `failure` を読みます。`stage_details` に各リソース段階の結果と handoff が残ります。終了コードだけで準備完了と判断せず、認証の捏造やホストの信頼境界の回避をしないでください。
 
-[内蔵 Skill](../skills/fx-workspace/SKILL.md)と[応答ガイド](../skills/fx-workspace/references/commands.md)を読んだ後で `FX_SKILL_LOADED=1` を設定します。インストール済み Skill の場所は `self info` で確認できます。
+[内蔵 Skill](../skills/fx-workspace/SKILL.md)と[応答ガイド](../skills/fx-workspace/references/commands.md)を読んだ後で `FX_SKILL_LOADED=1` を設定します。同梱 Skill のソースは `self info`、インストール先は `skill path` で確認できます。
 
 ## 設定 {#configuration}
 
@@ -199,7 +215,7 @@ Skill ステージが中断すると、`sync.stage_details.skills` に `links`�
 
 ### Skill の所有権とホストの有効化
 
-チーム Skill リンクはワークスペースに属します. fx 同梱 Skill はユーザーと選択したホストに属し, ワークスペース間で再利用されます. 認識済みの新しい版を古い版で置換しません. 更新時はユーザー単位のロック内で所有権とバージョンを再確認し, 外部所有のコピーを保護します. 連携ツールは独自の Skill インストールとバージョン管理を所有するため, 別ワークスペースの同期でもそのインストーラーを呼び出す場合があります. ローカル Skill インストールは必ずしも通信を必要とせず, 呼び出し元の承認待ちと実行中の子プロセスを区別します.
+チーム Skill リンクはワークスペースに属します. fx 同梱 Skill はユーザーと選択したホストに属し, ワークスペース間で再利用されます. 初期化と同期では認識済みの新しい版を古い版で置換しません. 更新時はユーザー単位のロック内で所有権とバージョンを再確認し, 外部所有のコピーを保護します. 連携ツールは独自の Skill インストールとバージョン管理を所有するため, 別ワークスペースの同期でもそのインストーラーを呼び出す場合があります. ローカル Skill インストールは必ずしも通信を必要とせず, 呼び出し元の承認待ちと実行中の子プロセスを区別します.
 
 `agent list` は `detected`, `selected`, `selection` (automatic または explicit), `active: null` を返します. 検出は現在の活動を証明しません. 初期化前に `fx config set agents <id,...>` を明示して投影先を限定できます. `FX_HOME` は fx 設定だけを分離し, グローバル Skill は分離しません. 実験では HOME も分離してください.
 

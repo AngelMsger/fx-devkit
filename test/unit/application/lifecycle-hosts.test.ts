@@ -19,6 +19,7 @@ describe('lifecycle host registration', () => {
         homeSub: '.sample',
         projectSkills: '.sample/skills',
         markers: [],
+        projectMarkers: [],
         binaries: [],
         hooks: {
           projectPath: '.sample/hooks.json',

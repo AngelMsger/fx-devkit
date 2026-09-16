@@ -22,6 +22,7 @@ describe('MCP host capabilities', () => {
         homeSub: '.fixture',
         projectSkills: '.fixture/skills',
         markers: [],
+        projectMarkers: [],
         binaries: [],
         mcp: {
           status: 'supported',

@@ -116,6 +116,10 @@ own branches and histories.
   tree. Windows uses junctions; do not silently substitute copies. The bundled
   fx Skill is a copy recognized by its name and version frontmatter. An unversioned
   same-name directory is foreign.
+- Standalone Skill commands follow the oa-cli target surface and work without a workspace.
+  Explicit install refreshes recognized copies; init/sync never downgrade them.
+  Shared manifest Skill sources are not companion installation destinations.
+  The generated team-skills guide region owns the root discovery catalog.
 - Lifecycle hooks live only at the registered root. Dispatch reads local state
   under an independent deadline and fails open. Background work may refresh the
   manifest, docs, Skills and readiness observations; it never syncs business

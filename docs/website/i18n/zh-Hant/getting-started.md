@@ -110,9 +110,25 @@ capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provide
 
 `tool list/show` 顯示工具需求，`tool install/update` 使用宣告的安裝程式，`login` 引導設定。驗證由各工具負責。manifest 提供的執行向量需要信任；向量改變後需要重新確認。口頭確認手動步驟不能取代驗證成功。
 
-### Skill、MCP 與生命週期
+### fx 伴生 Skill 與團隊 Skill
 
-所選 Agent 取得團隊 Skill 目錄連結和附版本的 fx Skill 副本。非 fx 擁有的檔案會被保留；Windows 使用 junction 連結團隊目錄。使用 `skill list` 查看交付狀態，使用 `sync --only skills` 協調資源。
+fx 伴生 Skill 引導 Agent 使用 CLI、初始化工作區及恢復就緒狀態。初始化前即可執行：
+
+```sh
+fx skill install
+fx skill install --agent codex
+fx skill status
+fx skill path
+fx skill show
+```
+
+`install/uninstall` 預設偵測所選作用域的 Agent；`--agent` 可重複或以逗號分隔。`path/status` 預設列出全部支援的 Agent。`--project` 使用目前目錄，`--dir ./custom-skills` 安裝至 `<dir>/fx-workspace`，且與 `--agent`、`--project` 互斥。無需註冊工作區或登入服務。獨立安裝不使用工作區 Agent 選擇；專案偵測使用原生標記，使用者層級偵測也識別 PATH 中的 Agent 程式。
+
+明確執行 `skill install` 會將已識別副本更新為目前 CLI 版本，包括同版修復及覆寫較新副本；`init/sync` 則重用同版且不降級。取代外來路徑需確認及備份。寫入支援 `--dry-run` 與唯讀限制。`skill uninstall` 確認後移除已識別副本，非互動環境使用 `--yes`；外來路徑保留。解除安裝不修改工作區選擇，後續同步可能重新安裝所選宿主的使用者層級副本。
+
+`status` 分別報告安裝狀態、版本一致性與 `FX_SKILL_LOADED=1` 載入握手。安裝成功不等於 Agent 已載入。`path` 查詢安裝目標，`self info` 提供套件內來源路徑。`show` 在所有輸出格式下均輸出 SKILL.md 原文。Skill 命令僅執行本地操作，不檢查線上更新、不重新整理 manifest、不呼叫配套安裝器或登入探測。非 TTY 業務命令在未載入 Skill 時向 stderr 輸出結構化探索提示；setup 與 Skill 命令保持安靜。`FX_SKILL_NOTICE=0` 可關閉提示。
+
+團隊 Skill 存放於 manifest 的 `skills/`，由 `init/sync` 連結至所選 Agent 的 Project Skill 目錄，Windows 使用 junction。工作區根 AGENTS.md 另列出每個 Skill 的觸發說明與來源連結，供 Agent 按任務讀取。請從工作區根啟動 Agent；不保證子儲存庫內啟動時可探索。`skill list` 檢查工作區分發，`sync --only docs,skills` 更新指南與 Skill。不要經團隊共享連結安裝 fx 伴生 Skill；CLI 會回傳 `SKILL_SOURCE_PROTECTED`。請使用使用者層級安裝或獨立目錄。
 
 harness 向所選宿主投射 MCP 項目和規則參照，機密值保持為環境變數參照。`mcp list/show` 和 `can mcp:<name>` 說明先決條件；設定正確不代表宿主已啟用。請參閱 [MCP 契約](user-guide.md#for-coding-agents)。
 
@@ -147,7 +163,7 @@ harness 向所選宿主投射 MCP 項目和規則參照，機密值保持為環�
 
 doctor/release 即使有失敗檢查也傳回結束代碼零；init/sync 也可能在部分成功時傳回零。init 查看 `sync.summary`、`sync.stages`；sync 查看 `summary`、`stages` 和每個失敗項目的 `failure`。`stage_details` 保留資源階段結果和 handoff。不要把結束代碼當作就緒證據，不要虛構驗證或繞過宿主信任。
 
-先讀[內建 Skill](../skills/fx-workspace/SKILL.md)和[回應指南](../skills/fx-workspace/references/commands.md)，再設定 `FX_SKILL_LOADED=1`。`self info` 可定位安裝後的 Skill。
+先讀[內建 Skill](../skills/fx-workspace/SKILL.md)和[回應指南](../skills/fx-workspace/references/commands.md)，再設定 `FX_SKILL_LOADED=1`。`self info` 定位套件內來源，`skill path` 查詢安裝目標。
 
 ## 設定 {#configuration}
 
@@ -199,7 +215,7 @@ Skill 階段中斷時, `sync.stage_details.skills` 保留 `links`、`fx` 和 `to
 
 ### Skill 所有權與宿主啟用
 
-團隊 Skill 連結屬於工作區; fx 內建 Skill 副本屬於使用者和所選宿主, 多工作區共用, 不用舊版覆蓋已識別的新版. 更新在使用者層級鎖內重新核對所有權和版本, 外來副本保留. 第三方工具擁有各自的 Skill 安裝與版本策略, 因此 fx 仍可能在另一工作區同步時再次呼叫其安裝程式. 本機 Skill 安裝不必然需要網路; 應區分呼叫器核准等待與已啟動子程序.
+團隊 Skill 連結屬於工作區; fx 內建 Skill 副本屬於使用者和所選宿主, 多工作區共用, 初始化及同步不用舊版覆蓋已識別的新版. 更新在使用者層級鎖內重新核對所有權和版本, 外來副本保留. 第三方工具擁有各自的 Skill 安裝與版本策略, 因此 fx 仍可能在另一工作區同步時再次呼叫其安裝程式. 本機 Skill 安裝不必然需要網路; 應區分呼叫器核准等待與已啟動子程序.
 
 `agent list` 提供 `detected`、`selected`、`selection` (automatic 或 explicit) 和 `active: null`, 因為偵測不能證明目前活躍. 初始化前明確設定 `fx config set agents <id,...>` 可限制投影範圍. `FX_HOME` 只隔離 fx 設定, 不隔離全域 Skill; 實驗還應使用獨立 HOME.
 

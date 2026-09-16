@@ -102,7 +102,7 @@ issues and builds that cannot be dated against the branch head warn rather
 than prove readiness. `RELEASE_OK` / `RELEASE_FAILURES` are closing notices;
 inspect report coverage even when the notice says OK.
 
-End-of-command notices (stderr, any format, every command except `self update`, `completion` and lifecycle dispatch): `MANIFEST_OUTDATED` (next step `fx sync`) and `FX_OUTDATED` (`fx self update --yes`, then `fx sync --only skills`). Cached a day (fx) and an hour (manifest), silent on failure, the two probes side by side, each giving its upstream at most two seconds (local reads and writes of the cache and `~/.npmrc` are not under that clock). Off with `FX_UPDATE_CHECK=0`, the `update_check` config key, or `--quiet`; the same switch turns doctor's two live findings into `ok … not checked`. A command that fails before its configuration is read makes no check.
+End-of-command notices (stderr, any format, every command except `skill` commands, `self update`, `completion` and lifecycle dispatch): `MANIFEST_OUTDATED` (next step `fx sync`) and `FX_OUTDATED` (`fx self update --yes`, then `fx skill install`). Cached a day (fx) and an hour (manifest), silent on failure, the two probes side by side, each giving its upstream at most two seconds (local reads and writes of the cache and `~/.npmrc` are not under that clock). Off with `FX_UPDATE_CHECK=0`, the `update_check` config key, or `--quiet`; the same switch turns doctor's two live findings into `ok … not checked`. A command that fails before its configuration is read makes no check.
 
 `fx sync` — `items[]` of repository rows, then `summary` and `stages` (`docs`, `skills`, `hooks`, `mcp`, `tools`) in the same envelope. Failed repository rows keep the display `error` and a
 `failure` object with `category`, `code`, `message`, `hint`, `next_steps`,
@@ -162,3 +162,23 @@ Stale documents, aliases/anchors or conflicting writes are refused.
 resource with symbolic bindings, projections and readiness. `can mcp:<name>`
 optionally accepts `--agent <id>`; MCP resources are workspace-scoped, so `--env`
 is not applicable. Use `sync --only mcp` for projection and `doctor` for repair.
+
+## Standalone companion Skill
+
+`skill path` uses the collection envelope. Each row has an optional `agent`, `path`,
+`status` (`installed`, `not_installed`, `foreign`), `version` (nullable) and
+`version_state` (`matching`, `older`, `newer`, `unknown`, `missing`). `skill status`
+returns `loaded`, `loaded_env`, `embedded_version`, `installs` and `next`; a loaded
+handshake does not suppress version drift. Neither command needs a workspace.
+
+`skill install/uninstall` return collection rows with `action`, `status`, `version`
+and target fields. Status is `planned` for previews; execution distinguishes
+`installed`, `removed`, `not_installed`, `foreign`, `skipped`, `failed` and
+`not_started`. On interruption, stdout retains the partial collection with each
+row's `observed` state and failure envelope; stderr preserves the original error.
+`SKILL_FLAGS`, `SKILL_AGENT` and `SKILL_NO_AGENT` are usage errors.
+`SKILL_SOURCE_PROTECTED` rejects writes through shared manifest paths;
+`SKILL_BUSY` and `SKILL_TARGET_CHANGED` require inspecting/retrying the target.
+
+`skill show` is an explicit raw-text exception to structured stdout: it always
+prints the bundled SKILL.md. It makes no network check and emits no discovery hint.
