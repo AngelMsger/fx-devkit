@@ -4,6 +4,7 @@
 
 import { DevkitError } from '../../domain/errors.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 import { findRepo, webUrlFor } from '../workspace/inspect.js';
 
 export class RepoOpen {
@@ -18,7 +19,10 @@ export class RepoOpen {
         'REPO_NO_URL',
         `"${repo.name}" has no code-host location to open`,
         {
-          nextSteps: ['fx manifest providers', `fx repo show ${repo.name}`],
+          nextSteps: [
+            workspaceCommand(this.deps, 'manifest', 'providers'),
+            workspaceCommand(this.deps, 'repo', 'show', repo.name),
+          ],
         },
       );
     }

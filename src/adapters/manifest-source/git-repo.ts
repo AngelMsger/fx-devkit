@@ -89,12 +89,13 @@ export class GitRepoSource implements ManifestSource {
     const fs = this.fs;
     return fs === undefined
       ? undefined
-      : { root: dir, readText: (file) => fs.readText(path.join(dir, file)) };
+      : { root: dir, contents: 'worktree', readText: (file) => fs.readText(path.join(dir, file)) };
   }
 
   private inspectCommit(dir: string, ref: string): ManifestSourceInspection {
     return {
       root: `${dir}@${ref}`,
+      contents: 'commit',
       readText: async (file) => {
         const result = await this.process.run(['git', '-C', dir, 'show', `${ref}:${file}`]);
         if (result.code === 0) return result.stdout;

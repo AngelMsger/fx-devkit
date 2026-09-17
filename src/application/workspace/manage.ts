@@ -5,18 +5,17 @@ import path from 'node:path';
 
 import { asDevkitError, DevkitError, withPartialResult } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lock } from '../../ports/lock.js';
 import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { ConfigStore, WorkspaceEntry } from '../../ports/stores.js';
-import { LoadManifest } from '../manifest/load.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import { withWorkspaceOperation } from './operation.js';
 import { assertDistinctWorkspaceRoot } from './registry.js';
 import type { ResourceCleanupRow, WorkspaceResources } from './resources.js';
-import { inspectRebindSource } from './source-preview.js';
+import { inspectRebindSource, materializeRebindSource } from './source-preview.js';
 
 export interface ManageWorkspaceDeps {
   readonly fs: FileSystem;
@@ -26,6 +25,7 @@ export interface ManageWorkspaceDeps {
   readonly manifestDirFor: (name: string) => string;
   readonly bundledTools: () => string;
   readonly cliVersion: string;
+  readonly commandShell?: ResolvedShell | undefined;
 }
 export interface ManageWorkspaceInput {
   readonly name: string;
@@ -82,7 +82,7 @@ export class ManageWorkspace {
       return this.output({ ...preview, after: preview.before }, [], false);
     const validation =
       input.source && preview.phase === 'planned'
-        ? await inspectRebindSource(input.source, this.deps)
+        ? await inspectRebindSource(input.source, { ...this.deps, workspace: input.name })
         : null;
     const resources = await this.cleanup(preview, input, true);
     const result = {
@@ -239,11 +239,11 @@ export class ManageWorkspace {
     const backup = this.backup(journal);
     if (journal.action === 'rebind' && journal.phase === 'planned') {
       await this.deps.fs.remove(staging);
-      await input.source!.materialize(staging);
-      await new LoadManifest(this.deps.fs, this.deps.bundledTools).execute({
-        dir: staging,
-        cliVersion: this.deps.cliVersion,
-      });
+      await materializeRebindSource(
+        input.source!,
+        { ...this.deps, workspace: input.name },
+        staging,
+      );
       await save('source_ready');
     }
     let resources: readonly ResourceCleanupRow[] = [];

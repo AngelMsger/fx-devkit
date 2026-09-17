@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { SystemClock } from '../../../src/adapters/clock/system-clock.js';
+import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { SnapshotReader } from '../../../src/adapters/fs/snapshot-reader.js';
 import { ContributionSystemGit } from '../../../src/adapters/git/contribution-system-git.js';
 import { ContributionGitTransport } from '../../../src/adapters/git/contribution-transport.js';
@@ -15,6 +16,7 @@ import { ValidateContribution } from '../../../src/application/contribution/vali
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
+import { FakeConfigStore } from '../../fakes/fake-config-store.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 
 const roots: string[] = [];
@@ -29,7 +31,7 @@ afterEach(() => {
 
 describe('native contribution workflow with a durable journal', () => {
   it('validates only the candidate and can reload its completed operation without another push', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-contribution-workflow-'));
+    const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-contribution-workflow-')));
     roots.push(home);
     const source = path.join(home, 'workspaces/test/source');
     mkdirSync(path.join(source, 'manifest'), { recursive: true });
@@ -75,7 +77,15 @@ describe('native contribution workflow with a durable journal', () => {
     const process = new NodeProcess();
     const lock = new FileLock(home);
     let id = 0;
+    const expected = { root: home, source: upstream };
     const deps = {
+      registration: {
+        expected,
+        physicalRoot: expected.root,
+        logicalSourceDir: source,
+        config: new FakeConfigStore({ workspaces: { test: expected } }),
+        fs: new NodeFs(lock),
+      },
       source: { workspace: 'test', dir: source, kind: 'repo' as const },
       git: new ContributionSystemGit(process),
       transport: new ContributionGitTransport(process),

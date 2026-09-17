@@ -16,9 +16,11 @@ import type {
   ContributionTransport,
   ContributionUpstream,
 } from '../../ports/contribution-transport.js';
+import type { FileSystem } from '../../ports/fs.js';
 import type { Identifiers } from '../../ports/identifiers.js';
 import type { Lock } from '../../ports/lock.js';
 import type { Prompter } from '../../ports/prompter.js';
+import type { ConfigStore, WorkspaceEntry } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
 
 import type { ContributionFinding, ValidateContribution } from './validate.js';
@@ -42,6 +44,13 @@ export type ContributionHost = Pick<
 >;
 
 export interface PushSourceDeps {
+  readonly registration: {
+    readonly expected: WorkspaceEntry;
+    readonly physicalRoot: string;
+    readonly logicalSourceDir: string;
+    readonly config: ConfigStore;
+    readonly fs: FileSystem;
+  };
   readonly user?: string | undefined;
   readonly source: {
     readonly workspace: string;

@@ -30,6 +30,7 @@ export default class ToolInstallCommand extends FxCommand {
     const { tools, workspace } = await this.toolchain();
     const results = await toolInstall(this.container).execute({
       tools,
+      commandShell: this.commandShell,
       names: argv.length === 0 ? undefined : (argv as string[]),
       all: flags.all,
       update: false,
@@ -38,7 +39,13 @@ export default class ToolInstallCommand extends FxCommand {
       trust:
         workspace === undefined
           ? undefined
-          : { gate: this.trustGate(), workspace, yes: this.yes, posture: this.posture },
+          : {
+              gate: this.trustGate(),
+              workspace,
+              commandShell: this.commandShell,
+              yes: this.yes,
+              posture: this.posture,
+            },
     });
     this.renderer.list(results, {
       columns: ['name', 'via', 'vector', 'ran', 'code', 'version_after', 'error'],

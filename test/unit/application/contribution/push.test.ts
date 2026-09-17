@@ -7,6 +7,7 @@ import { PushSource } from '../../../../src/application/contribution/push.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
+import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import {
   SETTINGS,
   SOURCE,
@@ -15,6 +16,7 @@ import {
   FakeContributionStore,
   FakeContributionTransport,
 } from '../../../fakes/fake-contribution.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 
 const input: PushSourceInput = {
@@ -33,6 +35,10 @@ function fixture() {
   const records = new FakeContributionStore();
   const host = new FakeCodeHost();
   const prompter = new FakePrompter();
+  const expected = { root: path.resolve('/workspace'), source: SETTINGS.upstreamUrls[0]! };
+  const config = new FakeConfigStore({ workspaces: { test: expected } });
+  const fs = new FakeFs();
+  const lockKeys: string[] = [];
   host.identities.set('~alice/manifest', {
     ref: SOURCE,
     cloneUrls: SETTINGS.originUrls,
@@ -56,6 +62,13 @@ function fixture() {
     git.available = true;
   };
   const deps = {
+    registration: {
+      expected,
+      physicalRoot: expected.root,
+      logicalSourceDir: path.resolve('/source'),
+      config,
+      fs,
+    },
     source: { workspace: 'test', dir: path.resolve('/source'), kind: 'repo' as const },
     git,
     transport,
@@ -80,7 +93,8 @@ function fixture() {
       }),
     },
     lock: {
-      acquire: async () => {
+      acquire: async (request: { key: string }) => {
+        lockKeys.push(request.key);
         leases++;
         afterLock?.();
         afterLock = undefined;
@@ -94,6 +108,9 @@ function fixture() {
   };
   return {
     deps,
+    config,
+    fs,
+    lockKeys,
     git,
     transport,
     records,
@@ -340,5 +357,67 @@ describe('source contribution orchestration', () => {
     expect(f.transport.fetches).toEqual([]);
     await f.usecase.execute(input);
     expect(f.transport.fetches).toHaveLength(1);
+  });
+  it('acquires identity, workspace and source leases only after confirmation', async () => {
+    const f = fixture();
+    f.prompter.confirm = async () => {
+      expect(f.lockKeys).toEqual([]);
+      return true;
+    };
+    await f.usecase.execute({ ...input, yes: false });
+    expect(f.lockKeys).toEqual([
+      'workspace-operation:test',
+      'workspace:test',
+      `source:${f.deps.source.dir}`,
+    ]);
+    expect(f.releases()).toBe(3);
+  });
+
+  it.each(['unregister', 'relocate', 'rebind'] as const)(
+    'rejects a stale registration changed by %s during confirmation',
+    async (operation) => {
+      const f = fixture();
+      f.prompter.confirm = async () => {
+        const entry = f.deps.registration.expected;
+        const changed =
+          operation === 'relocate'
+            ? { ...entry, root: path.resolve('/moved') }
+            : { ...entry, source: 'https://git.example.com/other/source.git' };
+        await f.config.write({ workspaces: operation === 'unregister' ? {} : { test: changed } });
+        return true;
+      };
+      await expect(f.usecase.execute({ ...input, yes: false })).rejects.toMatchObject({
+        code: 'WORKSPACE_PLAN_CHANGED',
+      });
+      expect(f.git.prepared).toEqual([]);
+      expect(f.git.published).toEqual([]);
+      expect(f.transport.fetches).toEqual([]);
+      expect(f.transport.pushes).toEqual([]);
+      expect(f.records.writes).toEqual([]);
+      expect(f.releases()).toBe(f.leases());
+    },
+  );
+
+  it('rejects a pending identity journal before dry-run preflight and again after confirmation', async () => {
+    const f = fixture();
+    const journal = path.join(path.dirname(f.deps.source.dir), 'workspace-operation.json');
+    await f.fs.writeText(journal, '{}');
+    await expect(f.usecase.execute({ ...input, dryRun: true })).rejects.toMatchObject({
+      code: 'WORKSPACE_OPERATION_PENDING',
+    });
+    expect(f.git.captureCalls).toBe(0);
+    expect(f.leases()).toBe(0);
+    await f.fs.remove(journal);
+    f.prompter.confirm = async () => {
+      await f.fs.writeText(journal, '{}');
+      return true;
+    };
+    await expect(f.usecase.execute({ ...input, yes: false })).rejects.toMatchObject({
+      code: 'WORKSPACE_OPERATION_PENDING',
+    });
+    expect(f.records.writes).toEqual([]);
+    expect(f.git.prepared).toEqual([]);
+    expect(f.transport.pushes).toEqual([]);
+    expect(f.releases()).toBe(f.leases());
   });
 });

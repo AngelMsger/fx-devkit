@@ -69,8 +69,8 @@ export class Release {
   // every repository: the name came from the person, not from a platform.
   private checkEnv(env: string | undefined): void {
     if (env === undefined) return;
-    const envs = environmentsOf(this.deps.ctx).envs;
-    if (envs[env] === undefined) throw envNotFound(env, Object.keys(envs));
+    const envs = environmentsOf(this.deps.ctx, this.deps.commandShell).envs;
+    if (envs[env] === undefined) throw envNotFound(this.deps, env, Object.keys(envs));
   }
 
   // Readiness is judged before the pool starts and one gate at a time: a

@@ -8,6 +8,7 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer, Repo } from '../../domain/manifest/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 import { physicalPath, validateWorkspaceLayer } from '../workspace/validate-layer.js';
 
 export interface RepoAddInput {
@@ -41,7 +42,7 @@ export class RepoAdd {
         `"${name}" is already a repository of this workspace`,
         {
           hint: 'A local entry cannot shadow a shared one; pick a different directory name.',
-          nextSteps: [`fx repo show ${name}`],
+          nextSteps: [workspaceCommand(this.deps, 'repo', 'show', name)],
         },
       );
     }

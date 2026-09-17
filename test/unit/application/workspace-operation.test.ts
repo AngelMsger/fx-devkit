@@ -70,7 +70,7 @@ describe('workspace operation leases', () => {
       expect(workspaceWriteMode(id, {})).toBe('workspace');
       expect(workspaceWriteMode(id, { 'dry-run': true })).toBe(null);
     }
-    for (const id of ['source:push', 'manifest:repo-set', 'manifest:render'])
+    for (const id of ['manifest:repo-set', 'manifest:render'])
       expect(workspaceWriteMode(id, {})).toBe('source');
     expect(workspaceWriteMode('doctor', {})).toBe(null);
     expect(workspaceWriteMode('doctor', { fix: true })).toBe('workspace');
@@ -87,6 +87,7 @@ describe('workspace operation leases', () => {
     for (const id of ['hook:inject', 'hook:remove'])
       expect(workspaceWriteMode(id, {})).toBe('workspace');
     expect(workspaceWriteMode('manifest:set', {})).toBe('source');
+    expect(workspaceWriteMode('source:push', {})).toBe(null);
     for (const [id, flags] of [
       ['where', { record: true, check: true }],
       ['status', { fetch: true }],

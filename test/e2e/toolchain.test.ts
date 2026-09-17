@@ -125,8 +125,8 @@ describe('doctor checks a tool with trust-on-first-use', () => {
     const untrusted = check();
     expect(untrusted).toMatchObject({
       level: 'warn',
-      fix: 'fx doctor --tool fake-tool',
-      handoff: { command: 'fx doctor --tool fake-tool' },
+      fix: 'fx doctor --tool fake-tool --workspace ws',
+      handoff: { command: 'fx doctor --tool fake-tool --workspace ws' },
     });
     expect(untrusted?.message).toContain('trust');
 
@@ -141,8 +141,8 @@ describe('doctor checks a tool with trust-on-first-use', () => {
     );
     expect(lockedFinding).toMatchObject({
       level: 'warn',
-      fix: 'fx doctor --tool fake-tool --allow-writes',
-      handoff: { command: 'fx doctor --tool fake-tool --allow-writes' },
+      fix: 'fx doctor --tool fake-tool --allow-writes --workspace ws',
+      handoff: { command: 'fx doctor --tool fake-tool --allow-writes --workspace ws' },
     });
     expect(readFileSync(path.join(s.env['FX_HOME'], 'trust.yaml'), 'utf8')).toBe(before);
 

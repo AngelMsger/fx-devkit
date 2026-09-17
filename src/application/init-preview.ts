@@ -9,6 +9,7 @@ import type { ConfigFile } from '../ports/stores.js';
 
 import type { InitDeps, InitInput, InitOutput } from './init.js';
 import { LoadManifest, type ManifestBundle } from './manifest/load.js';
+import { sourceValidationError } from './manifest/source-error.js';
 import { toolsOf } from './tool/toolchain.js';
 import { planRepositories } from './workspace/plan.js';
 import { scopeMode } from './workspace/scope.js';
@@ -54,13 +55,7 @@ export async function inspectInitialization(
 ): Promise<InitOutput['plan']> {
   const plan = output.plan;
   if (inspection === undefined) return plan;
-  const bundle = await new LoadManifest(
-    {
-      readText: (file) =>
-        inspection.readText(path.relative(output.manifest_dir, file).split(path.sep).join('/')),
-    },
-    deps.bundledTools,
-  ).execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion });
+  const bundle = await loadInspectedSource(deps, input, output, inspection);
   const local = await initialLocalLayer(deps, output.name, output.root, bundle, input.repos);
   const context = {
     dir: output.manifest_dir,
@@ -106,6 +101,25 @@ export async function inspectInitialization(
   };
 }
 
+async function loadInspectedSource(
+  deps: InitDeps,
+  input: InitInput,
+  output: InitOutput,
+  inspection: ManifestSourceInspection,
+): Promise<ManifestBundle> {
+  return new LoadManifest(
+    {
+      readText: (file) =>
+        inspection.readText(path.relative(output.manifest_dir, file).split(path.sep).join('/')),
+    },
+    deps.bundledTools,
+  )
+    .execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion })
+    .catch((error: unknown) => {
+      throw initializationSourceError(deps, input, output, inspection, error);
+    });
+}
+
 interface InitialPlanFacts {
   readonly name: string;
   readonly root: string;
@@ -146,4 +160,32 @@ export function initialPlan(
       'Effective source contents for this invocation have not been determined. Repository names, selection and resource declarations are unverified. A refresh may preserve the current managed checkout. Inspect a local checkout with --from <directory> --dry-run, or initialize to acquire and validate the remote source before repository cloning.',
     ],
   };
+}
+
+export function initializationSourceError(
+  deps: Pick<InitDeps, 'commandShell'>,
+  input: InitInput,
+  output: Pick<InitOutput, 'name' | 'root'>,
+  inspected: Pick<ManifestSourceInspection, 'root' | 'contents'> | undefined,
+  error: unknown,
+): DevkitError {
+  let selection: string[] = [];
+  if (input.repos !== undefined)
+    selection = input.repos.length === 0 ? ['--no-repos'] : ['--repos', input.repos.join(',')];
+  return sourceValidationError(error, {
+    source: input.source,
+    inspected,
+    commandShell: deps.commandShell,
+    retry: [
+      'fx',
+      'init',
+      output.root,
+      '--name',
+      output.name,
+      '--from',
+      input.source.description,
+      ...selection,
+      '--dry-run',
+    ],
+  });
 }

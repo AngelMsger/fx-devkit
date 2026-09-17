@@ -3,6 +3,7 @@
 
 import type { HandoffStep } from '../../domain/errors.js';
 import type { SetupStep } from '../../domain/setup/types.js';
+import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 export function handoffStep(step: SetupStep): HandoffStep {
   return {
@@ -16,8 +17,8 @@ export function handoffStep(step: SetupStep): HandoffStep {
   };
 }
 
-export function loginCommand(steps: readonly SetupStep[]): string {
+export function loginCommand(steps: readonly SetupStep[], context: WorkspaceGuidance): string {
   const tools = [...new Set(steps.map((s) => s.tool))];
   const envs = [...new Set(steps.flatMap((s) => (s.env === undefined ? [] : [s.env])))];
-  return ['fx login', ...tools, ...envs.flatMap((e) => ['--env', e])].join(' ');
+  return workspaceCommand(context, 'login', ...tools, ...envs.flatMap((e) => ['--env', e]));
 }

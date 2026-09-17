@@ -372,9 +372,11 @@ describe('Doctor', () => {
     expect(by('self')).toEqual([['version', 'ok']]);
     expect(report.ok).toBe(false);
     const login = report.findings.find((f) => f.id === 'bitbucket-cli.login');
-    expect(login?.fix).toBe('fx login bitbucket-cli');
+    expect(login?.fix).toBe('fx login bitbucket-cli --workspace fx');
     expect(login?.handoff?.user_steps[0]?.command).toEqual(['bitbucket-cli', 'auth', 'login']);
-    expect(report.findings.find((f) => f.id === 'fx-example-api')?.fix).toBe('fx sync');
+    expect(report.findings.find((f) => f.id === 'fx-example-api')?.fix).toBe(
+      'fx sync --workspace fx',
+    );
   });
 
   it('asks the registry and the upstream live, and warns with the remedy when either is behind', async () => {
@@ -396,7 +398,7 @@ describe('Doctor', () => {
     expect(report.findings.find((f) => f.id === 'upstream')).toMatchObject({
       group: 'manifest',
       level: 'warn',
-      fix: 'fx sync',
+      fix: 'fx sync --workspace fx',
     });
     expect(report.ok).toBe(true);
     s.registry.set(new Error('503'));

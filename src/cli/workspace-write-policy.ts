@@ -18,12 +18,7 @@ const WORKSPACE_WRITERS = new Set([
   'hook:remove',
   'manifest:record-probe',
 ]);
-const SOURCE_WRITERS = new Set([
-  'manifest:repo-set',
-  'manifest:set',
-  'manifest:render',
-  'source:push',
-]);
+const SOURCE_WRITERS = new Set(['manifest:repo-set', 'manifest:set', 'manifest:render']);
 export function workspaceWriteMode(
   id: string | undefined,
   flags: Readonly<Record<string, unknown>>,

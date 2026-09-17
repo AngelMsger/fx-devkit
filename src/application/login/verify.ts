@@ -51,6 +51,7 @@ export class Verifier {
     }
     const trust = {
       workspace: this.deps.ctx.name,
+      commandShell: this.deps.commandShell,
       vector: verify.command,
       label: `${step.id} check`,
       origin: step.origin,

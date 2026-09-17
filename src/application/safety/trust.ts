@@ -4,6 +4,7 @@
 // and the fingerprint is remembered for that workspace.
 
 import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import {
   trustFingerprint,
   renderTrustContext,
@@ -13,10 +14,12 @@ import {
 import type { Clock } from '../../ports/clock.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { TrustStore } from '../../ports/stores.js';
+import { recoveryCommand } from '../workspace/guidance.js';
 
 import { assertWritable, type WritePosture } from './posture.js';
 
 export interface TrustInput {
+  readonly commandShell?: ResolvedShell | undefined;
   readonly workspace: string;
   readonly vector: readonly string[];
   readonly label: string;
@@ -30,6 +33,7 @@ export interface TrustInput {
 // Under a dry run nothing is recorded: an untrusted vector is reported, not
 // asked about.
 export interface TrustContext {
+  readonly commandShell?: ResolvedShell | undefined;
   readonly gate: TrustGate;
   readonly workspace: string;
   readonly yes: boolean;
@@ -76,7 +80,7 @@ export class TrustGate {
             hint: 'A person confirms each manifest-supplied command once per workspace.',
             nextSteps: [
               'Re-run the same command in a terminal and review the vector.',
-              'fx tool show <tool>',
+              recoveryCommand(input, 'tool', 'show', '<tool>'),
               `Review the manifest patch that defines ${input.label}.`,
             ],
           },
@@ -91,7 +95,7 @@ export class TrustGate {
         `the command for ${input.label} was not trusted: ${shown}`,
         {
           hint: 'Nothing ran. Edit the manifest patch, or re-run and confirm.',
-          nextSteps: ['fx tool show <tool>'],
+          nextSteps: [recoveryCommand(input, 'tool', 'show', '<tool>')],
         },
       );
     }
@@ -101,9 +105,16 @@ export class TrustGate {
 export function commandTrustHandoff(input: {
   readonly tool: string;
   readonly posture: WritePosture;
+  readonly workspace?: string | undefined;
+  readonly commandShell?: ResolvedShell | undefined;
 }): HandoffEnvelope {
-  const base = `fx doctor --tool ${input.tool}`;
-  const command = input.posture.readOnly ? `${base} --allow-writes` : base;
+  const command = recoveryCommand(
+    input,
+    'doctor',
+    '--tool',
+    input.tool,
+    ...(input.posture.readOnly ? ['--allow-writes'] : []),
+  );
   return handoffEnvelope({
     summary: `${input.tool} has manifest commands a person has not trusted`,
     userSteps: [
@@ -116,7 +127,10 @@ export function commandTrustHandoff(input: {
       },
     ],
     command,
-    alternatives: [`fx tool show ${input.tool}`, 'fx doctor'],
+    alternatives: [
+      recoveryCommand(input, 'tool', 'show', input.tool),
+      recoveryCommand(input, 'doctor'),
+    ],
   });
 }
 

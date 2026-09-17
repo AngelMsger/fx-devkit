@@ -44,6 +44,40 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
 }
 
 describe('ToolInstall', () => {
+  it.each([false, true])(
+    'keeps installer recovery on scoped definitions during update=%s and leaves standalone guidance global',
+    async (update) => {
+      const s = setup(undefined, []);
+      const base = {
+        tools: s.tools,
+        names: ['alpha'],
+        update,
+        dryRun: true,
+        posture: writable,
+        commandShell: 'powershell' as const,
+      };
+      await expect(
+        s.install.execute({
+          ...base,
+          trust: {
+            gate: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+            workspace: 'selected',
+            yes: false,
+            posture: writable,
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: 'INSTALLER_UNAVAILABLE',
+        nextSteps: ["& 'fx' 'tool' 'show' 'alpha' '--workspace' 'selected'"],
+      });
+      await expect(s.install.execute(base)).rejects.toMatchObject({
+        code: 'INSTALLER_UNAVAILABLE',
+        nextSteps: ["& 'fx' 'tool' 'show' 'alpha'"],
+      });
+      expect(s.proc.calls).toEqual([]);
+    },
+  );
+
   it.each(['install', 'version'] as const)(
     'keeps partial results and stops on thrown %s errors, including cancellation',
     async (phase) => {

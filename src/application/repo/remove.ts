@@ -5,6 +5,7 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
 export interface RepoRemoveInput {
   readonly name: string;
@@ -39,7 +40,11 @@ export class RepoRemove {
           hint: shared
             ? 'It is a shared repository; deselect it instead of removing it.'
             : 'fx repo list shows local entries with origin "local".',
-          nextSteps: shared ? [`fx repo unpick ${input.name}`] : ['fx repo list'],
+          nextSteps: [
+            shared
+              ? workspaceCommand(this.deps, 'repo', 'unpick', input.name)
+              : workspaceCommand(this.deps, 'repo', 'list'),
+          ],
         },
       );
     }

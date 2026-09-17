@@ -9,6 +9,7 @@ import { handoffStep, loginCommand } from '../login/handoff.js';
 import { Verifier } from '../login/verify.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 import { finding, type Finding } from './types.js';
 
@@ -29,18 +30,18 @@ export async function checkLogin(
   const acknowledged = deps.ctx.local.setup ?? {};
   const findings: Finding[] = plan.problems.map((p) =>
     finding('login', p.step, 'warn', `${p.detail} (${p.reason})`, {
-      fix: 'fx login --list',
+      fix: workspaceCommand(deps, 'login', '--list'),
       coverage: 'incomplete',
     }),
   );
   const pending = new Set<string>();
   for (const step of plan.steps) {
-    const fix = loginCommand([step]);
+    const fix = loginCommand([step], deps);
     try {
       const blocker = step.requires.find((id) => pending.has(id));
       if (blocker) {
         pending.add(step.id);
-        findings.push(blockedFinding(step, blocker));
+        findings.push(blockedFinding(step, blocker, deps));
         continue;
       }
       const verdict = await verifier.verify(
@@ -73,7 +74,7 @@ export async function checkLogin(
         );
         continue;
       }
-      findings.push(trustFinding(step, login, err));
+      findings.push(trustFinding(step, login, err, deps));
     }
   }
   return findings;
@@ -83,8 +84,18 @@ function handoffFor(step: SetupStep, command: string): HandoffEnvelope {
   return handoffEnvelope({ summary: step.title, userSteps: [handoffStep(step)], command });
 }
 
-function trustFinding(step: SetupStep, login: LoginDeps, error: DevkitError): Finding {
-  const handoff = commandTrustHandoff({ tool: step.tool, posture: login.trust.posture });
+function trustFinding(
+  step: SetupStep,
+  login: LoginDeps,
+  error: DevkitError,
+  deps: WorkspaceGuidance,
+): Finding {
+  const handoff = commandTrustHandoff({
+    tool: step.tool,
+    posture: login.trust.posture,
+    workspace: deps.ctx.name,
+    commandShell: deps.commandShell,
+  });
   return finding('login', step.id, 'warn', error.message, {
     coverage: 'incomplete',
     fix: handoff.command,
@@ -92,9 +103,9 @@ function trustFinding(step: SetupStep, login: LoginDeps, error: DevkitError): Fi
   });
 }
 
-function blockedFinding(step: SetupStep, blocker: string): Finding {
+function blockedFinding(step: SetupStep, blocker: string, deps: WorkspaceGuidance): Finding {
   return finding('login', step.id, 'warn', `Blocked by ${blocker}`, {
-    fix: loginCommand([step]),
+    fix: loginCommand([step], deps),
     coverage: 'incomplete',
   });
 }
