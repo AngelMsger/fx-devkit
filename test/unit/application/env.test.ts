@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { EnvList } from '../../../src/application/env/list.js';
 import { editEnvScope } from '../../../src/application/env/scope.js';
 import { EnvShow } from '../../../src/application/env/show.js';
+import { editSelection } from '../../../src/application/repo/selection.js';
 import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
@@ -88,5 +89,61 @@ describe('env pick / unpick', () => {
       repos: ['fx-example-api'],
       envs: ['selfhosted'],
     });
+  });
+});
+
+describe('environment selection modes', () => {
+  it('restores a missing scope key without altering repository selection', async () => {
+    const h = await harness({
+      workspace: fixture('workspace.yaml'),
+      files,
+      local: { scope: { repos: ['fx-example-api'], envs: ['test'] } },
+    });
+    expect(await editEnvScope(h.deps, { names: [], ...write }, 'all')).toMatchObject({
+      before_mode: 'explicit',
+      mode: 'all',
+      after: null,
+      written: true,
+    });
+    expect((await h.localStore.read('fx')).scope).toEqual({ repos: ['fx-example-api'] });
+    expect(await editEnvScope(h.deps, { names: [], ...write }, 'none')).toMatchObject({
+      mode: 'none',
+      after: [],
+    });
+    expect(
+      await editEnvScope(h.deps, { names: ['test', 'test'], ...write }, 'replace'),
+    ).toMatchObject({ mode: 'explicit', after: ['test'] });
+  });
+
+  it('preserves simultaneous repository and environment edits against the latest local layer', async () => {
+    const h = await harness({
+      workspace: fixture('workspace.yaml'),
+      files,
+      local: { scope: { repos: ['fx-example-api'], envs: ['test'] } },
+    });
+    await Promise.all([
+      editSelection(h.deps, { names: [], ...write }, 'all'),
+      editEnvScope(h.deps, { names: ['selfhosted'], ...write }, 'replace'),
+    ]);
+    expect((await h.localStore.read('fx')).scope).toEqual({ envs: ['selfhosted'] });
+  });
+
+  it('rejects contradictory or unknown input and respects readonly posture', async () => {
+    const h = await harness({ workspace: fixture('workspace.yaml'), files });
+    for (const operation of ['all', 'none'] as const)
+      await expect(
+        editEnvScope(h.deps, { names: ['test'], ...write }, operation),
+      ).rejects.toMatchObject({ code: 'INPUT_INVALID' });
+    await expect(
+      editEnvScope(h.deps, { names: ['missing'], ...write }, 'replace'),
+    ).rejects.toMatchObject({ code: 'ENV_NOT_FOUND' });
+    await expect(
+      editEnvScope(
+        h.deps,
+        { names: ['test'], dryRun: false, posture: { readOnly: true, source: 'env' } },
+        'replace',
+      ),
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect((await h.localStore.read('fx')).scope).toBeUndefined();
   });
 });

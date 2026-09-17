@@ -17,6 +17,7 @@ import ConfigUnset from './config/unset.js';
 import DoctorCommand from './doctor.js';
 import EnvList from './env/list.js';
 import EnvPick from './env/pick.js';
+import EnvSelect from './env/select.js';
 import EnvShow from './env/show.js';
 import EnvUnpick from './env/unpick.js';
 import HookDisable from './hook/disable.js';
@@ -45,6 +46,7 @@ import RepoList from './repo/list.js';
 import RepoOpen from './repo/open.js';
 import RepoPick from './repo/pick.js';
 import RepoRemove from './repo/remove.js';
+import RepoSelect from './repo/select.js';
 import RepoShow from './repo/show.js';
 import RepoUnpick from './repo/unpick.js';
 import SelfInfo from './self/info.js';
@@ -84,6 +86,7 @@ const CANONICAL_COMMANDS = {
   completion: CompletionCommand,
   'repo:list': RepoList,
   'repo:show': RepoShow,
+  'repo:select': RepoSelect,
   'repo:pick': RepoPick,
   'repo:unpick': RepoUnpick,
   'repo:add': RepoAdd,
@@ -92,6 +95,7 @@ const CANONICAL_COMMANDS = {
   'repo:open': RepoOpen,
   'env:list': EnvList,
   'env:show': EnvShow,
+  'env:select': EnvSelect,
   'env:pick': EnvPick,
   'env:unpick': EnvUnpick,
   'agent:list': AgentList,

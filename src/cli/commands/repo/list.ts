@@ -37,6 +37,7 @@ export default class RepoListCommand extends FxCommand {
       columns: [
         'name',
         'picked',
+        'selection_mode',
         'exists',
         'branch',
         'project',

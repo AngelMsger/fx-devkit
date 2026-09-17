@@ -26,8 +26,8 @@ export async function ensureScopeEnvs(
   if (input.noInput) {
     deps.reporter.notice({
       code: 'SCOPE_ENVS_UNSET',
-      message: `no environments picked; expanding all of ${names.join(', ')}`,
-      nextSteps: ['fx env pick <env...>'],
+      message: `All declared environments are selected: ${names.join(', ')}. Use env select to narrow the scope.`,
+      nextSteps: ['fx env select <env...>'],
     });
     return undefined;
   }
@@ -50,13 +50,13 @@ export async function ensureScopeEnvs(
       });
     }
   }
-  const envs = picked.length === 0 ? names : picked;
+  if (picked.length === 0) return undefined;
+  const envs = [...new Set(picked)];
   if (input.dryRun) return envs;
-  assertWritable(input.posture, 'env pick');
-  const local = await deps.localStore.read(deps.ctx.name);
-  await deps.localStore.write(deps.ctx.name, {
+  assertWritable(input.posture, 'env select');
+  await deps.localStore.update(deps.ctx.name, (local) => ({
     ...local,
     scope: { ...local.scope, envs: [...envs] },
-  });
+  }));
   return envs;
 }

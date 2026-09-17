@@ -2,7 +2,7 @@
 
 import type { WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
-import { editScope, type ScopeOutput } from '../workspace/scope.js';
+import { editScope, type ScopeOperation, type ScopeOutput } from '../workspace/scope.js';
 
 import { envNotFound, environmentsOf } from './names.js';
 
@@ -15,7 +15,7 @@ export interface EnvScopeInput {
 export function editEnvScope(
   deps: WorkspaceDeps,
   input: EnvScopeInput,
-  operation: 'pick' | 'unpick',
+  operation: ScopeOperation,
 ): Promise<ScopeOutput> {
   const known = Object.keys(environmentsOf(deps.ctx).envs);
   return editScope(deps, {

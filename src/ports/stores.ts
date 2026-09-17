@@ -15,6 +15,10 @@ export interface ConfigStore {
 export interface LocalLayerStore {
   read(workspace: string): Promise<LocalLayer>;
   write(workspace: string, next: LocalLayer): Promise<void>;
+  update(
+    workspace: string,
+    change: (current: LocalLayer) => LocalLayer | Promise<LocalLayer>,
+  ): Promise<LocalLayer>;
   path(workspace: string): string;
 }
 

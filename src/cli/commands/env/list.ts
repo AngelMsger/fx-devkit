@@ -11,7 +11,7 @@ export default class EnvListCommand extends FxCommand {
     await this.parse(EnvListCommand);
     const rows = new EnvList(await this.workspaceDeps()).execute();
     this.renderer.list(rows, {
-      columns: ['name', 'label', 'picked', 'platforms', 'confidence', 'note'],
+      columns: ['name', 'label', 'picked', 'selection_mode', 'platforms', 'confidence', 'note'],
     });
   }
 }

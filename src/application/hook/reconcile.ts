@@ -182,11 +182,10 @@ export class ReconcileHooks {
       (item) => !['busy', 'conflict', 'foreign', 'invalid'].includes(item.action),
     );
     if (complete && (input.action === 'inject' || input.action === 'remove')) {
-      const local = await this.deps.local.read(input.workspace);
-      await this.deps.local.write(input.workspace, {
+      await this.deps.local.update(input.workspace, (local) => ({
         ...local,
         hooks: { enabled: input.action === 'inject' },
-      });
+      }));
     }
   }
 }

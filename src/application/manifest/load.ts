@@ -51,7 +51,7 @@ export interface LoadManifestInput extends LoadOptions {
 
 export class LoadManifest {
   constructor(
-    private readonly fs: FileReader,
+    private readonly fs: Pick<FileReader, 'readText'>,
     private readonly bundledTools: () => string,
     private readonly diagnostics?: DiagnosticReporter,
   ) {}

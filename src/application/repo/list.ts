@@ -6,6 +6,7 @@ import { resolveSharedRepo, type ResolvedRepo } from '../../domain/manifest/loca
 import type { Readability } from '../../domain/workspace/plan.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { contactFor, inspectDisk, readabilityOf } from '../workspace/inspect.js';
+import { scopeMode, type ScopeMode } from '../workspace/scope.js';
 
 export interface RepoListInput {
   readonly tag?: string | undefined;
@@ -21,6 +22,7 @@ export interface RepoRow {
   readonly project: string | null;
   readonly tags: readonly string[];
   readonly picked: boolean;
+  readonly selection_mode: ScopeMode;
   readonly origin: ResolvedRepo['origin'];
   readonly exists: boolean;
   readonly readability?: Readability;
@@ -58,6 +60,7 @@ export class RepoList {
       project: repo.project ?? null,
       tags: repo.tags,
       picked,
+      selection_mode: scopeMode(this.deps.ctx.local.scope?.repos),
       origin: repo.origin,
       exists: (await inspectDisk(this.deps, repo)).kind !== 'absent',
       ...(probe ? { readability: await readabilityOf(this.deps, repo) } : {}),

@@ -172,6 +172,8 @@ describe('GitRepoSource against real git', () => {
       readFileSync(path.join(root, 'manifest', 'workspace.yaml'), 'utf8');
     expect(manifest()).toBe('schema_version: 1\n');
     expect(git(['remote'], root)).toBe('upstream');
+    writeFileSync(path.join(root, '.git/info/exclude'), 'scratch.log\n');
+    writeFileSync(path.join(root, 'scratch.log'), 'ignored non-payload state');
 
     publish(2, 'two');
     // An unregistered clone left by failed validation is reusable with the same source.
@@ -209,7 +211,11 @@ describe('GitRepoSource refresh decisions', () => {
   const dir = '/fake/.fx/workspaces/ws/source';
   const clean = { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 };
   const source = (fake: FakeGit): GitRepoSource =>
-    new GitRepoSource('ssh://git@git.example.com/fx/fx-workspace.git', new FakeProcess(), fake);
+    new GitRepoSource(
+      'ssh://git@git.example.com/fx/fx-workspace.git',
+      new FakeProcess().on(['git', '-C', dir, 'ls-files'], { code: 0, stdout: '', stderr: '' }),
+      fake,
+    );
 
   it('follows the default branch upstream names, and keeps a dirty or diverged tree', async () => {
     const git = new FakeGit().add(dir, {
@@ -243,6 +249,21 @@ describe('GitRepoSource refresh decisions', () => {
       result: 'kept',
       reason: 'local commits on main diverge from upstream; its ref was not moved',
     });
+  });
+
+  it('preserves the source when ignored payload inspection cannot complete', async () => {
+    const git = new FakeGit().add(dir, { state: clean, fastForward: 'updated' });
+    const failing = new FakeProcess().on(['git', '-C', dir, 'ls-files'], {
+      code: 128,
+      stdout: '',
+      stderr: 'cannot inspect',
+    });
+    const guarded = new GitRepoSource('https://git.example.com/team/source.git', failing, git);
+    expect(await guarded.refresh(dir)).toMatchObject({
+      result: 'kept',
+      reason: expect.stringContaining('could not be verified'),
+    });
+    expect(git.calls).toEqual([`fetch ${dir} upstream`]);
   });
 
   it('moves only the ref while the person is on another branch, and fails on a fetch that fails', async () => {

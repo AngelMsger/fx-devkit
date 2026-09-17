@@ -7,6 +7,7 @@ import type { Notice } from '../../ports/reporter.js';
 export type ReportCommand = 'init' | 'sync' | 'doctor' | 'release';
 const COLLECTIONS = new Set([
   'items',
+  'repositories',
   'findings',
   'repairs',
   'links',
@@ -55,7 +56,11 @@ function compactObject(
         omitted[at] = (omitted[at] ?? 0) + 1;
         return [];
       }
-      if (RECOVERY.has(key)) return [[key, item]];
+      if (
+        RECOVERY.has(key) ||
+        (key === 'plan' && 'operation' in value && value.operation === 'preview')
+      )
+        return [[key, item]];
       if (Array.isArray(item) && COLLECTIONS.has(key)) {
         const visible = item.filter(exceptional);
         omitted[at] = (omitted[at] ?? 0) + item.length - visible.length;
