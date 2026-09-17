@@ -59,6 +59,7 @@ export interface ManageWorkspaceOutput {
   readonly global_tools_and_skills: string;
   readonly resources: readonly ResourceCleanupRow[];
   readonly backup: string | null;
+  readonly planned_backup: string | null;
   readonly source_validation: string | null;
   readonly next_steps: readonly string[];
   readonly written: boolean;
@@ -84,7 +85,10 @@ export class ManageWorkspace {
         ? await inspectRebindSource(input.source, this.deps)
         : null;
     const resources = await this.cleanup(preview, input, true);
-    const result = { ...this.output(preview, resources, false), source_validation: validation };
+    const result = {
+      ...(await this.output(preview, resources, false)),
+      source_validation: validation,
+    };
     if (input.dryRun) return result;
     assertWritable(input.posture, `workspace ${input.action}`);
     const lease = await this.deps.lock.acquire({ key: `workspace:${input.name}`, waitMs: 2000 });
@@ -95,14 +99,14 @@ export class ManageWorkspace {
       });
     const progress: ApplyProgress = { written: false, phase: null };
     try {
-      const current = await this.plan(input);
-      if (JSON.stringify({ ...current, id: preview.id }) !== JSON.stringify(preview))
-        throw changedRegistry();
+      const current = await this.plan(input, preview.id);
+      if (JSON.stringify(current) !== JSON.stringify(preview)) throw changedRegistry();
       return await this.apply(current, input, progress);
     } catch (error) {
       throw withPartialResult(error, {
         ...result,
         ...asDevkitError(error).partialResult,
+        backup: await this.retainedBackup(preview),
         written: progress.written,
         phase: progress.phase,
         recovery: this.journalPath(input.name),
@@ -121,7 +125,7 @@ export class ManageWorkspace {
     );
   }
 
-  private async plan(input: ManageWorkspaceInput): Promise<Journal> {
+  private async plan(input: ManageWorkspaceInput, id: string = randomUUID()): Promise<Journal> {
     const pending = await this.readJournal(input.name);
     if (pending) {
       await this.assertPending(input, pending);
@@ -163,7 +167,7 @@ export class ManageWorkspace {
     }
     if (input.action === 'unregister') after = null;
     return {
-      id: randomUUID(),
+      id,
       name: input.name,
       action: input.action,
       before,
@@ -327,7 +331,20 @@ export class ManageWorkspace {
     return shared;
   }
 
-  private output(journal: Journal, resources: readonly ResourceCleanupRow[], written: boolean) {
+  private async output(
+    journal: Journal,
+    resources: readonly ResourceCleanupRow[],
+    written: boolean,
+  ): Promise<ManageWorkspaceOutput> {
+    const backup = await this.retainedBackup(journal);
+    const source = this.deps.manifestDirFor(journal.name);
+    const prior = journal.action === 'unregister' ? path.dirname(source) : source;
+    const planned =
+      !written &&
+      !backup &&
+      journal.action !== 'relocate' &&
+      journal.phase === 'planned' &&
+      (await this.deps.fs.exists(prior));
     return {
       operation: journal.action,
       name: journal.name,
@@ -337,7 +354,8 @@ export class ManageWorkspace {
       personal_scope: 'preserved',
       global_tools_and_skills: 'preserved',
       resources,
-      backup: journal.action === 'relocate' ? null : this.backup(journal),
+      backup,
+      planned_backup: planned ? this.backup(journal) : null,
       source_validation: journal.action === 'rebind' && !written ? 'pending_apply' : null,
       next_steps: journal.after
         ? [
@@ -347,6 +365,11 @@ export class ManageWorkspace {
         : ['fx workspace list'],
       written,
     };
+  }
+  private async retainedBackup(journal: Journal): Promise<string | null> {
+    if (journal.action === 'relocate') return null;
+    const backup = this.backup(journal);
+    return (await this.deps.fs.isDirectory(backup)) ? backup : null;
   }
   private backup(journal: Journal): string {
     const source = this.deps.manifestDirFor(journal.name);

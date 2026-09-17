@@ -76,14 +76,22 @@ describe('workspace identity recovery', () => {
     };
     await expect(s.usecase.execute(s.input)).rejects.toMatchObject({
       message: 'registration interrupted',
-      partialResult: { written: true, phase: 'source_replaced', recovery: expect.any(String) },
+      partialResult: {
+        written: true,
+        phase: 'source_replaced',
+        recovery: expect.any(String),
+        backup: expect.any(String),
+      },
     });
     expect((await s.config.read()).workspaces?.alpha).toEqual(s.before);
     const journalFile = path.join(path.dirname(s.source), 'workspace-operation.json');
     const journal = JSON.parse(readFileSync(journalFile, 'utf8'));
     expect(journal.phase).toBe('source_replaced');
+    const retainedBackup = `${s.source}.backup-${journal.id}`;
+    expect(readFileSync(path.join(retainedBackup, 'uncommitted.txt'), 'utf8')).toBe('source edits');
     const result = await s.usecase.execute(s.input);
     expect(result.written).toBe(true);
+    expect(result.backup).toBe(retainedBackup);
     expect(readFileSync(path.join(result.backup!, 'uncommitted.txt'), 'utf8')).toBe('source edits');
     expect(readFileSync(path.join(s.root, 'business.txt'), 'utf8')).toBe('keep');
     expect(existsSync(journalFile)).toBe(false);
@@ -166,5 +174,19 @@ describe('workspace identity recovery', () => {
     });
     const journalFile = path.join(path.dirname(s.source), 'workspace-operation.json');
     expect(JSON.parse(readFileSync(journalFile, 'utf8')).phase).toBe('resources_cleaned');
+  });
+  it('distinguishes an initial backup plan from a retained backup and omits nonexistent backups', async () => {
+    const existing = await setup();
+    const preview = await existing.usecase.execute({ ...existing.input, dryRun: true });
+    expect(preview.backup).toBeNull();
+    expect(preview.planned_backup).toEqual(expect.any(String));
+    expect(existsSync(preview.planned_backup!)).toBe(false);
+    const missing = await setup();
+    await missing.container.fs.remove(missing.source);
+    const missingPreview = await missing.usecase.execute({ ...missing.input, dryRun: true });
+    expect(missingPreview).toMatchObject({ backup: null, planned_backup: null, written: false });
+    const applied = await missing.usecase.execute(missing.input);
+    expect(applied).toMatchObject({ backup: null, planned_backup: null, written: true });
+    expect(existsSync(path.join(missing.source, 'manifest/workspace.yaml'))).toBe(true);
   });
 });

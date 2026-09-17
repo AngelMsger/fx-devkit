@@ -81,3 +81,8 @@ An apply failure returns partial progress with `written` describing completed ef
 and `phase` naming the last successfully persisted lifecycle checkpoint. A failed
 later checkpoint does not advertise an unpersisted phase. Preflight and read-only
 failures have no partial result because apply has not started.
+
+`backup` identifies an existing retained directory, including on partial failures
+and resumed operations. Initial previews expose a future location separately as
+`planned_backup`; no prior source means both values are null. Successful rebinds
+from an absent source do not claim that a backup was created.
