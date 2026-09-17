@@ -76,7 +76,7 @@ describe('workspace identity recovery', () => {
     };
     await expect(s.usecase.execute(s.input)).rejects.toMatchObject({
       message: 'registration interrupted',
-      partialResult: { recovery: expect.any(String) },
+      partialResult: { written: true, phase: 'source_replaced', recovery: expect.any(String) },
     });
     expect((await s.config.read()).workspaces?.alpha).toEqual(s.before);
     const journalFile = path.join(path.dirname(s.source), 'workspace-operation.json');
@@ -99,7 +99,12 @@ describe('workspace identity recovery', () => {
         source: new FileSource('/missing/fx-fixture', s.container.fs),
         dryRun: true,
       }),
-    ).rejects.toMatchObject({ code: 'MANIFEST_SOURCE_INVALID' });
+    ).rejects.toMatchObject({ code: 'MANIFEST_SOURCE_INVALID', partialResult: undefined });
+    expect(existsSync(path.join(path.dirname(s.source), 'workspace-operation.json'))).toBe(false);
+    await expect(
+      s.usecase.execute({ ...s.input, posture: { readOnly: true, source: 'env' } }),
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED', partialResult: undefined });
+    expect(existsSync(path.join(path.dirname(s.source), 'workspace-operation.json'))).toBe(false);
     expect(s.config.writes).toBe(writes);
     await expect(
       assertDistinctWorkspaceRoot(await s.config.read(), 'beta', s.root, s.container.fs),
@@ -146,5 +151,20 @@ describe('workspace identity recovery', () => {
     expect(readFileSync(guide, 'utf8')).toBe(text);
     expect(readFileSync(path.join(s.source, 'uncommitted.txt'), 'utf8')).toBe('source edits');
     expect(JSON.parse(readFileSync(journalFile, 'utf8')).phase).toBe('source_ready');
+  });
+  it('reports only the last persisted phase when a later journal checkpoint fails', async () => {
+    const s = await setup();
+    const write = s.container.fs.writeText.bind(s.container.fs);
+    s.container.fs.writeText = async (file, text) => {
+      if (file.endsWith('workspace-operation.json') && JSON.parse(text).phase === 'source_replaced')
+        throw new Error('checkpoint interrupted');
+      await write(file, text);
+    };
+    await expect(s.usecase.execute(s.input)).rejects.toMatchObject({
+      message: 'checkpoint interrupted',
+      partialResult: { written: true, phase: 'resources_cleaned' },
+    });
+    const journalFile = path.join(path.dirname(s.source), 'workspace-operation.json');
+    expect(JSON.parse(readFileSync(journalFile, 'utf8')).phase).toBe('resources_cleaned');
   });
 });

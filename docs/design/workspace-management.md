@@ -73,3 +73,8 @@ a different identity operation is rejected until recovery completes. Ordinary
 workspace commands refuse an unfinished identity operation. Pending recovery verifies that the current registry still matches its recorded
 phase before resource cleanup. Registry changes are committed only after resource
 cleanup and source validation/backup, and compare the current identity before writing. Recovery backups are never overwritten on retry.
+
+An apply failure returns partial progress with `written` describing completed effects
+and `phase` naming the last successfully persisted lifecycle checkpoint. A failed
+later checkpoint does not advertise an unpersisted phase. Preflight and read-only
+failures have no partial result because apply has not started.

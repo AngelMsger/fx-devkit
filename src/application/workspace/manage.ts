@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import { DevkitError, withPartialResult } from '../../domain/errors.js';
+import { asDevkitError, DevkitError, withPartialResult } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
 import { shellLine } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -44,6 +44,10 @@ interface Journal {
   readonly root: string;
   readonly phase:
     'planned' | 'source_ready' | 'resources_cleaned' | 'source_replaced' | 'registered';
+}
+interface ApplyProgress {
+  written: boolean;
+  phase: Journal['phase'] | null;
 }
 export interface ManageWorkspaceOutput {
   readonly operation: ManageWorkspaceInput['action'];
@@ -89,14 +93,18 @@ export class ManageWorkspace {
         retryable: true,
         nextSteps: ['Retry the same workspace command shortly.'],
       });
+    const progress: ApplyProgress = { written: false, phase: null };
     try {
       const current = await this.plan(input);
       if (JSON.stringify({ ...current, id: preview.id }) !== JSON.stringify(preview))
         throw changedRegistry();
-      return await this.apply(current, input);
+      return await this.apply(current, input, progress);
     } catch (error) {
       throw withPartialResult(error, {
         ...result,
+        ...asDevkitError(error).partialResult,
+        written: progress.written,
+        phase: progress.phase,
         recovery: this.journalPath(input.name),
         next_steps: ['Retry the same workspace command to resume the retained operation.'],
       });
@@ -212,11 +220,14 @@ export class ManageWorkspace {
       );
   }
 
-  private async apply(initial: Journal, input: ManageWorkspaceInput) {
+  private async apply(initial: Journal, input: ManageWorkspaceInput, progress: ApplyProgress) {
     let journal = initial;
     const save = async (phase: Journal['phase']) => {
-      journal = { ...journal, phase };
-      await this.deps.fs.writeText(this.journalPath(input.name), JSON.stringify(journal));
+      const next = { ...journal, phase };
+      await this.deps.fs.writeText(this.journalPath(input.name), JSON.stringify(next));
+      journal = next;
+      progress.written = true;
+      progress.phase = phase;
     };
     await save(journal.phase);
     const sourceDir = this.deps.manifestDirFor(input.name);
