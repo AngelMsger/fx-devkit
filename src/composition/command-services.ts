@@ -71,6 +71,7 @@ export class CommandServices {
       );
     return {
       fs,
+      lock: this.input.container.lock,
       commandShell: this.input.commandShell,
       git,
       config,

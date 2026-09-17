@@ -17,11 +17,13 @@ const manifestDirFor = (name: string): string =>
   path.normalize(`/home/.fx/workspaces/${name}/source`);
 
 function fs(): FakeFs {
-  return FakeFs.from({
+  const files = FakeFs.from({
     [`${manifestDirFor('fx')}/manifest/workspace.yaml`]: fixture('v1-minimal/workspace.yaml'),
     [`${manifestDirFor('other')}/manifest/workspace.yaml`]: fixture('v2-full/workspace.yaml'),
     [`${manifestDirFor('broken')}/manifest/workspace.yaml`]: fixture('broken/entry.yaml'),
   });
+  for (const name of ['fx', 'other', 'broken']) files.mkdir(path.resolve('/ws', name));
+  return files;
 }
 
 function locate(overrides: {

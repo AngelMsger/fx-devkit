@@ -4,10 +4,13 @@ import { asDevkitError } from '../../domain/errors.js';
 import { parseList } from '../../domain/values.js';
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
+import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { enabledHosts } from '../agent/list.js';
 import { resolveKey } from '../config/resolve.js';
 import type { WritePosture } from '../safety/posture.js';
+import { assertNoWorkspaceOperation } from '../workspace/health.js';
+import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { ReconcileHarness } from './reconcile.js';
 import type { HarnessDeps } from './types.js';
@@ -23,20 +26,22 @@ export class CleanupAgentHarness {
     private readonly deps: HarnessDeps,
     private readonly config: ConfigStore,
     private readonly fs: FileSystem,
+    private readonly manifestDirFor: (name: string) => string,
   ) {}
   async execute(input: HarnessCleanupInput): Promise<readonly AgentCleanupRow[]> {
     const config = await this.config.read();
-    const selected = (
-      await enabledHosts(
-        this.deps.hosts,
-        parseList(resolveKey('agents', { env: input.env, file: config }).value),
-      )
-    )
-      .map((host) => host.id)
-      .filter((id) => !input.ids.includes(id));
+    const selected = await this.selected(input, config);
     const rows: AgentCleanupRow[] = [];
-    for (const [workspace, entry] of Object.entries(config.workspaces ?? {})) {
+    for (const [workspace] of Object.entries(config.workspaces ?? {})) {
+      let lease: Lease | undefined;
       try {
+        if (!input.dryRun) lease = await acquireWorkspaceOperation(this.deps.lock, workspace);
+        const entry = (await this.config.read()).workspaces?.[workspace];
+        if (!entry) continue;
+        await assertNoWorkspaceOperation(
+          { fs: this.fs },
+          { name: workspace, manifestDir: this.manifestDirFor(workspace) },
+        );
         const root = await this.fs.realpath(entry.root);
         if (!(await this.fs.isDirectory(root))) {
           rows.push(
@@ -74,8 +79,23 @@ export class CleanupAgentHarness {
             action: asDevkitError(error).code,
           })),
         );
+      } finally {
+        await lease?.release();
       }
     }
     return rows;
+  }
+  private async selected(
+    input: HarnessCleanupInput,
+    config: Awaited<ReturnType<ConfigStore['read']>>,
+  ) {
+    return (
+      await enabledHosts(
+        this.deps.hosts,
+        parseList(resolveKey('agents', { env: input.env, file: config }).value),
+      )
+    )
+      .map((host) => host.id)
+      .filter((id) => !input.ids.includes(id));
   }
 }

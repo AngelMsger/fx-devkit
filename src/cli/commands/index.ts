@@ -66,8 +66,18 @@ import ToolList from './tool/list.js';
 import ToolShow from './tool/show.js';
 import ToolUpdate from './tool/update.js';
 import WhereCommand from './where.js';
+import WorkspaceList from './workspace/list.js';
+import WorkspaceRebind from './workspace/rebind.js';
+import WorkspaceRelocate from './workspace/relocate.js';
+import WorkspaceShow from './workspace/show.js';
+import WorkspaceUnregister from './workspace/unregister.js';
 
 const CANONICAL_COMMANDS = {
+  'workspace:list': WorkspaceList,
+  'workspace:show': WorkspaceShow,
+  'workspace:unregister': WorkspaceUnregister,
+  'workspace:relocate': WorkspaceRelocate,
+  'workspace:rebind': WorkspaceRebind,
   'mcp:list': McpList,
   'mcp:show': McpShow,
   'source:push': SourcePushCommand,

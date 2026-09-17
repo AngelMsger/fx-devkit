@@ -55,6 +55,7 @@ describe('resolveWorkspace', () => {
     const { located, reporter } = await resolve({});
     expect(located).toEqual({
       name: 'fx',
+      selection: 'cwd',
       root: path.normalize(path.resolve('/ws/fx')),
       manifestDir: manifestDirFor('fx'),
     });
