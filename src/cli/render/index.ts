@@ -22,6 +22,8 @@ export interface ListOptions {
   readonly next?: string;
   readonly columns?: readonly string[];
   readonly trailer?: Readonly<Record<string, unknown>>;
+  // A human findings table may display only one part of the workflow report.
+  readonly fullReport?: object;
 }
 
 // `describe` gives one key its own human lines, for a nested structure the
@@ -68,37 +70,42 @@ export function createRenderer(
     options.fields === undefined;
   const shape = (value: unknown): unknown => shapeResult(value, options, io);
   const shared = diagnosticRenderer(format, io, options, compact);
-  switch (format) {
-    case 'json':
-      return {
-        ...shared,
-        record: (value) =>
-          line(io.out, JSON.stringify(shape(compact ? compactReport(value) : value))),
-        list: (items, opts = {}) =>
-          line(
-            io.out,
-            JSON.stringify(
-              compact ? compactReport(envelope(items, opts)) : envelope(shape(items), opts),
-            ),
-          ),
-      };
-    case 'ndjson':
-      return {
-        ...shared,
-        record: (value) => line(io.out, JSON.stringify(shape(value))),
-        list: (items, opts = {}) => {
-          for (const item of items) line(io.out, JSON.stringify(shape(item)));
-          if (opts.trailer !== undefined) line(io.out, JSON.stringify({ _trailer: opts.trailer }));
-        },
-      };
-    case 'human':
-      return {
-        ...shared,
-        record: (value, opts = {}) =>
-          line(io.out, humanRecord(shape(value) as object, opts.describe ?? {})),
-        list: (items, opts = {}) =>
-          line(io.out, humanCollection(shape(items) as object[], opts, options)),
-      };
+  return {
+    ...shared,
+    record: (value, opts = {}) => {
+      const result = shape(compact ? compactReport(value) : value) as object;
+      line(
+        io.out,
+        format === 'human' ? humanRecord(result, opts.describe ?? {}) : JSON.stringify(result),
+      );
+    },
+    list: (items, opts = {}) => renderList(format, io, options, items, opts, compact),
+  };
+}
+
+function renderList(
+  format: Format,
+  io: RenderIo,
+  options: RenderOptions,
+  items: readonly object[],
+  opts: ListOptions,
+  compact: boolean,
+): void {
+  if (options.report !== undefined && options.fields !== undefined) {
+    const result = shapeResult(opts.fullReport ?? envelope(items, opts), options, io) as object;
+    line(io.out, format === 'human' ? humanRecord(result) : JSON.stringify(result));
+    return;
+  }
+  if (format === 'json' && compact) {
+    line(io.out, JSON.stringify(compactReport(envelope(items, opts))));
+    return;
+  }
+  const rows = shapeResult(items, options, io) as object[];
+  if (format === 'json') line(io.out, JSON.stringify(envelope(rows, opts)));
+  else if (format === 'human') line(io.out, humanCollection(rows, opts, options));
+  else {
+    for (const item of rows) line(io.out, JSON.stringify(item));
+    if (opts.trailer !== undefined) line(io.out, JSON.stringify({ _trailer: opts.trailer }));
   }
 }
 

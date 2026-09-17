@@ -36,7 +36,20 @@ these fields under `sync`. Registration or `written: true` does not prove readin
 The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
 results and INIT_PREPARED notices. Application values remain complete. --details
 returns those values; explicit --fields projects them before any summary filter.
-Human and NDJSON retain their defaults. Summaries expose output_mode and omitted
+Without --fields, human tables and NDJSON row/trailer streams retain their defaults.
+With --fields, every workflow report uses its complete top-level result as the
+projection source, including sync's items and trailer fields and doctor/release's
+findings and summary. JSON and NDJSON emit one projected object; human output uses
+key/value layout. --details does not change an explicit projection. Only selected
+fields reach stdout; error envelopes and notices remain independent on stderr.
+Dotted paths remain literal output keys and collect aligned values through arrays,
+using null for missing values in individual rows. Empty arrays preserve [] without
+claiming evidence that a nested field is unknown. Unknown top-level fields still
+produce one non-fatal FIELDS_UNMATCHED notice; --quiet suppresses that notice.
+Ordinary fact collections continue to project each row, keeping their collection
+metadata and default per-row NDJSON format. Human rendering may abbreviate large
+nested values; JSON/NDJSON preserve the complete projected values.
+Summaries expose output_mode and omitted
 counts, keep exception rows and exact trust/recovery data, and remove successful
 rows and large finding evidence. Error envelopes remain intact on stderr.
 
