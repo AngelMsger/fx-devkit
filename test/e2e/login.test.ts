@@ -230,7 +230,8 @@ describe('login and doctor', () => {
     const finding = (broken.json() as Report).findings.find(
       (f) => f.id === 'openobserve-cli.context@test',
     );
-    expect(finding).toMatchObject({ level: 'warn', fix: 'fx login openobserve-cli --env test' });
-    expect(broken.stderr).toContain('DOCTOR_OK');
+    expect(finding).toMatchObject({ level: 'fail', fix: 'fx login openobserve-cli --env test' });
+    expect((broken.json() as Report).ok).toBe(false);
+    expect(broken.stderr).toContain('DOCTOR_FAILURES');
   });
 });
