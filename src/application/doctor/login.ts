@@ -32,9 +32,16 @@ export async function checkLogin(
       coverage: 'incomplete',
     }),
   );
+  const pending = new Set<string>();
   for (const step of plan.steps) {
     const fix = loginCommand([step]);
     try {
+      const blocker = step.requires.find((id) => pending.has(id));
+      if (blocker) {
+        pending.add(step.id);
+        findings.push(blockedFinding(step, blocker));
+        continue;
+      }
       const verdict = await verifier.verify(
         step,
         options.dryRun === undefined ? {} : { dryRun: options.dryRun },
@@ -44,6 +51,7 @@ export async function checkLogin(
         continue;
       }
       const when = acknowledged[step.id]?.acknowledged;
+      pending.add(step.id);
       const message =
         when === undefined
           ? verdict.detail
@@ -55,6 +63,7 @@ export async function checkLogin(
         }),
       );
     } catch (err) {
+      pending.add(step.id);
       if (!(err instanceof DevkitError)) throw err;
       if (!isTrustRequired(err)) {
         findings.push(
@@ -62,14 +71,7 @@ export async function checkLogin(
         );
         continue;
       }
-      const handoff = commandTrustHandoff({ tool: step.tool, posture: login.trust.posture });
-      findings.push(
-        finding('login', step.id, 'warn', err.message, {
-          coverage: 'incomplete',
-          fix: handoff.command,
-          handoff,
-        }),
-      );
+      findings.push(trustFinding(step, login, err));
     }
   }
   return findings;
@@ -77,4 +79,20 @@ export async function checkLogin(
 
 function handoffFor(step: SetupStep, command: string): HandoffEnvelope {
   return handoffEnvelope({ summary: step.title, userSteps: [handoffStep(step)], command });
+}
+
+function trustFinding(step: SetupStep, login: LoginDeps, error: DevkitError): Finding {
+  const handoff = commandTrustHandoff({ tool: step.tool, posture: login.trust.posture });
+  return finding('login', step.id, 'warn', error.message, {
+    coverage: 'incomplete',
+    fix: handoff.command,
+    handoff,
+  });
+}
+
+function blockedFinding(step: SetupStep, blocker: string): Finding {
+  return finding('login', step.id, 'warn', `Blocked by ${blocker}`, {
+    fix: loginCommand([step]),
+    coverage: 'incomplete',
+  });
 }

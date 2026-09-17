@@ -6,6 +6,8 @@
 import { isSemver } from '../../semver.js';
 import type { Environments, Problem, Workspace } from '../types.js';
 
+import { serviceRules } from './services.js';
+
 export function environmentsRules(doc: Environments): Problem[] {
   const problems: Problem[] = [];
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {
@@ -25,6 +27,17 @@ export function environmentsRules(doc: Environments): Problem[] {
           message: `platform "${platform}" is not declared under platforms`,
         });
       }
+      const base = doc.platforms[platform];
+      const override = env.platforms?.[platform];
+      if (base?.service || override?.service)
+        problems.push(
+          ...serviceRules(
+            base?.provider ?? platform,
+            { ...base?.service, ...override?.service },
+            { ...base?.vars, ...override?.vars },
+            `envs.${envName}.platforms.${platform}.service`,
+          ),
+        );
     }
   }
   return problems;

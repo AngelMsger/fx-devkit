@@ -6,6 +6,7 @@ import type { ProviderDescriptor } from '../../../ports/provider.js';
 
 import { BINARY } from './client.js';
 import { SENTRY_RECIPES } from './recipes.js';
+import { sentryService } from './service.js';
 import { SentryErrorTracker } from './tracker.js';
 
 export const sentryProvider: ProviderDescriptor<ErrorTracker> = {
@@ -13,6 +14,7 @@ export const sentryProvider: ProviderDescriptor<ErrorTracker> = {
   capability: 'error-tracker',
   tools: [BINARY],
   recipes: SENTRY_RECIPES,
+  service: sentryService,
   vars: [
     { name: 'host', desc: 'Sentry host name, e.g. sentry.example.com', required: true },
     { name: 'org', desc: 'organization slug', required: true },

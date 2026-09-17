@@ -3,7 +3,7 @@ import { Args, Flags } from '@oclif/core';
 import { Release } from '../../application/release/index.js';
 import { CHECKS, type Check } from '../../domain/release/types.js';
 import { FxCommand } from '../base.js';
-import { jobsFlag, listFlag } from '../flags.js';
+import { detailsFlag, jobsFlag, listFlag } from '../flags.js';
 import { RELEASE_CODES, reportNotice } from '../notices.js';
 
 export default class ReleaseCommand extends FxCommand {
@@ -21,6 +21,7 @@ export default class ReleaseCommand extends FxCommand {
     }),
   };
   static override flags = {
+    details: detailsFlag,
     tag: listFlag('only repositories carrying these tags'),
     only: listFlag('only these checks', CHECKS),
     env: Flags.string({ description: 'environment whose errors count; default: release.env' }),

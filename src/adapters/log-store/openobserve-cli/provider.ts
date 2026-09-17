@@ -3,6 +3,7 @@
 
 import type { LogStore } from '../../../ports/log-store.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';
+import { familyService } from '../../family/service.js';
 import { TemplatePlatform } from '../../platform/template-platform.js';
 
 import { OPENOBSERVE_RECIPES } from './recipes.js';
@@ -11,6 +12,7 @@ export const openobserveCliProvider: ProviderDescriptor<LogStore> = {
   id: 'openobserve-cli',
   capability: 'log-store',
   tools: ['openobserve-cli'],
+  service: (settings) => familyService('openobserve-cli', settings, 'authenticated', '0.13.0'),
   recipes: OPENOBSERVE_RECIPES,
   vars: [],
   envVars: [
@@ -22,6 +24,7 @@ export const openobserveCliProvider: ProviderDescriptor<LogStore> = {
       id: 'openobserve-cli',
       capability: 'log-store',
       label: 'OpenObserve stream {stream}',
+      optionalFlags: { base_url: '--base-url', org: '--org', auth_scheme: '--auth-scheme' },
       command: [
         'openobserve-cli',
         'search',

@@ -84,7 +84,7 @@ implicitly upgrades an existing binary or logs in to a companion service.
 success returns `tool_install` records. Missing installers, trust refusal, failed
 installs and unverified/below-minimum installed versions stop init with an error;
 the source registration may already exist and the same invocation can be retried.
-Normal `sync` continues to run only tool checks; lifecycle hooks do not gain this
+Normal `sync` never installs packages; its services stage prepares declared public settings; lifecycle hooks do not gain this
 installation path. npm retains ownership of Registry authentication.
 
 Readiness preserves missing_tool, outdated_tool and disabled_tool separately. Doctor evidence records binary_path from the execution PATH resolver. The Bitbucket status recipe requires configured=true; this verifies configuration, not arbitrary resource permissions. Skill trust failures are blocked tool rows, allowing independent owned projections to proceed. No selected hosts means no companion Skill invocation. User-owned fx copies share a lock and recheck version/ownership before writing; third-party installers retain their own idempotence contracts. Agent detection is distinct from selection; current activity remains unknown. Init emits a prepared installation/Skill plan after source validation and registration, before tools and clones; fresh remote dry-runs defer content-dependent effects.
@@ -167,3 +167,33 @@ those rows have `recorded: false` and null package/operation fields. Existing pa
 cannot reveal the original person/manager or detect same-path external replacement.
 Only confirmed fx-origin records may produce unused-package suggestions. No
 uninstall operation is provided. Tool definitions and requirement merging remain unchanged.
+
+## Shared service preparation
+
+ProviderDescriptor.service compiles the allowlisted manifest service into public
+preparation and separate personal recipes. Runtime variables derive from this same
+source; environment overrides merge before planning. Service setup never exports
+or reads credential stores. Family adapters delegate merge/conflict decisions to
+native `config set-context --dry-run`; application executes trusted commands only
+when needed, then verifies again. No automatic overwrite or activation is issued.
+The family may activate its first context according to its own contract.
+
+The services stage precedes repository/provider work on explicit sync and init.
+It aggregates independent results and preserves blockers without running personal
+login. Login uses the same preparation. Doctor/readiness check preparations first
+and withhold dependent auth checks on failure. Background hooks never apply them.
+Old manifests omit this opt-in and retain existing recipes. Native minimum versions
+are checked before preset calls, independent of older workspace version floors.
+
+Sentry declares a public INI projection at the registered workspace root. Compare
+only expected defaults, preserve foreign content/links and recheck absence before
+creation. Personal tokens are neither copied nor serialized. Login supplies --url;
+checks and query commands carry the same public SENTRY_URL/SENTRY_HOST bindings.
+Those bindings are part of command trust. Shell rendering scopes environment
+changes to the command and restores PowerShell process variables afterward.
+
+New preparation/check vectors always require exact trust. Dry-run cannot acquire
+it. Shared declarations use a fixed public field allowlist; unknown service keys
+are fatal before permissive unknown-field stripping. Errors report paths and public
+conflicts, never the rejected credential value. Native conflict recovery is explicit
+and does not confer permission to overwrite.

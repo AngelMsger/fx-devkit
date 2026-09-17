@@ -13,12 +13,14 @@ import {
   schemaVersion,
   vars,
 } from './common.schema.js';
+import { serviceSchema } from './service.schema.js';
 
 export const platformSchema = z
   .strictObject({
     label: z.string().optional().describe('human-readable name'),
     provider: z.string().optional().describe('provider id fulfilling this platform, e.g. sentry'),
     capability: capability.optional(),
+    service: serviceSchema.optional(),
     vars,
     command: z
       .string()
@@ -41,6 +43,7 @@ const observation = z.strictObject({
 
 export const envPlatformSchema = coordinate
   .extend({
+    service: serviceSchema.optional().describe('environment overrides of shared service settings'),
     observations: z
       .record(z.string(), observation)
       .optional()

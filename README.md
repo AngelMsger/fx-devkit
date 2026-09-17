@@ -284,13 +284,13 @@ confirmation and a backup. Preview with `--dry-run`; read-only posture applies.
 non-interactive call), preserves foreign paths, and leaves workspace selection
 unchanged: a later sync can reinstall a selected host's user copy.
 
-`status` distinguishes installation, version alignment and the `FX_SKILL_LOADED=1`
+`status` distinguishes installation, version alignment and the `FX_SKILL_VERSION`
 handshake. Installation does not prove the agent loaded the Skill. `path` reports
 installation destinations; `self info` locates the bundled source. `show` prints
 raw SKILL.md in every output format. Skill commands are local: no update checks,
 manifest refresh, companion installers or service login probes. Non-TTY business
-commands provide a structured discovery notice until the Skill is loaded; setup
-and Skill commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
+commands, including init, provide a structured notice until the bundled Skill
+version is acknowledged. Self info and Skill bootstrap commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
 
 **Team Skills** are maintained in the manifest's `skills/` tree and linked into
 selected agents' project Skill directories by `init` and `sync`. Windows uses
@@ -398,9 +398,43 @@ a handoff, never a reason to invent authentication or override host trust.
 
 Use the bundled [fx-workspace Skill](skills/fx-workspace/SKILL.md) and its
 [command guide](skills/fx-workspace/references/commands.md) for response semantics.
-`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1`
-after reading it, using your shell's environment syntax. The Skill is shipped in
+`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1` and `FX_SKILL_VERSION` to the returned
+`bundled_skill_version` after reading it, using your shell's environment syntax. The Skill is shipped in
 the package; source architecture and verification pages are additional references.
+
+## Migrating to 0.2.0
+
+`init`, `sync`, `doctor` and `release` now summarize JSON by default. The
+`output_mode: summary` result retains overall counts, every exception and its
+recovery actions; `omitted` counts normal rows and evidence left out of that view.
+Use `--details` for complete results, including successful rows and evidence.
+Explicit `--fields` projects the complete result. Human output, NDJSON and fact
+queries such as `repo list`, `where` and `can` keep their previous defaults.
+`--verbose` controls diagnostics, independently of `--details`.
+
+`init` and `sync` report `operation: preview|apply` and `preparation_complete`.
+Preview returns `null` and describes intended effects, including registration;
+apply returns `true` only when the selected, requested preparation is complete.
+Protected dirty/diverged repositories, blocked or failed work and unverified
+activation leave it `false`; unselected or explicitly inapplicable resources do
+not. This is not proof that remote services are healthy. Doctor/release retain
+their existing, separate `ok` and coverage `complete` semantics and exit behavior.
+
+An explicit `agents: []`, or an empty `FX_AGENTS`, selects no agents. Remove that
+setting with `fx config unset agents` (and unset any environment override) to
+restore automatic detection. `FX_HOME` still does not relocate global Skills.
+`SKILL_WRITE_DENIED` (permission, exit 5) identifies denied Skill/lock access and
+preserves partial results. Continue with available source files or use scoped
+`fx sync --only repos,docs --no-refresh-manifest`; retry Skill writes only after
+filesystem access changes, respecting the existing trust boundary.
+
+For an agent, first run `fx self info --format json`, read the returned
+`bundled_skill/SKILL.md` (or `fx skill show`), and declare both
+`FX_SKILL_LOADED=1` and `FX_SKILL_VERSION=<bundled_skill_version>`.
+The boolean alone cannot establish version alignment. Missing/mismatched versions
+produce non-blocking notices, including during init. No global Skill installation
+is needed to read the bundled instructions. Keep JSON stdout separate from stderr;
+parse/project fields instead of truncating JSON with `head -c` or `tail -c`.
 
 ## Configuration
 
@@ -495,3 +529,10 @@ reports.
 Licensed under the [Apache License, Version 2.0](LICENSE).
 
 Initialization can complete partially. For phase results, progress, tool readiness and Skill ownership, see the [recovery guide](docs/user-guide.md#reading-initialization-and-recovery-results). Git transport and code-host API setup are independent.
+
+### Shared service settings
+
+A manifest's `service` declaration distributes public URLs, contexts and organization
+settings through init and explicit sync. Each member obtains and stores their own
+credentials through the companion CLI. Conflicts preserve existing configuration;
+preview with `fx sync --only services --dry-run`. See the [service setup guide](docs/user-guide.md#shared-service-settings-and-personal-credentials).

@@ -235,3 +235,42 @@ source links so manual discovery does not depend on a host-specific Skill link.
 Metadata changes, additions and removals are picked up by `fx sync --only docs,skills`.
 The catalog is a discovery aid, not proof of native installation or loaded context.
 It applies at the workspace root and does not modify business-repository guides.
+
+## Public service presets
+
+fx 0.1.3 adds optional `service` to workspace provider bindings, platform defaults
+and per-environment platform overrides. Declare `min_cli: '0.1.3'` in documents
+using it. Environment overrides inherit the platform's service fields.
+
+```yaml
+providers:
+  code-host:
+    provider: bitbucket-cli
+    vars: { host: 'ssh://git@git.example.com' }
+    service:
+      base_url: https://git.example.com/deploy
+      context: team
+      flavor: datacenter
+      auth_scheme: pat
+```
+
+`base_url` is the full HTTP(S) URL, including any deployment prefix. Keep SSH
+clone coordinates separate. `context` selects a native CLI context. Bitbucket and
+Confluence also accept `flavor`; OpenObserve requires `org`; family companions
+require `auth_scheme` and optionally accept a public `credential_url` page.
+Sentry accepts only `base_url` and `org`. Identical declarations can share a local
+destination; incompatible settings for the same destination block preparation.
+Conflicting legacy variables must be removed rather than defining a second source.
+
+Only these public fields may be distributed. Usernames, email addresses, passwords,
+PAT values, API tokens, cookies and browser sessions are personal and forbidden in
+`service`. Each member obtains and stores credentials through their own companion
+CLI. Unknown service fields fail validation even outside strict mode; credentials
+in service URLs are rejected without echoing the value.
+
+Minimum companion versions for native presets: Bitbucket/Confluence 0.20.0,
+Jenkins 0.9.0, OpenObserve 0.13.0. Declare matching `tools.yaml` version floors.
+`fx init`, explicit `fx sync` and `fx login` prepare service settings through
+trusted commands; `fx sync --only services --dry-run` previews. Existing non-empty
+conflicts are reported, never automatically overwritten or activated. Sentry uses
+public workspace `.sentryclirc` defaults with equivalent preservation behavior.

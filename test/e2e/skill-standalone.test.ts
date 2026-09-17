@@ -77,7 +77,8 @@ describe('standalone companion Skill lifecycle', () => {
     expect(s.run(['status', '--dir', './custom'], { FX_SKILL_LOADED: '1' }).json()).toMatchObject({
       loaded: true,
       installs: [{ version_state: 'newer' }],
-      next: expect.stringContaining('refresh'),
+      version_verified: false,
+      next: expect.stringContaining('FX_SKILL_VERSION='),
     });
     expect(s.run(['install', '--dir', './custom']).json().items[0].version).toBe(version);
     const blocked = s.run(['uninstall', '--dir', './custom']);

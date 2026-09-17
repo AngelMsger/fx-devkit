@@ -3,12 +3,12 @@ import { Args, Flags } from '@oclif/core';
 import { Init } from '../../application/init.js';
 import { manifestSourceFor } from '../../composition/manifest-sources.js';
 import { FxCommand } from '../base.js';
-import { dryRunFlag, jobsFlag } from '../flags.js';
+import { detailsFlag, dryRunFlag, jobsFlag } from '../flags.js';
 import { readStdin } from '../stdin.js';
 
 export default class InitCommand extends FxCommand {
   static override description =
-    'Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced\n\nTools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved.\n\nRegistration can succeed with partial synchronization. Inspect sync.summary, sync.stages and failed item details; exit zero does not establish complete preparation.';
+    'Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced\n\nTools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved. Declared public service settings are prepared before repository queries; each member obtains their own credentials.\n\nRegistration can succeed with partial synchronization. Inspect sync.summary, sync.stages and failed item details; exit zero does not establish complete preparation.';
   static override examples = [
     '<%= config.bin %> init ~/Workspaces/fx --from ssh://git@git.example.com/team/workspace-manifest.git',
     '<%= config.bin %> init ./ws --from ./manifest --dry-run',
@@ -22,6 +22,7 @@ export default class InitCommand extends FxCommand {
     }),
   };
   static override flags = {
+    details: detailsFlag,
     from: Flags.string({
       required: true,
       description:

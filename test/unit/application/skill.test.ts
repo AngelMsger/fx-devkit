@@ -49,6 +49,55 @@ async function setup(extra: Record<string, string> = {}) {
 }
 
 describe('SkillStage partial execution', () => {
+  it('performs no projections, tool calls or global lock acquisition for configured empty selection', async () => {
+    const { h, skills } = await setup();
+    const before = [...h.fs.writes];
+    const stage = new SkillStage(h.deps, {
+      ...skills,
+      configured: [],
+      globalLock: {
+        acquire: async () => {
+          throw new Error('must not acquire global lock');
+        },
+      },
+    });
+    const result = await stage.execute({ dryRun: false, posture: writable });
+    expect(result).toMatchObject({ links: [], fx: [], tools: [] });
+    expect(h.fs.writes).toEqual(before);
+    expect(h.process.calls).toEqual([]);
+  });
+
+  it('does not call a missing companion or call its skipped Skill preparation complete', async () => {
+    const { h, skills } = await setup();
+    const loaded = loadTools(
+      'schema_version: 2\ndefaults: {install: [{via: manual}], skill: {command: [skill, install]}}\ntools: [{name: absent}]',
+      undefined,
+      { cliVersion: '1.0.0' },
+    );
+    const stage = new SkillStage(h.deps, skills);
+    const result = await new Sync(h.deps).execute({
+      dryRun: false,
+      posture: writable,
+      jobs: 1,
+      only: 'skills',
+      stages: {
+        skills: async () => {
+          const { summary, ...details } = await stage.execute({
+            dryRun: false,
+            posture: writable,
+            toolchain: resolveTools(loaded.doc, loaded.provenance),
+          });
+          return { summary, details };
+        },
+      },
+    });
+    expect(result.preparation_complete).toBe(false);
+    expect(result.stage_details?.skills?.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ failure: expect.objectContaining({ code: 'TOOL_MISSING' }) }),
+      ]),
+    );
+  });
   it.each(['PROCESS_ABORTED', 'PROCESS_TIMEOUT', 'INTERNAL'])(
     'preserves completed resources and tool rows on %s',
     async (code) => {

@@ -13,9 +13,9 @@ export function parseBoolean(text: string | undefined): boolean | undefined {
 }
 
 export function parseList(text: string | undefined): string[] | undefined {
-  const items = (text ?? '')
+  if (text === undefined) return undefined;
+  return text
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
-  return items.length > 0 ? items : undefined;
 }

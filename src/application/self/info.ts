@@ -33,6 +33,7 @@ export interface SelfInfo {
   readonly workspaces: string;
   readonly bundled_tools: string;
   readonly bundled_skill: string;
+  readonly bundled_skill_version: string;
   readonly registry: string | null;
   readonly workspace: WorkspaceInfo | null;
 }
@@ -49,6 +50,7 @@ export function selfInfo(input: SelfInfoInput): SelfInfo {
     workspaces: path.join(input.fxHome, 'workspaces'),
     bundled_tools: input.bundledTools,
     bundled_skill: input.bundledSkill,
+    bundled_skill_version: input.version,
     registry: input.registry,
     workspace: input.workspace,
   };

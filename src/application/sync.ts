@@ -7,6 +7,7 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../domain/errors.js';
+import { hasPreparationIssue } from '../domain/preparation.js';
 import {
   planSync,
   type DiskState,
@@ -62,6 +63,8 @@ export interface SyncSummary {
 }
 
 export interface SyncOutput {
+  readonly operation: 'preview' | 'apply';
+  readonly preparation_complete: boolean | null;
   readonly items: readonly SyncItem[];
   readonly summary: SyncSummary;
   readonly stages: Readonly<Record<string, StageSummary | 'not_implemented'>>;
@@ -74,18 +77,58 @@ export class Sync {
   async execute(input: SyncInput): Promise<SyncOutput> {
     const only = input.only;
     const empty: SyncOutput = {
+      operation: input.dryRun ? 'preview' : 'apply',
+      preparation_complete: input.dryRun ? null : true,
       items: [],
       summary: { done: 0, skipped: 0, failed: 0, unreadable: 0 },
       stages: {},
     };
-    const repos =
-      only === undefined || (typeof only === 'string' ? only === 'repos' : only.includes('repos'))
-        ? await this.repos(input)
-        : empty;
+    const services = input.stages?.['services'];
+    const prepare =
+      services &&
+      (only === undefined ||
+        only === 'services' ||
+        (Array.isArray(only) && only.includes('services')))
+        ? await services()
+        : undefined;
+    let repos = empty;
+    let repositoriesInspected = false;
+    const prepared = prepare
+      ? {
+          stages: { services: prepare.summary },
+          stage_details: { services: prepare.details ?? {} },
+        }
+      : { stages: {}, stage_details: {} };
     try {
-      return { ...repos, ...(await this.laterStages(input)) };
+      repos =
+        only === undefined || (typeof only === 'string' ? only === 'repos' : only.includes('repos'))
+          ? await this.repos(input)
+          : empty;
+      repositoriesInspected = true;
+      const later = await this.laterStages(input);
+      const output = {
+        ...repos,
+        stages: { ...prepared.stages, ...later.stages },
+        ...(prepare || later.stage_details
+          ? { stage_details: { ...prepared.stage_details, ...later.stage_details } }
+          : {}),
+      };
+      return {
+        ...output,
+        operation: empty.operation,
+        preparation_complete: input.dryRun ? null : !hasPreparationIssue(output),
+      };
     } catch (error) {
-      throw withPartialResult(error, { ...repos, ...asDevkitError(error).partialResult });
+      if (!prepare && !repositoriesInspected) throw error;
+      const partial = asDevkitError(error).partialResult as Partial<SyncOutput> | undefined;
+      throw withPartialResult(error, {
+        ...repos,
+        ...partial,
+        operation: empty.operation,
+        preparation_complete: input.dryRun ? null : false,
+        stages: { ...prepared.stages, ...partial?.stages },
+        stage_details: { ...prepared.stage_details, ...partial?.stage_details },
+      });
     }
   }
 
@@ -154,7 +197,7 @@ export class Sync {
     const details: Record<string, Readonly<Record<string, unknown>>> = {};
     const selected = typeof input.only === 'string' ? [input.only] : (input.only ?? []);
     for (const stage of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
-      if (stage === 'repos') continue;
+      if (stage === 'repos' || stage === 'services') continue;
       if (!wanted(stage)) continue;
       const run = input.stages?.[stage];
       if (run === undefined) {
@@ -171,7 +214,12 @@ export class Sync {
             failure: toEnvelope(asDevkitError(error)).error,
           };
           for (const pending of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
-            if (pending !== 'repos' && wanted(pending) && stages[pending] === undefined)
+            if (
+              pending !== 'repos' &&
+              pending !== 'services' &&
+              wanted(pending) &&
+              stages[pending] === undefined
+            )
               stages[pending] = { status: 'not_started' };
           }
           throw withPartialResult(error, { stages, stage_details: details });
@@ -298,6 +346,10 @@ function finish(items: readonly SyncItem[]): SyncOutput {
   const count = (result: SyncItem['result']): number =>
     items.filter((i) => i.result === result).length;
   return {
+    operation: items.some((item) => item.result === 'planned') ? 'preview' : 'apply',
+    preparation_complete: items.some((item) => item.result === 'planned')
+      ? null
+      : !hasPreparationIssue(items),
     items,
     summary: {
       done: count('done'),

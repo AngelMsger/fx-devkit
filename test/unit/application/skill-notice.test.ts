@@ -33,7 +33,7 @@ describe('skillNotice', () => {
     });
     const notice = await skillNotice(current, skills, ask);
     expect(notice?.code).toBe('SKILL_AVAILABLE');
-    expect(notice?.nextSteps?.[0]).toContain('FX_SKILL_LOADED=1');
+    expect(notice?.nextSteps?.join(' ')).toContain('FX_SKILL_VERSION=1.2.0');
     expect(notice?.silence).toContain('skill_notice');
     const partly = FakeFs.from({ [dir('claude-code')]: skill('1.2.0') });
     expect((await skillNotice(partly, skills, ask))?.code, 'one agent without it is missing').toBe(
@@ -48,12 +48,22 @@ describe('skillNotice', () => {
     expect(
       await skillNotice(none, skills, { ...ask, format: 'human', terminal: false }),
     ).toMatchObject({ code: 'SKILL_MISSING' });
-    expect(await skillNotice(none, skills, { ...ask, loaded: true })).toBeUndefined();
+    expect(await skillNotice(none, skills, { ...ask, loaded: true })).toMatchObject({
+      code: 'SKILL_VERSION_UNVERIFIED',
+    });
+    expect(await skillNotice(none, skills, { ...ask, loadedVersion: '1.2.0' })).toBeUndefined();
+    expect(await skillNotice(none, skills, { ...ask, loadedVersion: '1.1.0' })).toMatchObject({
+      code: 'SKILL_VERSION_MISMATCH',
+      data: {
+        bundled_skill: path.join(skills.bundledSkillDir, 'SKILL.md'),
+        loaded_version: '1.1.0',
+      },
+    });
     expect(await skillNotice(none, skills, { ...ask, enabled: false })).toBeUndefined();
     const nobody: SkillDeps = { ...skills, hosts: [new FakeAgentHost('cursor', false)] };
     expect(await skillNotice(none, nobody, ask)).toMatchObject({
       code: 'SKILL_MISSING',
-      nextSteps: ['fx skill status', 'fx skill install'],
+      nextSteps: expect.arrayContaining([expect.stringContaining('fx skill show')]),
     });
   });
 });

@@ -19,6 +19,7 @@ import type {
 } from '../../../ports/code-host.js';
 import type { AdapterDeps, ProviderDescriptor, Vars } from '../../../ports/provider.js';
 import { EXIT, itemsOf, objectOf, queryFailed, stringAt, unreadable } from '../../family/cli.js';
+import { familyService } from '../../family/service.js';
 
 import { BINARY, BitbucketCli, type CliCall } from './client.js';
 import { createContributionPullRequest, readContributionPullRequest } from './pull-request.js';
@@ -35,7 +36,7 @@ export class BitbucketCodeHost implements CodeHost {
     deps: AdapterDeps,
     private readonly vars: Vars,
   ) {
-    this.cli = new BitbucketCli(deps.process, vars['context']);
+    this.cli = new BitbucketCli(deps.process, vars['context'], vars['base_url'] ? vars : undefined);
   }
 
   repositoryIdentity(ref: RepoRef): Promise<RepositoryIdentity> {
@@ -172,6 +173,7 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   id: 'bitbucket-cli',
   capability: 'code-host',
   tools: [BINARY],
+  service: (settings) => familyService('bitbucket-cli', settings),
   recipes: BITBUCKET_RECIPES,
   vars: [
     { name: 'host', desc: 'git clone prefix, e.g. ssh://git@git.example.com', required: true },

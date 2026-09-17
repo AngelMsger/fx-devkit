@@ -287,6 +287,19 @@ function finish<T>(
 
   const stripped = stripUnknown(spec.schema, raw);
   const unknown = stripped.unknown.map(formatPath);
+  // Unknown fields inside service blocks must never be silently stripped:
+  // a shared manifest containing a credential must fail even outside strict mode.
+  problems.push(
+    ...unknown
+      .filter((path) => /(?:^|\.)service\./.test(path))
+      .map((path) =>
+        withLine({
+          path,
+          message:
+            'only public service settings are allowed; personal credentials stay on each member’s machine',
+        }),
+      ),
+  );
   if (opts.strict)
     problems.push(...unknown.map((path) => withLine({ path, message: 'unrecognised field' })));
 

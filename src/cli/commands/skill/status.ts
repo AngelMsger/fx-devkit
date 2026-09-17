@@ -1,4 +1,4 @@
-import { SKILL_LOADED_ENV } from '../../../application/skill/notice.js';
+import { SKILL_LOADED_ENV, SKILL_VERSION_ENV } from '../../../application/skill/notice.js';
 import { SkillCommand, skillTargetFlags } from '../../skill-command.js';
 
 export default class SkillStatusCommand extends SkillCommand {
@@ -17,6 +17,7 @@ export default class SkillStatusCommand extends SkillCommand {
           cwd: process.cwd(),
         },
         process.env[SKILL_LOADED_ENV] === '1',
+        process.env[SKILL_VERSION_ENV],
       ),
     );
   }

@@ -1,6 +1,8 @@
 // The setup vocabulary: a provider's template for one readiness step, and the concrete
 // step the planner makes of it.
 
+import type { ServicePreparation } from './service.js';
+
 export interface JsonExpectation {
   readonly path: string;
   readonly equals: string | number | boolean | null;
@@ -43,6 +45,8 @@ export interface SetupStep {
   readonly requires: readonly string[];
   readonly origin: 'base' | 'patch';
   readonly required: boolean;
+  readonly preparation?: ServicePreparation;
+  readonly executionEnv?: Readonly<Record<string, string>>;
 }
 
 export type PlanProblemReason =

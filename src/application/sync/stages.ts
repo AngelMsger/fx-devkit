@@ -8,6 +8,7 @@ import { DeriveDocs } from '../docs/derive.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
+import { prepareServices } from '../services/stage.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { StageResult, SyncStages } from '../sync.js';
@@ -32,6 +33,7 @@ export interface SyncStageInput {
 }
 
 const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageResult>>> = {
+  services: (input) => prepareServices(input.deps, input.login, input.dryRun),
   docs: docsStage,
   skills: skillsStage,
   hooks: async (input) => (await input.hooks?.()) ?? { summary: { unsupported: 0 } },

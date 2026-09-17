@@ -75,14 +75,17 @@ describe('workspace end to end', () => {
     const s = stage();
     const source = path.dirname(s.manifestDir);
     const args = ['--from', source, '--name', 'alias-test', '--format', 'json'];
-    const first = fx(['init', s.ws, ...args], s.env);
+    const first = fx(['init', '--details', s.ws, ...args], s.env);
     expect(first.status, first.stderr).toBe(0);
     const alias = path.join(path.dirname(s.ws), 'alias');
     symlinkSync(realpathSync(s.ws), alias, process.platform === 'win32' ? 'junction' : 'dir');
-    const retried = fx(['init', alias, ...args], s.env);
+    const retried = fx(['init', '--details', alias, ...args], s.env);
     expect(retried.status, retried.stderr).toBe(0);
     expect(retried.json()).toMatchObject({ written: true, sync: { summary: { failed: 0 } } });
-    const different = fx(['init', path.join(path.dirname(s.ws), 'other'), ...args], s.env);
+    const different = fx(
+      ['init', '--details', path.join(path.dirname(s.ws), 'other'), ...args],
+      s.env,
+    );
     expect(different.status).toBe(11);
     expect(different.error().code).toBe('WORKSPACE_NAME_TAKEN');
   });
@@ -139,7 +142,7 @@ describe('workspace end to end', () => {
     ).toEqual(['planned', 'planned']);
 
     writeFileSync(path.join(s.ws, 'a', 'README'), 'edited\n');
-    const first = fx(['sync', '--format', 'json'], s.env, s.ws);
+    const first = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(first.status).toBe(0);
     expect(
       (first.json() as { items: { name: string; action: string; result: string }[] }).items,
@@ -156,7 +159,7 @@ describe('workspace end to end', () => {
 
     git(['checkout', '-q', '-b', 'feature/x'], path.join(s.ws, 'b'));
     advance(s.authors['b'] ?? '', 'two');
-    const second = fx(['sync', '--format', 'json'], s.env, s.ws);
+    const second = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(
       (second.json() as { items: { name: string; outcome?: string; mode?: string }[] }).items[1],
     ).toMatchObject({
@@ -170,7 +173,7 @@ describe('workspace end to end', () => {
     );
 
     expect(fx(['repo', 'unpick', 'b'], s.env, s.ws).status).toBe(0);
-    const plan = fx(['sync', '--dry-run', '--format', 'json'], s.env, s.ws);
+    const plan = fx(['sync', '--details', '--dry-run', '--format', 'json'], s.env, s.ws);
     expect(
       (plan.json() as { items: { name: string; action: string; result: string }[] }).items.map(
         (i) => [i.name, i.action, i.result],
@@ -218,7 +221,9 @@ describe('workspace end to end', () => {
     expect(existsSync(path.join(s.ws, 'manifest'))).toBe(false);
 
     const ws2 = `${s.ws}-2`;
-    expect(fx(['init', ws2, '--from', path.dirname(s.manifestDir)], s.env).status).toBe(0);
+    expect(
+      fx(['init', '--details', ws2, '--from', path.dirname(s.manifestDir)], s.env).status,
+    ).toBe(0);
     const again = fx(
       ['init', ws2, '--from', path.dirname(s.manifestDir), '--format', 'json'],
       s.env,
@@ -230,7 +235,7 @@ describe('workspace end to end', () => {
   it('blocks init under read-only posture and previews under dry-run', () => {
     const s = stage();
     expect(
-      fx(['init', s.ws, '--from', path.dirname(s.manifestDir)], {
+      fx(['init', '--details', s.ws, '--from', path.dirname(s.manifestDir)], {
         ...s.env,
         FX_READ_ONLY: '1',
       }).status,

@@ -68,6 +68,12 @@ export const dryRunFlag = Flags.boolean({
   description: 'print the plan instead of applying it',
 });
 
+export const detailsFlag = Flags.boolean({
+  default: false,
+  description:
+    'include all workflow report details in JSON; explicit --fields projects the full result',
+});
+
 export const jobsFlag = Flags.integer({
   default: 4,
   min: 1,

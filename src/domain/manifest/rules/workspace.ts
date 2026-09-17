@@ -10,8 +10,14 @@ import {
 } from '../../workspace/checkout.js';
 import type { Problem, Workspace } from '../types.js';
 
+import { serviceRules } from './services.js';
+
 export function workspaceRules(doc: Workspace): Problem[] {
   const problems: Problem[] = [];
+  for (const [name, binding] of Object.entries(doc.providers ?? {}))
+    problems.push(
+      ...serviceRules(binding.provider, binding.service, binding.vars, `providers.${name}.service`),
+    );
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {
     problems.push({ path: 'min_cli', message: 'must be a semantic version' });
   }

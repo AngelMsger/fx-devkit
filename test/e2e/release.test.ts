@@ -167,7 +167,10 @@ else process.exit(2);
     FX_HOME: freshHome(),
     PATH: [shims, tools, ...systemPath()].join(path.delimiter),
   };
-  const boot = fx(['init', ws, '--from', path.dirname(manifestDir), '--format', 'json'], env);
+  const boot = fx(
+    ['init', '--details', ws, '--from', path.dirname(manifestDir), '--format', 'json'],
+    env,
+  );
   expect(boot.status, boot.stderr).toBe(0);
   return { ws, env };
 }
@@ -175,7 +178,7 @@ else process.exit(2);
 describe('release', () => {
   it('reports every check of every repository with the evidence, and never fails the command', () => {
     const s = stage();
-    const run = fx(['release', '--format', 'json'], s.env, s.ws);
+    const run = fx(['release', '--details', '--format', 'json'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
     const report = run.json() as Report;
     const level = Object.fromEntries(report.findings.map((f) => [`${f.group}:${f.id}`, f.level]));
@@ -207,19 +210,27 @@ describe('release', () => {
 
   it('narrows to one repository and one check, and refuses a name it does not know', () => {
     const s = stage();
-    const one = fx(['release', 'b', '--only', 'merge', '--format', 'json'], s.env, s.ws);
+    const one = fx(
+      ['release', '--details', 'b', '--only', 'merge', '--format', 'json'],
+      s.env,
+      s.ws,
+    );
     expect(one.status, one.stderr).toBe(0);
     const report = one.json() as Report;
     expect(report.findings.map((f) => `${f.group}:${f.id}:${f.level}`)).toEqual(['merge:b:ok']);
     expect(report.ok).toBe(true);
-    const nope = fx(['release', 'nope', '--format', 'json'], s.env, s.ws);
+    const nope = fx(['release', '--details', 'nope', '--format', 'json'], s.env, s.ws);
     expect(nope.status).toBe(6);
     expect(nope.error().code).toBe('REPO_NOT_FOUND');
   });
 
   it('turns an error tracker a person has not logged in to into warnings with a handoff, nothing else changes', () => {
     const s = stage();
-    const run = fx(['release', '--format', 'json'], { ...s.env, FAKE_SENTRY_OK: '1' }, s.ws);
+    const run = fx(
+      ['release', '--details', '--format', 'json'],
+      { ...s.env, FAKE_SENTRY_OK: '1' },
+      s.ws,
+    );
     expect(run.status, run.stderr).toBe(0);
     const report = run.json() as Report;
     const errors = report.findings.filter((f) => f.group === 'errors');
@@ -238,7 +249,7 @@ describe('release', () => {
 
   it('prints the same columns as doctor for a person', () => {
     const s = stage();
-    const run = fx(['release', 'b'], s.env, s.ws);
+    const run = fx(['release', '--details', 'b'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
     expect(run.stdout).toMatch(/^group\s+level\s+id\s+message\s+fix/m);
     expect(run.stdout).toMatch(/^merge\s+ok\s+b\s+dev and main agree/m);

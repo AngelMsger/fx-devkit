@@ -8,6 +8,7 @@ import type { Environments } from '../manifest/types.js';
 import { substitute, substituteAll, type Vars } from '../template.js';
 import { commandOrigin, type ResolvedTool } from '../toolchain/resolve.js';
 
+import type { ServicePreparation } from './service.js';
 import type { PlanProblem, SetupCheck, SetupPlan, SetupRecipe, SetupStep } from './types.js';
 
 export interface RecipeSource {
@@ -16,6 +17,9 @@ export interface RecipeSource {
   // The platform instance this recipe was collected for; per-environment
   // recipes expand over the environments that declare it.
   readonly platform?: string | undefined;
+  readonly env?: string;
+  readonly preparation?: ServicePreparation;
+  readonly executionEnv?: Readonly<Record<string, string>>;
 }
 
 export interface PlanInput {
@@ -50,7 +54,7 @@ export function planSetup(input: PlanInput): SetupPlan {
       continue;
     }
     if (!source.recipe.perEnv) {
-      draft(fromRecipe(tool, source.recipe, { ...source.recipe.defaults, ...source.vars }));
+      draft(fromSource(tool, source));
       continue;
     }
     for (const [env, spec] of envs) {
@@ -90,6 +94,24 @@ export function planSetup(input: PlanInput): SetupPlan {
     if ('reason' in result) problems.push(result);
     else drafts.push(result);
   }
+}
+
+function fromSource(tool: ResolvedTool, source: RecipeSource): SetupStep | PlanProblem {
+  const step = fromRecipe(
+    tool,
+    source.recipe,
+    { ...source.recipe.defaults, ...source.vars },
+    source.env,
+  );
+  if ('reason' in step) return step;
+  const managed =
+    source.preparation || source.executionEnv || source.recipe.requires?.includes('service');
+  return {
+    ...step,
+    ...(source.preparation ? { preparation: source.preparation } : {}),
+    ...(source.executionEnv ? { executionEnv: source.executionEnv } : {}),
+    ...(managed ? { origin: 'patch' as const } : {}),
+  };
 }
 
 function fromRecipe(
@@ -202,7 +224,7 @@ function check(
 // and their dependants are withheld so no platform inherits another one's check.
 function uniqueSteps(steps: readonly SetupStep[], problems: PlanProblem[]): SetupStep[] {
   const byId = new Map<string, SetupStep>();
-  const blocked = new Set<string>();
+  const blocked = conflictingServices(steps, problems);
   for (const step of steps) {
     const existing = byId.get(step.id);
     if (existing === undefined) byId.set(step.id, step);
@@ -292,4 +314,31 @@ function within(name: string, list: readonly string[] | undefined): boolean {
 
 function prefixed(prefix: string, record: Readonly<Record<string, string>> | undefined): Vars {
   return Object.fromEntries(Object.entries(record ?? {}).map(([k, v]) => [`${prefix}.${k}`, v]));
+}
+
+// One native destination cannot receive incompatible declarations in one plan.
+function conflictingServices(steps: readonly SetupStep[], problems: PlanProblem[]): Set<string> {
+  const targets = new Map<string, SetupStep[]>();
+  const blocked = new Set<string>();
+  for (const step of steps) {
+    const prep = step.preparation;
+    if (!prep) continue;
+    const key = prep.kind === 'file' ? prep.relative : `${step.tool}:${prep.resource}`;
+    const previous = targets.get(key) ?? [];
+    previous.push(step);
+    targets.set(key, previous);
+  }
+  for (const group of targets.values()) {
+    if (new Set(group.map((step) => JSON.stringify(step.preparation))).size < 2) continue;
+    for (const step of group) {
+      blocked.add(step.id);
+      problems.push({
+        step: step.id,
+        reason: 'step_conflict',
+        detail:
+          'Multiple service declarations disagree about the same local destination; use distinct contexts.',
+      });
+    }
+  }
+  return blocked;
 }

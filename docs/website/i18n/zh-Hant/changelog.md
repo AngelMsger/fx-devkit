@@ -1,10 +1,17 @@
 # 更新日誌
 
-## 尚未發布
+## 0.2.0 (2026-09-17)
+
+- 不相容變更：四類工作流程報告預設精簡 JSON，完整資料使用 `--details`，明確的 `--fields` 仍從完整結果投影。
+- 修正明確的空 Agent 選擇；新增 `FX_SKILL_VERSION` 核對與 `bundled_skill_version`。
+- 新增 `operation`、`preparation_complete` 與 `SKILL_WRITE_DENIED`，保留部分結果及具體復原步驟。
 
 - 新增獨立伴生 Skill install、uninstall、path、status 與 show 命令。
 - 在工作區指南產生團隊 Skill 的觸發說明與來源連結。
 - 區分明確更新與自動維護，並保護團隊共享來源。
+
+- 初始化與明確執行的同步支援公共服務預設、指定服務的個人登入與原生衝突復原。
+- 拒絕共用 service 中的個人憑證，保留既有配套工具設定。
 
 ## 0.1.2
 

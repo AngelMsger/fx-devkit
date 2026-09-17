@@ -8,7 +8,11 @@ export const BINARY = 'bitbucket-cli';
 export type { CliCall } from '../../family/cli.js';
 
 export class BitbucketCli extends FamilyCli {
-  constructor(process: Process, context: string | undefined) {
-    super(BINARY, process, context);
+  constructor(
+    process: Process,
+    context: string | undefined,
+    service?: Readonly<Record<string, string>>,
+  ) {
+    super(BINARY, process, context, service);
   }
 }

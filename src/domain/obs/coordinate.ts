@@ -8,8 +8,9 @@
 
 import type { ResolvedRepo } from '../manifest/local.js';
 import type { PlatformBinding } from '../manifest/providers.js';
-import type { Environments } from '../manifest/types.js';
-import { shellLine, type ResolvedShell } from '../shell.js';
+import { serviceVars } from '../manifest/service.schema.js';
+import type { Environments, Platform, EnvPlatform } from '../manifest/types.js';
+import { shellEnvironmentLine, shellLine, type ResolvedShell } from '../shell.js';
 import { placeholders, substitute, type Vars } from '../template.js';
 
 import { weakest, type Confidence } from './confidence.js';
@@ -57,10 +58,7 @@ export function locateRepo(input: LocateInput): ObsCoordinate {
       override?.note ?? onEnv.note ?? `${platform} has nothing for ${repo.name} in ${env}`,
     ]);
   }
-  const vars = resolveVars(
-    { ...spec.vars, ...onEnv.vars, ...override?.vars },
-    { svc: serviceOf(repo), repo: repo.name, env },
-  );
+  const vars = repositoryVars(spec, onEnv, override?.vars, repo, env);
   const located = spec.command === undefined ? input.locate?.(vars) : undefined;
   const command = commandLine(spec.command, located, vars, input.commandShell);
   const missing = command === null ? [] : distinct(placeholders(command));
@@ -102,7 +100,10 @@ function commandLine(
   shell?: ResolvedShell,
 ): string | null {
   if (template !== undefined) return substitute(template, vars).text;
-  return located === undefined ? null : shellLine(located.command, shell);
+  if (located === undefined) return null;
+  return located.env
+    ? shellEnvironmentLine(located.command, located.env, shell)
+    : shellLine(located.command, shell);
 }
 
 function uncovered(
@@ -140,4 +141,27 @@ function templateShellNote(
   return template !== undefined && shell && shell !== 'posix'
     ? 'The manifest command template is printed verbatim; its author owns shell compatibility.'
     : undefined;
+}
+
+function coordinateVars(spec: Platform, onEnv: EnvPlatform, override: Vars | undefined): Vars {
+  return {
+    ...spec.vars,
+    ...onEnv.vars,
+    ...override,
+    ...serviceVars({ ...spec.service, ...onEnv.service }),
+  };
+}
+
+function repositoryVars(
+  spec: Platform,
+  onEnv: EnvPlatform,
+  override: Vars | undefined,
+  repo: ResolvedRepo,
+  env: string,
+): Vars {
+  return resolveVars(coordinateVars(spec, onEnv, override), {
+    svc: serviceOf(repo),
+    repo: repo.name,
+    env,
+  });
 }

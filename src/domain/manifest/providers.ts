@@ -5,6 +5,7 @@
 
 import { capabilitiesInScope, type Capability } from '../capability.js';
 
+import { serviceVars, type ServiceSettings } from './service.schema.js';
 import type { Environments, Workspace } from './types.js';
 
 export type BindingSource = 'explicit' | 'default' | 'unbound' | 'misplaced';
@@ -14,6 +15,7 @@ export interface Binding {
   readonly provider: string | null;
   readonly source: BindingSource;
   readonly vars: Readonly<Record<string, string>>;
+  readonly service?: ServiceSettings;
 }
 
 const DEFAULT_CODE_HOST = 'bitbucket-cli';
@@ -23,7 +25,17 @@ export function bindProviders(workspace: Workspace): Binding[] {
   const bindings: Binding[] = capabilitiesInScope('workspace').map((capability) => {
     const bound = explicit[capability];
     if (bound !== undefined) {
-      return { capability, provider: bound.provider, source: 'explicit', vars: bound.vars ?? {} };
+      return {
+        capability,
+        provider: bound.provider,
+        source: 'explicit',
+        vars: {
+          ...bound.vars,
+          ...serviceVars(bound.service),
+          ...(bound.vars?.['host'] ? { host: bound.vars['host'] } : {}),
+        },
+        ...(bound.service ? { service: bound.service } : {}),
+      };
     }
     if (capability === 'code-host' && workspace.defaults.host !== undefined) {
       return {
@@ -64,7 +76,8 @@ export const PLATFORM_DEFAULTS: Readonly<
 export function bindPlatforms(environments: Environments | undefined): PlatformBinding[] {
   if (environments === undefined) return [];
   return Object.entries(environments.platforms).map(([platform, spec]) => {
-    const vars = spec.vars ?? {};
+    const vars = { ...spec.vars, ...serviceVars(spec.service) };
+    const service = spec.service ? { service: spec.service } : {};
     if (spec.provider !== undefined) {
       return {
         platform,
@@ -72,10 +85,12 @@ export function bindPlatforms(environments: Environments | undefined): PlatformB
         provider: spec.provider,
         source: 'explicit',
         vars,
+        ...service,
       };
     }
     const fallback = PLATFORM_DEFAULTS[platform];
-    if (fallback !== undefined) return { platform, ...fallback, source: 'default', vars };
+    if (fallback !== undefined)
+      return { platform, ...fallback, source: 'default', vars, ...service };
     return {
       platform,
       capability: spec.capability ?? 'unknown',

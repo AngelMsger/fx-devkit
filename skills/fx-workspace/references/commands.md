@@ -63,7 +63,7 @@ same ambiguous setup. Doctor marks its missing verification as incomplete.
 
 `fx doctor` and `fx release` return `ok`, `complete`, `summary {ok, warn, fail}`
 and `findings[]`. Findings carry `group`, `id`, `level`, `coverage`, `message`,
-`fix` and `handoff`; release findings also carry `evidence`.
+`fix` and `handoff`; the full `--details` view also carries `evidence`.
 
 Both commands exit 0 when the report was produced, even with failures.
 `ok: true` means no `fail` finding. `complete: true` means no requested finding
@@ -204,3 +204,39 @@ not adopt them. `installed_by` identifies successful operations, not original
 ownership. Only confirmed fx-origin `unused` rows have a removal
 hint; it is never an executable approval. Sync exposes these rows in
 `stage_details.tools.installations` and counts `stages.tools.unused`.
+
+### Service preparation
+
+Explicit init/sync includes `stages.services` and `stage_details.services.items`.
+Each item has `id`, `tool`, nullable `env`, `status`, `detail` and optional public
+`changes`, structured `failure`, `next_steps`. Status is `configured`, `unchanged`,
+`planned`, `blocked` or `failed`; plan problems remain separate. Public configuration
+success never establishes personal authentication. `sync --only services` selects
+this stage, and `--dry-run` does not write configuration or trust.
+
+## 0.2.0 report and session contracts
+
+The four workflow reports (`init`, `sync`, `doctor`, `release`) default to compact
+JSON. `output_mode: summary` and `omitted` describe the view; omitted counts are
+not pagination. All warning/failure rows and exact pending command vectors remain.
+`--details` returns the full application result; explicit `--fields` projects it.
+Human/NDJSON and fact-query defaults are unchanged. Error envelopes are never
+projected or compacted. Large INIT_PREPARED notices follow the same report mode.
+
+`operation` is `preview` or `apply`. `preparation_complete` is null for preview,
+false when selected/requested work is protected, blocked, failed or unverified,
+and true only when preparation completed. Doctor/release `ok` and `complete`
+retain their failure/coverage meanings; preparation does not prove remote health.
+
+`self info.bundled_skill_version` names the bundled instructions. Read the returned
+source, then declare `FX_SKILL_VERSION` alongside `FX_SKILL_LOADED=1`. A matching
+version can acknowledge loading even without a global copy. `skill status`
+separates `loaded`, `loaded_version` and `version_verified` from installed copies.
+A legacy boolean without a version produces SKILL_VERSION_UNVERIFIED; a mismatch
+produces SKILL_VERSION_MISMATCH. Notices are non-blocking and can be silenced with
+the existing quiet/notice settings. Bootstrap commands remain available.
+
+`SKILL_WRITE_DENIED` keeps denied filesystem paths and partial stage evidence.
+Check access before repeating writes. To continue local repository/guide work,
+use `sync --only repos,docs --no-refresh-manifest` in the affected workspace.
+This does not claim the skipped Skill stage is ready or authorize trust changes.

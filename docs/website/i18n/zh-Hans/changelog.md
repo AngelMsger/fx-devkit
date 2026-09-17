@@ -1,10 +1,17 @@
 # 更新日志
 
-## 未发布
+## 0.2.0 (2026-09-17)
+
+- 破坏性变更：四类工作流报告默认精简 JSON，完整数据使用 `--details`，显式 `--fields` 仍从完整结果投影。
+- 修复显式空 Agent 选择；增加 `FX_SKILL_VERSION` 核对和 `bundled_skill_version`。
+- 增加 `operation`、`preparation_complete` 与 `SKILL_WRITE_DENIED`，保留部分结果和具体恢复步骤。
 
 - 新增独立的伴生 Skill install、uninstall、path、status 和 show 命令。
 - 在工作区指南生成团队 Skill 的触发说明和源文件链接。
 - 区分显式刷新与自动维护，并保护团队共享源。
+
+- 初始化与显式同步支持公共服务预设、明确选定服务的个人登录和原生冲突恢复。
+- 拒绝共享 service 中的个人凭证，保留既有配套工具配置。
 
 ## 0.1.2
 

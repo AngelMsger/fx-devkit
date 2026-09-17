@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Generated from the command registry of version 0.1.2. Do not edit by hand;
+Generated from the command registry of version 0.2.0. Do not edit by hand;
 run `npm run docs:gen` after changing commands or flags.
 
 ## Everyday
@@ -55,7 +55,7 @@ Every command accepts these.
 
 Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced
 
-Tools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved.
+Tools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved. Declared public service settings are prepared before repository queries; each member obtains their own credentials.
 
 Registration can succeed with partial synchronization. Inspect sync.summary, sync.stages and failed item details; exit zero does not establish complete preparation.
 
@@ -70,6 +70,7 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--adopt` | legacy flag; adoption is automatic (default: false) |
+| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--from` | git URL or checkout of the manifest repository, a directory holding manifest/, or - for workspace YAML / a source bundle (required) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
@@ -87,15 +88,18 @@ cat workspace.yaml | fx init ./ws --from -
 
 Bring the workspace up to date: clone what is missing, fast-forward what is clean, never touch work in progress
 
+Explicit sync also prepares declared public service settings. It never acquires or distributes personal credentials.
+
 The result may be partial even with exit zero. Inspect summary.failed, summary.unreadable, stages and each failed item's structured failure before retrying.
 
 Flags:
 
 | Flag | Description |
 |---|---|
+| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
-| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, docs, skills, hooks, mcp, tools) |
+| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, services, docs, skills, hooks, mcp, tools) |
 | `--refresh-manifest / --no-refresh-manifest` | pull the manifest repository first; --no-refresh-manifest skips it (default: true) |
 
 Examples:
@@ -142,6 +146,7 @@ Flags:
 
 | Flag | Description |
 |---|---|
+| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the fix plan instead of applying it (requires: --fix) |
 | `--env` | only these environments (login checks) (repeatable or comma-separated) (repeatable) |
 | `--fix` | apply the fixes fx can make itself |
@@ -245,6 +250,7 @@ Flags:
 
 | Flag | Description |
 |---|---|
+| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--env` | environment whose errors count; default: release.env |
 | `--jobs` | independent checks handled at the same time (default: 4) |
 | `--only` | only these checks (repeatable or comma-separated) (repeatable; one of: deps, merge, ci, errors) |

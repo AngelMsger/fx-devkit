@@ -36,7 +36,13 @@ export class SentryErrorTracker implements ErrorTracker {
   }
 
   locate(vars: Vars): Coordinate {
-    return this.platform.locate(vars);
+    const located = this.platform.locate(vars);
+    if (!vars['base_url']) return located;
+    return {
+      ...located,
+      url: `${vars['base_url'].replace(/\/+$/, '')}/organizations/${vars['org']}/issues/`,
+      env: { SENTRY_URL: vars['base_url'], SENTRY_HOST: vars['base_url'] },
+    };
   }
 
   probe(vars: Vars): ProbeVector | undefined {
@@ -60,7 +66,7 @@ export class SentryErrorTracker implements ErrorTracker {
         FIELDS,
       ],
       QUERY_TIMEOUT_MS,
-      vars['host'],
+      vars['base_url'] ?? vars['host'],
     );
     const body = objectOf(call.data);
     const rows = body?.['data'];

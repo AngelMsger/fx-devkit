@@ -23,7 +23,8 @@ export class SentryCli {
   // The CLI picks its server from the environment; a manifest that names a
   // host is asking for that one, not for whichever was configured last.
   async call(args: readonly string[], timeoutMs: number, host?: string): Promise<SentryCall> {
-    const env = host === undefined ? undefined : { SENTRY_URL: `https://${host}` };
+    const url = host?.includes('://') ? host : `https://${host}`;
+    const env = host === undefined ? undefined : { SENTRY_URL: url, SENTRY_HOST: url };
     const result = await this.process.run([BINARY, ...args, '--json'], {
       timeoutMs,
       env,

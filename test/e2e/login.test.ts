@@ -106,7 +106,10 @@ function stage(): Stage {
     FAKE_OO_OK: '1',
     FAKE_KUBE_OK: '1',
   };
-  const boot = fx(['init', ws, '--from', path.dirname(manifestDir), '--format', 'json'], env);
+  const boot = fx(
+    ['init', '--details', ws, '--from', path.dirname(manifestDir), '--format', 'json'],
+    env,
+  );
   expect(boot.status, boot.stderr).toBe(0);
   return { ws, kube, env };
 }
@@ -191,7 +194,7 @@ describe('login and doctor', () => {
     writeFileSync(path.join(s.kube, 'test.yaml'), 'k');
     writeFileSync(path.join(s.kube, 'selfhosted.yaml'), 'k');
     const healthy = fx(
-      ['doctor', '--format', 'json'],
+      ['doctor', '--details', '--format', 'json'],
       { ...s.env, FAKE_OO_OK: '0', FAKE_KUBE_OK: '0' },
       s.ws,
     );
@@ -216,7 +219,7 @@ describe('login and doctor', () => {
     ]);
 
     const broken = fx(
-      ['doctor', '--env', 'test', '--format', 'json'],
+      ['doctor', '--details', '--env', 'test', '--format', 'json'],
       { ...s.env, FAKE_OO_OK: '1', FAKE_KUBE_OK: '0' },
       s.ws,
     );

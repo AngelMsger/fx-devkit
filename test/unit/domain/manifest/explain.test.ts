@@ -20,7 +20,14 @@ describe('describePath', () => {
   it('descends through maps and reports an object field with its children', () => {
     const doc = describePath('environments', 'envs.platforms');
     expect(doc.type).toMatch(/^map of/);
-    expect(doc.children).toEqual(['vars', 'confidence', 'note', 'observations', 'setup']);
+    expect(doc.children).toEqual([
+      'vars',
+      'confidence',
+      'note',
+      'service',
+      'observations',
+      'setup',
+    ]);
     expect(describePath('workspace', 'repos[].obs.overrides').type).toBe('map of map of object');
   });
 

@@ -10,6 +10,7 @@ const AGENT_USAGE = `AGENT USAGE
   --format json     machine-readable output; collections are {items, has_more, next?}
   --format ndjson   one JSON object per line, for streaming
   --fields a,b.c    keep only these dot paths in the output
+  --details         full JSON for init/sync/doctor/release (default: summary)
   --no-header       omit headings from human list output
   --no-input        never prompt; a needed answer becomes a structured error
   --dry-run         on write commands: print the plan, change nothing
@@ -18,8 +19,9 @@ const AGENT_USAGE = `AGENT USAGE
   the category maps to a fixed exit code (usage 2, config 3, auth 4, permission 5,
   not_found 6, conflict 11). A LOGIN_REQUIRED error carries a handoff for the user.
   doctor and release exit 0 even when findings fail; inspect report.ok, complete and findings.
-  init and sync may return partial results; inspect sync.summary (init), summary (sync),
-  stages and each failed item's failure before treating preparation as complete.
+  init and sync expose operation and preparation_complete; preview completion is null.
+  Summaries retain exceptions and recovery; omitted counts normal rows/evidence.
+  Start with self info, read the bundled Skill, then set FX_SKILL_VERSION to bundled_skill_version.
   Global agent selection and tool inventory/history cover FX_HOME; --workspace does not narrow them.
   Help, completion, skill show and manifest schema return their native text/artifact formats.
   Set FX_FORMAT=json to apply the format to a whole session.`;

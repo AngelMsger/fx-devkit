@@ -1,6 +1,6 @@
 ---
 name: fx-workspace
-version: 0.1.2
+version: 0.2.0
 description: 'Use only when the user explicitly asks for the fx workspace CLI or manifest, or the current task is inside an fx-managed workspace or routed by its fx-derived AGENTS.md. Drive workspace init and sync, repository status and selection, manifest validation and editing, companion tools and login, doctor, agent Skills, repository ownership, environment coordinates and readiness through can/where, and release checks across dependencies, branches, builds and errors. Do not use for generic Sentry, OpenObserve, Jenkins, Kubernetes, logs, errors or builds outside an fx-managed workspace.'
 metadata:
   requires:
@@ -17,36 +17,45 @@ of its two users; the other is a person. Read this before composing commands.
 Outside such a workspace, generic platform work belongs to that platform's
 own Skill unless the user explicitly asks to initialize or inspect fx itself.
 
-## Bootstrap and two Skill layers
+## Start with the running version
 
-Before initializing a workspace, `fx skill install` installs this companion for
-locally detected agents. `--agent <id>` (repeatable or comma-separated) selects
-hosts explicitly; `--project` targets cwd; `--dir <parent>` targets
-`<parent>/fx-workspace` and excludes both other flags. Workspace selection is not
-required and configured workspace agents do not select standalone install targets.
-`fx skill path` lists destinations; `fx skill status` separates installed copies,
-version alignment and this session's loaded handshake. `fx skill show` prints the
-bundled SKILL.md verbatim, including with `--format json`. `self info` supplies its
-source directory for reading references.
+1. Run `fx self info --format json`. Verify the package identity and read
+   `SKILL.md` in its `bundled_skill` directory, or run `fx skill show`.
+   A globally installed Skill can be older than the executable.
+2. After reading this bundled Skill, use `FX_SKILL_LOADED=1` and
+   `FX_SKILL_VERSION=0.2.0` with `--format json`. When the executable changes,
+   repeat discovery and use its `bundled_skill_version`.
+3. Discover the task's repositories/capabilities with the routes below.
+   Global Skill installation is optional; installation/refresh/ownership details
+   are in [the command reference](references/commands.md).
 
-Explicit install refreshes a recognized copy to the invoking CLI version, including
-same-version repair and downgrading a newer copy. Init/sync only install missing or
-upgrade older copies. Writes accept `--dry-run` and preserve read-only posture;
-foreign replacement needs confirmation and backup. Uninstall requires confirmation
-and removes only recognized copies. A later workspace sync may reinstall them.
-These commands perform local work without network update checks or companion probes.
+Team Skills are separate: read the relevant entry in the root AGENTS.md catalog.
+Do not install the fx companion into a manifest-linked team Skill directory.
 
-The manifest's project Skills supply team workflows. Read the matching entry in
-the workspace root AGENTS.md's Team Skills catalog, then follow its references as
-needed. The catalog links directly to source files; native installation or loading
-may still need host trust. Do not install this companion into a manifest-linked
-project Skill directory: use a user target or independent `--dir` instead.
+## Read a result, then choose the next step
+
+- `init`, `sync`, `doctor`, `release`: JSON defaults to a summary. `omitted`
+  counts normal rows/evidence; failures and recovery remain visible. Request
+  `--details` when you need all rows/evidence. Explicit `--fields` reads the full
+  result; fact queries and NDJSON retain their normal shape.
+- `init/sync`: inspect `operation` and `preparation_complete`. Preview is `null`,
+  not completed setup. Registration, a cloned repo and exit zero alone do not
+  establish preparation. Doctor/release still use `ok` and coverage `complete`.
+- Parse stdout separately from stderr. Use JSON field selection, not byte
+  truncation or `2>&1 | head`. Narrow doctor to the relevant tool/environment.
+- `SKILL_WRITE_DENIED`: read the denied path and preserve the completed work.
+  Continue source analysis or scoped `sync --only repos,docs --no-refresh-manifest`.
+  Retry Skill writes only after access changes. Do not move shared locks or
+  rerun unchanged full sync as a remedy.
+- `agents: []` or empty `FX_AGENTS` selects nobody. Unsetting the configuration
+  and environment override restores detection. FX_HOME does not isolate global
+  Skill locations; use the host's filesystem boundary for temporary trials.
 
 ## Rules that never bend
 
 - Always pass `--format json`, and run fx with `FX_SKILL_LOADED=1` in the
-  environment: that tells fx this Skill is loaded and silences its Skill
-  notices. stdout is data only; notices, progress and errors are on stderr.
+  environment together with `FX_SKILL_VERSION=0.2.0`: only a matching
+  version acknowledges this session's bundled instructions. stdout is data only; notices, progress and errors are on stderr.
   Collections are `{items, has_more, next?}`.
 - Errors are `{error: {category, code, message, hint, next_steps, retryable}}`
   on stderr; the category is the exit code: usage 2, config 3, auth 4,
@@ -58,6 +67,17 @@ project Skill directory: use a user target or independent `--dir` instead.
 - Coordinates come only from `fx where`; people only from
   `fx member show`. Never guess a Sentry project, a log stream, a Jenkins
   job, a namespace or an account handle.
+- Inspect only public connection metadata. Use the companion's scoped configuration
+  view (and provenance such as `config show --explain`) for endpoint/context
+  overrides. Never dump `env`, `printenv`, `process.env`, or all variables matching
+  a tool prefix: they can contain personal tokens and passwords. Do not read
+  credential stores. If secret presence must be diagnosed, report only whether
+  a named variable is set, never its value; never copy it into shared configuration.
+- A check blocked by command trust, read-only posture, a missing tool or a failed
+  probe is **unverified**, not proof of missing or expired credentials. Keep that
+  distinction in the final report. Inspect one tool/environment at a time when
+  possible; parse JSON stdout separately from stderr notices, not from a merged
+  terminal transcript.
 - **fx answers; you act.** Before using a companion tool for a repository in
   an environment, ask `fx where <repo> --env <env>`: each row is one platform
   with its `command` and a `ready` column. fx derives that command from the
@@ -452,3 +472,24 @@ pointers are maintained by `sync --only docs`. Foreign entries stay untouched;
 ## Result and ownership details
 
 Read partial init stdout even after a nonzero exit: failed_phase, phases and sync retain completed effects. Do not repeat completed work blindly. Skill tools_blocked rows preserve exact-command trust while independent local projections may succeed. Diagnose caller approval waits separately from local Skill copies. Readiness distinguishes outdated_tool and disabled_tool from missing_tool; doctor evidence.binary_path identifies the resolved executable. Per-user fx Skills are shared across workspaces and never downgraded; FX_HOME does not isolate HOME. Grok 1.0.25 cannot discover project hooks at a plain workspace root: use explicit fx sync --only docs,skills after normal host trust, never git init as a workaround.
+
+## Public service settings
+
+From fx 0.1.3, `service` declarations distribute only shared URLs, context names,
+organizations, deployment flavors and authentication methods. A method such as
+`pat` or `token` is not a credential. Every member obtains their own credentials;
+never read/copy personal tokens, passwords, identities or browser sessions into the
+manifest. Extra fields in service declarations are rejected even in non-strict mode.
+
+Init and explicit sync prepare these settings before repository queries.
+`fx sync --only services --dry-run --format json` previews this stage; inspect
+`stage_details.services.items` and problems, including blocked/failed rows.
+Background hooks only check. A prepared service still needs personal login and
+verification; use the same scoped `can`/`where` check after the person finishes.
+
+Follow native CONFIG_CONTEXT_CONFLICT differences and overwrite preview without
+automatically applying --overwrite or --activate. Existing session-backed
+OpenObserve contexts cannot have their URL/scheme replaced; declare another context.
+OpenObserve session login uses --browser. Sentry receives public workspace defaults
+only and login explicitly names --url. Foreign files and personal credentials stay
+untouched. Changed setup vectors/bindings require fresh exact-command trust.

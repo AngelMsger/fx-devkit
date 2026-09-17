@@ -17,6 +17,32 @@ const run = { dryRun: false, posture: writable, jobs: 4 };
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 
 describe('Sync', () => {
+  it('retains completed service preparation when a later requested stage fails', async () => {
+    const h = await harness();
+    await expect(
+      new Sync(h.deps).execute({
+        ...run,
+        only: ['services', 'docs', 'tools'],
+        stages: {
+          services: async () => ({
+            summary: { configured: 1 },
+            details: { items: [{ status: 'configured' }] },
+          }),
+          docs: async () => ({ summary: { created: 2 } }),
+          tools: async () => {
+            throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'review the tool probe');
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'VECTOR_UNTRUSTED',
+      partialResult: {
+        operation: 'apply',
+        preparation_complete: false,
+        stages: { services: { configured: 1 }, docs: { created: 2 }, tools: { status: 'failed' } },
+      },
+    });
+  });
   it('reports preflight while a bounded optional probe waits, then clones after timeout', async () => {
     const h = await harness({ user: 'test' });
     const proc = new FakeProcess();
