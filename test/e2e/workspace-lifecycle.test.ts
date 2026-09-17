@@ -239,6 +239,19 @@ describe('workspace resource ownership', () => {
     const beta = manifestDirOf(s.home, 'beta');
     cpSync(path.dirname(source), path.dirname(beta), { recursive: true });
     writeFileSync(
+      path.join(source, 'manifest/harness.yaml'),
+      stringify({
+        schema_version: 2,
+        mcp: [
+          { name: 'knowledge', transport: 'stdio', command: ['fixture-server'] },
+          { name: 'exclusive', transport: 'stdio', command: ['fixture-exclusive-server'] },
+        ],
+      }),
+    );
+    const additional = fx(['sync', '--only', 'mcp', '--workspace', 'alpha', '--yes'], env, s.base);
+    expect(additional.status, additional.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).toHaveProperty('fx-exclusive');
+    writeFileSync(
       path.join(s.home, 'config.yaml'),
       stringify({
         workspaces: {
@@ -251,6 +264,7 @@ describe('workspace resource ownership', () => {
     expect(first.status, first.stderr).toBe(0);
     expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).toHaveProperty('fx-knowledge');
     expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).toHaveProperty('personal');
+    expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).not.toHaveProperty('fx-exclusive');
     expect(existsSync(source)).toBe(true);
     expect(s.run(['workspace', 'show', 'beta']).json()).toMatchObject({ status: 'ready' });
     const second = s.run(['workspace', 'unregister', 'beta']);

@@ -37,9 +37,15 @@ export class WorkspaceResources {
   async cleanup(input: ResourceCleanupInput): Promise<readonly ResourceCleanupRow[]> {
     if (!(await this.fs.isDirectory(input.root)))
       return [{ kind: 'workspace', path: input.root, action: 'retained_unreachable' }];
-    const { harness, request, plan, hookRequest, hookPlan, files } = await this.prepare(input);
+    const { harness, request, plan, hookRequest, hookPlan, files, shared } =
+      await this.prepare(input);
     const rows: ResourceCleanupRow[] = [
       ...plan.items.map((item) => ({ kind: item.kind, path: item.path, action: item.action })),
+      ...shared.map((item) => ({
+        kind: item.kind,
+        path: item.relative,
+        action: 'preserved_shared',
+      })),
       ...hookPlan.items
         .filter((item) => hookRequest.removeAgents.includes(item.agent))
         .map((item) => ({ kind: 'hook', path: item.path, action: item.action })),
@@ -54,7 +60,13 @@ export class WorkspaceResources {
     let state = await readHarnessState(harness, request, true);
     for (const change of plan.changes)
       state = await applyHarnessChange(harness, request, state, change);
-    await this.harness.state.write(input.name, { ...state, root: input.root });
+    await this.harness.state.write(input.name, {
+      ...state,
+      root: input.root,
+      receipts: state.receipts.filter(
+        (receipt) => !shared.some((other) => other.key === receipt.key),
+      ),
+    });
     const hooks = await new ReconcileHooks(this.hooks).execute({ ...hookRequest, dryRun: false });
     if (
       hooks.items.some(
@@ -68,6 +80,14 @@ export class WorkspaceResources {
         'WORKSPACE_CLEANUP_BLOCKED',
         'Hook files changed during cleanup; retry the same workspace operation.',
       );
+    await this.retireFiles(input.root, files);
+    return rows;
+  }
+
+  private async retireFiles(
+    root: string,
+    files: Awaited<ReturnType<WorkspaceResources['files']>>,
+  ): Promise<void> {
     for (const file of files) {
       if (!file.owned) continue;
       if (file.link !== undefined) {
@@ -76,15 +96,14 @@ export class WorkspaceResources {
         if (file.retarget) await this.fs.link(file.retarget, file.file);
       } else {
         const result = await this.harness.files.write({
-          root: input.root,
-          relative: path.relative(input.root, file.file),
+          root: root,
+          relative: path.relative(root, file.file),
           before: { kind: 'file', text: file.text! },
           text: null,
         });
         if (result === 'conflict' || result === 'busy') throw changedResource();
       }
     }
-    return rows;
   }
 
   private async prepare(input: ResourceCleanupInput) {
@@ -116,8 +135,13 @@ export class WorkspaceResources {
       posture: input.posture,
     };
     const state = await readHarnessState(harness, request, false);
-    const planned = await planHarness(harness, request, state);
-    const plan = await this.preserveShared(input, state, planned);
+    const shared = await this.sharedReceipts(input, state);
+    const plan = await planHarness(harness, request, {
+      ...state,
+      receipts: state.receipts.filter(
+        (receipt) => !shared.some((other) => other.key === receipt.key),
+      ),
+    });
     const hookState = await this.hooks.state.read(input.name);
     const hookRequest = {
       workspace: input.name,
@@ -132,35 +156,19 @@ export class WorkspaceResources {
     };
     const hookPlan = await new ReconcileHooks(this.hooks).execute(hookRequest);
     const files = await this.files(input);
-    return { harness, request, plan, hookRequest, hookPlan, files };
+    return { harness, request, plan, hookRequest, hookPlan, files, shared };
   }
 
-  private async preserveShared(
+  private async sharedReceipts(
     input: ResourceCleanupInput,
     state: Awaited<ReturnType<typeof readHarnessState>>,
-    planned: Awaited<ReturnType<typeof planHarness>>,
   ) {
-    const sharedReceipts = (
+    const otherReceipts = (
       await Promise.all((input.shared ?? []).map((owner) => this.harness.state.read(owner.name)))
     ).flatMap((owner) => owner?.receipts ?? []);
-    const shared = new Set(
-      state.receipts
-        .filter((receipt) =>
-          sharedReceipts.some(
-            (other) => other.key === receipt.key && other.digest === receipt.digest,
-          ),
-        )
-        .map((receipt) => receipt.key),
+    return state.receipts.filter((receipt) =>
+      otherReceipts.some((other) => other.key === receipt.key && other.digest === receipt.digest),
     );
-    return {
-      ...planned,
-      items: planned.items.map((item) =>
-        shared.has(item.key) ? { ...item, action: 'preserved_shared' } : item,
-      ),
-      changes: planned.changes.map((change) =>
-        shared.has(change.key) ? { ...change, text: change.before.text } : change,
-      ),
-    };
   }
 
   private async files(input: ResourceCleanupInput) {
