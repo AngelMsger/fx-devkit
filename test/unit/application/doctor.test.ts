@@ -228,6 +228,20 @@ describe('Doctor', () => {
     expect(s.prompter.questions).toEqual([]);
   });
 
+  it('retains unknown provider coverage failures in the overall diagnostic result', async () => {
+    const s = await stage({ describeProvider: () => undefined });
+    const report = await s.doctor.execute(check);
+    expect(report).toMatchObject({ ok: false, complete: false });
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        group: 'manifest',
+        id: 'provider:code-host',
+        level: 'fail',
+        coverage: 'incomplete',
+      }),
+    );
+  });
+
   it('reports an undeclared provider dependency without aborting the diagnostic report', async () => {
     const s = await stage({
       describeProvider: (id) => {

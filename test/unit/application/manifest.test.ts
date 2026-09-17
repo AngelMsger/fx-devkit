@@ -264,6 +264,19 @@ describe('LintManifest', () => {
     ]);
   });
 
+  it('lints sparse tools overlays using inherited requirements and supports field deletions', async () => {
+    const fs = workspace('v1-minimal');
+    await fs.writeText(
+      path.resolve('/w/manifest/tools.yaml'),
+      'schema_version: 2\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
+    );
+    const findings = await new LintManifest(fs, bundled).execute({
+      dir: path.resolve('/w'),
+      cliVersion: cli,
+    });
+    expect(findings.filter((finding) => finding.kind === 'tools')).toEqual([]);
+  });
+
   it('reports an invalid tools document and skips semantic tool lint', async () => {
     const fs = workspace('v1-minimal');
     await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 2\ntools: nope\n');

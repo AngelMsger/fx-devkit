@@ -4,7 +4,7 @@
 import path from 'node:path';
 
 import { lintManifest, type LintFinding } from '../../domain/manifest/lint.js';
-import { loadToolsDocument } from '../../domain/manifest/loader.js';
+import { loadToolsDocument, loadToolsPatchDocument } from '../../domain/manifest/loader.js';
 import { bindPlatforms } from '../../domain/manifest/providers.js';
 import type { SetupRecipe } from '../../domain/setup/types.js';
 import { lintSkill } from '../../domain/skills/lint.js';
@@ -79,7 +79,7 @@ export class LintManifest {
         : {
             tools: {
               base: loadToolsDocument(this.bundledTools(), input).doc,
-              patch: loadToolsDocument(patch, input).doc,
+              patch: loadToolsPatchDocument(patch, input).doc,
             },
           }),
     });

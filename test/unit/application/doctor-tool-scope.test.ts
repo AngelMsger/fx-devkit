@@ -13,7 +13,7 @@ const workspace =
   'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n';
 const describeProvider = (id: string): ProviderDescriptor<unknown> => ({
   id,
-  capability: 'code-host',
+  capability: id.endsWith('-ci') ? 'ci' : 'code-host',
   tools: id === 'local-git' ? [] : ['bitbucket-cli'],
   recipes: [],
   vars: [],
@@ -32,6 +32,21 @@ describe('doctor tool scope', () => {
     expect(scope.names).toEqual([]);
     expect(await checkTools(h.deps, { ...scope, trust })).toEqual([]);
     expect(h.process.calls).toEqual([]);
+  });
+
+  it('reports unknown configured providers while preserving known zero-tool coverage', async () => {
+    const h = await harness({ workspace });
+    const unknown = doctorToolScope(h.ctx, () => undefined, {});
+    expect(unknown.problems).toMatchObject([
+      { group: 'manifest', id: 'provider:code-host', level: 'fail', coverage: 'incomplete' },
+    ]);
+    expect(doctorToolScope(h.ctx, describeProvider, {}).problems).toEqual([]);
+    const mismatched = doctorToolScope(
+      h.ctx,
+      (id) => ({ ...describeProvider(id), capability: 'ci' }),
+      {},
+    );
+    expect(mismatched.problems).toMatchObject([{ level: 'fail', coverage: 'incomplete' }]);
   });
 
   it('allows explicit checks of an optional baseline tool', async () => {

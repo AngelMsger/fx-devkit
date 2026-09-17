@@ -59,6 +59,7 @@ export class Doctor {
     const toolScope = doctorToolScope(this.deps.ctx, this.doctor.login.describeProvider, input);
     const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
     const groups = await Promise.all([
+      toolScope.problems,
       checkRepos(this.deps),
       checkInstallations(this.doctor.inventory, input.tools),
       checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }),

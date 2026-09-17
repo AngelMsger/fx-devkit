@@ -34,7 +34,10 @@ the manifest explicitly sets `required: false`; explicit required tools remain
 required regardless of provider selection. Disabled tools used by active providers
 have incomplete coverage, while disabled unused tools are not applicable. The
 same effective requirement controls login findings; neither a disabled tool nor an
-unused catalog entry proves readiness.
+unused catalog entry proves readiness. Unknown or capability-mismatched providers
+in the active scope produce failure findings with incomplete coverage; a known
+provider with no companion tools remains a distinct, valid case. Sparse tools
+overlays are validated after inheritance, including during lint and doctor.
 
 A step's stable identity is tool, recipe ID and optional environment. Identical
 expanded definitions may coalesce. Different definitions with one identity are

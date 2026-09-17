@@ -138,6 +138,72 @@ describe('status and recovery journeys', () => {
     }
   });
 
+  it('fails unknown provider coverage only when the provider is in the active scope', () => {
+    const s = stage();
+    expect(s.init().status).toBe(0);
+    const manifest = path.join(manifestDirOf(s.env.FX_HOME, 'sample'), 'manifest');
+    const workspaceFile = path.join(manifest, 'workspace.yaml');
+    const original = readFileSync(workspaceFile, 'utf8');
+    writeFileSync(workspaceFile, original.replace('provider: local-git', 'provider: unknown-host'));
+    const workspace = fx(['doctor', '--details', '--format', 'json'], s.env, s.root);
+    expect(workspace.status, workspace.stderr).toBe(0);
+    expect(workspace.json()).toMatchObject({
+      ok: false,
+      complete: false,
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'provider:code-host',
+          level: 'fail',
+          coverage: 'incomplete',
+        }),
+      ]),
+    });
+    writeFileSync(workspaceFile, original);
+    writeFileSync(
+      path.join(manifest, 'environments.yaml'),
+      'schema_version: 2\nplatforms: {build: {provider: unknown-build, capability: ci}}\nenvs: {dev: {}, prod: {platforms: {build: {}}}}\n',
+    );
+    const inactive = fx(['doctor', '--env', 'dev', '--details', '--format', 'json'], s.env, s.root);
+    expect(inactive.status, inactive.stderr).toBe(0);
+    expect(inactive.json()).toMatchObject({ ok: true, complete: true });
+    const active = fx(['doctor', '--env', 'prod', '--details', '--format', 'json'], s.env, s.root);
+    expect(active.status, active.stderr).toBe(0);
+    expect(active.json()).toMatchObject({
+      ok: false,
+      complete: false,
+      findings: expect.arrayContaining([
+        expect.objectContaining({ id: 'provider:ci:build', level: 'fail', coverage: 'incomplete' }),
+      ]),
+    });
+  });
+
+  it('returns a doctor report for a sparse optional companion override', () => {
+    const s = stage();
+    expect(s.init().status).toBe(0);
+    const manifest = path.join(manifestDirOf(s.env.FX_HOME, 'sample'), 'manifest');
+    writeFileSync(
+      path.join(manifest, 'tools.yaml'),
+      'schema_version: 2\ntools: [{name: jenkins-cli, required: false}]\n',
+    );
+    const result = fx(
+      ['doctor', '--details', '--format', 'json'],
+      { ...s.env, PATH: process.platform === 'win32' ? process.env.PATH : '/usr/bin:/bin' },
+      s.root,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.json()).toMatchObject({
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          group: 'tools',
+          id: 'jenkins-cli',
+          evidence: expect.objectContaining({ required: false }),
+        }),
+      ]),
+    });
+    const lint = fx(['manifest', 'lint', '--format', 'json'], s.env, s.root);
+    expect(lint.status, lint.stderr).toBe(0);
+  });
+
   it('does not require optional bundled companions for a plain local-git workspace', () => {
     const s = stage();
     expect(s.init().status).toBe(0);
