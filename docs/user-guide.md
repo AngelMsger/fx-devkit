@@ -543,6 +543,9 @@ selection remains unverified until source inspection. Follow the preview's
 next steps to inspect a local checkout when its contents must be reviewed first.
 The plan separates intended registration/materialization from actual state;
 `registered` is no longer shorthand for a planned or newly created registration.
+Git manifest refresh and preview preserve modified, untracked and ignored source
+payload files that fx reads. This source-specific protection does not change the
+business checkout synchronization policy.
 Progress on stderr reports active repositories and elapsed time; it is not a Git
 transfer percentage or ETA. Full JSON requires `--details`.
 

@@ -316,6 +316,8 @@ init 可能先完成注册，再在后续阶段失败。即使退出码非零，
 
 `INIT_PREPARED` 在安装与克隆前展示计划。init 的 dry-run 会检查本地目录、stdin 和本地 Git 的已提交内容，并列出仓库动作而不执行。新的远端来源不会在 dry-run 中被拉取；`source_inspected: false` 表明此边界，所请求的仓库选择仍未验证。需要先查看来源内容时，按预览提示检查本地 checkout。计划与实际状态分别报告，`registered` 表示注册当前确实存在，不再表示计划注册或本次新建。stderr 进度是心跳，不是传输百分比或 ETA；完整 JSON 使用 `--details`。
 
+Git manifest 的刷新与预览会保留已修改、未跟踪，以及虽被 Git 忽略但 fx 会读取的来源文件。这一来源保护规则不改变业务 checkout 的同步策略。
+
 正常重试会重新探测仓库可读性；之前缺失的仓库不会被旧的负缓存持续阻断。
 
 工具、登录与更新问题见[支持](support.md#troubleshooting)。`no_access` 表示环境未被选中，不是远端 ACL 拒绝。Git 传输凭证与可选代码托管 API 检查相互独立。

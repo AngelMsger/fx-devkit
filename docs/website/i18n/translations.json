@@ -3,7 +3,7 @@
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "c02ac9f690ea17952ce986f00ea8d1df2e95bb567b6c0a47b1eeb9726cdb2ba0"
+      "source_sha256": "95d46f5b11574c20a083ce4562f35fba3ae7b2c2eebffe0e5f698e8618a28de0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -26,7 +26,7 @@
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "c02ac9f690ea17952ce986f00ea8d1df2e95bb567b6c0a47b1eeb9726cdb2ba0"
+      "source_sha256": "95d46f5b11574c20a083ce4562f35fba3ae7b2c2eebffe0e5f698e8618a28de0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -49,7 +49,7 @@
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "c02ac9f690ea17952ce986f00ea8d1df2e95bb567b6c0a47b1eeb9726cdb2ba0"
+      "source_sha256": "95d46f5b11574c20a083ce4562f35fba3ae7b2c2eebffe0e5f698e8618a28de0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",

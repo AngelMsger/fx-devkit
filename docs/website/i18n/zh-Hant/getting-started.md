@@ -316,6 +316,8 @@ init 可能先完成註冊，再在後續階段失敗。即使結束代碼非零
 
 `INIT_PREPARED` 在安裝與複製前展示計畫。init 的 dry-run 會檢查本機目錄、stdin 與本機 Git 已提交的內容，並列出儲存庫動作而不執行。新的遠端來源不會在 dry-run 中擷取；`source_inspected: false` 表明此邊界，要求的儲存庫選擇仍未驗證。需要先查看來源內容時，依預覽提示檢查本機 checkout。計畫與實際狀態分別回報，`registered` 表示註冊目前確實存在，不再表示計畫註冊或本次新增。stderr 進度是心跳，不是傳輸百分比或 ETA；完整 JSON 使用 `--details`。
 
+Git manifest 的更新與預覽會保留已修改、未追蹤，以及雖被 Git 忽略但 fx 會讀取的來源檔案。此來源保護規則不改變業務 checkout 的同步策略。
+
 正常重試會重新探測儲存庫可讀性；先前遺失的儲存庫不會被舊的負快取持續阻擋。
 
 工具、登入與更新問題見[支援](support.md#troubleshooting)。`no_access` 表示環境未被選取，不是遠端 ACL 拒絕。Git 傳輸憑證與選用的程式碼託管 API 檢查互相獨立。

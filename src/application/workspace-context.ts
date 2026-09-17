@@ -1,8 +1,4 @@
-// The entry point of every workspace command: which workspace, its manifest
-// (loaded from the source directory under ~/.fx), this machine's personal
-// layer, and the two resolved together. Anything worth knowing about how
-// the workspace was chosen or degraded is a notice here, emitted on every
-// run rather than remembered.
+// Resolve a registry identity, shared declarations and personal layer before workspace use.
 
 import path from 'node:path';
 
