@@ -45,6 +45,7 @@ export default class DoctorCommand extends FxCommand {
     });
     if (this.format === 'human') {
       this.renderer.list(report.findings, {
+        fullReport: report,
         columns: ['group', 'level', 'coverage', 'id', 'message', 'fix'],
       });
     } else {

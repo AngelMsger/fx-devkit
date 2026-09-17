@@ -40,7 +40,10 @@ export default class ReleaseCommand extends FxCommand {
       jobs: flags.jobs,
     });
     if (this.format === 'human') {
-      this.renderer.list(report.findings, { columns: ['group', 'level', 'id', 'message', 'fix'] });
+      this.renderer.list(report.findings, {
+        fullReport: report,
+        columns: ['group', 'level', 'id', 'message', 'fix'],
+      });
     } else {
       this.renderer.record(report);
     }
