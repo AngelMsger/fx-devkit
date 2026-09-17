@@ -37,7 +37,7 @@ export function parsePorcelainStatus(text: string): RepoState {
 export function parseRemotes(text: string): Record<string, string> {
   const remotes: Record<string, string> = {};
   for (const line of text.split('\n')) {
-    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
+    const match = /^(\S+)\s+(.+)\s+\(fetch\)$/.exec(line.trim());
     if (match?.[1] !== undefined && match[2] !== undefined) remotes[match[1]] = match[2];
   }
   return remotes;

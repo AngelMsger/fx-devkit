@@ -98,7 +98,8 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
   const tools = toolchainOf(input.deps.ctx).tools.filter((tool) => scope.names.includes(tool.name));
   const problems = scope.problems;
   const requiresPreparation = (name: string): boolean =>
-    scope.required.has(name) || tools.some((tool) => tool.name === name && tool.installOnInit);
+    scope.required.has(name) ||
+    tools.some((tool) => tool.name === name && tool.enabled && tool.installOnInit);
   const rows = (
     await new ToolCheck(input.process).execute({
       tools: tools.map((tool) => ({ ...tool, required: scope.required.has(tool.name) })),

@@ -100,17 +100,28 @@ describe('ordinary clone import and adoption', () => {
         },
       });
       expect(readFileSync(path.join(fresh, 'api/README'), 'utf8')).toBe('initial\n');
+      const resync = fx(
+        ['sync', '--workspace', 'fresh', '--only', 'repos', '--details', '--format', 'json'],
+        s.env,
+      );
+      expect(resync.status, resync.stderr).toBe(0);
+      expect(resync.json()).toMatchObject({ preparation_complete: true });
     },
   );
 
-  it.each([true, false])(
-    'keeps required=%s disabled-tool reports consistent across init, sync and doctor',
-    (required) => {
+  it.each([
+    { required: true, installOnInit: false },
+    { required: false, installOnInit: false },
+    { required: true, installOnInit: true },
+    { required: false, installOnInit: true },
+  ])(
+    'keeps required=$required installOnInit=$installOnInit disabled-tool reports consistent',
+    ({ required, installOnInit }) => {
       const s = stage();
       importSource(s, false);
       writeFileSync(
         path.join(s.source, 'manifest/tools.yaml'),
-        `schema_version: 2\ntools: [{name: optional-review-tool, required: ${required}, enabled: false, skill: {command: []}, auth: {command: []}}]\n`,
+        `schema_version: 2\ntools: [{name: optional-review-tool, required: ${required}, enabled: false, install_on_init: ${installOnInit}, skill: {command: []}, auth: {command: []}}]\n`,
       );
       const initialized = s.run(initialArgs(s));
       expect(initialized.status, initialized.stderr).toBe(0);
