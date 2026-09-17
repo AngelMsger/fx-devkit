@@ -129,8 +129,8 @@ registration work, not complete synchronization or readiness.
 `fx hook list` — `items[]` with agent, action, activation, path, context and handoff,
 plus workspace/root, the effective enabled setting, and dated observations.
 `activation: unverified` means native trust/execution has not been established;
-a matching projection alone is not readiness. `fx hook inject [--dry-run]`
-enables this workspace and projects selected hosts. `fx hook remove [--dry-run]`
+a matching projection alone is not readiness. `fx hook enable [--dry-run]`
+enables this workspace and projects selected hosts. `fx hook disable [--dry-run]`
 disables it and removes owned entries. Global `hooks` / `FX_HOOKS` gates all
 workspaces; local `hooks.enabled` gates one. `agent unpick` remains global and
 adds per-workspace hook cleanup results. Lifecycle dispatch is an internal,
@@ -185,17 +185,22 @@ prints the bundled SKILL.md. It makes no network check and emits no discovery hi
 
 ## Installation audit and inventory
 
-`fx tool history [tool]` returns `{items, has_more: false}` across FX_HOME. Each
+`fx tool history [tool]` returns `{items, has_more: false, scope: "global"}` across FX_HOME. Each
 checkpoint has `id`, `at`, `event` (`started`, `installed`, `finished`), `operation`
 (`init`, `install`, `update`), nullable `workspace`, `name`, `binary`, `via`, `spec`,
 redacted `vector`, nullable `code`, `version_after`, `binary_path`, `failure_code`.
+New checkpoints also carry `installation_origin` and `binary_path_before`; legacy
+records can lack them and never establish original ownership.
 Checkpoints share an operation ID. `code: 0` describes the package manager; a
 null version does not prove readiness. Raw process output is absent.
 
-`fx tool installed` uses the same collection envelope. Rows include `name`, `via`,
+`fx tool inventory` uses the same collection envelope. Rows include `name`, `via`,
 `spec`, `binary`, current `binary_path`, recorded `version_after`, `last_operation`,
-`last_recorded_at`, `installed_by`, `required_by`, `unknown_workspaces`, `state`
+`last_recorded_at`, `installation_origin`, `recorded`, `installed_by`, `required_by`, `unknown_workspaces`, `state`
 and nullable `uninstall_hint`. States are `required`, `unused`, `unknown`,
-`unverified`, `not_on_path`, `changed`, `unscoped`. Only `unused` has a removal
+`unverified`, `not_on_path`, `changed`, `unscoped`, `external`. Unrecorded known
+executables have null manager/package/version/operation fields; inspection does
+not adopt them. `installed_by` identifies successful operations, not original
+ownership. Only confirmed fx-origin `unused` rows have a removal
 hint; it is never an executable approval. Sync exposes these rows in
 `stage_details.tools.installations` and counts `stages.tools.unused`.

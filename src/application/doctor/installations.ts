@@ -37,7 +37,7 @@ export async function checkInstallations(
           `${row.name}: installation evidence is ${row.state}; review history before removing the package.`,
         {
           coverage: row.state === 'unused' ? 'checked' : 'incomplete',
-          fix: 'fx tool installed',
+          fix: 'fx tool inventory',
           evidence: { installation: row },
         },
       ),

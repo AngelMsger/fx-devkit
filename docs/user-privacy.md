@@ -16,7 +16,7 @@ sharing it: repository selections and personal overrides may reveal team context
 
 Tool installation history stays in `tool-history.json` under FX_HOME and is
 excluded from profile exports. It retains workspace names, package and command
-metadata, timestamps, versions and local executable paths. Credentials in command
+metadata, timestamps, versions, installation origin and local executable paths before/after operations. Credentials in command
 URLs and secret arguments are redacted; raw installer output is not stored.
 The history may still reveal private package names and registry addresses. Review
 it before sharing. It records future fx operations, not pre-existing installations,

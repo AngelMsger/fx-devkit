@@ -150,7 +150,7 @@ when lifecycle status matters. A current projection with `activation: unverified
 still needs native project/hook trust reviewed in the host. Relay its handoff;
 never bypass host trust or add `--yes` for a manifest vector yourself.
 
-`fx hook remove --format json` disables this workspace; `fx hook inject` enables
+`fx hook disable --format json` disables this workspace; `fx hook enable` enables
 and projects it again. `FX_HOOKS=0` is a global invocation override. Starting
 directly in a business repository or an external worktree is not covered by
 root-level hooks: use `fx sync --only docs,skills --format json` when needed.
@@ -204,16 +204,16 @@ Topics:
 | Which environments exist, what each has               | `fx env list --format json`; `fx env show <env> --format json`; `fx env pick <env...>` to scope      |
 | Who a person is across systems                        | `fx member show <name>`; `fx member list --area <area>`                                              |
 | Which coding agents are here                          | `fx agent list --format json`; `fx agent pick\|unpick <id...>` to choose                             |
-| Which workspace Skills each agent has                 | `fx skill list --format json`; `fx sync --only skills` links and copies them                         |
-| Workspace lifecycle configuration and observations    | `fx hook list --format json`; `fx hook inject --dry-run` / `fx hook remove --dry-run`                |
+| Which workspace Skills each agent has                 | `fx agent skills --format json`; `fx sync --only skills` links and copies them                       |
+| Workspace lifecycle configuration and observations    | `fx hook list --format json`; `fx hook enable --dry-run` / `fx hook disable --dry-run`               |
 | Declared MCP resources and readiness                  | `fx mcp list --format json`; `fx can mcp:<name> --format json`                                       |
 | Propose selected shared source files                  | `fx source push <paths...> --issue <id> --title <title> --dry-run`                                   |
 | Which tools the workspace expects; one in detail      | `fx tool list --format json`; `fx tool show <tool> --format json`                                    |
 | Install or update a tool                              | `fx tool install <tool> --dry-run`; `fx tool update <tool>`                                          |
-| Audit past tool operations and review unused packages | `fx tool history [tool] --format json`; `fx tool installed --format json`                            |
+| Audit past tool operations and review unused packages | `fx tool history [tool] --format json`; `fx tool inventory --format json`                            |
 | Check the manifest                                    | `fx manifest validate --strict --format json`; `fx manifest lint`                                    |
 | What a manifest field means                           | `fx manifest explain <path> [--kind <doc>]`; `fx manifest schema --kind <doc>`                       |
-| Change one repository field                           | `fx manifest set <repo> <field> <value> --dry-run`                                                   |
+| Change one repository field                           | `fx manifest repo-set <repo> <field> <value> --dry-run`                                              |
 | Which provider serves a capability                    | `fx manifest providers --format json`                                                                |
 | Keep the manifest repository's AGENTS.md current      | `fx manifest render --check`; `fx manifest render` (the root's derived files: `fx sync --only docs`) |
 | Describe a hand-built directory as a manifest         | `fx manifest import <dir> --format json`; `-o <file>` writes it, nothing else is touched             |
@@ -263,6 +263,16 @@ installation or version check stops init after registration may have occurred.
 Resolve the reported installer/access/PATH problem and retry the same source and
 directory; do not reinitialize unrelated workspaces or create credentials.
 
+Tool install/update require names or `--all`, never both. Install's `--all`
+selects enabled tools missing from PATH; update's `--all` selects enabled tools.
+Both use the selected workspace's merged baseline/patch, not every workspace.
+`agent skills` inspects workspace delivery; standalone `skill` commands operate
+on the bundled companion. Agent selection reports `scope: global` and
+`affected_workspaces`; repo/env selection reports `scope: workspace` and `workspace`.
+Collection selectors accept repeated or comma-separated values. Compatibility
+entries remain available for skill list, tool installed, hook inject/remove,
+manifest set and where --probe --record.
+
 ## Installation history and unused tools
 
 `fx tool history [tool] --format json` reads persistent init/install/update
@@ -272,13 +282,16 @@ neither execution nor success. Dry runs and skipped existing tools leave no
 records. History is local to FX_HOME, excluded from config export, and has no
 backfill for older or externally installed packages.
 
-`fx tool installed --format json` compares recorded packages against all locally
-registered manifests. `required_by` lists enabled binary/package consumers;
+`fx tool inventory --format json` lists recorded packages and known unrecorded PATH tools across all locally
+registered manifests. `installation_origin` is `fx`, `external` or `unknown`,
+separate from definition provenance. Updating an external tool preserves its
+origin. Legacy evidence or changed paths never establish ownership. Unrecorded
+observations have `recorded: false` and do not create installation receipts. `required_by` lists enabled binary/package consumers;
 `unknown_workspaces` prevents a removal suggestion when a source is unreadable.
-`unused` is advisory: verify unregistered projects and other FX_HOME directories
+`unused` requires confirmed fx-origin evidence and is advisory: verify unregistered projects and other FX_HOME directories
 before any manual removal. Sync emits `TOOL_UNUSED`, and doctor reports the same
 candidates. Neither performs uninstallation. `unknown`, `unverified`, `changed`,
-`not_on_path` and `unscoped` do not authorize cleanup. History persists after
+`not_on_path`, `external` and `unscoped` do not authorize cleanup. History persists after
 manual removal; never delete it to hide an unresolved or failed operation.
 
 ## What sync will and will not do

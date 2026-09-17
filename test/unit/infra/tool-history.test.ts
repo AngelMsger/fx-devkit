@@ -77,3 +77,18 @@ describe('tool history file', () => {
     expect(await readFile(foreign, 'utf8')).toBe('preserved');
   });
 });
+
+it('reads legacy evidence without claiming ownership and preserves it when appending v2 records', async () => {
+  const f = await fixture();
+  const legacy = event();
+  await writeFile(f.file, JSON.stringify({ owner: 'fx:tool-history:v1', entries: [legacy] }));
+  expect((await f.store.read())[0]?.installation_origin).toBeUndefined();
+  const current = {
+    ...event(),
+    installation_origin: 'external' as const,
+    binary_path_before: '/example/bin/sample',
+  };
+  await f.store.append(current);
+  expect(await f.store.read()).toEqual([legacy, current]);
+  expect(JSON.parse(await readFile(f.file, 'utf8')).owner).toBe('fx:tool-history:v2');
+});

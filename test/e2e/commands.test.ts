@@ -128,3 +128,45 @@ describe('command resolution', () => {
     expect(run.error().hint).toContain('fx status');
   });
 });
+
+describe('consistent command selections', () => {
+  it.each(['install', 'update'])('requires names or --all for tool %s', (action) => {
+    for (const extra of [[], ['bitbucket-cli', '--all']]) {
+      const run = fx(['tool', action, ...extra, '--dry-run', '--format', 'json']);
+      expect(run.status).toBe(2);
+      expect(run.error().code).toBe('BAD_FLAG');
+    }
+    const all = fx(['tool', action, '--all', '--dry-run', '--format', 'json']);
+    expect(all.status, all.stderr).toBe(0);
+  });
+  it('accepts global flags around root help', () => {
+    for (const argv of [
+      ['--format', 'json', '--help'],
+      ['--help', '--format', 'json'],
+    ]) {
+      const run = fx(argv);
+      expect(run.status, run.stderr).toBe(0);
+      expect(run.stdout).toContain('EVERYDAY');
+    }
+  });
+  it.each([
+    ['agent', 'skills'],
+    ['tool', 'inventory'],
+    ['hook', 'enable'],
+    ['hook', 'disable'],
+    ['manifest', 'repo-set'],
+    ['manifest', 'record-probe'],
+  ])('exposes the canonical command %s %s', (topic, command) => {
+    const run = fx([topic, command, '--help']);
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain(`${topic} ${command}`);
+  });
+  it('reports global agent scope and accepts comma-separated standalone agents', () => {
+    const result = fx(['agent', 'pick', 'codex', '--dry-run', '--format', 'json']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.json()).toMatchObject({ scope: 'global', affected_workspaces: [] });
+    const targets = fx(['skill', 'path', '--agent', 'codex,claude-code', '--format', 'json']);
+    expect(targets.status, targets.stderr).toBe(0);
+    expect(targets.json()).toMatchObject({ items: [{ agent: 'claude-code' }, { agent: 'codex' }] });
+  });
+});

@@ -101,7 +101,7 @@ results and any earlier durable checkpoint. Process death leaves incomplete
 evidence. The operation ID connects checkpoints; timestamps do not order concurrent
 operations. Store order is authoritative for the latest observed outcome.
 
-`FileToolHistoryStore` owns the versioned `FX_HOME/tool-history.json` ledger. Its
+`FileToolHistoryStore` reads v1/v2 and writes v2 of the versioned `FX_HOME/tool-history.json` ledger. Its
 append interface retains earlier events through a cross-process lease, private
 file permissions, fsync and atomic replacement. Missing files start empty;
 malformed, unreadable or foreign files are never overwritten. Command URL
@@ -114,7 +114,7 @@ workspace, without refresh or executing manifest vectors. Enabled declarations
 retain a matching binary or manager/package even under another tool name.
 Unreadable or quarantined toolchains prevent an unused verdict. Any unfinished
 attempt for a package also prevents that verdict, including overlapping attempts.
-Only successful recorded package operations with a matching observed binary path
+Only successful recorded fx-origin package operations with a matching observed binary path
 and no remaining requirements become `unused`; standalone operations, changed or
 missing PATH entries and uncertain outcomes retain separate states. Requirements
 outside this FX_HOME are not known. Sync's tools stage reports inventory and
@@ -151,3 +151,19 @@ frontmatter. Application reads metadata; domain templates render escaped text.
 Source guides use relative links, derived root guides resolve source locations.
 Existing guides keep their prose and receive a missing-region notice until their
 maintainer adds the markers. Companion installers do not edit AGENTS.md.
+
+## Installation provenance
+
+Definition provenance (`base`/`patch`/`mixed`) and `installation_origin` are independent.
+Before each actual package operation, observe the executable path and persist it
+as `binary_path_before`. A previously absent executable establishes an fx-origin
+candidate, confirmed only by successful execution and a matching post-install path.
+A pre-existing unrecorded executable is external. Updates retain the prior origin;
+legacy or interrupted evidence and changed paths stay unknown. Never infer ownership
+merely from a successful update or backfill missing historical evidence.
+
+Inventory also observes known unrecorded executables without writing receipts;
+those rows have `recorded: false` and null package/operation fields. Existing paths
+cannot reveal the original person/manager or detect same-path external replacement.
+Only confirmed fx-origin records may produce unused-package suggestions. No
+uninstall operation is provided. Tool definitions and requirement merging remain unchanged.

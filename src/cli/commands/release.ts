@@ -3,12 +3,12 @@ import { Args, Flags } from '@oclif/core';
 import { Release } from '../../application/release/index.js';
 import { CHECKS, type Check } from '../../domain/release/types.js';
 import { FxCommand } from '../base.js';
-import { jobsFlag } from '../flags.js';
+import { jobsFlag, listFlag } from '../flags.js';
 import { RELEASE_CODES, reportNotice } from '../notices.js';
 
 export default class ReleaseCommand extends FxCommand {
   static override description =
-    'Whether the repositories about to ship are ready: dependencies, branches, builds and unresolved errors, one finding each';
+    'Check release readiness: dependencies, branches, builds and unresolved errors, one finding each';
   static override examples = [
     '<%= config.bin %> release --format json',
     '<%= config.bin %> release fx-example-api --only merge --format json   # the commits behind the finding',
@@ -21,13 +21,8 @@ export default class ReleaseCommand extends FxCommand {
     }),
   };
   static override flags = {
-    tag: Flags.string({ multiple: true, description: 'only repositories carrying this tag' }),
-    only: Flags.string({
-      multiple: true,
-      delimiter: ',',
-      options: [...CHECKS],
-      description: 'only these checks',
-    }),
+    tag: listFlag('only repositories carrying these tags'),
+    only: listFlag('only these checks', CHECKS),
     env: Flags.string({ description: 'environment whose errors count; default: release.env' }),
     since: Flags.string({ description: 'how far back a new error counts; default: release.since' }),
     jobs: jobsFlag,

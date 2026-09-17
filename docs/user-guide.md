@@ -166,46 +166,73 @@ installers; `login` guides setup. Companions own authentication. Manifest-suppli
 execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
+Tool definitions combine the bundled baseline with the selected workspace's
+`tools.yaml` patch. Workspace selection is `--workspace`, `FX_WORKSPACE`, the
+registered root containing the current directory, then `default_workspace`.
+Without a resolved workspace, tool commands use the bundled baseline. The package
+manager owns installation locations; tools are shared across workspaces.
+
+`tool install` and `tool update` require names or `--all`, never both. Install's
+`--all` selects enabled tools missing from PATH; update's `--all` selects all
+enabled tools in the selected toolchain. Named operations can explicitly select
+a disabled tool. No-argument invocations fail before package operations.
+
 ### Tool installation history
 
 ```sh
 fx tool history --format json
 fx tool history bitbucket-cli --format json
-fx tool installed --format json
+fx tool inventory --format json
 ```
 
-`init`, `tool install` and `tool update` persist installation attempts in
-`$FX_HOME/tool-history.json` (default `~/.fx/tool-history.json`). History includes
-timestamps, operation IDs, workspace, package manager and package, redacted
-installation vectors, exit codes, observed versions and binary paths. Each attempt
-has `started`, optional `installed`, and `finished` checkpoints: `installed` means
-the package manager exited successfully, even if later version verification fails.
-A lone `started` record does not prove that the installer executed or succeeded.
-Dry runs, manual installation instructions, trust refusals before execution and
-unchanged tools skipped during init do not create records. Earlier installations
-are not reconstructed from PATH. The history is local operational evidence, not a
-tamper-proof audit service, and is excluded from `config export`.
+`init`, `tool install` and `tool update` persist attempts in
+`$FX_HOME/tool-history.json` (default `~/.fx/tool-history.json`). Each attempt has
+`started`, optional `installed`, and `finished` checkpoints, including the
+workspace, package manager/package, redacted installation vector, exit code,
+version and executable paths before and after the operation. `installed` means
+that the package manager exited successfully, even if version verification later
+fails. A lone `started` record does not prove successful execution. Dry runs,
+manual instructions and unchanged tools skipped during init create no records.
+The ledger is local operational evidence, excluded from profile exports.
 
-`tool installed` summarizes the latest evidence per package manager/package and
-checks the current local manifests of **all workspaces registered in this
-FX_HOME**, including enabled optional tools and bundled defaults. A tool remains
-`required` if any workspace needs the same binary or package. Disable a bundled
-tool with `enabled: false`; removing its patch restores the bundled default.
-After the last requirement disappears, `unused` means the recorded binary path
-still matches and the package can be reviewed for manual removal. `sync` (tools
-stage) emits `TOOL_UNUSED` and returns `stage_details.tools.installations`;
-`doctor` adds an advisory finding. Neither command uninstalls packages.
+`tool inventory` distinguishes **installation origin** from the definition origin
+shown by `tool list/show`:
 
-Unreadable or quarantined manifests and incomplete execution evidence produce
-`unknown`; failed attempts without a successful install are `unverified`.
-`not_on_path` does not prove a package was uninstalled, and `changed` means the
-binary path differs from the installation record. A package with an installation
-outside any workspace is `unscoped`. These states do not suggest removal.
-Other FX_HOME directories, unregistered projects and externally installed packages
-are outside this check, so review those uses before uninstalling through the
-package manager. History remains available after manifest removal or manual
-uninstallation. An unreadable or invalid ledger blocks new package operations
-before execution; preserve and repair the file before retrying.
+| installation_origin | Evidence                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `fx`                | A successful fx operation installed a previously absent executable; its recorded path still matches.                                   |
+| `external`          | The known executable already existed without an fx installation receipt. Updating or reinstalling it through fx preserves this origin. |
+| `unknown`           | Legacy records, interrupted operations or changed/missing paths cannot establish the current origin.                                   |
+
+`external` does not identify who installed the tool; it includes tools installed
+by a person or another manager. Observing PATH cannot prove historical ownership
+or detect an outside replacement at the same path. Older v1 ledgers remain readable;
+new operations write v2 checkpoints. Missing legacy ownership evidence stays unknown.
+The new ledger is not intended to be opened by older fx versions.
+
+Inventory checks known tools from bundled definitions and locally registered
+manifests, plus packages retained in history after their definitions disappear.
+Unrecorded PATH observations have `recorded: false`; package manager, package,
+version and operation fields remain null rather than guessed. Inspection does not
+write installation receipts or adopt existing executables.
+
+Requirements are recalculated from **all workspaces registered in this FX_HOME**,
+including enabled optional tools and bundled defaults. A matching binary or
+manager/package keeps a tool `required`. Disable a bundled tool with
+`enabled: false`; removing its patch restores the default. Only an installation
+with `installation_origin: fx`, completed evidence, a matching executable path
+and no remaining workspace requirement can become `unused`. External tools and
+unknown origins never receive removal suggestions. `sync` emits `TOOL_UNUSED`
+and returns `stage_details.tools.installations`; `doctor` adds advisory findings.
+Neither command uninstalls anything.
+
+Unreadable/quarantined manifests or incomplete evidence yield `unknown`; failed
+attempts without success are `unverified`. A missing binary is `not_on_path`, a
+replaced path is `changed`, and an operation outside a workspace is `unscoped`.
+These states do not suggest removal. The check reads local manifests without
+refreshing their remotes; other FX_HOME directories and unregistered projects
+remain outside its dependency coverage. An invalid ledger blocks new package
+operations before execution; preserve and repair it before retrying.
 
 ### Skills
 
@@ -249,7 +276,7 @@ selected agents' project Skill directories by `init` and `sync`. Windows uses
 junctions. The workspace root AGENTS.md also lists each Skill's trigger description
 and a source link, so agents can read a matching Skill explicitly. Start agents at
 the workspace root; this does not promise discovery from child repositories.
-Use `skill list` to inspect workspace delivery and `sync --only docs,skills` to
+Use `agent skills` to inspect workspace delivery and `sync --only docs,skills` to
 refresh guides and Skills. Never install the fx companion through a shared team
 Skill link: such targets are rejected with `SKILL_SOURCE_PROTECTED`. Use a user
 installation or an independent directory.
@@ -265,8 +292,8 @@ native host activation. See [agent usage](https://angelmsger.github.io/fx-devkit
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
-project and hook trust remain owned by the host. Use `hook list`, `hook inject`
-and `hook remove`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents) describes the boundaries.
+project and hook trust remain owned by the host. Use `hook list`, `hook enable`
+and `hook disable`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents) describes the boundaries.
 
 ### Shared source contributions
 
@@ -279,18 +306,35 @@ fork and its upstream relationship. Inspect `fx source push --help` and the
 
 Daily workflows remain top-level; resource operations live under a noun:
 
-| Intent                                        | Entry                                                                            |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                         |
-| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                         |
-| Find service coordinates and release evidence | `where`, `release`                                                               |
-| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                             |
-| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                              |
-| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                            |
-| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update/history/installed` |
-| Manage lifecycle resources                    | `hook list/inject/remove`                                                        |
-| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                    |
-| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                       |
+`agent skills` inspects workspace Skill delivery; `skill install/show/path/status/uninstall`
+manage the bundled companion independently. `manifest repo-set` edits repository
+fields; `manifest record-probe <repo> --env <env> --platform <platform>` records
+verified coordinate evidence, with `--dry-run` returning a plan without probing.
+`where` remains the coordinate query entry. Compatibility entries remain available:
+`skill list`, `tool installed`, `hook inject/remove`, `manifest set` and
+`where --probe --record` retain their existing operations.
+
+Collection flags such as `--only`, repeatable `--env` and `--agent` accept repeated
+or comma-separated values. Agent selection is global: pick/unpick results include
+`scope: global` and `affected_workspaces`; repository/environment selection reports
+`scope: workspace` and `workspace`. Inventory/history cover the entire FX_HOME,
+even when `--workspace` is supplied. Completion recognizes option values,
+positional arguments and negative flags; regenerate installed completion scripts
+after upgrading. Root help accepts global flags, but help, completion,
+`skill show` and `manifest schema` emit their native text/artifact formats.
+
+| Intent                                        | Entry                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                           |
+| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                           |
+| Find service coordinates and release evidence | `where`, `release`                                                                 |
+| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                               |
+| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                                |
+| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                              |
+| Inspect installed resources and tools         | `agent skills`, `mcp list/show`, `tool list/show/install/update/history/inventory` |
+| Manage lifecycle resources                    | `hook list/enable/disable`                                                         |
+| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                      |
+| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                         |
 
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { completionScript } from '../../src/cli/completion.js';
+import { completionFlags, completionScript } from '../../src/cli/completion.js';
 
 import { freshHome, fx, userHome } from './harness.js';
 
@@ -30,8 +30,8 @@ describe.runIf(process.platform === 'win32')('native Windows terminals', () => {
       const file = path.join(dir, 'completion.ps1');
       const script = completionScript(
         'powershell',
-        [{ id: 'repo list', flags: ['dry-run'] }],
-        ['format'],
+        [{ id: 'repo list', flags: completionFlags({ 'dry-run': { type: 'boolean' } }) }],
+        completionFlags({ format: { type: 'option' } }),
       );
       writeFileSync(
         file,

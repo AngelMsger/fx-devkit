@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { redactText, redactVector } from '../../domain/diagnostics.js';
+import { originBeforeInstallation } from '../../domain/toolchain/installation-origin.js';
 import type { ToolInstallation } from '../../domain/toolchain/installation.js';
 import type { Clock } from '../../ports/clock.js';
 import type { ToolHistoryStore } from '../../ports/tool-history.js';
@@ -18,8 +19,10 @@ export class ToolAudit {
     input: Pick<
       ToolInstallation,
       'operation' | 'workspace' | 'name' | 'binary' | 'via' | 'spec' | 'vector'
-    >,
+    > & { readonly binary_path_before?: string | null | undefined },
   ): Promise<ToolInstallation> {
+    const history = await this.store.read();
+    const prior = history.filter((event) => event.via === input.via && event.spec === input.spec);
     const entry: ToolInstallation = {
       ...input,
       id: randomUUID(),
@@ -33,6 +36,13 @@ export class ToolAudit {
       version_after: null,
       binary_path: null,
       failure_code: null,
+      installation_origin:
+        input.binary_path_before === undefined
+          ? 'unknown'
+          : originBeforeInstallation(prior, input.binary_path_before),
+      ...(input.binary_path_before === undefined
+        ? {}
+        : { binary_path_before: input.binary_path_before }),
     };
     await this.store.append(entry);
     return entry;

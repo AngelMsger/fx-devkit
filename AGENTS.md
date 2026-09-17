@@ -111,7 +111,9 @@ own branches and histories.
 - Companion package operations persist immutable checkpoints in the personal tool
   history ledger before execution and after outcomes. Keep audit failures visible;
   reconcile all registered manifests before suggesting manual removal. Sync and
-  doctor never uninstall packages or adopt unrecorded PATH tools.
+  doctor never uninstall packages or adopt unrecorded PATH tools. Keep installation
+  origin separate from definition provenance; updating external tools never transfers
+  ownership. Legacy evidence remains unknown rather than inferred.
 - Only marked guides, owned Skill links/copies and receipted host resources are
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery

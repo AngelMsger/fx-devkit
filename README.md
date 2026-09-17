@@ -236,10 +236,21 @@ execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
 `fx tool history [tool]` reads the local installation audit trail, including tools
-removed from the manifest. `fx tool installed` compares recorded packages with all
+removed from the manifest. `fx tool inventory` shows installation origin and compares known tools with all
 registered workspaces; `sync` and `doctor` flag packages to review for manual
 removal. See the [installation history guide](docs/user-guide.md#tool-installation-history)
 for scope and uncertain states.
+
+Installation origin is separate from manifest definition origin: `fx`, `external`
+or `unknown`. Updating an external tool does not make it fx-owned. Tool install
+and update require explicit names or `--all`; install's `--all` fills missing
+enabled tools, while update's `--all` updates enabled tools. Bare invocations fail
+before package operations. The bundled baseline and manifest merge policy are unchanged.
+
+Canonical entries are `agent skills`, `tool inventory`, `hook enable/disable`,
+`manifest repo-set` and `manifest record-probe`. The former entries remain compatible.
+Agent selection and tool inventory/history span this FX_HOME; repository and environment
+selection remain workspace-local. See the [command guide](docs/user-guide.md#commands).
 
 ### Skills
 
@@ -283,7 +294,7 @@ selected agents' project Skill directories by `init` and `sync`. Windows uses
 junctions. The workspace root AGENTS.md also lists each Skill's trigger description
 and a source link, so agents can read a matching Skill explicitly. Start agents at
 the workspace root; this does not promise discovery from child repositories.
-Use `skill list` to inspect workspace delivery and `sync --only docs,skills` to
+Use `agent skills` to inspect workspace delivery and `sync --only docs,skills` to
 refresh guides and Skills. Never install the fx companion through a shared team
 Skill link: such targets are rejected with `SKILL_SOURCE_PROTECTED`. Use a user
 installation or an independent directory.
@@ -299,8 +310,8 @@ native host activation. See [agent usage](docs/user-guide.md#for-coding-agents).
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
-project and hook trust remain owned by the host. Use `hook list`, `hook inject`
-and `hook remove`; [lifecycle](docs/user-guide.md#for-coding-agents) describes the boundaries.
+project and hook trust remain owned by the host. Use `hook list`, `hook enable`
+and `hook disable`; [lifecycle](docs/user-guide.md#for-coding-agents) describes the boundaries.
 
 ### Shared source contributions
 
@@ -313,18 +324,18 @@ fork and its upstream relationship. Inspect `fx source push --help` and the
 
 Daily workflows remain top-level; resource operations live under a noun:
 
-| Intent                                        | Entry                                                                            |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                         |
-| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                         |
-| Find service coordinates and release evidence | `where`, `release`                                                               |
-| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                             |
-| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                              |
-| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                            |
-| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update/history/installed` |
-| Manage lifecycle resources                    | `hook list/inject/remove`                                                        |
-| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                    |
-| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                       |
+| Intent                                        | Entry                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                           |
+| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                           |
+| Find service coordinates and release evidence | `where`, `release`                                                                 |
+| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                               |
+| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                                |
+| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                              |
+| Inspect installed resources and tools         | `agent skills`, `mcp list/show`, `tool list/show/install/update/history/inventory` |
+| Manage lifecycle resources                    | `hook list/enable/disable`                                                         |
+| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                      |
+| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                         |
 
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid

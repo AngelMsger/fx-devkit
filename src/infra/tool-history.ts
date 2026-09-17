@@ -27,9 +27,11 @@ const entrySchema = z.strictObject({
   version_after: z.string().nullable(),
   binary_path: z.string().nullable(),
   failure_code: z.string().nullable(),
+  installation_origin: z.enum(['fx', 'external', 'unknown']).optional(),
+  binary_path_before: z.string().nullable().optional(),
 });
 const schema = z.strictObject({
-  owner: z.literal('fx:tool-history:v1'),
+  owner: z.enum(['fx:tool-history:v1', 'fx:tool-history:v2']),
   entries: z.array(entrySchema),
 });
 
@@ -61,7 +63,7 @@ export class FileToolHistoryStore implements ToolHistoryStore {
       });
     try {
       const entries = [...(await this.read()), entry];
-      const parsed = schema.safeParse({ owner: 'fx:tool-history:v1', entries });
+      const parsed = schema.safeParse({ owner: 'fx:tool-history:v2', entries });
       if (!parsed.success) throw invalid();
       await fs.mkdir(this.home, { recursive: true, mode: 0o700 });
       await this.checkHome();

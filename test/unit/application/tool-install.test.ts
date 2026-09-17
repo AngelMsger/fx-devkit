@@ -370,3 +370,33 @@ describe('ToolInstall with a trust gate', () => {
     expect(process.calls.some((c) => c.vector.join(' ') === 'alpha --ver')).toBe(true);
   });
 });
+
+describe('explicit tool selection', () => {
+  it('rejects missing and contradictory targets before running checks or installers', async () => {
+    const s = setup();
+    for (const selection of [{}, { names: ['alpha'], all: true }]) {
+      await expect(
+        s.install.execute({
+          tools: s.tools,
+          ...selection,
+          update: false,
+          dryRun: true,
+          posture: writable,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_FLAG' });
+    }
+    expect(s.proc.calls).toEqual([]);
+  });
+  it('updates all enabled tools including existing ones, while skipping disabled tools', async () => {
+    const s = setup();
+    s.proc.binaries.add('alpha');
+    const result = await s.install.execute({
+      tools: s.tools,
+      all: true,
+      update: true,
+      dryRun: true,
+      posture: writable,
+    });
+    expect(result.map((row) => row.name)).toEqual(['alpha', 'beta', 'byhand']);
+  });
+});

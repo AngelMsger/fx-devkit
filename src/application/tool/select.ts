@@ -5,6 +5,17 @@ import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 
+export function assertToolSelection(names: readonly string[] | undefined, all: boolean): void {
+  const named = (names?.length ?? 0) > 0;
+  if (named !== all) return;
+  throw new DevkitError(
+    'usage',
+    'BAD_FLAG',
+    named ? 'Tool names and --all are mutually exclusive.' : 'Specify tool names or --all.',
+    { nextSteps: ['fx tool install --help', 'fx tool update --help'] },
+  );
+}
+
 export function selectTools(
   tools: readonly ResolvedTool[],
   names: readonly string[] | undefined,

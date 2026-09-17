@@ -55,6 +55,7 @@ async function recorded(f: ReturnType<typeof fixture>, scope: string | null = 'f
     via: 'npm',
     spec: '@example/sample',
     vector: ['npm', 'install', '-g', '@example/sample@latest'],
+    binary_path_before: null,
   });
   await f.audit.checkpoint(start, {
     event: 'finished',
@@ -159,7 +160,9 @@ describe('installation audit', () => {
 describe('recorded installations', () => {
   it('does not adopt pre-existing PATH tools and retains history for disabled tools', async () => {
     const f = fixture();
-    expect(await f.inventory.execute()).toEqual([]);
+    expect(await f.inventory.execute()).toMatchObject([
+      { installation_origin: 'external', recorded: false, uninstall_hint: null },
+    ]);
     await recorded(f);
     expect(await f.inventory.execute()).toMatchObject([
       { state: 'required', required_by: ['first'] },
@@ -211,6 +214,7 @@ tools:
       via: 'brew',
       spec: 'custom',
       vector: ['brew', 'install', 'custom'],
+      binary_path_before: null,
     });
     f.process.binaries.add('custom');
     await f.audit.checkpoint(start, {
@@ -220,12 +224,16 @@ tools:
       binary_path: (await f.process.which('custom'))!,
       failure_code: null,
     });
-    expect(await f.inventory.execute()).toMatchObject([{ name: 'custom', state: 'unused' }]);
+    expect(await f.inventory.execute()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'custom', state: 'unused' })]),
+    );
     await f.fs.writeText(
       '/first/manifest/tools.yaml',
       'schema_version: 2\ntools: [{name: custom, install: [{via: brew}]}]',
     );
-    expect(await f.inventory.execute()).toMatchObject([{ name: 'custom', state: 'required' }]);
+    expect(await f.inventory.execute()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'custom', state: 'required' })]),
+    );
   });
 
   it('handles missing binaries, changed paths, standalone installs and interrupted concurrent attempts conservatively', async () => {
@@ -244,5 +252,50 @@ tools:
     await recorded(f);
     expect(pending.event).toBe('started');
     expect(await f.inventory.execute()).toMatchObject([{ state: 'unknown' }]);
+  });
+});
+
+describe('installation provenance', () => {
+  it('preserves external ownership when fx installs over or updates an existing binary', async () => {
+    const f = fixture();
+    await f.install.execute({ ...request, tools: f.tools });
+    await f.install.execute({ ...request, tools: f.tools, update: true });
+    expect(f.history.entries.every((event) => event.installation_origin === 'external')).toBe(true);
+    expect(f.history.entries[0]?.binary_path_before).toBe('/fake/bin/sample');
+    await disable(f);
+    expect(await f.inventory.execute()).toMatchObject([
+      { installation_origin: 'external', recorded: true, uninstall_hint: null },
+    ]);
+  });
+  it('retains fx origin across later updates after a successful fresh install', async () => {
+    const f = fixture();
+    f.process.binaries.delete('sample');
+    f.process.run = async () => {
+      f.process.binaries.add('sample');
+      return { code: 0, stdout: '1.2.3', stderr: '' };
+    };
+    await f.install.execute({ ...request, tools: f.tools });
+    await f.install.execute({ ...request, tools: f.tools, update: true });
+    expect(f.history.entries.every((event) => event.installation_origin === 'fx')).toBe(true);
+    expect(f.history.entries[0]?.binary_path_before).toBeNull();
+    expect(await f.inventory.execute()).toMatchObject([{ installation_origin: 'fx' }]);
+  });
+  it('does not infer ownership from legacy operations or a changed executable path', async () => {
+    const f = fixture();
+    await recorded(f);
+    for (const entry of f.history.entries) {
+      delete (entry as { installation_origin?: string }).installation_origin;
+      delete (entry as { binary_path_before?: string | null }).binary_path_before;
+    }
+    await disable(f);
+    expect(await f.inventory.execute()).toMatchObject([
+      { state: 'unknown', installation_origin: 'unknown', uninstall_hint: null },
+    ]);
+    await f.install.execute({ ...request, tools: f.tools, update: true });
+    expect(f.history.entries.at(-1)?.installation_origin).toBe('unknown');
+    f.process.which = async () => '/different/sample';
+    expect(await f.inventory.execute()).toMatchObject([
+      { installation_origin: 'unknown', uninstall_hint: null },
+    ]);
   });
 });

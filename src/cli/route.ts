@@ -18,6 +18,14 @@ export type Route =
   | { readonly kind: 'stray-flag'; readonly topic: string; readonly flag: string };
 
 export function normalizeArgv(argv: readonly string[], commandIds: readonly string[]): string[] {
+  const rootWords: string[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const global = globalAt(argv, index);
+    if (global) index = global.last;
+    else rootWords.push(argv[index]!);
+  }
+  if (argv.length > 0 && rootWords.every((word) => PRE_OK.has(word)))
+    return rootWords.length ? rootWords : ['--help'];
   const globals: string[] = [];
   const words: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {

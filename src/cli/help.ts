@@ -20,6 +20,8 @@ const AGENT_USAGE = `AGENT USAGE
   doctor and release exit 0 even when findings fail; inspect report.ok, complete and findings.
   init and sync may return partial results; inspect sync.summary (init), summary (sync),
   stages and each failed item's failure before treating preparation as complete.
+  Global agent selection and tool inventory/history cover FX_HOME; --workspace does not narrow them.
+  Help, completion, skill show and manifest schema return their native text/artifact formats.
   Set FX_FORMAT=json to apply the format to a whole session.`;
 
 export default class FxHelp extends Help {

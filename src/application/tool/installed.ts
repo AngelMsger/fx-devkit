@@ -5,7 +5,11 @@ import path from 'node:path';
 
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { loadTools, loadWorkspace } from '../../domain/manifest/loader.js';
-import type { ToolInstallation } from '../../domain/toolchain/installation.js';
+import {
+  hasUnfinishedInstallation,
+  observedInstallationOrigin,
+} from '../../domain/toolchain/installation-origin.js';
+import type { InstallationOrigin, ToolInstallation } from '../../domain/toolchain/installation.js';
 import { resolveTools, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { FileReader } from '../../ports/fs.js';
 import type { Process } from '../../ports/process.js';
@@ -14,18 +18,27 @@ import type { ToolHistoryStore } from '../../ports/tool-history.js';
 
 export interface InstalledTool {
   readonly name: string;
-  readonly via: string;
-  readonly spec: string;
+  readonly via: string | null;
+  readonly spec: string | null;
   readonly binary: string;
   readonly binary_path: string | null;
   readonly version_after: string | null;
-  readonly last_operation: string;
-  readonly last_recorded_at: string;
+  readonly last_operation: string | null;
+  readonly last_recorded_at: string | null;
+  readonly installation_origin: InstallationOrigin;
+  readonly recorded: boolean;
   readonly installed_by: readonly string[];
   readonly required_by: readonly string[];
   readonly unknown_workspaces: readonly string[];
   readonly state:
-    'required' | 'unused' | 'unknown' | 'unverified' | 'not_on_path' | 'changed' | 'unscoped';
+    | 'required'
+    | 'unused'
+    | 'unknown'
+    | 'unverified'
+    | 'not_on_path'
+    | 'changed'
+    | 'unscoped'
+    | 'external';
   readonly uninstall_hint: string | null;
 }
 
@@ -41,6 +54,7 @@ export interface ToolInventoryDeps {
 interface Requirements {
   readonly tools: ReadonlyMap<string, readonly ResolvedTool[]>;
   readonly unknown: readonly string[];
+  readonly known: readonly ResolvedTool[];
 }
 
 export class ToolInstalled {
@@ -48,7 +62,6 @@ export class ToolInstalled {
 
   async execute(): Promise<InstalledTool[]> {
     const history = await this.deps.history.read();
-    if (history.length === 0) return [];
     const requirements = await this.requirements();
     const packages = new Map<string, ToolInstallation[]>();
     for (const event of history) {
@@ -59,13 +72,43 @@ export class ToolInstalled {
     }
     const rows: InstalledTool[] = [];
     for (const events of packages.values()) rows.push(await this.describe(events, requirements));
-    return rows.sort((a, b) => a.name.localeCompare(b.name) || a.spec.localeCompare(b.spec));
+    const recordedBinaries = new Set(history.map((event) => event.binary));
+    for (const tool of requirements.known) {
+      if (recordedBinaries.has(tool.binary)) continue;
+      recordedBinaries.add(tool.binary);
+      const binaryPath = (await this.deps.process.which(tool.binary)) ?? null;
+      if (binaryPath === null) continue;
+      const requiredBy = [...requirements.tools]
+        .filter(([, tools]) => tools.some((entry) => entry.binary === tool.binary))
+        .map(([name]) => name);
+      rows.push({
+        name: tool.name,
+        binary: tool.binary,
+        binary_path: binaryPath,
+        via: null,
+        spec: null,
+        version_after: null,
+        last_operation: null,
+        last_recorded_at: null,
+        installation_origin: 'external',
+        recorded: false,
+        installed_by: [],
+        required_by: requiredBy,
+        unknown_workspaces: requirements.unknown,
+        state: requiredBy.length > 0 ? 'required' : 'external',
+        uninstall_hint: null,
+      });
+    }
+    return rows.sort(
+      (a, b) => a.name.localeCompare(b.name) || (a.spec ?? '').localeCompare(b.spec ?? ''),
+    );
   }
 
   private async requirements(): Promise<Requirements> {
     const config = await this.deps.config.read();
     const tools = new Map<string, readonly ResolvedTool[]>();
     const unknown: string[] = [];
+    const known: ResolvedTool[] = [];
     for (const name of Object.keys(config.workspaces ?? {}).sort()) {
       try {
         const dir = this.deps.manifestDirFor(name);
@@ -80,15 +123,21 @@ export class ToolInstalled {
           unknown.push(name);
           continue;
         }
+        const resolved = resolveTools(loaded.doc, loaded.provenance);
+        known.push(...resolved);
         tools.set(
           name,
-          resolveTools(loaded.doc, loaded.provenance).filter((tool) => tool.enabled),
+          resolved.filter((tool) => tool.enabled),
         );
       } catch {
         unknown.push(name);
       }
     }
-    return { tools, unknown };
+    const baseline = loadTools(this.deps.bundledTools(), undefined, {
+      cliVersion: this.deps.cliVersion,
+    });
+    known.push(...resolveTools(baseline.doc, baseline.provenance));
+    return { tools, unknown, known };
   }
 
   private async describe(
@@ -132,6 +181,8 @@ export class ToolInstalled {
       version_after: success?.version_after ?? null,
       last_operation: last.operation,
       last_recorded_at: last.at,
+      installation_origin: observedInstallationOrigin(events, binaryPath),
+      recorded: true,
       installed_by: [
         ...new Set(
           events.flatMap((event) =>
@@ -161,12 +212,13 @@ function installationState(input: {
   if (input.requiredBy.length > 0) return 'required';
   if (input.requirements.unknown.length > 0 || input.probeFailed) return 'unknown';
   if (!input.success) return 'unverified';
-  const attempts = new Map(input.events.map((event) => [event.id, event]));
-  if ([...attempts.values()].some((event) => event.event !== 'finished' || event.code === null))
-    return 'unknown';
+  if (hasUnfinishedInstallation(input.events)) return 'unknown';
   if (input.events.some((event) => event.workspace === null)) return 'unscoped';
   if (input.binaryPath === null) return 'not_on_path';
   if (input.success.binary_path === null) return 'unknown';
   if (input.binaryPath !== input.success.binary_path) return 'changed';
+  const origin = observedInstallationOrigin(input.events, input.binaryPath);
+  if (origin === 'external') return 'external';
+  if (origin !== 'fx') return 'unknown';
   return 'unused';
 }

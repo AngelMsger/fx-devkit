@@ -2,12 +2,12 @@ import { Args, Flags } from '@oclif/core';
 
 import { Login } from '../../application/login/run.js';
 import { FxCommand } from '../base.js';
-import { dryRunFlag } from '../flags.js';
+import { dryRunFlag, listFlag } from '../flags.js';
 import { loginNotices } from '../notices.js';
 
 export default class LoginCommand extends FxCommand {
   static override description =
-    "Get this machine's access to the platforms the manifest binds: log in, place kubeconfigs, confirm permissions";
+    'Prepare tool access for the selected workspace: authentication, configuration and permission checks';
   static override examples = [
     '<%= config.bin %> login --list',
     '<%= config.bin %> login',
@@ -20,7 +20,7 @@ export default class LoginCommand extends FxCommand {
     tool: Args.string({ ignoreStdin: true, description: 'only these tools' }),
   };
   static override flags = {
-    env: Flags.string({ multiple: true, description: 'only these environments' }),
+    env: listFlag('only these environments'),
     list: Flags.boolean({
       default: false,
       exclusive: ['dry-run', 'skip-manual'],

@@ -105,3 +105,28 @@ describe('where probe recording', () => {
     expect(readFileSync(f.file, 'utf8')).toBe(f.env);
   });
 });
+
+it('offers the same safe recording preview through the explicit manifest action', () => {
+  const f = fixture();
+  const canonical = fx(
+    [
+      'manifest',
+      'record-probe',
+      'app',
+      '--env',
+      'dev',
+      '--platform',
+      'kube',
+      '--dry-run',
+      '--format',
+      'json',
+    ],
+    { ...f.vars, FX_READ_ONLY: '1' },
+    f.root,
+  );
+  const legacy = fx([...args, '--dry-run'], { ...f.vars, FX_READ_ONLY: '1' }, f.root);
+  expect(canonical.status, canonical.stderr).toBe(0);
+  expect(canonical.json()).toEqual(legacy.json());
+  expect(existsSync(f.calls)).toBe(false);
+  expect(readFileSync(f.file, 'utf8')).toBe(f.env);
+});

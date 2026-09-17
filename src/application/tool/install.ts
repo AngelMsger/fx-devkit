@@ -19,7 +19,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
 
 import type { ToolAudit } from './audit.js';
-import { selectTools } from './select.js';
+import { assertToolSelection, selectTools } from './select.js';
 import { probeToolVersion } from './version.js';
 
 export interface ToolInstallInput {
@@ -64,8 +64,9 @@ export class ToolInstall {
   ) {}
 
   async execute(input: ToolInstallInput): Promise<ToolInstallOutput[]> {
+    assertToolSelection(input.names, input.all === true);
     const selected =
-      input.all === true ? await this.needing(input.tools) : selectTools(input.tools, input.names);
+      input.all === true ? await this.selectAll(input) : selectTools(input.tools, input.names);
     const plans: ToolInstallPlan[] = [];
     for (const tool of selected) plans.push(await this.plan(tool, input.update));
     if (input.dryRun) return plans.map((plan) => plan.output);
@@ -192,7 +193,7 @@ export class ToolInstall {
     }
   }
 
-  private startAudit(
+  private async startAudit(
     { tool, method }: ToolInstallPlan,
     input: ToolInstallInput,
     vector: readonly string[],
@@ -207,6 +208,7 @@ export class ToolInstall {
       via: method.via,
       spec: method.spec ?? tool.name,
       vector,
+      binary_path_before: (await this.process.which(tool.binary)) ?? null,
     });
   }
 
@@ -265,5 +267,10 @@ export class ToolInstall {
       if ((await this.process.which(tool.binary)) === undefined) needing.push(tool);
     }
     return needing;
+  }
+
+  private async selectAll(input: ToolInstallInput): Promise<ResolvedTool[]> {
+    if (input.update) return input.tools.filter((tool) => tool.enabled);
+    return this.needing(input.tools);
   }
 }

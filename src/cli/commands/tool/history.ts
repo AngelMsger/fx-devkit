@@ -24,6 +24,7 @@ export default class ToolHistoryCommand extends FxCommand {
           'at',
           'name',
           'operation',
+          'installation_origin',
           'workspace',
           'via',
           'spec',
@@ -32,6 +33,7 @@ export default class ToolHistoryCommand extends FxCommand {
           'version_after',
           'failure_code',
         ],
+        trailer: { scope: 'global' },
       },
     );
   }

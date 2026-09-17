@@ -5,7 +5,7 @@ import { dryRunFlag } from '../../flags.js';
 export default class HookInjectCommand extends FxCommand {
   static override description =
     'Enable and project lifecycle hooks for the selected agents in this workspace';
-  static override examples = ['<%= config.bin %> hook inject --format json'];
+  static override examples = ['<%= config.bin %> hook enable --format json'];
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {

@@ -8,9 +8,9 @@ export default class ManifestSet extends FxCommand {
   static override description =
     'Set a scalar field or aka array of a repository in workspace.yaml, touching nothing else';
   static override examples = [
-    '<%= config.bin %> manifest set fx-example-api branch feature/x --dry-run',
-    '<%= config.bin %> manifest set fx-example-api desc "Backend monolith"',
-    '<%= config.bin %> manifest set fx-example-api aka \'["backend", "app-builder"]\' --dry-run',
+    '<%= config.bin %> manifest repo-set fx-example-api branch feature/x --dry-run',
+    '<%= config.bin %> manifest repo-set fx-example-api desc "Backend monolith"',
+    '<%= config.bin %> manifest repo-set fx-example-api aka \'["backend", "app-builder"]\' --dry-run',
   ];
   static override args = {
     repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),

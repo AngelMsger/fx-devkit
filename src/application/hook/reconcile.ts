@@ -240,7 +240,7 @@ async function planHost(
         command: 'fx hook list',
         handoff: hookHandoff(
           'Repair the reported configuration path while preserving user entries, then retry',
-          'fx hook inject',
+          'fx hook enable',
         ),
       },
     };

@@ -5,7 +5,7 @@ import { Sync } from '../../application/sync.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
-import { dryRunFlag, jobsFlag } from '../flags.js';
+import { dryRunFlag, jobsFlag, listFlag } from '../flags.js';
 import { syncNotices } from '../notices.js';
 
 export default class SyncCommand extends FxCommand {
@@ -17,7 +17,7 @@ export default class SyncCommand extends FxCommand {
   ];
   static override flags = {
     'dry-run': dryRunFlag,
-    only: Flags.string({ description: `run selected stages (${syncStageIds().join(', ')})` }),
+    only: listFlag('run selected stages', syncStageIds()),
     jobs: jobsFlag,
     'refresh-manifest': Flags.boolean({
       default: true,
@@ -28,7 +28,7 @@ export default class SyncCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(SyncCommand);
-    const only = selectSyncStages(flags.only, syncStageIds());
+    const only = selectSyncStages(flags.only?.join(','), syncStageIds());
     const run = { dryRun: flags['dry-run'], posture: this.posture };
     if (flags['refresh-manifest'])
       await refreshManifestBeforeSync(this.container, this.resolveInput(), run);

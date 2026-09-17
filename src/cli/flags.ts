@@ -2,7 +2,7 @@
 // command adds. Defined once so `--help`, the docs generator and the commands
 // cannot disagree about them.
 
-import { Flags } from '@oclif/core';
+import { Flags, type Interfaces } from '@oclif/core';
 
 import { COMMAND_SHELLS } from '../domain/shell.js';
 
@@ -28,7 +28,7 @@ export const globalFlags = {
   workspace: Flags.string({
     env: 'FX_WORKSPACE',
     description:
-      'workspace name from ~/.fx/config.yaml; defaults to the registered one containing cwd, then default_workspace',
+      'select a workspace: containing cwd, then default_workspace when omitted; global commands still cover this FX_HOME',
     helpGroup: 'GLOBAL',
   }),
   'no-input': Flags.boolean({
@@ -71,5 +71,17 @@ export const dryRunFlag = Flags.boolean({
 export const jobsFlag = Flags.integer({
   default: 4,
   min: 1,
-  description: 'independent repository checks handled at the same time',
+  description: 'independent checks handled at the same time',
 });
+
+export function listFlag(
+  description: string,
+  options?: readonly string[],
+): Interfaces.OptionFlag<string[] | undefined> {
+  return Flags.string({
+    multiple: true,
+    delimiter: ',',
+    description: `${description} (repeatable or comma-separated)`,
+    ...(options === undefined ? {} : { options: [...options] }),
+  });
+}

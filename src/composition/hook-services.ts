@@ -196,12 +196,12 @@ async function skills(s: Services): Promise<readonly HookObservation[]> {
     result.fx.some((f) => f.action === 'foreign') ||
     result.links.some((f) => f.action === 'foreign')
   )
-    observations.push(s.observation('skills', 'SKILL_FOREIGN', 'fx skill list'));
+    observations.push(s.observation('skills', 'SKILL_FOREIGN', 'fx agent skills'));
   if (result.tools.some((t) => t.code !== null && t.code !== 0))
     observations.push(s.observation('skills', 'SKILL_SYNC_FAILED', 'fx sync --only skills'));
   return observations.length
     ? observations
-    : [s.observation('skills', 'SKILLS_CHECKED', 'fx skill list')];
+    : [s.observation('skills', 'SKILLS_CHECKED', 'fx agent skills')];
 }
 
 async function self(s: Services): Promise<readonly HookObservation[]> {

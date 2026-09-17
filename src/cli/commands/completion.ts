@@ -1,7 +1,7 @@
 import { Args } from '@oclif/core';
 
 import { FxCommand } from '../base.js';
-import { completionScript, SHELLS } from '../completion.js';
+import { completionFlags, completionScript, SHELLS } from '../completion.js';
 import { globalFlags } from '../flags.js';
 
 import { COMMANDS } from './index.js';
@@ -25,8 +25,8 @@ export default class CompletionCommand extends FxCommand {
       .filter(([, command]) => !command.hidden)
       .map(([id, command]) => ({
         id: id.replaceAll(':', ' '),
-        flags: Object.keys((command as { flags?: object }).flags ?? {}),
+        flags: completionFlags(command.flags ?? {}),
       }));
-    this.log(completionScript(args.shell, commands, Object.keys(globalFlags)).trimEnd());
+    this.log(completionScript(args.shell, commands, completionFlags(globalFlags)).trimEnd());
   }
 }

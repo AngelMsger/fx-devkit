@@ -107,7 +107,7 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
     input.deps.reporter.notice({
       code: 'TOOL_UNUSED',
       message: `${item.name}: ${item.uninstall_hint}`,
-      nextSteps: ['fx tool installed', 'fx tool history'],
+      nextSteps: ['fx tool inventory', 'fx tool history'],
       data: { installation: item },
     });
   return {

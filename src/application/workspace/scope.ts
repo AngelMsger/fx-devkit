@@ -22,6 +22,8 @@ export interface ScopeEdit {
 }
 
 export interface ScopeOutput {
+  readonly scope: 'workspace';
+  readonly workspace: string;
   readonly path: string;
   readonly before: readonly string[] | null;
   readonly after: readonly string[] | null;
@@ -36,6 +38,8 @@ export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<S
   const before = local.scope?.[edit.key] ?? null;
   const next = nextList(before, edit);
   const plan: ScopeOutput = {
+    scope: 'workspace',
+    workspace: deps.ctx.name,
     path: deps.localStore.path(deps.ctx.name),
     before,
     after: next.after,

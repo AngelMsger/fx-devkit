@@ -28,6 +28,7 @@ import ManifestExplain from './manifest/explain.js';
 import ManifestImport from './manifest/import.js';
 import ManifestLint from './manifest/lint.js';
 import ManifestProviders from './manifest/providers.js';
+import ManifestRecordProbe from './manifest/record-probe.js';
 import ManifestRender from './manifest/render.js';
 import ManifestSchema from './manifest/schema.js';
 import ManifestSet from './manifest/set.js';
@@ -70,6 +71,8 @@ export const COMMANDS = {
   'source:push': SourcePushCommand,
   'hook:dispatch': HookDispatch,
   'hook:list': HookList,
+  'hook:enable': HookInject,
+  'hook:disable': HookRemove,
   'hook:inject': HookInject,
   'hook:remove': HookRemove,
   init: InitCommand,
@@ -94,6 +97,7 @@ export const COMMANDS = {
   'env:pick': EnvPick,
   'env:unpick': EnvUnpick,
   'agent:list': AgentList,
+  'agent:skills': SkillList,
   'agent:pick': AgentPick,
   'agent:unpick': AgentUnpick,
   'skill:install': SkillInstall,
@@ -104,6 +108,7 @@ export const COMMANDS = {
   'skill:uninstall': SkillUninstall,
   'tool:list': ToolList,
   'tool:history': ToolHistory,
+  'tool:inventory': ToolInstalled,
   'tool:installed': ToolInstalled,
   'tool:show': ToolShow,
   'tool:install': ToolInstall,
@@ -115,7 +120,9 @@ export const COMMANDS = {
   'manifest:explain': ManifestExplain,
   'manifest:schema': ManifestSchema,
   'manifest:providers': ManifestProviders,
+  'manifest:repo-set': ManifestSet,
   'manifest:set': ManifestSet,
+  'manifest:record-probe': ManifestRecordProbe,
   'manifest:render': ManifestRender,
   'manifest:import': ManifestImport,
   'config:list': ConfigList,

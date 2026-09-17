@@ -165,13 +165,26 @@ describe('tool installation lifecycle', () => {
     const installed = fx(['tool', 'installed', '--format', 'json'], f.env);
     expect(installed.status, installed.stderr).toBe(0);
     expect(installed.json()).toMatchObject({
-      items: [{ name: 'fixture-init-tool', state: 'unused', required_by: [] }],
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'fixture-init-tool',
+          state: 'unused',
+          required_by: [],
+          installation_origin: 'fx',
+        }),
+      ]),
       has_more: false,
     });
     const sync = fx(['sync', '--only', 'tools', '--format', 'json'], f.env, f.workspace);
     expect(sync.status, sync.stderr).toBe(0);
     expect(sync.json()).toMatchObject({
-      stage_details: { tools: { installations: [{ state: 'unused' }] } },
+      stage_details: {
+        tools: {
+          installations: expect.arrayContaining([
+            expect.objectContaining({ name: 'fixture-init-tool', state: 'unused' }),
+          ]),
+        },
+      },
     });
     expect(sync.stderr).toContain('TOOL_UNUSED');
     const doctor = fx(['doctor', '--format', 'json'], f.env, f.workspace);

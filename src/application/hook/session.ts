@@ -62,7 +62,7 @@ export function hookDoctor(input: Omit<ManageHooksInput, 'action' | 'dryRun'>): 
             item.agent,
             ok ? 'ok' : 'warn',
             `${item.agent}: ${item.action}; native activation ${item.activation}`,
-            { ...(ok ? {} : { fix: 'fx hook inject' }), handoff: item.handoff ?? undefined },
+            { ...(ok ? {} : { fix: 'fx hook enable' }), handoff: item.handoff ?? undefined },
           );
         });
       } catch (err) {

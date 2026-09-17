@@ -246,3 +246,26 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
     expect(existsSync(link)).toBe(false);
   });
 });
+
+it('uses the same collection selection for repeated and comma-separated flags', () => {
+  const s = stage();
+  const options = ['--dry-run', '--no-refresh-manifest', '--format', 'json'];
+  const repeated = fx(['sync', '--only', 'docs', '--only', 'skills', ...options], s.env, s.ws);
+  const comma = fx(['sync', '--only', 'docs,skills', ...options], s.env, s.ws);
+  expect(repeated.status, repeated.stderr).toBe(0);
+  expect(comma.status, comma.stderr).toBe(0);
+  expect(repeated.json()).toEqual(comma.json());
+  const canonical = fx(
+    ['agent', 'skills', '--agent', 'codex,claude-code', '--format', 'json'],
+    s.env,
+    s.ws,
+  );
+  const compatible = fx(
+    ['skill', 'list', '--agent', 'codex', '--agent', 'claude-code', '--format', 'json'],
+    s.env,
+    s.ws,
+  );
+  expect(canonical.status, canonical.stderr).toBe(0);
+  expect(compatible.status, compatible.stderr).toBe(0);
+  expect(canonical.json()).toEqual(compatible.json());
+});

@@ -19,6 +19,8 @@ export interface AgentPickInput {
 }
 
 export interface AgentPickOutput {
+  readonly scope: 'global';
+  readonly affected_workspaces: readonly string[];
   readonly hooks?: readonly AgentCleanupRow[];
   readonly harness?: readonly AgentCleanupRow[];
   readonly path: string;
@@ -50,6 +52,8 @@ export class AgentPick {
       after.length !== before.length ||
       after.some((id, index) => id !== before[index]);
     const plan: AgentPickOutput = {
+      scope: 'global',
+      affected_workspaces: Object.keys(file.workspaces ?? {}).sort(),
       ...(input.action === 'unpick' && this.cleanup
         ? cleanupOutput(await this.cleanup.plan(input.ids))
         : {}),
