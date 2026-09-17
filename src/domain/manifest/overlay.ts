@@ -1,7 +1,7 @@
 // The team's tools.yaml is a patch over the bundled baseline: tools match by name,
 // objects merge recursively, scalars override, keyed lists merge by their key, unkeyed
-// lists are replaced, and a null in the patch deletes the field. Provenance records
-// which side every field came from so `tool show` can show it.
+// lists are replaced. Null deletes fields unless the schema accepts it as a value.
+// Provenance records each field's origin for `tool show`.
 
 import type { Tool, Toolchain } from './types.js';
 
