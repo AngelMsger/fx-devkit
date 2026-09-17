@@ -123,7 +123,7 @@ describe('update notices', () => {
     expect(doctor.findings.find((f) => f.id === 'upstream')).toMatchObject({
       group: 'manifest',
       level: 'warn',
-      fix: 'fx sync',
+      fix: 'fx sync --workspace ws',
     });
     expect(doctor.findings.find((f) => f.group === 'self')?.id).toBe('version');
     const off = fx(

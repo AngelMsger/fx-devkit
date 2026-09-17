@@ -289,7 +289,7 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     };
     expect(jenkinsRow([])).toMatchObject({
       ready: 'missing_tool',
-      handoff: { command: 'fx tool install jenkins-cli' },
+      handoff: { command: 'fx tool install jenkins-cli --workspace ws' },
     });
     shim(
       s.shims,
@@ -298,7 +298,10 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     );
     expect(jenkinsRow([], { ...s.env, FAKE_JENKINS_OK: '1' })).toMatchObject({
       ready: 'unconfigured',
-      handoff: { command: 'fx login jenkins-cli', user_steps: [{ id: 'jenkins-cli.login' }] },
+      handoff: {
+        command: 'fx login jenkins-cli --workspace ws',
+        user_steps: [{ id: 'jenkins-cli.login' }],
+      },
     });
     const ready = jenkinsRow([], { ...s.env, FAKE_JENKINS_OK: '0' });
     expect(ready.ready).toBe('ready');
@@ -309,12 +312,12 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     });
     expect(can(['log-store', '--env', 'selfhosted'])).toMatchObject({
       status: 'not_covered',
-      alternatives: ['no central log store', 'fx doctor'],
+      alternatives: ['no central log store', 'fx doctor --workspace ws'],
     });
     expect(fx(['env', 'unpick', 'dev', ...json], s.env, s.ws).status).toBe(0);
     expect(can(['ci', '--env', 'dev'], { ...s.env, FAKE_JENKINS_OK: '0' })).toMatchObject({
       status: 'no_access',
-      alternatives: ['fx env pick dev', 'fx doctor'],
+      alternatives: ['fx env pick dev --workspace ws', 'fx doctor --workspace ws'],
     });
 
     const docsStage = (run: ReturnType<typeof fx>) =>
@@ -340,7 +343,7 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     writeFileSync(agents, `${text}\n## Ours\n\nRouting rules people wrote.\n`);
     expect(docsFinding(), 'a derived file is stale as soon as it differs').toMatchObject({
       level: 'warn',
-      fix: 'fx sync --only docs',
+      fix: 'fx sync --only docs --workspace ws',
     });
     writeFileSync(agents, text.split('\n').slice(1).join('\n'));
     const foreign = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
@@ -348,7 +351,7 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     expect(readFileSync(agents, 'utf8').startsWith('<!-- fx:derived')).toBe(false);
     expect(docsFinding(), 'foreign is not stale, and not healthy either').toMatchObject({
       level: 'warn',
-      fix: 'move the file aside, then fx sync --only docs',
+      fix: 'Move the file aside, then fx sync --only docs --workspace ws',
     });
 
     const agentEnv = { ...s.env, FX_AGENTS: 'claude-code' };
