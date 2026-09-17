@@ -88,7 +88,7 @@
         "description": "Skills: the team Skills and fx's own, with their state in each agent"
       },
       "tool": {
-        "description": "Companion tools: list, show, install, update"
+        "description": "Companion tools: list, show, install, update, history, installed"
       },
       "member": {
         "description": "People: list them, show who a name refers to"

@@ -3,7 +3,7 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "665958e23f09e59532145cb22347a7ab2ac23f356542f031059e2a9db1d7211b"
+      "source_sha256": "378a90c3c7c8e12b641ec9ef6ed3da493a5a54756ea02c9c54ab9d773817afbc"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -11,7 +11,7 @@
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
+      "source_sha256": "57bf0a4998fa935ba93fd974f7dfcdd75ac54999fb89a75126ee065fcbf1544e"
     },
     "docs/support.md": {
       "file": "support.md",
@@ -26,7 +26,7 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "665958e23f09e59532145cb22347a7ab2ac23f356542f031059e2a9db1d7211b"
+      "source_sha256": "378a90c3c7c8e12b641ec9ef6ed3da493a5a54756ea02c9c54ab9d773817afbc"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -34,7 +34,7 @@
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
+      "source_sha256": "57bf0a4998fa935ba93fd974f7dfcdd75ac54999fb89a75126ee065fcbf1544e"
     },
     "docs/support.md": {
       "file": "support.md",
@@ -49,7 +49,7 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "665958e23f09e59532145cb22347a7ab2ac23f356542f031059e2a9db1d7211b"
+      "source_sha256": "378a90c3c7c8e12b641ec9ef6ed3da493a5a54756ea02c9c54ab9d773817afbc"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -57,7 +57,7 @@
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
-      "source_sha256": "2d6627f91dbafb0c929a72ae2b38a7892e31a1ff2a696ed8d8bf725883b833c4"
+      "source_sha256": "57bf0a4998fa935ba93fd974f7dfcdd75ac54999fb89a75126ee065fcbf1544e"
     },
     "docs/support.md": {
       "file": "support.md",

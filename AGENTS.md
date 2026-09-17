@@ -108,6 +108,10 @@ own branches and histories.
   Existing installations are preserved; ordinary sync and lifecycle hooks never install packages.
   `repo remove` removes a reference, not files. Import reads checkouts and writes
   only to an explicit output outside the imported directory.
+- Companion package operations persist immutable checkpoints in the personal tool
+  history ledger before execution and after outcomes. Keep audit failures visible;
+  reconcile all registered manifests before suggesting manual removal. Sync and
+  doctor never uninstall packages or adopt unrecorded PATH tools.
 - Only marked guides, owned Skill links/copies and receipted host resources are
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery

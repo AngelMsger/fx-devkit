@@ -110,6 +110,20 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 `tool list/show` は要件を表示し、`tool install/update` は宣言されたインストーラーを使い、`login` は設定を案内します。認証は各ツールの責任です。マニフェストの実行ベクトルには信頼が必要で、変更後は再確認します。手動手順の完了を申告するだけでは検証成功の代わりになりません。
 
+### ツールのインストール履歴 {#tool-installation-history}
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool installed --format json
+```
+
+`init`、`tool install`、`tool update` はインストールの試行を `$FX_HOME/tool-history.json`（既定値は `~/.fx/tool-history.json`）に保存します。時刻、操作 ID、ワークスペース、パッケージマネージャーとパッケージ、機密情報を除いた実行コマンド、終了コード、確認したバージョンと実行ファイルのパスを記録します。各試行には `started`、任意の `installed`、`finished` のチェックポイントがあります。`installed` はパッケージマネージャーが正常終了したことを示し、後続のバージョン検証が失敗しても残ります。`started` だけでは実行や成功を証明できません。dry-run、手動インストールの案内、実行前の信頼拒否、init がスキップした既存ツールは記録しません。PATH から過去のインストールを補完しません。履歴はローカルの操作証跡であり、改ざん防止機能はなく、`config export` にも含まれません。
+
+`tool installed` はパッケージマネージャーとパッケージごとに最新の証拠をまとめ、同じ FX_HOME に登録されたすべてのワークスペースの現在のローカルマニフェストを確認します。有効な任意ツールと内蔵既定値も対象です。同じ実行ファイルまたはパッケージを必要とするワークスペースがあれば `required` です。内蔵ツールの無効化には `enabled: false` を使います。パッチを削除すると既定値に戻ります。最後の要件が消え、実行ファイルのパスが記録と一致すると `unused` になり、手動削除を検討できます。`sync` の tools ステージは `TOOL_UNUSED` と `stage_details.tools.installations` を出力し、`doctor` は参考情報を追加します。どちらもパッケージを削除しません。
+
+読み取れないマニフェスト、隔離されたツール項目、不完全な実行記録があると `unknown`、成功記録のない失敗した試行は `unverified` です。`not_on_path` は削除済みの証明ではなく、`changed` は実行ファイルのパス変更を示します。ワークスペース外でインストールした記録のあるパッケージは `unscoped` です。これらの状態では削除を提案しません。別の FX_HOME、未登録のプロジェクト、外部でインストールしたパッケージは対象外なので、パッケージマネージャーで削除する前にそれらの用途を確認してください。マニフェスト項目の削除や手動アンインストール後も履歴は残ります。履歴ファイルが無効または読み取れない場合、新しいインストール操作は実行前に止まります。証拠を保持して修復してから再試行してください。
+
 ### fx 同梱 Skill とチーム Skill
 
 fx 同梱 Skill は CLI の操作、ワークスペースの初期化、準備状態の復旧を案内します。初期化前から利用できます。
@@ -147,7 +161,7 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 | 座標とリリースの根拠   | `where`、`release`                                                                 |
 | リポジトリ管理         | `repo list/show/pick/unpick/add/remove/fork/open`                                  |
 | 環境とエージェント     | `env list/show/pick/unpick`、`agent list/pick/unpick`                              |
-| ツールと Skill         | `tool list/show/install/update`、`skill list`                                      |
+| ツールと Skill         | `tool list/show/install/update/history/installed`、`skill list`                    |
 | 共有ソース管理         | `manifest validate/lint/explain/schema/providers/set/render/import`、`source push` |
 | メンバーと設定         | `member list/show`、`config list/get/set/unset/export/import`                      |
 | ホストのリソース       | `hook list/inject/remove`、`mcp list/show`                                         |

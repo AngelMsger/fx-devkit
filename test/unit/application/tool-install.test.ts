@@ -12,6 +12,7 @@ import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../fakes/fake-installer.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
+import { fakeToolAudit } from '../../fakes/fake-tool-history.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 
 const bundled = [
@@ -39,7 +40,7 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const installers = FakeInstaller.family(available);
   const proc = new FakeProcess().always({ code: 0, stdout: 'alpha v9.9.9\n', stderr: '' });
-  return { tools, installers, proc, install: new ToolInstall(installers, proc) };
+  return { tools, installers, proc, install: new ToolInstall(installers, proc, fakeToolAudit()) };
 }
 
 describe('ToolInstall', () => {
@@ -351,7 +352,7 @@ describe('ToolInstall with a trust gate', () => {
     const gate = new TrustGate(new FakeTrustStore(), prompter, new FakeClock());
     const base = { tools, names: ['alpha'], update: false, dryRun: false, posture: writable };
 
-    const blocked = await new ToolInstall(installers, process).execute({
+    const blocked = await new ToolInstall(installers, process, fakeToolAudit()).execute({
       ...base,
       trust: { gate, workspace: 'fx', yes: false, posture: writable },
     });
@@ -361,7 +362,7 @@ describe('ToolInstall with a trust gate', () => {
       'untrusted probe never ran',
     ).toBe(false);
 
-    const trusted = await new ToolInstall(installers, process).execute({
+    const trusted = await new ToolInstall(installers, process, fakeToolAudit()).execute({
       ...base,
       trust: { gate, workspace: 'fx', yes: true, posture: writable },
     });

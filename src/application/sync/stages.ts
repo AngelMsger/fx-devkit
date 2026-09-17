@@ -12,10 +12,12 @@ import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { StageResult, SyncStages } from '../sync.js';
 import { ToolCheck } from '../tool/check.js';
+import type { ToolInstalled } from '../tool/installed.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export interface SyncStageInput {
+  readonly inventory?: ToolInstalled;
   readonly mcp?: () => Promise<StageResult>;
   readonly rules?: () => Promise<StageResult>;
   readonly hooks?: () => Promise<StageResult>;
@@ -99,5 +101,17 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
       rows.filter((r) => r.state === state).length,
     ]),
   );
-  return { summary, details: { items: rows } };
+  const installations = (await input.inventory?.execute()) ?? [];
+  const unused = installations.filter((item) => item.state === 'unused');
+  for (const item of unused)
+    input.deps.reporter.notice({
+      code: 'TOOL_UNUSED',
+      message: `${item.name}: ${item.uninstall_hint}`,
+      nextSteps: ['fx tool installed', 'fx tool history'],
+      data: { installation: item },
+    });
+  return {
+    summary: { ...summary, unused: unused.length },
+    details: { items: rows, installations },
+  };
 }

@@ -182,3 +182,20 @@ row's `observed` state and failure envelope; stderr preserves the original error
 
 `skill show` is an explicit raw-text exception to structured stdout: it always
 prints the bundled SKILL.md. It makes no network check and emits no discovery hint.
+
+## Installation audit and inventory
+
+`fx tool history [tool]` returns `{items, has_more: false}` across FX_HOME. Each
+checkpoint has `id`, `at`, `event` (`started`, `installed`, `finished`), `operation`
+(`init`, `install`, `update`), nullable `workspace`, `name`, `binary`, `via`, `spec`,
+redacted `vector`, nullable `code`, `version_after`, `binary_path`, `failure_code`.
+Checkpoints share an operation ID. `code: 0` describes the package manager; a
+null version does not prove readiness. Raw process output is absent.
+
+`fx tool installed` uses the same collection envelope. Rows include `name`, `via`,
+`spec`, `binary`, current `binary_path`, recorded `version_after`, `last_operation`,
+`last_recorded_at`, `installed_by`, `required_by`, `unknown_workspaces`, `state`
+and nullable `uninstall_hint`. States are `required`, `unused`, `unknown`,
+`unverified`, `not_on_path`, `changed`, `unscoped`. Only `unused` has a removal
+hint; it is never an executable approval. Sync exposes these rows in
+`stage_details.tools.installations` and counts `stages.tools.unused`.

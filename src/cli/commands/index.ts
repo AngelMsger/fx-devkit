@@ -56,7 +56,9 @@ import SkillUninstall from './skill/uninstall.js';
 import SourcePushCommand from './source/push.js';
 import StatusCommand from './status.js';
 import SyncCommand from './sync.js';
+import ToolHistory from './tool/history.js';
 import ToolInstall from './tool/install.js';
+import ToolInstalled from './tool/installed.js';
 import ToolList from './tool/list.js';
 import ToolShow from './tool/show.js';
 import ToolUpdate from './tool/update.js';
@@ -101,6 +103,8 @@ export const COMMANDS = {
   'skill:status': SkillStatus,
   'skill:uninstall': SkillUninstall,
   'tool:list': ToolList,
+  'tool:history': ToolHistory,
+  'tool:installed': ToolInstalled,
   'tool:show': ToolShow,
   'tool:install': ToolInstall,
   'tool:update': ToolUpdate,

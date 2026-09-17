@@ -7,6 +7,7 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../../domain/errors.js';
+import type { ToolInstallation } from '../../domain/toolchain/installation.js';
 import {
   commandOrigin,
   type InstallMethod,
@@ -17,6 +18,7 @@ import type { Process } from '../../ports/process.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
 
+import type { ToolAudit } from './audit.js';
 import { selectTools } from './select.js';
 import { probeToolVersion } from './version.js';
 
@@ -25,6 +27,7 @@ export interface ToolInstallInput {
   readonly names?: readonly string[] | undefined;
   readonly all?: boolean | undefined;
   readonly update: boolean;
+  readonly operation?: ToolInstallation['operation'];
   readonly requireInstallTrust?: boolean;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
@@ -50,12 +53,14 @@ export interface ToolInstallOutput {
 interface ToolInstallPlan {
   readonly tool: ResolvedTool;
   readonly output: ToolInstallOutput;
+  readonly method: InstallMethod;
 }
 
 export class ToolInstall {
   constructor(
     private readonly installers: readonly Installer[],
     private readonly process: Process,
+    private readonly audit: ToolAudit,
   ) {}
 
   async execute(input: ToolInstallInput): Promise<ToolInstallOutput[]> {
@@ -95,7 +100,7 @@ export class ToolInstall {
     }));
     for (const [index, plan] of plans.entries()) {
       try {
-        results[index] = await this.apply(plan, input.trust, (result) => {
+        results[index] = await this.apply(plan, input, (result) => {
           results[index] = result;
         });
       } catch (error) {
@@ -116,6 +121,7 @@ export class ToolInstall {
       }) ?? null;
     return {
       tool,
+      method,
       output: {
         name: tool.name,
         via: method.via,
@@ -131,34 +137,77 @@ export class ToolInstall {
 
   private async apply(
     plan: ToolInstallPlan,
-    trust: ToolInstallInput['trust'],
+    input: ToolInstallInput,
     record: (result: ToolInstallOutput) => void,
   ): Promise<ToolInstallOutput> {
-    const { tool, output } = plan;
+    const { tool, output, method } = plan;
     const { vector } = output;
-    if (vector === null) return { ...output, status: 'skipped' };
-    record({ ...output, ran: true, status: 'not_started', phase: 'install' });
-    const result = await this.process.run(vector, {
-      diagnostic: { phase: `${tool.name} package install` },
-    });
-    if (result.code !== 0)
-      return {
-        ...output,
-        ran: true,
-        code: result.code,
-        error: result.stderr.trim() || result.stdout.trim(),
-        status: 'failed',
-        phase: 'install',
-      };
-    record({ ...output, ran: true, code: 0, status: 'done', phase: 'version' });
-    const probe = await this.probe(tool, trust);
-    return {
+    if (vector === null || method.via === 'manual') return { ...output, status: 'skipped' };
+    const entry = await this.startAudit(plan, input, vector);
+    let current: ToolInstallOutput = {
       ...output,
       ran: true,
-      code: 0,
-      version_after: probe ?? null,
-      status: 'done',
+      status: 'not_started',
+      phase: 'install',
     };
+    let binaryPath: string | null = null;
+    const retain = (result: ToolInstallOutput): void => {
+      current = result;
+      record(result);
+    };
+    retain(current);
+    try {
+      const result = await this.process.run(vector, {
+        diagnostic: { phase: `${tool.name} package install` },
+      });
+      retain({ ...current, code: result.code, status: result.code === 0 ? 'done' : 'failed' });
+      if (result.code !== 0) {
+        retain({ ...current, error: result.stderr.trim() || result.stdout.trim() });
+        return current;
+      }
+      await this.audit.checkpoint(entry, {
+        event: 'installed',
+        code: 0,
+        version_after: null,
+        binary_path: null,
+        failure_code: null,
+      });
+      retain({ ...current, phase: 'version' });
+      binaryPath = (await this.process.which(tool.binary)) ?? null;
+      const version = await this.probe(tool, input.trust);
+      retain({ ...output, ran: true, code: 0, version_after: version ?? null, status: 'done' });
+      return current;
+    } catch (error) {
+      const failure = toEnvelope(asDevkitError(error)).error;
+      retain({ ...current, status: 'failed', failure, error: failure.message });
+      throw error;
+    } finally {
+      await this.audit.checkpoint(entry, {
+        event: 'finished',
+        code: current.code,
+        version_after: current.version_after,
+        binary_path: binaryPath,
+        failure_code: current.failure?.code ?? null,
+      });
+    }
+  }
+
+  private startAudit(
+    { tool, method }: ToolInstallPlan,
+    input: ToolInstallInput,
+    vector: readonly string[],
+  ): Promise<ToolInstallation> {
+    if (method.via === 'manual')
+      throw new DevkitError('internal', 'INTERNAL', 'Manual installs cannot execute');
+    return this.audit.start({
+      operation: input.operation ?? (input.update ? 'update' : 'install'),
+      workspace: input.trust?.workspace ?? null,
+      name: tool.name,
+      binary: tool.binary,
+      via: method.via,
+      spec: method.spec ?? tool.name,
+      vector,
+    });
   }
 
   private async probe(

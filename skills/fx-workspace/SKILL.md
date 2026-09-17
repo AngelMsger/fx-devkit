@@ -194,31 +194,32 @@ Everyday, in the order a person meets them:
 
 Topics:
 
-| Need                                               | Run                                                                                                  |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| What repositories exist, which are on this machine | `fx repo list --format json`                                                                         |
-| One repository: branch, dirtiness, URLs, owners    | `fx repo show <name> --format json`                                                                  |
-| Track fewer or more shared repositories            | `fx repo pick <name...>` / `fx repo unpick <name...>`                                                |
-| Register a checkout only this machine has          | `fx repo add <path> [--upstream <url>]`; undo with `fx repo remove <name>` (keeps files)             |
-| Make or find your fork                             | `fx repo fork <name> --format json`                                                                  |
-| Which environments exist, what each has            | `fx env list --format json`; `fx env show <env> --format json`; `fx env pick <env...>` to scope      |
-| Who a person is across systems                     | `fx member show <name>`; `fx member list --area <area>`                                              |
-| Which coding agents are here                       | `fx agent list --format json`; `fx agent pick\|unpick <id...>` to choose                             |
-| Which workspace Skills each agent has              | `fx skill list --format json`; `fx sync --only skills` links and copies them                         |
-| Workspace lifecycle configuration and observations | `fx hook list --format json`; `fx hook inject --dry-run` / `fx hook remove --dry-run`                |
-| Declared MCP resources and readiness               | `fx mcp list --format json`; `fx can mcp:<name> --format json`                                       |
-| Propose selected shared source files               | `fx source push <paths...> --issue <id> --title <title> --dry-run`                                   |
-| Which tools the workspace expects; one in detail   | `fx tool list --format json`; `fx tool show <tool> --format json`                                    |
-| Install or update a tool                           | `fx tool install <tool> --dry-run`; `fx tool update <tool>`                                          |
-| Check the manifest                                 | `fx manifest validate --strict --format json`; `fx manifest lint`                                    |
-| What a manifest field means                        | `fx manifest explain <path> [--kind <doc>]`; `fx manifest schema --kind <doc>`                       |
-| Change one repository field                        | `fx manifest set <repo> <field> <value> --dry-run`                                                   |
-| Which provider serves a capability                 | `fx manifest providers --format json`                                                                |
-| Keep the manifest repository's AGENTS.md current   | `fx manifest render --check`; `fx manifest render` (the root's derived files: `fx sync --only docs`) |
-| Describe a hand-built directory as a manifest      | `fx manifest import <dir> --format json`; `-o <file>` writes it, nothing else is touched             |
-| Personal settings                                  | `fx config list`; `fx config get <key> --explain`; `fx config set <key> <value>`                     |
-| Carry personal settings to another machine         | `fx config export -o me.yaml`; `fx config import me.yaml --dry-run`                                  |
-| Where this fx is, and updating it                  | `fx self info --format json`; `fx self update`                                                       |
+| Need                                                  | Run                                                                                                  |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| What repositories exist, which are on this machine    | `fx repo list --format json`                                                                         |
+| One repository: branch, dirtiness, URLs, owners       | `fx repo show <name> --format json`                                                                  |
+| Track fewer or more shared repositories               | `fx repo pick <name...>` / `fx repo unpick <name...>`                                                |
+| Register a checkout only this machine has             | `fx repo add <path> [--upstream <url>]`; undo with `fx repo remove <name>` (keeps files)             |
+| Make or find your fork                                | `fx repo fork <name> --format json`                                                                  |
+| Which environments exist, what each has               | `fx env list --format json`; `fx env show <env> --format json`; `fx env pick <env...>` to scope      |
+| Who a person is across systems                        | `fx member show <name>`; `fx member list --area <area>`                                              |
+| Which coding agents are here                          | `fx agent list --format json`; `fx agent pick\|unpick <id...>` to choose                             |
+| Which workspace Skills each agent has                 | `fx skill list --format json`; `fx sync --only skills` links and copies them                         |
+| Workspace lifecycle configuration and observations    | `fx hook list --format json`; `fx hook inject --dry-run` / `fx hook remove --dry-run`                |
+| Declared MCP resources and readiness                  | `fx mcp list --format json`; `fx can mcp:<name> --format json`                                       |
+| Propose selected shared source files                  | `fx source push <paths...> --issue <id> --title <title> --dry-run`                                   |
+| Which tools the workspace expects; one in detail      | `fx tool list --format json`; `fx tool show <tool> --format json`                                    |
+| Install or update a tool                              | `fx tool install <tool> --dry-run`; `fx tool update <tool>`                                          |
+| Audit past tool operations and review unused packages | `fx tool history [tool] --format json`; `fx tool installed --format json`                            |
+| Check the manifest                                    | `fx manifest validate --strict --format json`; `fx manifest lint`                                    |
+| What a manifest field means                           | `fx manifest explain <path> [--kind <doc>]`; `fx manifest schema --kind <doc>`                       |
+| Change one repository field                           | `fx manifest set <repo> <field> <value> --dry-run`                                                   |
+| Which provider serves a capability                    | `fx manifest providers --format json`                                                                |
+| Keep the manifest repository's AGENTS.md current      | `fx manifest render --check`; `fx manifest render` (the root's derived files: `fx sync --only docs`) |
+| Describe a hand-built directory as a manifest         | `fx manifest import <dir> --format json`; `-o <file>` writes it, nothing else is touched             |
+| Personal settings                                     | `fx config list`; `fx config get <key> --explain`; `fx config set <key> <value>`                     |
+| Carry personal settings to another machine            | `fx config export -o me.yaml`; `fx config import me.yaml --dry-run`                                  |
+| Where this fx is, and updating it                     | `fx self info --format json`; `fx self update`                                                       |
 
 ## Contributing shared knowledge
 
@@ -261,6 +262,24 @@ source and return `tool_install: null`; they never run installers. A failed
 installation or version check stops init after registration may have occurred.
 Resolve the reported installer/access/PATH problem and retry the same source and
 directory; do not reinitialize unrelated workspaces or create credentials.
+
+## Installation history and unused tools
+
+`fx tool history [tool] --format json` reads persistent init/install/update
+checkpoints, even after a tool leaves the manifest. `installed` records package
+manager success separately from version verification; `started` alone proves
+neither execution nor success. Dry runs and skipped existing tools leave no
+records. History is local to FX_HOME, excluded from config export, and has no
+backfill for older or externally installed packages.
+
+`fx tool installed --format json` compares recorded packages against all locally
+registered manifests. `required_by` lists enabled binary/package consumers;
+`unknown_workspaces` prevents a removal suggestion when a source is unreadable.
+`unused` is advisory: verify unregistered projects and other FX_HOME directories
+before any manual removal. Sync emits `TOOL_UNUSED`, and doctor reports the same
+candidates. Neither performs uninstallation. `unknown`, `unverified`, `changed`,
+`not_on_path` and `unscoped` do not authorize cleanup. History persists after
+manual removal; never delete it to hide an unresolved or failed operation.
 
 ## What sync will and will not do
 

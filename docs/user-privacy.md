@@ -14,6 +14,14 @@ manifest checkout is kept separately from business repositories.
 credentials, trust records and manifest clones. Review an exported profile before
 sharing it: repository selections and personal overrides may reveal team context.
 
+Tool installation history stays in `tool-history.json` under FX_HOME and is
+excluded from profile exports. It retains workspace names, package and command
+metadata, timestamps, versions and local executable paths. Credentials in command
+URLs and secret arguments are redacted; raw installer output is not stored.
+The history may still reveal private package names and registry addresses. Review
+it before sharing. It records future fx operations, not pre-existing installations,
+and can be edited by the local account; it is not a tamper-proof audit service.
+
 ## Authentication
 
 Companion tools own credentials for their services. Use their normal login flows;

@@ -32,7 +32,7 @@ run `npm run docs:gen` after changing commands or flags.
 | `fx self` | The fx tool itself: info, update |
 | `fx skill` | Skills: the team Skills and fx's own, with their state in each agent |
 | `fx source` | Source contributions: validate selected files and propose a pull request |
-| `fx tool` | Companion tools: list, show, install, update |
+| `fx tool` | Companion tools: list, show, install, update, history, installed |
 
 ## Global flags
 
@@ -1046,6 +1046,33 @@ Examples:
 
 ```bash
 fx tool list
+```
+
+## `fx tool history`
+
+Read recorded tool installation attempts and outcomes across this FX_HOME, including tools removed from the manifest
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `tool` | no | filter by the recorded tool name |
+
+Examples:
+
+```bash
+fx tool history
+fx tool history bitbucket-cli --format json
+```
+
+## `fx tool installed`
+
+Compare recorded installations with all registered manifests and suggest packages to review for manual removal
+
+Examples:
+
+```bash
+fx tool installed --format json
 ```
 
 ## `fx tool show`

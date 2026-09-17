@@ -235,6 +235,12 @@ installers; `login` guides setup. Companions own authentication. Manifest-suppli
 execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
+`fx tool history [tool]` reads the local installation audit trail, including tools
+removed from the manifest. `fx tool installed` compares recorded packages with all
+registered workspaces; `sync` and `doctor` flag packages to review for manual
+removal. See the [installation history guide](docs/user-guide.md#tool-installation-history)
+for scope and uncertain states.
+
 ### Skills
 
 The bundled **fx-workspace** Skill teaches agents to use fx, including workspace
@@ -307,18 +313,18 @@ fork and its upstream relationship. Inspect `fx source push --help` and the
 
 Daily workflows remain top-level; resource operations live under a noun:
 
-| Intent                                        | Entry                                                          |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                       |
-| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                       |
-| Find service coordinates and release evidence | `where`, `release`                                             |
-| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                           |
-| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                            |
-| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`          |
-| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update` |
-| Manage lifecycle resources                    | `hook list/inject/remove`                                      |
-| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                  |
-| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                     |
+| Intent                                        | Entry                                                                            |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                         |
+| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                         |
+| Find service coordinates and release evidence | `where`, `release`                                                               |
+| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                             |
+| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                              |
+| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                            |
+| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update/history/installed` |
+| Manage lifecycle resources                    | `hook list/inject/remove`                                                        |
+| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                    |
+| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                       |
 
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid

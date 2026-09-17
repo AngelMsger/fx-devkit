@@ -1,6 +1,6 @@
 import { Args } from '@oclif/core';
 
-import { ToolInstall } from '../../../application/tool/install.js';
+import { toolInstall } from '../../../composition/tool-install.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
@@ -21,10 +21,7 @@ export default class ToolUpdateCommand extends FxCommand {
     const { tools, workspace } = await this.toolchain();
     const names =
       argv.length === 0 ? tools.filter((t) => t.enabled).map((t) => t.name) : (argv as string[]);
-    const results = await new ToolInstall(
-      this.container.installers,
-      this.container.process,
-    ).execute({
+    const results = await toolInstall(this.container).execute({
       tools,
       names,
       update: true,

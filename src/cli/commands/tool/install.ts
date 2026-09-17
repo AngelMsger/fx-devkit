@@ -1,6 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 
-import { ToolInstall } from '../../../application/tool/install.js';
+import { toolInstall } from '../../../composition/tool-install.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
@@ -21,10 +21,7 @@ export default class ToolInstallCommand extends FxCommand {
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(ToolInstallCommand);
     const { tools, workspace } = await this.toolchain();
-    const results = await new ToolInstall(
-      this.container.installers,
-      this.container.process,
-    ).execute({
+    const results = await toolInstall(this.container).execute({
       tools,
       names: argv.length === 0 ? undefined : (argv as string[]),
       all: flags.all,

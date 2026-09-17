@@ -9,6 +9,7 @@ import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../fakes/fake-installer.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
+import { fakeToolAudit } from '../../fakes/fake-tool-history.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 
 function setup() {
@@ -44,7 +45,9 @@ tools:
       posture,
     },
   };
-  const initialize = new ToolInitialize(new ToolInstall(FakeInstaller.family(['npm']), process));
+  const initialize = new ToolInitialize(
+    new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+  );
   return { process, prompter, input, initialize };
 }
 

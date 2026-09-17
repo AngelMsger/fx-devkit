@@ -166,6 +166,47 @@ installers; `login` guides setup. Companions own authentication. Manifest-suppli
 execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
+### Tool installation history
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool installed --format json
+```
+
+`init`, `tool install` and `tool update` persist installation attempts in
+`$FX_HOME/tool-history.json` (default `~/.fx/tool-history.json`). History includes
+timestamps, operation IDs, workspace, package manager and package, redacted
+installation vectors, exit codes, observed versions and binary paths. Each attempt
+has `started`, optional `installed`, and `finished` checkpoints: `installed` means
+the package manager exited successfully, even if later version verification fails.
+A lone `started` record does not prove that the installer executed or succeeded.
+Dry runs, manual installation instructions, trust refusals before execution and
+unchanged tools skipped during init do not create records. Earlier installations
+are not reconstructed from PATH. The history is local operational evidence, not a
+tamper-proof audit service, and is excluded from `config export`.
+
+`tool installed` summarizes the latest evidence per package manager/package and
+checks the current local manifests of **all workspaces registered in this
+FX_HOME**, including enabled optional tools and bundled defaults. A tool remains
+`required` if any workspace needs the same binary or package. Disable a bundled
+tool with `enabled: false`; removing its patch restores the bundled default.
+After the last requirement disappears, `unused` means the recorded binary path
+still matches and the package can be reviewed for manual removal. `sync` (tools
+stage) emits `TOOL_UNUSED` and returns `stage_details.tools.installations`;
+`doctor` adds an advisory finding. Neither command uninstalls packages.
+
+Unreadable or quarantined manifests and incomplete execution evidence produce
+`unknown`; failed attempts without a successful install are `unverified`.
+`not_on_path` does not prove a package was uninstalled, and `changed` means the
+binary path differs from the installation record. A package with an installation
+outside any workspace is `unscoped`. These states do not suggest removal.
+Other FX_HOME directories, unregistered projects and externally installed packages
+are outside this check, so review those uses before uninstalling through the
+package manager. History remains available after manifest removal or manual
+uninstallation. An unreadable or invalid ledger blocks new package operations
+before execution; preserve and repair the file before retrying.
+
 ### Skills
 
 The bundled **fx-workspace** Skill teaches agents to use fx, including workspace
@@ -238,18 +279,18 @@ fork and its upstream relationship. Inspect `fx source push --help` and the
 
 Daily workflows remain top-level; resource operations live under a noun:
 
-| Intent                                        | Entry                                                          |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                       |
-| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                       |
-| Find service coordinates and release evidence | `where`, `release`                                             |
-| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                           |
-| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                            |
-| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`          |
-| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update` |
-| Manage lifecycle resources                    | `hook list/inject/remove`                                      |
-| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                  |
-| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                     |
+| Intent                                        | Entry                                                                            |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                         |
+| Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                         |
+| Find service coordinates and release evidence | `where`, `release`                                                               |
+| Browse and select repositories                | `repo list/show`, `repo pick/unpick`                                             |
+| Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                              |
+| Select environments and agents                | `env list/show/pick/unpick`, `agent list/pick/unpick`                            |
+| Inspect installed resources and tools         | `skill list`, `mcp list/show`, `tool list/show/install/update/history/installed` |
+| Manage lifecycle resources                    | `hook list/inject/remove`                                                        |
+| Find ownership and change shared declarations | `member list/show`, `manifest`, `source push`                                    |
+| Manage preferences and fx itself              | `config`, `self info/update`, `completion`                                       |
 
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid

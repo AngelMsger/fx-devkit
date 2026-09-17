@@ -110,6 +110,20 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 `tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
+### 工具安装历史 {#tool-installation-history}
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool installed --format json
+```
+
+`init`、`tool install` 和 `tool update` 将安装尝试保存到 `$FX_HOME/tool-history.json`，默认为 `~/.fx/tool-history.json`。记录包含时间、操作 ID、工作区、包管理器与包名、脱敏安装命令、退出码、观察到的版本和程序路径。每次尝试包含 `started`、可选的 `installed` 与 `finished` 检查点。`installed` 表示包管理器成功退出，即使后续版本检查失败也会保留；单独的 `started` 不证明安装器已经执行或成功。dry-run、手动安装说明、执行前拒绝信任以及 init 跳过的已有工具不产生记录。不会从 PATH 补录旧安装。历史仅为本机操作证据，不防篡改，也不随 `config export` 导出。
+
+`tool installed` 按包管理器与包汇总最新证据，检查同一 FX_HOME 下所有已注册工作区的当前本地 manifest，包括启用的可选工具和内置默认项。任一工作区仍需要同一程序或包时，状态为 `required`。禁用内置工具须使用 `enabled: false`；删除覆盖项会恢复默认值。最后一个需求消失且程序路径仍匹配时，`unused` 表示可以评估手动卸载。`sync` 的 tools 阶段会输出 `TOOL_UNUSED` 和 `stage_details.tools.installations`，`doctor` 会增加提示；两者都不会卸载包。
+
+manifest 无法读取或含被隔离的工具项、执行记录不完整时为 `unknown`；没有成功记录的失败尝试为 `unverified`。`not_on_path` 不证明已经卸载，`changed` 表示程序路径发生变化，在工作区之外执行过安装的包为 `unscoped`。这些状态不建议卸载。其他 FX_HOME、未注册项目及外部安装不在检查范围内，使用包管理器卸载前应确认这些用途。删除 manifest 条目或手动卸载不会清除历史。记录文件无效或不可读时会在执行前阻止新安装操作；保留证据并修复文件后再重试。
+
 ### fx 伴生 Skill 与团队 Skill
 
 fx 伴生 Skill 用于引导 Agent 使用 CLI、初始化工作区和恢复就绪状态。初始化前即可执行：
@@ -147,7 +161,7 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 | 查询环境坐标与发布证据 | `where`、`release`                                                                 |
 | 管理仓库               | `repo list/show/pick/unpick/add/remove/fork/open`                                  |
 | 管理环境与 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                              |
-| 管理工具和 Skill       | `tool list/show/install/update`、`skill list`                                      |
+| 管理工具和 Skill       | `tool list/show/install/update/history/installed`、`skill list`                    |
 | 管理共享来源           | `manifest validate/lint/explain/schema/providers/set/render/import`、`source push` |
 | 查询成员与配置         | `member list/show`、`config list/get/set/unset/export/import`                      |
 | 检查宿主资源           | `hook list/inject/remove`、`mcp list/show`                                         |

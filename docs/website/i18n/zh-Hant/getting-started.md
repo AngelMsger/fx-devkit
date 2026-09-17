@@ -110,6 +110,20 @@ capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provide
 
 `tool list/show` 顯示工具需求，`tool install/update` 使用宣告的安裝程式，`login` 引導設定。驗證由各工具負責。manifest 提供的執行向量需要信任；向量改變後需要重新確認。口頭確認手動步驟不能取代驗證成功。
 
+### 工具安裝歷史 {#tool-installation-history}
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool installed --format json
+```
+
+`init`、`tool install` 和 `tool update` 將安裝嘗試儲存至 `$FX_HOME/tool-history.json`，預設為 `~/.fx/tool-history.json`。記錄包含時間、操作 ID、工作區、套件管理器與套件名稱、已遮蔽敏感資訊的安裝命令、結束碼、觀察到的版本和程式路徑。每次嘗試包含 `started`、可選的 `installed` 與 `finished` 檢查點。`installed` 表示套件管理器成功結束，即使後續版本檢查失敗也會保留；單獨的 `started` 不證明安裝程式已執行或成功。dry-run、手動安裝說明、執行前拒絕信任以及 init 跳過的既有工具不產生記錄。不會從 PATH 補登舊安裝。歷史僅為本機操作證據，不防竄改，也不隨 `config export` 匯出。
+
+`tool installed` 按套件管理器與套件彙整最新證據，檢查同一 FX_HOME 下所有已註冊工作區的目前本機 manifest，包括啟用的選用工具和內建預設項。任一工作區仍需要同一程式或套件時，狀態為 `required`。停用內建工具須使用 `enabled: false`；刪除覆寫項會恢復預設值。最後一個需求消失且程式路徑仍相符時，`unused` 表示可以評估手動移除。`sync` 的 tools 階段會輸出 `TOOL_UNUSED` 和 `stage_details.tools.installations`，`doctor` 會增加提示；兩者都不會移除套件。
+
+manifest 無法讀取或含被隔離的工具項、執行記錄不完整時為 `unknown`；沒有成功記錄的失敗嘗試為 `unverified`。`not_on_path` 不證明已經移除，`changed` 表示程式路徑改變，在工作區外執行過安裝的套件為 `unscoped`。這些狀態不建議移除。其他 FX_HOME、未註冊專案及外部安裝不在檢查範圍內，使用套件管理器移除前應確認這些用途。刪除 manifest 項目或手動移除不會清除歷史。記錄檔無效或無法讀取時會在執行前阻止新安裝操作；保留證據並修復檔案後再重試。
+
 ### fx 伴生 Skill 與團隊 Skill
 
 fx 伴生 Skill 引導 Agent 使用 CLI、初始化工作區及恢復就緒狀態。初始化前即可執行：
@@ -147,7 +161,7 @@ harness 向所選宿主投射 MCP 項目和規則參照，機密值保持為環�
 | 查詢環境座標與發佈證據 | `where`、`release`                                                                 |
 | 管理儲存庫             | `repo list/show/pick/unpick/add/remove/fork/open`                                  |
 | 管理環境與 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                              |
-| 管理工具和 Skill       | `tool list/show/install/update`、`skill list`                                      |
+| 管理工具和 Skill       | `tool list/show/install/update/history/installed`、`skill list`                    |
 | 管理共用來源           | `manifest validate/lint/explain/schema/providers/set/render/import`、`source push` |
 | 查詢成員與設定         | `member list/show`、`config list/get/set/unset/export/import`                      |
 | 檢查宿主資源           | `hook list/inject/remove`、`mcp list/show`                                         |
