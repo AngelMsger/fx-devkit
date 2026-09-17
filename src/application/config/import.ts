@@ -14,8 +14,9 @@ import type { ConfigFile, ConfigStore, LocalLayerStore } from '../../ports/store
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
-import { assertImportIdentitiesUnchanged, mergeProfileConfig } from './import-registry.js';
+
 import { validateImportedLayer } from './import-layer.js';
+import { assertImportIdentitiesUnchanged, mergeProfileConfig } from './import-registry.js';
 
 export interface ConfigImportDeps {
   readonly config: ConfigStore;
@@ -124,17 +125,42 @@ export class ConfigImport {
       });
       workspaces.push({ name, action: actionFor(await this.deps.localStore.read(name), layer) });
     }
-    const resourcesChanged = !same(current.agents, merged.agents) || current.hooks !== merged.hooks;
+    return {
+      merged,
+      output: {
+        config: same(current, merged) ? 'unchanged' : 'changed',
+        workspaces,
+        ...(await this.planRegistrations({
+          before: current,
+          after: merged,
+          layers: workspaces,
+          imported: Object.keys(profile.config.workspaces ?? {}),
+        })),
+        written: false,
+      },
+    };
+  }
+
+  private async planRegistrations(input: {
+    readonly before: ConfigFile;
+    readonly after: ConfigFile;
+    readonly layers: ConfigImportOutput['workspaces'];
+    readonly imported: readonly string[];
+  }): Promise<Pick<ConfigImportOutput, 'registrations' | 'next_steps'>> {
+    const resourcesChanged =
+      !same(input.before.agents, input.after.agents) || input.before.hooks !== input.after.hooks;
     const nextSteps: string[] = [];
     const registrations: ConfigImportOutput['registrations'][number][] = [];
-    for (const [name, entry] of Object.entries(merged.workspaces ?? {})) {
-      const imported = profile.config.workspaces?.[name] !== undefined;
-      const action = registrationAction(imported, current.workspaces?.[name] !== undefined);
+    for (const [name, entry] of Object.entries(input.after.workspaces ?? {})) {
+      const action = registrationAction(
+        input.imported.includes(name),
+        input.before.workspaces?.[name] !== undefined,
+      );
       const present = await this.deps.fs.exists(
         path.join(this.deps.manifestDirFor(name), 'manifest', 'workspace.yaml'),
       );
       const changed =
-        resourcesChanged || workspaces.some((w) => w.name === name && w.action !== 'unchanged');
+        resourcesChanged || input.layers.some((w) => w.name === name && w.action !== 'unchanged');
       const preparation = preparationState(present, changed);
       registrations.push({
         name,
@@ -153,14 +179,7 @@ export class ConfigImport {
       else if (changed)
         nextSteps.push(shellLine(['fx', 'sync', '--workspace', name], this.deps.commandShell));
     }
-    const output: ConfigImportOutput = {
-      config: same(current, merged) ? 'unchanged' : 'changed',
-      workspaces,
-      registrations,
-      next_steps: nextSteps,
-      written: false,
-    };
-    return { merged, output };
+    return { registrations, next_steps: nextSteps };
   }
 }
 
