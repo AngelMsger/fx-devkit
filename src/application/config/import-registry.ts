@@ -2,6 +2,7 @@
 
 import path from 'node:path';
 
+import type { Profile } from '../../domain/config/profile.js';
 import { DevkitError } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
@@ -16,7 +17,7 @@ export interface ImportRegistryDeps {
 
 export async function mergeProfileConfig(
   current: ConfigFile,
-  incoming: Partial<ConfigFile>,
+  incoming: Profile['config'],
   deps: ImportRegistryDeps,
 ): Promise<ConfigFile> {
   const fields = Object.fromEntries(
