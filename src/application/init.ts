@@ -80,12 +80,11 @@ export class Init {
   constructor(private readonly deps: InitDeps) {}
 
   async execute(input: InitInput): Promise<InitOutput> {
-    const name = input.name ?? path.basename(path.resolve(input.dir));
-    assertWorkspaceName(name);
-    return withWorkspaceOperation(this.deps.lock, name, input.dryRun, async () => {
+    const preview = await this.plan(input);
+    if (input.dryRun) return preview.output;
+    assertWritable(input.posture, `init ${preview.output.root}`);
+    return withWorkspaceOperation(this.deps.lock, preview.output.name, false, async () => {
       const plan = await this.plan(input);
-      if (input.dryRun) return plan.output;
-      assertWritable(input.posture, `init ${plan.output.root}`);
       return this.apply(plan, input);
     });
   }

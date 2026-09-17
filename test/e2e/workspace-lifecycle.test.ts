@@ -303,3 +303,58 @@ describe('workspace public mutation serialization', () => {
     expect(s.run(['repo', 'unpick', 'fx-example-api', '--workspace', 'alpha']).status).toBe(0);
   });
 });
+
+describe('workspace review regressions', () => {
+  it('refuses cleanup through symlinked agent directories without touching the outside link or registration', () => {
+    const s = setup();
+    const outside = path.join(s.base, 'outside');
+    const skills = path.join(manifestDirOf(s.home, 'alpha'), 'skills');
+    mkdirSync(outside);
+    mkdirSync(skills);
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    symlinkSync(skills, path.join(outside, 'skills'), kind);
+    symlinkSync(outside, path.join(s.root, '.agents'), kind);
+    const preview = s.run(['workspace', 'unregister', 'alpha', '--dry-run']);
+    expect(preview.error()).toMatchObject({ code: 'WORKSPACE_CLEANUP_BLOCKED' });
+    const applied = s.run(['workspace', 'unregister', 'alpha']);
+    expect(applied.error()).toMatchObject({ code: 'WORKSPACE_CLEANUP_BLOCKED' });
+    expect(existsSync(path.join(outside, 'skills'))).toBe(true);
+    expect(existsSync(skills)).toBe(true);
+    expect(existsSync(path.join(s.root, 'AGENTS.md'))).toBe(true);
+    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({ status: 'ready' });
+  });
+
+  it('creates no state or lock directories for read-only initialization and lifecycle requests', () => {
+    const base = realpathSync(freshHome());
+    const home = path.join(base, 'uncreated-state');
+    const root = path.join(base, 'uncreated-workspace');
+    const source = path.resolve('test/fixtures/manifest/v1-minimal');
+    const env = { FX_HOME: home, FX_READ_ONLY: '1', FX_SKILL_NOTICE: '0', FX_AGENTS: '' };
+    const init = fx(
+      ['init', root, '--name', 'readonly', '--from', source, '--format', 'json'],
+      env,
+      base,
+    );
+    expect(init.error()).toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect(existsSync(home)).toBe(false);
+    expect(existsSync(root)).toBe(false);
+    const preview = fx(
+      ['init', root, '--name', 'readonly', '--from', source, '--format', 'json', '--dry-run'],
+      env,
+      base,
+    );
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(existsSync(home)).toBe(false);
+    const s = setup();
+    rmSync(path.join(s.home, 'locks'), { recursive: true, force: true });
+    const readonly = { ...s.env, FX_READ_ONLY: '1' };
+    expect(
+      fx(['workspace', 'unregister', 'alpha', '--format', 'json'], readonly, s.base).error(),
+    ).toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect(existsSync(path.join(s.home, 'locks'))).toBe(false);
+    expect(
+      fx(['workspace', 'relocate', 'alpha', s.root, '--format', 'json'], readonly, s.base).json(),
+    ).toMatchObject({ written: false });
+    expect(existsSync(path.join(s.home, 'locks'))).toBe(false);
+  });
+});

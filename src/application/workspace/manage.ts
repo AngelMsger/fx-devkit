@@ -63,16 +63,17 @@ export class ManageWorkspace {
   constructor(private readonly deps: ManageWorkspaceDeps) {}
 
   async execute(input: ManageWorkspaceInput): Promise<ManageWorkspaceOutput> {
-    return withWorkspaceOperation(this.deps.lock, input.name, input.dryRun, () => this.run(input));
+    const preview = await this.plan(input);
+    if (await this.isNoop(preview))
+      return this.output({ ...preview, after: preview.before }, [], false);
+    if (input.dryRun) return this.run(input);
+    assertWritable(input.posture, `workspace ${input.action}`);
+    return withWorkspaceOperation(this.deps.lock, input.name, false, () => this.run(input));
   }
 
   private async run(input: ManageWorkspaceInput): Promise<ManageWorkspaceOutput> {
     const preview = await this.plan(input);
-    if (
-      preview.action === 'relocate' &&
-      preview.phase === 'planned' &&
-      samePath(await this.deps.fs.realpath(preview.before.root), preview.root)
-    )
+    if (await this.isNoop(preview))
       return this.output({ ...preview, after: preview.before }, [], false);
     const validation =
       input.source && preview.phase === 'planned'
@@ -104,10 +105,19 @@ export class ManageWorkspace {
     }
   }
 
+  private async isNoop(journal: Journal): Promise<boolean> {
+    return (
+      journal.action === 'relocate' &&
+      journal.phase === 'planned' &&
+      samePath(await this.deps.fs.realpath(journal.before.root), journal.root)
+    );
+  }
+
   private async plan(input: ManageWorkspaceInput): Promise<Journal> {
     const pending = await this.readJournal(input.name);
     if (pending) {
       await this.assertPending(input, pending);
+      await this.assertCurrentIdentity(pending);
       return pending;
     }
     const config = await this.deps.config.read();
@@ -259,6 +269,18 @@ export class ManageWorkspace {
     return this.output(journal, resources, true);
   }
 
+  private async assertCurrentIdentity(journal: Journal): Promise<void> {
+    const observed = (await this.deps.config.read()).workspaces?.[journal.name] ?? null;
+    const before = JSON.stringify(observed) === JSON.stringify(journal.before);
+    const after = JSON.stringify(observed) === JSON.stringify(journal.after);
+    if (
+      journal.phase === 'registered'
+        ? !after
+        : !before && !(after && ['resources_cleaned', 'source_replaced'].includes(journal.phase))
+    )
+      throw changedRegistry();
+  }
+
   private async preserveDirectory(source: string, backup: string): Promise<void> {
     if (await this.deps.fs.exists(backup)) return;
     const staged = `${backup}.pending`;
@@ -275,6 +297,7 @@ export class ManageWorkspace {
       journal.phase === 'resources_cleaned'
     )
       return Promise.resolve([]);
+    await this.assertCurrentIdentity(journal);
     return this.deps.resources.cleanup({
       name: input.name,
       root: journal.root,

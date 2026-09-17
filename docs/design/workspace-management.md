@@ -49,7 +49,9 @@ branches, uncommitted files, global packages and global Skills are preserved.
   and source storage still referenced by shared guides is retained.
 
 Project cleanup uses native hook and harness ownership protocols, exact derived
-guide source markers, and exact team Skill link targets. Foreign files and unrelated
+guide source markers, and exact team Skill link targets. Team Skill links use the
+same bounded ancestor-path checks as text projections; redirected parent directories
+block cleanup, and unlink/retarget recheck the path under a projection lease. Foreign files and unrelated
 native entries are preserved. Conflicted receipted resources block identity changes;
 registration and recovery metadata survive for a retry. Known shared harness entries
 are retained when another same-root identity has matching ownership evidence.
@@ -60,13 +62,14 @@ Public identity-dependent writes hold `workspace-operation:<name>` before taking
 workspace, hook, projection or configuration leases. Init plans and applies within
 that lease; CLI mutations pin their selected identity before reloading context.
 Global agent cleanup takes the same lease per registration and rechecks it before
-retiring resources. Dry-run and inspection do not acquire write leases. Background
+retiring resources. Write posture is enforced before effectful operation leases.
+Dry-run, inspection and idempotent relocation do not acquire write leases. Background
 refresh retains its workspace lease and never waits on an operation lease.
 
 Lifecycle writes additionally hold the workspace projection lease. Their personal
 `workspace-operation.json` records the previous and next identities and phase before
 changing resources or sources. A retry of the same command resumes the operation;
 a different identity operation is rejected until recovery completes. Ordinary
-workspace commands refuse an unfinished identity operation. Registry changes are
-committed only after resource cleanup and source validation/backup, and compare the
-current identity before writing. Recovery backups are never overwritten on retry.
+workspace commands refuse an unfinished identity operation. Pending recovery verifies that the current registry still matches its recorded
+phase before resource cleanup. Registry changes are committed only after resource
+cleanup and source validation/backup, and compare the current identity before writing. Recovery backups are never overwritten on retry.

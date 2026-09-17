@@ -31,3 +31,31 @@ describe('projection writes', () => {
     expect((await store.read({ root, relative: '.alias/hooks.json' })).kind).toBe('foreign');
   });
 });
+
+describe('link projection writes', () => {
+  it('rejects redirected ancestors both while planning and after a valid snapshot', async () => {
+    const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'fx-link-projection-')));
+    dirs.push(root);
+    const outside = path.join(root, 'outside');
+    const workspace = path.join(root, 'workspace');
+    const target = path.join(root, 'source');
+    for (const dir of [outside, workspace, target, path.join(workspace, '.agent')])
+      await fs.mkdir(dir, { recursive: true });
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    await fs.symlink(target, path.join(workspace, '.agent/skills'), kind);
+    await fs.symlink(target, path.join(outside, 'skills'), kind);
+    const store = new FileProjectionStore(new FileLock(path.join(root, 'state')));
+    const at = { root: workspace, relative: '.agent/skills' };
+    const before = await store.readLink(at);
+    expect(before).toEqual({ kind: 'link', target });
+    await fs.rename(path.join(workspace, '.agent'), path.join(workspace, '.agent-old'));
+    await fs.symlink(outside, path.join(workspace, '.agent'), kind);
+    expect(await store.readLink(at)).toMatchObject({ kind: 'unsafe' });
+    expect(await store.writeLink({ ...at, before, target: null })).toBe('conflict');
+    expect(await store.writeLink({ ...at, before, target: path.join(root, 'new-source') })).toBe(
+      'conflict',
+    );
+    expect(await fs.readlink(path.join(outside, 'skills'))).toBe(target);
+    expect(await fs.readlink(path.join(workspace, '.agent-old/skills'))).toBe(target);
+  });
+});

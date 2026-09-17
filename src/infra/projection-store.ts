@@ -10,13 +10,16 @@ import { asDevkitError } from '../domain/errors.js';
 import { isAtOrInside, pathKey, samePath } from '../domain/path.js';
 import type { Lock } from '../ports/lock.js';
 import type {
+  LinkProjectionStore,
+  LinkProjectionSnapshot,
+  LinkProjectionWrite,
   ProjectionPath,
   ProjectionSnapshot,
   ProjectionStore,
   ProjectionWrite,
 } from '../ports/projection.js';
 
-export class FileProjectionStore implements ProjectionStore {
+export class FileProjectionStore implements ProjectionStore, LinkProjectionStore {
   constructor(private readonly lock: Lock) {}
 
   async read(at: ProjectionPath): Promise<ProjectionSnapshot> {
@@ -29,6 +32,42 @@ export class FileProjectionStore implements ProjectionStore {
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { kind: 'absent', text: null };
       throw asDevkitError(err);
+    }
+  }
+
+  async readLink(at: ProjectionPath): Promise<LinkProjectionSnapshot> {
+    if (!(await isSafe(at))) return { kind: 'unsafe', target: null };
+    try {
+      const file = path.resolve(at.root, at.relative);
+      const stat = await fs.lstat(file);
+      return stat.isSymbolicLink()
+        ? { kind: 'link', target: await fs.readlink(file) }
+        : { kind: 'foreign', target: null };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { kind: 'absent', target: null };
+      throw asDevkitError(err);
+    }
+  }
+
+  async writeLink(
+    input: LinkProjectionWrite,
+  ): Promise<'written' | 'unchanged' | 'conflict' | 'busy'> {
+    if (input.before.kind !== 'link') return 'conflict';
+    const file = path.resolve(input.root, input.relative);
+    const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 0 });
+    if (!lease) return 'busy';
+    try {
+      const current = await this.readLink(input);
+      if (current.kind !== input.before.kind || current.target !== input.before.target)
+        return 'conflict';
+      if (current.target === input.target) return 'unchanged';
+      if (input.target === null) await fs.unlink(file);
+      else await replaceLink(file, input.target);
+      return 'written';
+    } catch (err) {
+      throw asDevkitError(err);
+    } finally {
+      await lease.release();
     }
   }
 
@@ -79,6 +118,20 @@ async function replace(file: string, text: string): Promise<void> {
       () => 0o600,
     );
     await fs.writeFile(temporary, text, { flag: 'wx', mode });
+    await fs.rename(temporary, file);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+}
+
+async function replaceLink(file: string, target: string): Promise<void> {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    await fs.symlink(
+      path.resolve(target),
+      temporary,
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
     await fs.rename(temporary, file);
   } finally {
     await fs.rm(temporary, { force: true });

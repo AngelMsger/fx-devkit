@@ -2,6 +2,7 @@
 
 import { ManageWorkspace } from '../application/workspace/manage.js';
 import { WorkspaceResources } from '../application/workspace/resources.js';
+import { FileProjectionStore } from '../infra/projection-store.js';
 
 import { harnessDeps, type HarnessCommandInput } from './harness.js';
 import { hookDeps } from './hooks.js';
@@ -15,6 +16,11 @@ export function workspaceManagement(input: HarnessCommandInput): ManageWorkspace
     manifestDirFor: container.manifestDirFor,
     bundledTools: container.bundledTools,
     cliVersion: input.cliVersion,
-    resources: new WorkspaceResources(container.fs, harnessDeps(input), hookDeps(container)),
+    resources: new WorkspaceResources(
+      container.fs,
+      harnessDeps(input),
+      hookDeps(container),
+      new FileProjectionStore(container.lock),
+    ),
   });
 }
