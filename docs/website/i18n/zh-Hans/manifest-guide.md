@@ -1,6 +1,6 @@
 # 创建 manifest 来源
 
-公开安装的 fx 提供 CLI、默认工具定义和内置 Agent Skill。每个团队提供自己的工作区声明。可以使用团队现有来源、导入已有 checkout，或从下面的最小声明开始。私有包 registry 不是 manifest 格式的一部分。
+fx 提供 CLI、默认工具定义和内置 Agent Skill。每个团队提供自己的工作区声明。可以使用团队现有来源、导入已有 checkout，或从下面的最小声明开始。私有包 registry 不是 manifest 格式的一部分。
 
 ## 来源目录结构 {#source-layout}
 
@@ -41,7 +41,7 @@ tools:
 
 以下包名和可执行文件名均为虚构示例。Registry 和认证使用本机 npm 配置。`fx init` 只安装标记了 `install_on_init: true`、已启用且缺失的工具，并在仓库及 Skill 同步前完成安装。执行前须确认具体的安装与版本检查命令。已有工具即使低于最低版本也会保留，升级使用 `fx tool update`。普通 `fx sync` 不安装包，初始化也不会登录服务。
 
-初始化成功后可查看 `tool_install` 中的结果。dry-run 不物化来源、不运行安装器，`tool_install` 和 `sync` 均为 null；只读模式禁止安装。安装或版本验证失败会报告 `INIT_TOOL_INSTALL_FAILED`。此时工作区可能已经注册，修复 npm 访问或 PATH 后，用相同目录和来源重试即可。
+初始化成功后可查看 `tool_install` 中的结果。dry-run 不获取或复制来源、不运行安装器，`tool_install` 和 `sync` 均为 null；只读模式禁止安装。安装或版本验证失败会报告 `INIT_TOOL_INSTALL_FAILED`。此时工作区可能已经注册，修复 npm 访问或 PATH 后，用相同目录和来源重试即可。
 
 ## 从最小声明开始 {#start-with-a-small-declaration}
 
@@ -121,7 +121,7 @@ fx init ./existing-work --from ./team-workspace
 
 ## 环境示例
 
-以下使用虚构值展示真实源结构. 第一段放入 manifest/workspace.yaml, 第二段放入 manifest/environments.yaml. obs.svc=api 将流名推导为 example_api_test. unverified 坐标与 CLI 配置、资源权限分别判断. JSON 是初始化失败结果的节选, 不代表引导成功.
+以下虚构示例分别放入 `manifest/workspace.yaml` 和 `manifest/environments.yaml`。`obs.svc: api` 将日志流解析为 `example_api_test`。坐标在核验前仍是 `unverified`；声明它不会配置 CLI 或授予访问权限。
 
 ```yaml
 schema_version: 2
@@ -139,7 +139,7 @@ platforms:
     provider: openobserve-cli
     capability: log-store
     label: Application logs
-    command: openobserve-cli search run --use-context {context} --stream {stream}
+    command: openobserve-cli search run --use-context {context} --sql "SELECT * FROM {stream} LIMIT 20" --since 1h
 envs:
   test:
     label: Test
@@ -155,21 +155,6 @@ fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
 ```
 
-```json
-{
-  "registered": true,
-  "failed_phase": "sync",
-  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
-  "sync": {
-    "stages": {
-      "docs": { "created": 2 },
-      "skills": { "status": "failed" },
-      "hooks": { "status": "not_started" }
-    }
-  }
-}
-```
-
 ## 在 AGENTS.md 中声明团队 Skill
 
 每个团队 Skill 放在 `skills/<name>/SKILL.md`，frontmatter 提供 `name` 和 `description`。在源 AGENTS.md 中需要目录的位置加入：
@@ -181,9 +166,9 @@ fx doctor --tool openobserve-cli --format json
 
 `fx manifest render` 自动填入名称、触发说明和源文件链接。新建指南默认带有该区域；已有指南缺少时只提示维护者添加，不自动插入人写内容。源指南使用相对链接，派生到工作区根的指南使用解析后的源路径，不依赖某个宿主的 Skill 链接。`fx sync --only docs,skills` 会更新新增、删除及元数据变化。目录帮助发现，不证明宿主已经安装或加载。仅覆盖工作区根，不修改业务仓库指南。
 
-## 公共服务预设
+## 公共服务预设 {#public-service-presets}
 
-fx 0.1.3 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.1.3'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。
+fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.2.0'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。
 
 相同预设可共享本地目标，同一目标的不同预设会阻止配置。冲突的旧 vars 应删除，避免两个来源。用户名、邮箱、密码、PAT/API Token 值、Cookie 和浏览器会话不可分发；每人通过自己的 CLI 获取并保存凭证。额外 service 字段在非严格模式下也校验失败；URL 中的凭证会被拒绝且不会回显。
 

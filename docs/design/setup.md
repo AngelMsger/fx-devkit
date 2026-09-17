@@ -140,10 +140,10 @@ including canonical paths reached through team links. Partial failures retain
 per-target outcomes and observations. Dry-run is allowed under read-only posture.
 
 Discovery runs locally before workspace resolution for non-TTY business commands.
-Existing FX_SKILL_LOADED and FX_SKILL_NOTICE settings remain compatible. Meta/setup
-and all Skill commands are quiet; Skill commands also skip network update probes.
-The family `status` fields report loaded, embedded_version and installs separately;
-fx additionally reports each copy's version and alignment. `show` is raw text in all
+Existing FX_SKILL_LOADED and FX_SKILL_NOTICE settings remain compatible. Bootstrap commands such as self info and
+all Skill commands are quiet; init still receives version guidance; Skill commands also skip network update probes.
+Skill status reports declared loading, declared version, version_verified,
+embedded_version and installs separately; each copy retains its version/alignment. `show` is raw text in all
 formats. Other results retain fx's human default and structured collection contract.
 
 The team-skills generated guide region is rendered from current manifest Skill

@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Generated from the command registry of version 0.2.0. Do not edit by hand;
+Generated from the command registry of version 0.2.1. Do not edit by hand;
 run `npm run docs:gen` after changing commands or flags.
 
 ## Everyday

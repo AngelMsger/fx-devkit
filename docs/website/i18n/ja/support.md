@@ -18,9 +18,20 @@
 
 パッケージ版はチームのプライベート Registry を `FX_REGISTRY` で指定します。
 
-`fx self info --format json` でバージョン、ランタイム、パッケージ更新元を確認できます。現在のプレリリースでは Git でソース checkout を更新し、そのディレクトリで `npm ci` と `npm run build` を実行します。
+`fx self info --format json` でバージョン、ランタイム、パッケージ更新元を確認できます。ソースからインストールした場合は Git で checkout を更新し、そのディレクトリで `npm ci` と `npm run build` を実行します。
 
 パッケージからインストールし更新元が利用可能な場合は、先に `fx self update --dry-run` を確認します。現在のパッケージ自己更新にはプライベートレジストリの明示的設定が必要です。ソースからの更新にはこのコマンドは不要です。fx 本体とチームのマニフェストの更新は別の操作で、`fx sync` が条件を満たすマニフェストソースを更新します。
+
+### Registry の振り分け
+
+プライベート Registry が fx を返しても、公開依存パッケージのプロキシに失敗する場合があります。まず失敗したパッケージの URL を確認します。チームの方針で npmjs への直接接続が許可されていれば、fx の scope はプライベートのまま、公開依存だけを npmjs に振り分けられます：
+
+```sh
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+```
+
+これは一回の呼び出しの設定で、認証情報の変更やプロキシの修復ではありません。`FX_REGISTRY` は引き続き fx の内部メタデータと自己更新の取得先です。
+
 <!-- /distribution -->
 
 <!-- distribution:public -->

@@ -2,16 +2,6 @@
 
 fx をインストールし、チームのマニフェストを接続してリポジトリやツール、エージェントを利用します。
 
-## 0.2.0 への移行 {#migrating-to-020}
-
-`init`、`sync`、`doctor`、`release` の JSON は既定で要約になります。`output_mode: summary` が表示形式を示し、`omitted` が省略した正常行と証拠を数えます。例外と復旧操作はすべて残ります。全行と証拠が必要な場合は `--details` を指定してください。明示的な `--fields` は完全な結果から抽出します。human、NDJSON、および `repo list`、`where`、`can` などの事実照会の既定動作は変わりません。`--verbose` は診断を独立して制御します。
-
-`init/sync` に `operation: preview|apply` と `preparation_complete` を追加しました。プレビューは `null` を返し、登録などの項目は計画を表します。実行では、選択して要求した準備が完了した場合のみ `true` です。未コミット変更や分岐の保護、権限・信頼による停止、失敗、未検証の有効化は `false` になります。未選択や明示的な対象外は完了判定を下げません。準備完了はリモートサービスの正常性を証明しません。doctor/release の `ok`、確認範囲の `complete`、終了コードの意味は維持します。
-
-`agents: []` または空の `FX_AGENTS` は、どの Agent も選択しない指定です。`fx config unset agents` と環境変数の解除で自動検出に戻せます。`FX_HOME` は引き続きグローバル Skill を分離しません。`SKILL_WRITE_DENIED` は権限エラーで終了コードは 5、拒否されたパスと部分結果を保持します。既存ソースの分析を続けるか、対象ワークスペースで `fx sync --only repos,docs --no-refresh-manifest` を実行できます。アクセス条件が変わってから Skill 書き込みを再試行し、既存の信頼境界を守ってください。
-
-Agent はまず `fx self info --format json` を実行し、返された `bundled_skill/SKILL.md` または `fx skill show` を読み、その後 `FX_SKILL_LOADED=1` と `FX_SKILL_VERSION=<bundled_skill_version>` を設定します。真偽値だけでは版の一致を確認できません。未指定や不一致の場合、init を含む業務コマンドは処理を止めない通知を出します。同梱 Skill の読み取りにグローバルインストールは不要です。JSON stdout と診断 stderr を別々に解析し、`head -c` や `tail -c` で JSON を切り詰めず、フィールドを選択してください。
-
 ## 動作環境 {#requirements}
 
 - Node.js ≥22。開発バージョンは package.json に固定されています。Bun もランタイムとして利用できます。
@@ -70,8 +60,8 @@ PowerShell の実行ポリシーが `.ps1` shim をブロックする場合は�
 プレースホルダーをチームから提供された実際の値に置き換えてください。
 
 ```sh
-fx init ./work --from <manifest-repository> --dry-run
-fx init ./work --from <manifest-repository>
+fx init ./work --name work --from <manifest-repository> --dry-run
+fx init ./work --name work --from <manifest-repository>
 cd work
 fx login --list
 fx login
@@ -124,6 +114,14 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 `tool install` と `tool update` は名前か `--all` のいずれか一方を必須とします。install の `--all` は有効で PATH にないツールを補い、update の `--all` は選択したツールチェーンの有効なツールすべてを対象にします。明示した名前では無効なツールも選べます。引数なしの呼び出しはパッケージ操作前にエラーになります。
 
+### 共有サービス設定と個人の認証情報 {#shared-service-settings-and-personal-credentials}
+
+manifest の `service` は URL、context、組織、認証方式などの公開接続設定を宣言します。`init`、明示的な `sync`、`login` が信頼済みの対応 CLI コマンドで準備し、バックグラウンド hook は確認だけを行います。`fx sync --only services --dry-run` でプレビューします。
+
+設定と認証は別です。各メンバーが対応 CLI で自分の認証情報を取得・保存します。競合する既存設定は保持して報告し、sync は個人のログインを行いません。Sentry はワークスペースの `.sentryclirc` に公開デフォルトのみを書き、外部所有のファイルは保持します。
+
+sync の `stages.services` と `stage_details.services.items` が結果を示します。init はこれらを `sync` 配下に返します。要約にはブロック・失敗項目が残り、`--details` では成功項目も確認できます。[サービス設定](manifest-guide.md#public-service-presets)と[復旧リファレンス](../skills/fx-workspace/references/commands.md#service-preparation)を参照してください。
+
 ### ツールのインストール履歴 {#tool-installation-history}
 
 ```sh
@@ -132,9 +130,9 @@ fx tool history bitbucket-cli --format json
 fx tool inventory --format json
 ```
 
-`init`、`tool install`、`tool update` は `$FX_HOME/tool-history.json`（既定は `~/.fx/tool-history.json`）に操作を記録します。各操作には `started`、任意の `installed`、`finished` があり、ワークスペース、パッケージ管理ツールとパッケージ名、機密情報を除去したコマンド、終了コード、バージョン、操作前後の実行ファイルパスを保持します。`installed` はパッケージ管理ツールの正常終了を意味し、その後のバージョン検証失敗でも残ります。`started` だけでは成功を証明しません。dry-run、手動手順、init がスキップした既存ツールは記録しません。履歴はローカルの操作証拠で、設定のエクスポートには含めません。
+`init`、`tool install`、`tool update` は `$FX_HOME/tool-history.json` に試行を記録します。`installed` はパッケージ管理器の成功を示しますが、その後の版確認は失敗する場合があります。`started` だけでは成功を証明できません。dry-run と init が既存ツールをスキップした場合は記録しません。
 
-`tool inventory` の `installation_origin` は、`tool list/show` が表示するツール定義の出所とは別の情報です。
+`tool inventory` のインストール元と `tool list/show` の定義元は別の事実です：
 
 | installation_origin | 証拠                                                                                                                       |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -142,37 +140,27 @@ fx tool inventory --format json
 | `external`          | fx のインストール記録なしに既知の実行ファイルが存在していました。fx で更新や再インストールをしても、この出所を維持します。 |
 | `unknown`           | 旧履歴、未完了の操作、変更または欠落したパスのため、現在の出所を確認できません。                                           |
 
-`external` はインストールした人物を特定せず、人や別の管理ツールによるものを含みます。PATH の観察は過去の所有権を証明せず、同じパスでの外部置換も検出できません。v1 履歴は引き続き読み取れ、新しい操作は v2 で記録します。旧履歴にない出所の証拠は未知のままです。新しい履歴は旧バージョンの fx での読み取りを保証しません。
+依存関係の確認は同じ FX_HOME に登録された全ワークスペースを対象とし、有効な任意ツールと内蔵デフォルトを含みます。fx によるインストールが確認でき、残る要求がない場合だけ `unused` になります。他の FX_HOME や未登録プロジェクトは対象外です。削除の提案は参考情報で、sync/doctor はアンインストールしません。読めない manifest や不十分な証拠から削除可能とは判断しません。
 
-一覧には内蔵定義、登録済みワークスペースのローカル manifest にある既知のツールと、定義削除後も履歴に残るパッケージを含めます。未記録の PATH 上のツールは `recorded: false` で、管理ツール、パッケージ、バージョン、操作の各項目は推測せず null にします。参照によってインストール記録を補完したり、既存ファイルを管理対象にしたりしません。
-
-依存の確認は同じ FX_HOME の**登録済みワークスペースすべて**を対象とし、有効な任意ツールと内蔵既定値も含めます。同じ実行ファイル、または同じ管理ツールとパッケージが必要なら `required` のままです。内蔵ツールの無効化には `enabled: false` を使います。上書き項目を削除すると既定値が復活します。`fx` 由来で、操作が完了し、パスが一致し、必要とするワークスペースがない場合だけ `unused` になります。外部ツールや出所不明のツールには削除を提案しません。`sync` は `TOOL_UNUSED` と `stage_details.tools.installations` を返し、`doctor` は参考所見を追加します。どちらもアンインストールしません。
-
-読み取れない manifest、隔離された項目、不完全な実行証拠は `unknown`、成功履歴のない試行は `unverified` です。実行ファイルの欠落は `not_on_path`、パスの変更は `changed`、ワークスペース外での操作履歴は `unscoped` です。これらには削除を提案しません。参照するのはローカル manifest で、リモートを更新しません。別の FX_HOME や未登録プロジェクトは依存確認の対象外です。無効な履歴は新しいパッケージ操作を実行前に止めるため、証拠を保存して修復後に再試行します。
+照会は PATH ツールを管理下に移したり過去の履歴を再構築したりしません。[一覧のフィールド](../skills/fx-workspace/references/commands.md#installation-audit-and-inventory)と[ローカルデータ](user-privacy.md#what-stays-on-your-machine)を参照してください。
 
 ### fx 同梱 Skill とチーム Skill
 
-fx 同梱 Skill は CLI の操作、ワークスペースの初期化、準備状態の復旧を案内します。初期化前から利用できます。
+fx 同梱 Skill は Agent に CLI の使い方を説明します。インストールやワークスペース登録なしでも読めます：
 
 ```sh
-fx skill install
-fx skill install --agent codex
-fx skill status
-fx skill path
+fx self info --format json
 fx skill show
+fx skill status
 ```
 
-`install/uninstall` は指定スコープの Agent を検出します。`--agent` は繰り返し指定またはカンマ区切りに対応します。`path/status` は既定で全対応 Agent を列挙します。`--project` は現在のディレクトリを使い、`--dir ./custom-skills` は `<dir>/fx-workspace` を指定します。`--dir` は `--agent`、`--project` と併用できません。ワークスペースの登録やサービスへのログインは不要です。単独インストールはワークスペースの Agent 選択を使いません。プロジェクト検出はネイティブのマーカーを使い、ユーザー単位の検出では PATH 上の Agent 実行ファイルも認識します。
+ホストにコピーを検出させるには `fx skill install --agent codex` を使います。`--project` は現在のディレクトリ、`--dir ./custom-skills` は独立ディレクトリを対象とし、後者は `--agent`、`--project` と併用できません。単独の Skill コマンドはワークスペースの Agent 選択とは独立しています。検出・置換・削除は [Skill リファレンス](../skills/fx-workspace/references/commands.md#standalone-companion-skill)を参照してください。
 
-明示的な `skill install` は認識済みコピーを現在の CLI の版に更新します。同じ版の修復や新しい版からの置換も含みます。`init/sync` は同じ版を再利用し、新しい版をダウングレードしません。外部所有パスの置換には確認とバックアップが必要です。書き込みは `--dry-run` と読み取り専用設定に従います。`skill uninstall` は確認後に認識済みコピーのみを削除します。非対話実行では `--yes` を使い、外部所有パスは保持します。Agent 選択は変更しないため、後続の同期でユーザー単位のコピーが再インストールされる場合があります。
+明示的な install は認識済みコピーを呼び出した CLI の版に揃え、同版の修復や新しい版の置換も行います。init/sync は同版を再利用し、新しい版を下げません。外部所有の内容の置換には確認とバックアップが必要です。削除しても Agent 選択は変わらず、後の sync で再インストールされる場合があります。
 
-`status` はインストール状態、版の一致、`FX_SKILL_LOADED=1` のロード済みハンドシェイクを分けて報告します。インストール成功は Agent のロード成功を意味しません。`path` は配置先、`self info` は同梱ソースの場所を示します。`show` はすべての出力形式で SKILL.md の原文を返します。Skill コマンドはローカル処理のみで、更新の通信、マニフェスト取得、連携インストーラーやログイン確認を実行しません。非 TTY の業務コマンドは未ロード時に構造化した探索通知を stderr に出します。self info、skill show などの導入コマンドは通知せず、init は版の未確認を通知し、`FX_SKILL_NOTICE=0` でも無効にできます。
+インストール、版の一致、読み込み宣言は別の事実です。bundled Skill を読んでから `FX_SKILL_LOADED=1` と `FX_SKILL_VERSION=<bundled_skill_version>` を設定します。宣言だけでは実際の読了を証明できません。導入用コマンドは通知を出さず、他の非 TTY コマンドは版が一致するまで案内を出します。`FX_SKILL_NOTICE=0` で抑制できます。
 
-チーム Skill はマニフェストの `skills/` にあり、`init/sync` が選択した Agent のプロジェクトディレクトリへリンクします。Windows では junction を使います。ルート AGENTS.md にも説明とソースへのリンクを列挙し、Agent がタスクに合う Skill を読めるようにします。Agent はワークスペースのルートから起動してください。子リポジトリからの検出は保証しません。`agent skills` で配布状態を確認し、`sync --only docs,skills` で更新します。共有チームリンクへの同梱 Skill のインストールは `SKILL_SOURCE_PROTECTED` で拒否します。ユーザー単位または独立ディレクトリを指定してください。
-
-harness は MCP エントリーとルールへの参照をホストに投影します。秘密の値は環境変数への参照に留めます。`mcp list/show` と `can mcp:<name>` は前提条件を説明しますが、設定の存在だけではホストでの有効化を証明できません。[MCP の契約](user-guide.md#for-coding-agents)を参照してください。
-
-起動フックはキャッシュ済みコンテキストを返し、マニフェスト、文書、Skill をバックグラウンドで更新できます。業務リポジトリの同期や信頼の承認はしません。プロジェクトとフックの信頼はホストが管理します。`hook list/enable/disable` と[ライフサイクルの契約](user-guide.md#for-coding-agents)を使用してください。
+チーム Skill は manifest の `skills/` にあり、init/sync が選択ホストへリンクし、ルート AGENTS.md に一覧を生成します。ワークスペースルートから起動してください。子リポジトリでの検出は保証されません。`fx sync --only docs,skills` で更新します。共有リンク経由で fx 同梱 Skill をインストールせず、ユーザー用コピーか独立ディレクトリを使います。
 
 ### 共有情報への貢献
 
@@ -180,13 +168,7 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 ## 主なコマンド {#commands}
 
-トピックのヘルプは正規コマンドを優先し、互換名との対応を別に表示します。コマンド名の補完と綴りの候補は正規名を使い、入力済みの互換名でもフラグを補完できます。ルートとトピックのヘルプは先頭のグローバルフラグも受け付けます。
-
-`manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
-
-`agent skills` はワークスペースの Skill 配布を確認し、`skill install/show/path/status/uninstall` は内蔵 companion Skill を独立して管理します。`manifest repo-set` はリポジトリのフィールドを変更します。`manifest record-probe <repo> --env <env> --platform <platform>` は検証済み座標の証拠を記録し、`--dry-run` はプローブせず計画だけを返します。座標の参照は `where` を使います。互換入口の `skill list`、`tool installed`、`hook inject/remove`、`manifest set`、`where --probe --record` も引き続き利用できます。
-
-集合フラグの `--only`、繰り返し可能な `--env`、`--agent` は反復指定とカンマ区切りに対応します。Agent の選択結果は `scope: global` と `affected_workspaces`、リポジトリ／環境の選択は `scope: workspace` と `workspace` を返します。一覧と履歴は `--workspace` を指定しても FX_HOME 全体を対象にします。補完はオプション値、位置引数、否定フラグを認識するため、更新後は補完スクリプトを再生成してください。ルートヘルプはグローバルフラグを受け付けますが、ヘルプ、補完、`skill show`、`manifest schema` は本来のテキスト／成果物形式を返します。
+`fx <topic> --help` で正規コマンドと互換名を確認できます。集合引数は繰り返しとカンマ区切りに対応します。
 
 | 目的                   | コマンド                                                                                             |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -205,13 +187,35 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 ## コーディングエージェント向け {#for-coding-agents}
 
-`--format json` または `FX_FORMAT=json` を使用します。stdout はデータのみ、通知、進捗、エラーは stderr に出力します。コレクションの形式は `{items, has_more, next?}` で、不明な値は明示されます。
+`fx self info --format json` で現在の bundled Skill を特定して読み、`FX_SKILL_LOADED=1` と一致する `FX_SKILL_VERSION` を宣言します。`fx skill show` でも読めます。[同梱 Skill](../skills/fx-workspace/SKILL.md)がタスクの入口を示します。
 
-`--fields` は項目を絞り、`--quiet` は通知を抑え、`--no-input` は入力待ちを禁止します。書き込みコマンドは `--dry-run` と読み取り専用設定に対応します。`--allow-writes` は一回の呼び出しだけの明示的な上書きです。
+`--format json` を使い、stdout の結果と stderr の通知・進捗・エラーを分けて解析します。集合は `{items, has_more, next?}` です。`--no-input` は入力待ちを禁止し、`--quiet` は通知と進捗を抑えます。
 
-doctor/release は失敗項目があっても終了コード 0 を返します。init/sync も部分成功で 0 を返す場合があります。init では `sync.summary` と `sync.stages`、sync では `summary`、`stages`、失敗項目の `failure` を読みます。`stage_details` に各リソース段階の結果と handoff が残ります。終了コードだけで準備完了と判断せず、認証の捏造やホストの信頼境界の回避をしないでください。
+`init`、`sync`、`doctor`、`release` は要約を既定とし、件数、例外、復旧手順を保持します。`omitted` は省略数です。`--details` は完全な結果、明示的な `--fields` は完全な結果からの抽出で、`--verbose` は別途診断を制御します。human、NDJSON、事実照会の既定は変わりません。
 
-[内蔵 Skill](../skills/fx-workspace/SKILL.md)と[応答ガイド](../skills/fx-workspace/references/commands.md)を読んだ後で `FX_SKILL_LOADED=1` と `FX_SKILL_VERSION=<bundled_skill_version>` を設定します。同梱 Skill のソースは `self info`、インストール先は `skill path` で確認できます。
+| 結果             | 確認するフィールド                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `init/sync`      | `operation` と `preparation_complete`。プレビューは `null`。実行では今回選択・要求した準備だけを判定します。 |
+| `doctor/release` | `ok` は失敗項目なし、`complete` は要求した確認に未確認の範囲なしを意味します。警告も確認します。             |
+| `can`            | `status` と `handoff`。準備完了は個別のリモート照会の成功を保証しません。                                    |
+
+終了コード 0 のレポートにも失敗項目があり得ます。init/sync の非ゼロ終了にも部分的な stdout が残る場合があります。未コミットの変更、分岐、ブロック、失敗、未検証の有効化があれば準備は未完了です。未選択の資源は影響しません。`release` は確認用で、パッケージ公開やサービスのデプロイをしません。
+
+書き込み前に出力形式を選びます。承認済みの同期では、一度だけ完全な結果を保存します：
+
+```sh
+fx sync --format json --details > sync-result.json
+```
+
+その後は同じファイルを解析します。JSON を切り詰めたり、詳細取得のために書き込みを繰り返したりしません。部分結果と stderr のエラーを併せて読みます。[応答の契約](../skills/fx-workspace/references/commands.md)を参照してください。
+
+## 0.2.0 への移行 {#migrating-to-020}
+
+- ワークフローの JSON は要約が既定です。正常項目や証拠が必要なスクリプトは `--details` を追加してください。明示的な `--fields` は完全な結果から抽出します。
+- 空の Agent 選択は「選択なし」です。自動検出への復帰は [Agent 選択](#agent-selection)を参照してください。
+- 現在の bundled Skill を読んでから `FX_SKILL_VERSION` を宣言します。従来の真偽値だけでは版を確認できません。
+
+結果の解釈は[エージェント向け説明](#for-coding-agents)を参照してください。
 
 ## 設定 {#configuration}
 
@@ -222,6 +226,10 @@ doctor/release は失敗項目があっても終了コード 0 を返します�
 `format` は出力形式です。`command_shell` は生成されるコマンド文字列だけを変更し、実行方法は変更しません。auto は Windows で PowerShell、それ以外で POSIX を選択します。`--command-shell`、`FX_COMMAND_SHELL`、cmd 設定で変更できます。マニフェストの shell テンプレートはそのままです。
 
 bash、zsh、fish、PowerShell の補完は `fx completion <shell>` で生成し、必要に応じて自分の環境に読み込みます。
+
+### Agent 選択 {#agent-selection}
+
+`fx config set agents codex` は指定ホストを選び、`fx config set agents ''` または空の `FX_AGENTS` は何も選びません。設定と環境変数の上書きを両方解除すると自動検出に戻ります。同じ FX_HOME の全ワークスペースに適用されます。FX_HOME はグローバル Skill や対応 CLI の認証情報を移動しません。
 
 ## 連携 {#integrations}
 
@@ -241,44 +249,26 @@ bash、zsh、fish、PowerShell の補完は `fx completion <shell>` で生成し
 
 Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホストを含みます。Skill、hook、MCP、ルールの対応はホストによって異なります。`agent list`、`hook list`、`mcp list` と[ホストの契約](user-guide.md#for-coding-agents)で確認してください。
 
-## 初期化と復旧結果の読み方
+## 初期化と復旧結果の読み方 {#reading-initialization-and-recovery-results}
 
-位置引数は argv のみから取得します. stdin は `init --from -` などの明示的な指定時だけ読みます. 複数語のコマンド全体を引用符で囲むと使用法エラーになります. Git clone は独立した Git 認証情報を使用し, コードホスト API CLI を必須としません. Git エラーは存在しないブランチ, 転送認証, 接続, ローカル競合を区別し, 復旧コマンドにはブランチと保存先を残します.
+init は登録後に別の段階で失敗することがあります。非ゼロ終了でも部分 stdout を読み、原因を解決してから同じ名前・ソース・ディレクトリで再試行します。同じ実体ディレクトリへのシンボリックリンクは使えますが、別のディレクトリは競合です。
 
-ソースの検証と登録後, `INIT_PREPARED` はツール実行や clone の前にインストールコマンドと Skill 保存先を表示します. 不足ツールのインストール後に追加の Skill コマンドが現れる場合も, 正確なコマンドの承認が必要です. 新規リモートソースの `init --dry-run` はソースを取得せず, 内容を把握済みとは扱いません. 外部所有ファイルの置換には常に承認とバックアップが必要です.
+| 証拠                                | 意味                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `registered` / `written`            | 登録やローカル書き込みの実施。完了判定は別途 `preparation_complete` を確認します。              |
+| `failed_phase`、`phases`、`failure` | 停止した段階と復旧手順。                                                                        |
+| `sync.stages`、`sync.stage_details` | init の同期結果。sync コマンドでは `sync` 接頭辞を外します。                                    |
+| `tool_install`                      | インストール試行。`code: null` は成功ではなく、インストール後の版確認が失敗する場合もあります。 |
+| `observed`                          | Skill 失敗後のディスク状態。失敗した書き込みが既に変更を加えた可能性があります。                |
 
-後続フェーズで例外が発生すると, stdout に `failed_phase`, `phases`, 構造化された `failure`, 完了済みリポジトリの結果と復旧手順を残します. 失敗結果のフェーズは `done`, `failed`, `not_started` で表し, 成功した同期ステージは通常の集計を維持します. stderr には元のエラーを出力し, 終了コードは非ゼロです. 未承認の Skill コマンドは blocked 行 (`tools_blocked`) となり, 独立した所有済みローカル投影は完了できます. 終了コードがゼロでも blocked と failed 行を確認してください.
+`SKILL_WRITE_DENIED` では拒否されたパスを調べます。FX_HOME の変更では共有ロックは移動しません。`fx sync --only repos,docs --no-refresh-manifest` でリポジトリとガイドの作業を続けられますが、Skill の修復ではありません。条件が変わらない失敗を繰り返したり、コマンドの信頼を迂回したりしません。
 
-リポジトリ処理中は5秒ごとに stderr へ完了数/総数, 処理中のリポジトリ, 経過時間を出力します. これはハートビートであり, Git のバイト進捗や完了予測ではありません. 人向け出力では未選択リポジトリと長い一覧を要約し, `--verbose` で未選択行, `--format json --details` で全詳細を確認できます. `FIELDS_UNMATCHED` は要求したフィールドが今回の結果にないことを示しますが, 任意フィールドの場合もあります. 投影は許容的なままで, 空のコレクションでは通知しません.
+`INIT_PREPARED` はインストールやクローン前に計画を示します。新しいリモートソースの dry-run は manifest を取得せず、未知の内容は説明できません。stderr の進捗はハートビートであり、転送率や ETA ではありません。完全な JSON には `--details` を指定します。
 
-準備状態は `missing_tool`, `outdated_tool`, `disabled_tool` を区別します. Doctor のツール証拠には実行と同じ PATH 規則で解決した `binary_path` を含み, ランタイム管理ツールの shim を指す場合があります. status が正常終了しても `configured=false` なら準備完了ではありません. 設定済みであってもリソース権限やリモートクエリの成功は証明しません. `no_access` は個人の選択範囲外を表し, リモート ACL の拒否ではありません.
+ツール、ログイン、更新の問題は[サポート](support.md#troubleshooting)を参照してください。`no_access` は環境が未選択という意味で、リモート ACL の拒否ではありません。Git 転送の認証情報と任意のコードホスト API 確認は独立しています。
 
-個人設定はロック内で読み取りと更新を行い, ファイルを原子的に置換します. `CONFIG_BUSY` では競合する更新の完了後に再試行します. 初期化失敗で残った Git source checkout は同じソースの再試行に使用でき, 異なる upstream やローカル作業は保護されます.
+### Skill の所有権とホストの有効化 {#skill-ownership-and-host-activation}
 
-Bitbucket の任意のリポジトリ・ユーザー照会には、それぞれ 5 秒のプロセス実行期限があります。ツールが利用できない場合や照会がタイムアウトした場合も Git 転送は可能です。明示的なリポジトリアクセス拒否やリポジトリ不存在の結果は引き続き有効です。ユーザーのキャンセルと予期しない例外は処理を停止します。進捗は `preflight` の事前確認から始まり、リポジトリ変更時に `apply` へ切り替わります。
+ユーザー用 fx Skill はワークスペース間で共有し、ユーザー単位のロックで保護します。チームリンクは各ワークスペースに属し、対応インストーラーは自らの版を管理します。正しいファイルだけではホストの有効化を証明できません。
 
-Skill ステージが中断すると、`sync.stage_details.skills` に `links`、`fx`、`tools` が残り、ツールのインストール結果は `tool_install` に残ります。項目の `status` は `done`、`failed`、`not_started`、`skipped`、プレビューの `planned` を区別します。失敗時のリソース項目にはディスク上の状態を示す `observed` が付き、観察にも失敗した場合は `unknown` になります。書き込みエラーが起きても、保存先は既に変更されている場合があります。インストーラーの `ran: true` は実行を試みたこと、`code: null` は終了結果を取得できなかったことを示します。`phase: version` の失敗で `code: 0` なら、パッケージのインストール自体は成功しています。失敗した項目を解決してから再試行してください。例外後に後続の書き込みは実行しません。
-
-同じワークスペース名とソースであれば、登録済みルートのシンボリックリンク別名でも再試行できます。登録時には設定ロック内で実体パスを再確認し、実際に異なるディレクトリは競合として拒否します。
-
-### Skill の所有権とホストの有効化
-
-チーム Skill リンクはワークスペースに属します. fx 同梱 Skill はユーザーと選択したホストに属し, ワークスペース間で再利用されます. 初期化と同期では認識済みの新しい版を古い版で置換しません. 更新時はユーザー単位のロック内で所有権とバージョンを再確認し, 外部所有のコピーを保護します. 連携ツールは独自の Skill インストールとバージョン管理を所有するため, 別ワークスペースの同期でもそのインストーラーを呼び出す場合があります. ローカル Skill インストールは必ずしも通信を必要とせず, 呼び出し元の承認待ちと実行中の子プロセスを区別します.
-
-`agent list` は `detected`, `selected`, `selection` (automatic または explicit), `active: null` を返します. 検出は現在の活動を証明しません. 初期化前に `fx config set agents <id,...>` を明示して投影先を限定できます. `FX_HOME` は fx 設定だけを分離し, グローバル Skill は分離しません. 実験では HOME も分離してください.
-
-Grok 1.0.25 は Git ルートでのみプロジェクト hook を発見します. 通常のワークスペースルートでディレクトリを信頼するとガイドと Skill は利用できますが, hook 発見の制限は解消しません. `hook list` は制限を表示します. `fx sync --only docs,skills` を明示的に実行し, ワークスペースルートで Git を初期化しないでください. ホストの実行承認やキャンセルは fx 実行とは別で, auto モードも権限確認を無効にしません. Hook は fail-open を維持し, 生の入力や例外テキストを含まない有界な `HOOK_FAILED_OPEN` 診断を stderr に出力します. ファイル投影だけでは有効化を証明できません.
-
-## 共有サービス設定と個人の認証情報
-
-fx 0.1.3 では manifest の `service` で公開接続設定を配布できます。`fx init` はツールのインストール後、リポジトリへの問い合わせ前に設定を準備します。明示的な `fx sync` でも実行します。`fx sync --only services --dry-run` でこの段階を確認できます。バックグラウンド hook は確認のみで、サービス設定を書き換えません。
-
-準備はオフラインで行い、個人認証と分離します。PAT、API Token、パスワード、ブラウザーセッションは各メンバーが自分で取得し、対応 CLI でローカルに保存します。`auth_scheme` の `pat`、`token`、`basic`、`session` は方式名であり、認証情報の値ではありません。`service` は公開接続フィールドのみを許可し、非 strict モードでも追加フィールドを拒否します。URL や共有ファイルに認証情報を含めないでください。
-
-対応 CLI の `config set-context` に `--activate` や `--overwrite` を自動追加しません。最初の context の有効化は CLI の規約に従います。同じ値は再書き込みせず、競合時は元の値を保持し差分と上書きプレビューを返します。OpenObserve の既存ブラウザーセッションの URL や方式を変更する場合は新しい context が必要です。`session` は `auth login --browser` を使います。sync は個人の認可を実行しません。ログインと確認は宣言した context と URL を明示的に使用します。
-
-Sentry はワークスペースの `.sentryclirc` に URL と組織のデフォルトのみを受け取ります。既存 Token のコピーやグローバル設定の変更は行いません。公開設定が一致すれば再利用し、競合するファイルやリンクは保持します。ログインは `--url` を指定し、fx の問い合わせも同じ URL を使います。認可はメンバー本人が行います。
-
-`stage_details.services.items` の `configured`、`unchanged`、`planned`、`blocked`、`failed` と復旧手順を確認してください。設定成功は認証やリソースへのアクセス成功を意味しません。古い CLI は更新を案内し、自動置換しません。dry-run は設定も信頼記録も書き込みません。`service` のない旧 manifest は従来の設定手順を維持します。
-
-設定の上書き元を調べる際は、対象 context の公開設定とフィールドの出所を表示する CLI 機能を使います。環境変数全体やツールの接頭辞で一括抽出した値を表示しないでください。個人の Token やパスワードが含まれる可能性があります。信頼、読み取り専用モード、ツールの不足で確認できない場合は認証が「未検証」であり、認証情報の欠落や期限切れを示すものではありません。機械処理では JSON stdout と診断 stderr を分けて解析します。
+`hook list` で対応状況と検証状態を確認します。検証した Grok 1.0.25 は Git ルートでのみプロジェクト hook を検出し、通常のディレクトリ信頼では制限を解消できません。明示的な `fx sync --only docs,skills` を使い、ワークスペースルートは通常のディレクトリのままにします。ホストの実行承認は別途必要です。

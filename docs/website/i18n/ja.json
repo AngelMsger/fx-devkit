@@ -1,6 +1,6 @@
 {
   "heroAudience": "人にも、エージェントにも。",
-  "preRelease": "内部プレビュー",
+  "preRelease": "内部リリース",
   "heroMany": "リポジトリを、",
   "heroOne": "ひとつの",
   "heroWorkspace": "作業環境へ。",
@@ -30,7 +30,7 @@
   "agentBody": "構造化された応答、共有 Skill、明確な引き継ぎ。エージェントは次の操作と、人の判断が必要な場面を見つけられます。",
   "agentLink": "エージェント向け契約を読む",
   "architectureKicker": "02 / ツールをつなぎ、役割を保つ。",
-  "architectureTitle": "情報源はひとつ。<br />仕組みは透明に。",
+  "architectureTitle": "チームの情報を共有。<br />個人の選択を保持。",
   "architectureBody": "fx はワークスペースを調整します。認証、サービス API、アクセス制御は、それぞれのツールが担います。",
   "underHood": "ワークスペースを理解する ↗",
   "mapLabel": "チームのマニフェストから fx を通じてリポジトリ、ツール、エージェントを構成",
@@ -120,8 +120,8 @@
       "description": "fx ワークスペース CLI の変更点。"
     }
   },
-  "publicRelease": "公開プレビュー",
-  "publicInstallNote": "npm からインストールし、チームのマニフェストを接続。",
+  "publicRelease": "公開リリースは停止中",
+  "publicInstallNote": "公開は現在停止中です。チームの内部パッケージを利用してください。",
   "installTitle": "インストール",
   "navInstall": "インストール",
   "demoTitle": "ひとつの環境、3つの使い方。",

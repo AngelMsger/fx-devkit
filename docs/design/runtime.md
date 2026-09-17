@@ -22,7 +22,7 @@ hint, next_steps and retryable. Handoffs describe the user's missing action.
 
 `--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
 structured error. `--fields` projects result data; top-level error envelopes on stderr remain
-intact. Include nested recovery fields in the projection when they are needed. Reports from doctor/release always exit zero; their `ok`,
+intact. Include nested recovery fields in the projection when they are needed. Successfully generated doctor/release reports exit zero; their `ok`,
 `complete`, findings and coverage describe the actual outcome. Init/sync also
 preserve partial outcomes: inspect synchronization summary, stage counts and
 item failures. Additive `stage_details` retain document, Skill, tool, hook and MCP rows;
@@ -30,6 +30,30 @@ the existing `stages` field remains summary counts. A companion Skill error keep
 its structured `failure` and emits `SKILL_INSTALL_FAILED` on stderr, so neither
 quiet output nor aggregation hides its identity and recovery data. Init exposes
 these fields under `sync`. Registration or `written: true` does not prove readiness.
+
+## Workflow report views
+
+The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
+results and INIT_PREPARED notices. Application values remain complete. --details
+returns those values; explicit --fields projects them before any summary filter.
+Human and NDJSON retain their defaults. Summaries expose output_mode and omitted
+counts, keep exception rows and exact trust/recovery data, and remove successful
+rows and large finding evidence. Error envelopes remain intact on stderr.
+
+Init/sync operation distinguishes preview/apply. preparation_complete is null in
+preview, otherwise accounts for selected repositories and requested stages.
+Protected or unavailable work and unverified activation are incomplete. Excluded
+and explicitly inapplicable resources do not reduce completion. Doctor/release
+ok and coverage complete keep their existing independent meanings.
+
+Explicit empty agent lists survive scalar conversion in every entrypoint,
+including hooks and harness cleanup; an unset value alone selects detection.
+FX_SKILL_VERSION acknowledges the package-versioned bundled Skill. A legacy
+FX_SKILL_LOADED boolean does not bypass version checks. This is advisory session
+metadata, not an execution permission or proof of model comprehension.
+Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
+SKILL_WRITE_DENIED with their original cause and local recovery. Global locks
+continue coordinating shared targets across FX_HOME directories.
 
 ## Configuration
 
@@ -97,6 +121,8 @@ because interactive commands, queries, hooks and MCP have different IO lifetimes
 [Lifecycle](lifecycle.md) owns hook scheduling, output limits and projection
 recovery; [Windows](windows.md) owns platform-specific behavior and acceptance.
 
+## Partial execution and recovery
+
 Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat with completed/total, active names and elapsed milliseconds. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.
 
 Optional Bitbucket repository/user probes use five-second process deadlines. Readability timeouts become uncached `unknown`; explicit refusals/missing results stay authoritative. Cancellation and unexpected exceptions propagate. Repository heartbeat records begin before planning and include `phase: preflight | apply`.
@@ -104,6 +130,8 @@ Optional Bitbucket repository/user probes use five-second process deadlines. Rea
 Configuration updates await asynchronous decisions while holding the lease. Init planning and registration both compare real paths, including symlink aliases; registration rechecks current state under that lease.
 
 The executing Skill/package stage owns per-item `status` and partial results. Exceptions stop subsequent execution and retain prior rows. Skill recovery includes separate disk `observed` values because a failed operation may have written already; failed observations remain `unknown`. Package rows preserve the installer exit code even if a later version probe throws (`phase: version`). Sync nests a failing stage's partial result under `stage_details[stage]` without replacing its contents. These additions retain the original error category, code, guidance and exit status.
+
+## Command selection and compatibility
 
 Canonical resource entries are `agent skills`, `tool inventory`, `hook enable/disable`,
 `manifest repo-set` and `manifest record-probe`; prior spellings remain compatible.
@@ -127,27 +155,3 @@ before cwd discovery. Unknown explicit selectors fail rather than editing a near
 checkout. Without a selector, standalone source maintenance keeps cwd precedence.
 Commands taking a source-independent schema or explicit directory retain those
 contracts. All file-output flags include the `-o` shorthand.
-
-## Workflow report views (0.2.0)
-
-The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
-results and INIT_PREPARED notices. Application values remain complete. --details
-returns those values; explicit --fields projects them before any summary filter.
-Human and NDJSON retain their defaults. Summaries expose output_mode and omitted
-counts, keep exception rows and exact trust/recovery data, and remove successful
-rows and large finding evidence. Error envelopes remain intact on stderr.
-
-Init/sync operation distinguishes preview/apply. preparation_complete is null in
-preview, otherwise accounts for selected repositories and requested stages.
-Protected or unavailable work and unverified activation are incomplete. Excluded
-and explicitly inapplicable resources do not reduce completion. Doctor/release
-ok and coverage complete keep their existing independent meanings.
-
-Explicit empty agent lists survive scalar conversion in every entrypoint,
-including hooks and harness cleanup; an unset value alone selects detection.
-FX_SKILL_VERSION acknowledges the package-versioned bundled Skill. A legacy
-FX_SKILL_LOADED boolean does not bypass version checks. This is advisory session
-metadata, not an execution permission or proof of model comprehension.
-Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
-SKILL_WRITE_DENIED with their original cause and local recovery. Global locks
-continue coordinating shared targets across FX_HOME directories.

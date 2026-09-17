@@ -1,6 +1,6 @@
 {
   "heroAudience": "為人，也為 Agent。",
-  "preRelease": "內部預覽",
+  "preRelease": "內部發行版",
   "heroMany": "多個儲存庫，",
   "heroOne": "一個",
   "heroWorkspace": "工作區。",
@@ -30,7 +30,7 @@
   "agentBody": "結構化回答、共用 Skill、明確的交接步驟。Agent 能找出下一步做什麼，以及何時需要你。",
   "agentLink": "閱讀 Agent 使用契約",
   "architectureKicker": "02 / 連接你的技術棧。",
-  "architectureTitle": "單一事實來源。<br />沒有黑箱。",
+  "architectureTitle": "共用團隊事實。<br />保留個人選擇。",
   "architectureBody": "fx 編排工作區；驗證、服務 API 和存取控制，仍由各自的工具負責。",
   "underHood": "了解工作區概念 ↗",
   "mapLabel": "團隊 manifest 經 fx 編排，連接儲存庫、工具和編碼 Agent",
@@ -120,8 +120,8 @@
       "description": "fx 工作區 CLI 的變化。"
     }
   },
-  "publicRelease": "公開預覽",
-  "publicInstallNote": "從 npm 安裝，再接入團隊的 manifest。",
+  "publicRelease": "公開發佈暫停",
+  "publicInstallNote": "公開發佈暫緩，請使用團隊提供的內部套件。",
   "installTitle": "安裝 fx",
   "navInstall": "安裝 fx",
   "demoTitle": "一個工作區，三種使用方式。",

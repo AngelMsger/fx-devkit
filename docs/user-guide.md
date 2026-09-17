@@ -6,13 +6,13 @@ Install fx, connect your team’s manifest, and work with repositories and codin
 
 - Node.js ≥22 (development uses Node 24), or Bun as an alternative runtime.
 - Git on PATH. Companion CLIs can be installed afterward through `fx tool install`.
-- A manifest source: use your team's repository or [create your own](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/).
+- A manifest source: use your team's repository or [create your own](manifest-guide.md).
 - npm for global installation and `fx self update`, including when using Bun.
 
 macOS and Linux are supported. Native Windows adapters are implemented, but
 Windows execution and real host activation remain unverified. Windows targets
 PowerShell 5.1/7 and cmd on local NTFS, without requiring WSL, Git Bash,
-administrator privileges or Developer Mode. See [platform support](https://angelmsger.github.io/fx-devkit/docs/support/#platform-support).
+administrator privileges or Developer Mode. See [platform support](support.md#platform-support).
 
 ## Install
 
@@ -80,17 +80,17 @@ when running from source. Building is required because the launcher loads `dist/
 For a source installation, update your checkout and run `npm ci` and
 `npm run build` again. `fx self info --format json` shows the running version
 and configured package registry. See the
-[update guide](https://angelmsger.github.io/fx-devkit/docs/support/#updates).
+[update guide](support.md#updates).
 
 ## Quick start
 
 Create a workspace from the source your team supplies. If you do not have one,
-start with the [manifest guide](https://angelmsger.github.io/fx-devkit/docs/manifest-guide/). Replace angle-bracket
+start with the [manifest guide](manifest-guide.md). Replace angle-bracket
 placeholders before running commands:
 
 ```sh
-fx init ./work --from <manifest-repository> --dry-run
-fx init ./work --from <manifest-repository>
+fx init ./work --name work --from <manifest-repository> --dry-run
+fx init ./work --name work --from <manifest-repository>
 cd work
 fx login --list
 fx login
@@ -141,7 +141,7 @@ resetting or stashing it.
 The manifest's workspace, environments, tools and members documents describe
 shared facts; optional harness declarations describe MCP resources and rules.
 Use `fx manifest explain '<path>'` or `fx manifest schema --kind <kind>` to inspect
-fields. [Workspace concepts](https://angelmsger.github.io/fx-devkit/docs/getting-started/#concepts) explains their relationships.
+fields.
 
 ### Your personal layer
 
@@ -179,44 +179,21 @@ a disabled tool. No-argument invocations fail before package operations.
 
 ### Shared service settings and personal credentials
 
-With fx 0.1.3, a manifest can declare public `service` settings for a provider or
-platform. `fx init` prepares them after installing missing tools and before
-repository queries. Explicit `fx sync` also prepares them; use
-`fx sync --only services --dry-run` to inspect just this stage. Background hooks
-only check readiness and never change companion service settings.
+A manifest can declare public `service` settings such as URLs, contexts,
+organizations and authentication methods. `init`, explicit `sync` and `login`
+prepare them through trusted companion commands; background hooks only check.
+Preview service changes with `fx sync --only services --dry-run`.
 
-When diagnosing overrides, inspect the companion's scoped public configuration
-and its field provenance. Do not dump the process environment or filter all
-variables by a tool prefix: those outputs can contain personal tokens or passwords.
-A check blocked by trust, read-only mode or tool availability means authentication
-is unverified; it does not establish missing or expired credentials. For machine
-checks, parse JSON stdout separately from diagnostic stderr.
+Configuration and authentication are separate. Each member obtains and stores
+credentials through the companion CLI. Existing conflicting settings are preserved
+and reported for review; sync never signs in or activates another context. Sentry
+uses public workspace `.sentryclirc` defaults and preserves foreign files.
 
-Service preparation is offline and separate from authentication. Every member
-must obtain their own Personal Access Token, API token, password or browser
-session and store it through the companion CLI. `auth_scheme: pat`, `token`,
-`basic` or `session` names a method, never a credential value. The manifest accepts
-only public connection fields and rejects additional fields inside `service`,
-even without strict validation. Do not put credentials in URLs or shared files.
-
-Family companions use `config set-context` without `--activate` or `--overwrite`.
-Matching settings remain unchanged; conflicts preserve existing values and report
-public field differences plus an explicit overwrite preview. Browser-managed
-OpenObserve sessions require a new context to change their service or scheme.
-Each login/check uses the declared context and service address. OpenObserve
-`session` uses `auth login --browser`; personal authorization is never part of sync.
-
-Sentry receives only URL and organization defaults in the workspace's
-`.sentryclirc`. Matching public defaults are reused; conflicting files and links
-are preserved. Login names the instance with `--url`, and fx queries use the same
-address. fx never copies an existing token into this file or changes global Sentry
-defaults. Each member completes their own authorization.
-
-Inspect `stage_details.services.items` for `configured`, `unchanged`, `planned`,
-`blocked` or `failed` and recovery steps. Service setup may be partial; successful
-preparation does not establish authentication or resource access. Old companions
-are reported for upgrade, not silently replaced. A dry run neither writes settings
-nor records trust. Old manifests without `service` retain their setup flow.
+In sync results, inspect `stages.services` and `stage_details.services.items`
+(`sync.*` for init). Default JSON retains blocked/failed rows; `--details` also
+shows successful rows. See [service presets](manifest-guide.md#public-service-presets)
+for the declaration format and [response contracts](../skills/fx-workspace/references/commands.md#service-preparation)
+for recovery details.
 
 ### Tool installation history
 
@@ -226,152 +203,93 @@ fx tool history bitbucket-cli --format json
 fx tool inventory --format json
 ```
 
-`init`, `tool install` and `tool update` persist attempts in
-`$FX_HOME/tool-history.json` (default `~/.fx/tool-history.json`). Each attempt has
-`started`, optional `installed`, and `finished` checkpoints, including the
-workspace, package manager/package, redacted installation vector, exit code,
-version and executable paths before and after the operation. `installed` means
-that the package manager exited successfully, even if version verification later
-fails. A lone `started` record does not prove successful execution. Dry runs,
-manual instructions and unchanged tools skipped during init create no records.
-The ledger is local operational evidence, excluded from profile exports.
+`init`, `tool install` and `tool update` record attempts in
+`$FX_HOME/tool-history.json`. `installed` means the package manager succeeded;
+version verification can still fail. A lone `started` record does not establish
+success. Dry runs and init's skipped existing tools create no records.
 
-`tool inventory` distinguishes **installation origin** from the definition origin
-shown by `tool list/show`:
+Inventory separates installation origin from the definition source shown by
+`tool list/show`:
 
-| installation_origin | Evidence                                                                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `fx`                | A successful fx operation installed a previously absent executable; its recorded path still matches.                                   |
-| `external`          | The known executable already existed without an fx installation receipt. Updating or reinstalling it through fx preserves this origin. |
-| `unknown`           | Legacy records, interrupted operations or changed/missing paths cannot establish the current origin.                                   |
+| installation_origin | Meaning                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `fx`                | fx installed a previously absent executable and the recorded path still matches.              |
+| `external`          | The executable existed without an fx installation receipt; updating it preserves this origin. |
+| `unknown`           | The available records or current path cannot establish origin.                                |
 
-`external` does not identify who installed the tool; it includes tools installed
-by a person or another manager. Observing PATH cannot prove historical ownership
-or detect an outside replacement at the same path. Older v1 ledgers remain readable;
-new operations write v2 checkpoints. Missing legacy ownership evidence stays unknown.
-The new ledger is not intended to be opened by older fx versions.
+Requirements cover all workspaces registered in this `FX_HOME`, including enabled
+optional tools and bundled defaults. Only a confirmed fx installation with no
+remaining requirement can be `unused`. The suggestion is advisory: unregistered
+projects and other `FX_HOME` directories are outside this check. `sync` and
+`doctor` never uninstall packages. Unreadable manifests or incomplete evidence
+cannot establish that removal is safe.
 
-Inventory checks known tools from bundled definitions and locally registered
-manifests, plus packages retained in history after their definitions disappear.
-Unrecorded PATH observations have `recorded: false`; package manager, package,
-version and operation fields remain null rather than guessed. Inspection does not
-write installation receipts or adopt existing executables.
-
-Requirements are recalculated from **all workspaces registered in this FX_HOME**,
-including enabled optional tools and bundled defaults. A matching binary or
-manager/package keeps a tool `required`. Disable a bundled tool with
-`enabled: false`; removing its patch restores the default. Only an installation
-with `installation_origin: fx`, completed evidence, a matching executable path
-and no remaining workspace requirement can become `unused`. External tools and
-unknown origins never receive removal suggestions. `sync` emits `TOOL_UNUSED`
-and returns `stage_details.tools.installations`; `doctor` adds advisory findings.
-Neither command uninstalls anything.
-
-Unreadable/quarantined manifests or incomplete evidence yield `unknown`; failed
-attempts without success are `unverified`. A missing binary is `not_on_path`, a
-replaced path is `changed`, and an operation outside a workspace is `unscoped`.
-These states do not suggest removal. The check reads local manifests without
-refreshing their remotes; other FX_HOME directories and unregistered projects
-remain outside its dependency coverage. An invalid ledger blocks new package
-operations before execution; preserve and repair it before retrying.
+Inspection does not adopt PATH tools or reconstruct older installation history.
+See [inventory fields](../skills/fx-workspace/references/commands.md#installation-audit-and-inventory)
+and [local data](user-privacy.md#what-stays-on-your-machine) for details.
 
 ### Skills
 
-The bundled **fx-workspace** Skill teaches agents to use fx, including workspace
-initialization and readiness recovery. Install it before creating a workspace:
+The bundled **fx-workspace** Skill teaches agents to use fx. It can be read
+without installation or a registered workspace:
 
 ```sh
-fx skill install
-fx skill install --agent codex
-fx skill status
-fx skill path
-fx skill show
+fx self info --format json   # bundled_skill and bundled_skill_version
+fx skill show               # print the bundled SKILL.md
+fx skill status             # installed copies and the declared session version
 ```
 
-`install` and `uninstall` detect agents in the selected scope by default; explicit
-`--agent` accepts repeated or comma-separated IDs. `path` and `status` list all
-known agents unless narrowed. Use `--project` for the current directory, or
-`--dir ./custom-skills` for `<dir>/fx-workspace`; `--dir` excludes `--agent` and
-`--project`. No workspace or service login is needed. Standalone target selection
-is independent of configured workspace agents. Project detection uses native
-markers; user detection also recognizes agent executables on PATH.
+To make a copy discoverable by a host, use `fx skill install --agent codex`.
+`--project` targets the current directory; `--dir ./custom-skills` targets an
+independent directory and excludes `--agent` and `--project`. Standalone Skill
+commands choose their own targets, independently of workspace agent selection.
+See the [Skill reference](../skills/fx-workspace/references/commands.md#standalone-companion-skill)
+for detection, replacement and uninstall behavior.
 
-Explicit `skill install` refreshes recognized copies to this CLI's bundled version,
-including same-version repairs and replacing a newer copy. `init` and `sync`
-reuse same-version copies and never downgrade newer copies. Foreign paths need
-confirmation and a backup. Preview with `--dry-run`; read-only posture applies.
-`skill uninstall` removes recognized copies after confirmation (`--yes` for a
-non-interactive call), preserves foreign paths, and leaves workspace selection
-unchanged: a later sync can reinstall a selected host's user copy.
+Explicit `skill install` refreshes recognized copies to the invoking CLI version,
+including same-version repair or replacement of a newer copy. `init/sync` reuse
+same-version copies and never downgrade newer ones. Foreign replacements require
+confirmation and backup. Uninstalling a copy does not unselect its host, so later
+sync may install it again.
 
-`status` distinguishes installation, version alignment and the `FX_SKILL_VERSION`
-handshake. Installation does not prove the agent loaded the Skill. `path` reports
-installation destinations; `self info` locates the bundled source. `show` prints
-raw SKILL.md in every output format. Skill commands are local: no update checks,
-manifest refresh, companion installers or service login probes. Non-TTY business
-commands, including init, provide a structured notice until the bundled Skill
-version is acknowledged. Self info and Skill bootstrap commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
+Installation, version alignment and declared loading are separate facts. After
+reading the bundled instructions, agents declare `FX_SKILL_LOADED=1` and
+`FX_SKILL_VERSION=<bundled_skill_version>`; a declaration is not proof of reading.
+Bootstrap commands stay quiet. Other non-TTY commands provide advisory guidance
+until the version matches; `FX_SKILL_NOTICE=0` suppresses it.
 
-**Team Skills** are maintained in the manifest's `skills/` tree and linked into
-selected agents' project Skill directories by `init` and `sync`. Windows uses
-junctions. The workspace root AGENTS.md also lists each Skill's trigger description
-and a source link, so agents can read a matching Skill explicitly. Start agents at
-the workspace root; this does not promise discovery from child repositories.
-Use `agent skills` to inspect workspace delivery and `sync --only docs,skills` to
-refresh guides and Skills. Never install the fx companion through a shared team
-Skill link: such targets are rejected with `SKILL_SOURCE_PROTECTED`. Use a user
-installation or an independent directory.
+**Team Skills** live in the manifest's `skills/` tree. Init/sync link that tree into
+selected hosts and generate a catalog in the root AGENTS.md. Start at the workspace
+root; child-repository discovery is not guaranteed. Refresh with
+`fx sync --only docs,skills`. Never install the bundled companion through a shared
+team Skill link; use a user copy or an independent directory.
 
 ### Team MCP and rules
 
 Harness declarations project owned MCP entries and rule pointers into selected
 hosts. Secret values remain environment references. `mcp list/show` and
 `can mcp:<name>` explain prerequisites; a correct configuration does not prove
-native host activation. See [agent usage](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents).
+native host activation. See [agent usage](user-guide.md#for-coding-agents).
 
 ### Workspace lifecycle
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
 project and hook trust remain owned by the host. Use `hook list`, `hook enable`
-and `hook disable`; [lifecycle](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents) describes the boundaries.
+and `hook disable`; [lifecycle](user-guide.md#for-coding-agents) describes the boundaries.
 
 ### Shared source contributions
 
 `source push` previews or submits selected source changes while preserving the
 source checkout's HEAD, index and working files. It requires evidence of a personal
 fork and its upstream relationship. Inspect `fx source push --help` and the
-[command reference](https://angelmsger.github.io/fx-devkit/docs/cli/#fx-source-push) before an actual submission.
+[command reference](cli/README.md#fx-source-push) before an actual submission.
 
 ## Commands
 
-Daily workflows remain top-level; resource operations live under a noun:
-
-`agent skills` inspects workspace Skill delivery; `skill install/show/path/status/uninstall`
-manage the bundled companion independently. `manifest repo-set` edits repository
-fields; `manifest record-probe <repo> --env <env> --platform <platform>` records
-verified coordinate evidence, with `--dry-run` returning a plan without probing.
-`where` remains the coordinate query entry. Compatibility entries remain available:
-`skill list`, `tool installed`, `hook inject/remove`, `manifest set` and
-`where --probe --record` retain their existing operations. Topic help lists canonical
-commands first and compatibility mappings separately. Command-name completion and
-typo suggestions use canonical names; flags still complete after a typed alias.
-
-For `manifest validate/lint/providers/repo-set/render`, explicit `--workspace` or
-`FX_WORKSPACE` selects the registered source even inside another source checkout.
-An unknown explicit name fails instead of falling back to that checkout. Without
-an explicit selector, these commands use the source checkout around the current
-directory before resolving a workspace. `manifest import <dir>` keeps its explicit
-input directory. File-output options accept `-o` and `--out`, including render.
-
-Collection flags such as `--only`, repeatable `--env` and `--agent` accept repeated
-or comma-separated values. Agent selection is global: pick/unpick results include
-`scope: global` and `affected_workspaces`; repository/environment selection reports
-`scope: workspace` and `workspace`. Inventory/history cover the entire FX_HOME,
-even when `--workspace` is supplied. Completion recognizes option values,
-positional arguments and negative flags; regenerate installed completion scripts
-after upgrading. Root and topic help accept leading global flags, but help, completion,
-`skill show` and `manifest schema` emit their native text/artifact formats.
+Daily workflows remain top-level; resource operations live under a noun.
+Use `fx <topic> --help` for canonical commands and compatibility aliases.
+Repeated and comma-separated collection selectors are both accepted.
 
 | Intent                                        | Entry                                                                              |
 | --------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -389,7 +307,7 @@ after upgrading. Root and topic help accept leading global flags, but help, comp
 `list/show` discovers resources; `pick/unpick` changes selection; `add/remove`
 changes local registration. Bare topics show their available commands. Unknown commands and invalid
 selectors produce structured errors. The
-[generated CLI reference](https://angelmsger.github.io/fx-devkit/docs/cli/) owns the full syntax and flags.
+[generated CLI reference](cli/README.md) owns the full syntax and flags.
 
 ## Integrations
 
@@ -414,69 +332,58 @@ Agent discovery includes Claude Code, Codex CLI, Cursor and other registered
 hosts. **Skill delivery, hooks, MCP and rules have different support per host.**
 Use `fx agent list`, `fx hook list` and `fx mcp list` to inspect the relevant
 capabilities instead of assuming feature parity. See the
-[agent usage](https://angelmsger.github.io/fx-devkit/docs/getting-started/#for-coding-agents).
+[agent usage](user-guide.md#for-coding-agents).
 
 ## For coding agents
 
+Start with `fx self info --format json`, read the returned bundled Skill (or
+`fx skill show`), then declare `FX_SKILL_LOADED=1` and the matching
+`FX_SKILL_VERSION`. Use the [Skill](../skills/fx-workspace/SKILL.md) for task routing.
+
+stdout carries results; stderr carries notices, progress and error envelopes.
+Keep the streams separate. Collections use `{items, has_more, next?}`.
+`--no-input` prevents prompts; `--quiet` suppresses notices and progress.
+
+`init`, `sync`, `doctor` and `release` default to JSON summaries. They preserve
+counts, exceptions and recovery actions; `omitted` counts rows/evidence left out.
+Use `--details` for full results. Explicit `--fields` projects the full result,
+while `--verbose` controls diagnostics. Human output, NDJSON and fact queries such
+as `repo list`, `where` and `can` keep their normal behavior.
+
+| Result              | What to read                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `init`, `sync`      | `operation` and `preparation_complete`: previews use `null`; apply is complete only for selected repositories and requested stages. |
+| `doctor`, `release` | `ok` means no failure findings; `complete` means no requested check lacks coverage. Warnings still matter.                          |
+| `can`               | `status` and any `handoff`; readiness is separate from a specific remote query succeeding.                                          |
+
+Doctor/release can exit zero with failing findings. Init/sync can report partial
+success, and errors may follow partial stdout. A protected dirty/diverged checkout,
+blocked or failed stage, or unverified activation prevents preparation from being
+complete. Excluded resources do not. Preparation does not establish remote health.
+
+Choose the output view before executing a write. For an authorized sync, capture
+the full result once and inspect the same file afterward:
+
 ```sh
-fx status --format json --no-input
-fx sync --dry-run --format json --no-input
-fx doctor --format json --no-input
+fx sync --format json --details > sync-result.json
 ```
 
-stdout is data. JSON collections use `{items, has_more, next?}`. Errors are JSON
-on stderr with stable category/code, `hint`, `next_steps` and `retryable`.
-Notices and progress also use stderr. `--fields` projects data; `--quiet` suppresses
-notices; `--no-input` prevents prompts. Every write supports `--dry-run` and
-read-only posture, with explicit `--allow-writes` for a single invocation.
-
-Doctor/release exit zero even with failing findings. Init/sync may also return
-partial results with exit zero: inspect `sync.summary` and `sync.stages` for init,
-`summary` and `stages` for sync, and each failed item’s `failure`. `stage_details`
-retains resource-stage results, including companion failure envelopes and hook/MCP
-handoffs. Read report
-coverage and handoffs instead of treating the exit code as readiness. A missing user step is
-a handoff, never a reason to invent authentication or override host trust.
-
-Use the bundled [fx-workspace Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/) and its
-[command guide](https://angelmsger.github.io/fx-devkit/docs/agent-commands/) for response semantics.
-`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1` and `FX_SKILL_VERSION` to the returned
-`bundled_skill_version` after reading it, using your shell's environment syntax. The Skill is shipped in
-the package; source architecture and verification pages are additional references.
+Read that JSON with a parser; do not truncate it with byte limits or repeat sync
+just to obtain details. Partial results and the original stderr error must both
+be considered. See [response contracts](../skills/fx-workspace/references/commands.md).
 
 ## Migrating to 0.2.0
 
-`init`, `sync`, `doctor` and `release` now summarize JSON by default. The
-`output_mode: summary` result retains overall counts, every exception and its
-recovery actions; `omitted` counts normal rows and evidence left out of that view.
-Use `--details` for complete results, including successful rows and evidence.
-Explicit `--fields` projects the complete result. Human output, NDJSON and fact
-queries such as `repo list`, `where` and `can` keep their previous defaults.
-`--verbose` controls diagnostics, independently of `--details`.
+- Workflow JSON now defaults to summaries. Scripts that need successful rows or
+  finding evidence should add `--details`; existing `--fields` projections still
+  use the full result.
+- An explicit empty agent selection now means none. Use `config unset agents`
+  and remove any `FX_AGENTS` override to restore automatic detection.
+- Agents declare `FX_SKILL_VERSION` after reading the current bundled Skill.
+  The old `FX_SKILL_LOADED=1` boolean alone does not verify the version.
 
-`init` and `sync` report `operation: preview|apply` and `preparation_complete`.
-Preview returns `null` and describes intended effects, including registration;
-apply returns `true` only when the selected, requested preparation is complete.
-Protected dirty/diverged repositories, blocked or failed work and unverified
-activation leave it `false`; unselected or explicitly inapplicable resources do
-not. This is not proof that remote services are healthy. Doctor/release retain
-their existing, separate `ok` and coverage `complete` semantics and exit behavior.
-
-An explicit `agents: []`, or an empty `FX_AGENTS`, selects no agents. Remove that
-setting with `fx config unset agents` (and unset any environment override) to
-restore automatic detection. `FX_HOME` still does not relocate global Skills.
-`SKILL_WRITE_DENIED` (permission, exit 5) identifies denied Skill/lock access and
-preserves partial results. Continue with available source files or use scoped
-`fx sync --only repos,docs --no-refresh-manifest`; retry Skill writes only after
-filesystem access changes, respecting the existing trust boundary.
-
-For an agent, first run `fx self info --format json`, read the returned
-`bundled_skill/SKILL.md` (or `fx skill show`), and declare both
-`FX_SKILL_LOADED=1` and `FX_SKILL_VERSION=<bundled_skill_version>`.
-The boolean alone cannot establish version alignment. Missing/mismatched versions
-produce non-blocking notices, including during init. No global Skill installation
-is needed to read the bundled instructions. Keep JSON stdout separate from stderr;
-parse/project fields instead of truncating JSON with `head -c` or `tail -c`.
+These contracts are described in [agent usage](#for-coding-agents) and
+[agent selection](#agent-selection).
 
 ## Configuration
 
@@ -510,30 +417,52 @@ fx.cmd completion powershell | Out-File -Encoding utf8 "$HOME\fx-completion.ps1"
 
 Bash, zsh and fish are also available through `fx completion <shell>`.
 
+### Agent selection
+
+`fx config set agents codex` selects specific hosts; `fx config set agents ''`
+selects none. An empty `FX_AGENTS` also selects none. Unset both overrides to
+restore detection. Selection is global across workspaces in this `FX_HOME`.
+`FX_HOME` relocates fx state, not global Skills or companion credential storage.
+
 ## Reading initialization and recovery results
 
-Bitbucket's optional repository and user probes each have a five-second process deadline. An unavailable or timed-out probe does not prevent Git transport; explicit repository access refusals and missing repositories remain authoritative. Cancellation and unexpected exceptions stop the operation. Progress begins during `preflight`, then switches to `apply` for repository changes.
+`init` can register a workspace before a later phase fails. Read partial stdout
+even after a nonzero exit, then resolve the reported cause before retrying the
+same name, source and directory. A symlink alias of the same root is accepted;
+a different root remains a conflict.
 
-On an interrupted Skill stage, `sync.stage_details.skills` retains `links`, `fx` and `tools`; tool installation retains `tool_install`. Item `status` distinguishes `done`, `failed`, `not_started`, `skipped` and dry-run `planned`. Resource rows include `observed` disk state on failure (`unknown` if observation also fails). A failed write may already have changed the destination. Installer `ran: true` means execution was attempted; `code: null` means no exit result was obtained. A `phase: version` failure with `code: 0` retains the successful package installation. Resolve the failed item before retrying; exceptions do not trigger later writes.
+| Evidence                            | Meaning and next step                                                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `registered` / `written`            | Registration or local writes occurred; inspect `preparation_complete` separately.                            |
+| `failed_phase`, `phases`, `failure` | Identify where init stopped and retain the original recovery steps.                                          |
+| `sync.stages`, `sync.stage_details` | Init's repository/resource outcomes; sync exposes these without the `sync` prefix.                           |
+| `tool_install`                      | Installation attempts; `code: null` is not success. A version-check failure can follow a successful install. |
+| `observed`                          | Disk state after a Skill failure; a failed write may already have changed the destination.                   |
 
-Retrying the same workspace name and source accepts a symlink alias of the registered root. Registration rechecks physical path identity under the configuration lock; a genuinely different root remains a conflict.
+Choose a targeted recovery after fixing the cause. For `SKILL_WRITE_DENIED`, inspect
+the denied path; changing `FX_HOME` does not relocate shared Skill locks. Local
+repository/guide work can continue with
+`fx sync --only repos,docs --no-refresh-manifest`. This does not fix the Skill
+stage. Do not retry the same permission failure or approve an untrusted vector
+without the required authorization.
 
-Positional arguments come only from argv; stdin is read only when explicitly requested, such as `init --from -`. A quoted multiword command is a usage error. Git clone uses Git credentials independently of the optional code-host API CLI. Git errors distinguish absent branches, transport authentication, connectivity and local conflicts; retry guidance retains the branch and destination.
+`INIT_PREPARED` reports the plan before installers/cloning. A fresh remote-source
+dry run does not fetch the source, so it cannot describe unknown source contents.
+Progress on stderr reports active repositories and elapsed time; it is not a Git
+transfer percentage or ETA. Full JSON requires `--details`.
 
-After source validation and registration, `INIT_PREPARED` shows planned installation vectors and Skill destinations before tool execution or cloning. Missing tools can reveal additional Skill vectors after installation; those still require exact-command approval. A fresh remote-source `init --dry-run` does not fetch the source or claim to know its contents. Foreign-file replacement always needs approval and a backup.
-
-If a later initialization phase throws, stdout retains a partial result with `failed_phase`, `phases`, the structured `failure`, completed repository results and recovery steps. Stages use `done`, `failed` or `not_started` in failure results; successful sync stages keep their normal summary counters. stderr retains the original error and the exit code remains nonzero. An untrusted Skill command is a blocked tool row (`tools_blocked`); independent owned local projections can complete. Inspect blocked and failed rows even when the command exits zero.
-
-Repository progress on stderr reports completed/total, active repositories and elapsed time every five seconds while work is pending. It is a heartbeat, not Git byte progress or an ETA. Human output summarizes unselected repositories and large result lists; `--verbose` exposes unselected rows and `--format json` retains all details. A `FIELDS_UNMATCHED` notice means requested fields are absent from this response, possibly because they are optional; projection stays permissive and empty collections produce no such notice.
-
-`missing_tool`, `outdated_tool` and `disabled_tool` are distinct readiness verdicts. Doctor tool evidence includes `binary_path`, resolved by the same PATH policy used for execution; it can point to a runtime-manager shim. A successful status process with `configured=false` does not establish readiness. Even configured prerequisites do not prove resource permissions or a successful remote query. `no_access` describes an environment outside your personal selection, not a remote ACL denial.
-
-Personal config updates serialize read/modify/write and atomically replace the file. Retry `CONFIG_BUSY` after the competing update finishes. A validated Git-source checkout left by a failed initialization can be reused for the same source; foreign upstreams and local work remain protected.
+For missing or outdated tools, login, manifest validation and updates, use
+[Support](support.md#troubleshooting). `no_access` means an environment is outside
+personal selection, not a remote ACL denial. Git transport uses its own credentials;
+optional code-host API probes are separate.
 
 ### Skill ownership and host activation
 
-Team Skill links belong to a workspace. The bundled fx Skill belongs to the user and selected host, is reused across workspaces, and during init/sync never replaces a newer recognized copy with an older version. Explicit `fx skill install` refreshes it to the invoking CLI version. Updates recheck ownership/version under a user-wide lock; foreign copies remain protected. Companion tools own their own Skill installer and version behavior, so fx can invoke those installers again during another workspace sync. Local Skill installation is not inherently a network operation; distinguish caller approval waits from an executing subprocess.
+Bundled user Skills are shared across workspaces and protected by a user-wide
+lock. Team Skill links belong to their workspace; companion installers own their
+own version behavior. A matching file alone does not prove native activation.
 
-`agent list` exposes `detected`, `selected`, `selection` (automatic or explicit), and `active: null` because detection is not evidence of current activity. Set `fx config set agents <id,...>` explicitly before initialization to limit projections. `FX_HOME` isolates fx configuration, not global user Skills; use a separate HOME as well for experiments.
-
-Grok 1.0.25 requires a Git root to discover project hooks. At a plain workspace root, normal directory trust can enable guides and Skills but does not fix hook discovery. `hook list` reports this activation limitation; run `fx sync --only docs,skills` explicitly. Do not initialize Git at the workspace root. Host execution approval or cancellation is separate from fx execution; auto mode does not disable host permission checks. Hooks fail open with a bounded `HOOK_FAILED_OPEN` diagnostic on stderr that omits raw input and exception text; a projection alone never proves activation.
+Inspect `hook list` for supported and unverified states. In the tested Grok 1.0.25
+host, project hooks require a Git root; normal directory trust does not enable them
+at a plain workspace root. Use explicit `fx sync --only docs,skills`, and keep the
+workspace root a plain directory. Host execution approval remains independent of fx.
