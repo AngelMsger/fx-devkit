@@ -90,6 +90,19 @@ describe('Status', () => {
     expect(h.git.calls.filter((c) => c.startsWith('fetch'))).toHaveLength(2);
   });
 
+  it('includes untracked-only work in --dirty without changing tracked dirtiness', async () => {
+    const h = await harness();
+    h.git.add(path.join(ROOT, 'fx-example-api'), {
+      state: { branch: 'dev', dirty: false, untracked: 2, ahead: 0, behind: 0 },
+    });
+    const rows = await new Status(h.deps).execute({ fetch: false, dirtyOnly: true });
+    expect(rows).toMatchObject([
+      { name: 'fx-example-api', dirty: false, untracked: 2, uncommitted: true },
+    ]);
+    const empty = await harness({ local: { scope: { repos: [] } } });
+    expect(await new Status(empty.deps).execute({ fetch: false, dirtyOnly: true })).toEqual([]);
+  });
+
   it('previews every fetch before the write gate and applies none of them', async () => {
     const h = await harness();
     h.git.add(path.join(ROOT, 'fx-example-api'), {

@@ -20,6 +20,7 @@ import { checkLogin } from './login.js';
 import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
 import { checkSelf } from './self.js';
+import { doctorToolScope } from './tool-scope.js';
 import { checkTools } from './tools.js';
 import { GROUPS, type DoctorReport, type DoctorExtension, type RepairAttempt } from './types.js';
 
@@ -55,13 +56,15 @@ export class Doctor {
 
   async execute(input: DoctorInput): Promise<DoctorReport> {
     validateSetupSelection(this.deps.ctx, input);
-    const repairs = input.fix ? await this.fix(input) : [];
+    const toolScope = doctorToolScope(this.deps.ctx, this.doctor.login.describeProvider, input);
+    const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
     const groups = await Promise.all([
       checkRepos(this.deps),
       checkInstallations(this.doctor.inventory, input.tools),
-      checkTools(this.deps, { names: input.tools, trust: this.doctor.login.trust }),
+      checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }),
       checkLogin(this.deps, this.doctor.login, {
-        tools: input.tools,
+        tools: toolScope.configuredNames,
+        requiredTools: toolScope.required,
         envs: input.envs,
         dryRun: input.dryRun,
       }),

@@ -37,7 +37,8 @@ produce the effective workspace; personal choices do not duplicate shared facts.
 Git sources can refresh safely, while directory and stdin sources are snapshots.
 
 Sync plans repository changes and managed resource projections, then applies
-write gates before effects. Repository updates preserve user work. Guides, Skills,
+write gates before effects. Repository updates preserve user work; [status and recovery](status-recovery.md)
+describes uncommitted-work visibility and live access checks. Guides, Skills,
 hooks, MCP entries and rules use ownership checks so unrelated content survives.
 Lifecycle dispatch reuses only the bounded background subset: it does not sync
 business repositories or make contribution writes.

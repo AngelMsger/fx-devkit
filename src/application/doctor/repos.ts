@@ -19,7 +19,7 @@ export async function checkRepos(deps: WorkspaceDeps): Promise<Finding[]> {
         fix: `fx repo show ${row.name}`,
       });
     const busy: string[] = [];
-    if (row.dirty) busy.push('uncommitted changes');
+    if (row.uncommitted) busy.push('uncommitted changes');
     if (row.ahead > 0 && row.behind > 0)
       busy.push(`diverged (${row.ahead} ahead, ${row.behind} behind)`);
     if (row.branch !== null && row.tracked_branch !== null && row.branch !== row.tracked_branch)

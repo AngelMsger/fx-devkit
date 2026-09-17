@@ -17,10 +17,8 @@ describe('bundled defaults/tools.yaml', () => {
     }
   });
 
-  it('marks exactly bitbucket-cli as required', () => {
+  it('does not make a bundled companion required for every workspace', () => {
     const result = loadTools(bundledToolsText(), undefined, { cliVersion: '0.0.0' });
-    expect(result.doc.tools.filter((t) => t.required).map((t) => t.name)).toEqual([
-      'bitbucket-cli',
-    ]);
+    expect(result.doc.tools.filter((t) => t.required).map((t) => t.name)).toEqual([]);
   });
 });

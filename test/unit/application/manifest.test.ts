@@ -104,6 +104,42 @@ describe('ValidateManifest', () => {
     ]);
   });
 
+  it.each([false, true])(
+    'fails absent required workspace documents with strict=%s',
+    async (strict) => {
+      const report = await new ValidateManifest(FakeFs.from({}), bundled).execute({
+        dir: path.resolve('/w'),
+        cliVersion: cli,
+        strict,
+      });
+      expect(report.ok).toBe(false);
+      expect(report.documents[0]).toMatchObject({
+        kind: 'workspace',
+        present: false,
+        problems: [{ path: '(root)', message: 'Required manifest/workspace.yaml is missing.' }],
+      });
+      expect(
+        report.documents
+          .filter((doc) => doc.kind !== 'workspace')
+          .every((doc) => doc.problems.length === 0),
+      ).toBe(true);
+    },
+  );
+
+  it('accepts missing optional documents in strict mode', async () => {
+    const report = await new ValidateManifest(workspace('v1-minimal'), bundled).execute({
+      dir: path.resolve('/w'),
+      cliVersion: cli,
+      strict: true,
+    });
+    expect(report.ok).toBe(true);
+    expect(report.documents.filter((doc) => !doc.present).map((doc) => doc.kind)).toEqual([
+      'environments',
+      'members',
+      'harness',
+    ]);
+  });
+
   it('lists problems without throwing and marks the report not ok', async () => {
     const report = await new ValidateManifest(workspace('broken'), bundled).execute({
       dir: path.resolve('/w'),

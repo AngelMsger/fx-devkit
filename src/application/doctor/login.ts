@@ -16,6 +16,7 @@ export interface LoginCheckOptions {
   readonly tools?: readonly string[] | undefined;
   readonly envs?: readonly string[] | undefined;
   readonly dryRun?: boolean;
+  readonly requiredTools?: ReadonlySet<string>;
 }
 
 export async function checkLogin(
@@ -56,8 +57,9 @@ export async function checkLogin(
         when === undefined
           ? verdict.detail
           : `acknowledged on ${when} but the check fails: ${verdict.detail}`;
+      const required = step.required || options.requiredTools?.has(step.tool);
       findings.push(
-        finding('login', step.id, when !== undefined || step.required ? 'fail' : 'warn', message, {
+        finding('login', step.id, when !== undefined || required ? 'fail' : 'warn', message, {
           fix,
           handoff: handoffFor(step, fix),
         }),

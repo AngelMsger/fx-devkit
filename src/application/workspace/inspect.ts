@@ -11,8 +11,6 @@ import { repoRef } from '../../domain/workspace/ref.js';
 
 import type { WorkspaceDeps } from './deps.js';
 
-export const READABILITY_TTL_MS = 24 * 60 * 60 * 1000;
-
 export function checkoutDir(deps: WorkspaceDeps, repo: Pick<ResolvedRepo, 'path'>): string {
   return path.resolve(deps.ctx.root, repo.path);
 }
@@ -57,14 +55,10 @@ export function webUrlFor(deps: WorkspaceDeps, repo: ResolvedRepo): string | und
 export async function readabilityOf(deps: WorkspaceDeps, repo: ResolvedRepo): Promise<Readability> {
   const ref = repoRef(repo);
   if (ref === undefined) return 'unknown';
-  const key = `readability/${deps.ctx.name}/${ref.project}/${ref.name}`;
-  const cached = await deps.cache.get<Readability>(key);
-  if (cached !== undefined) return cached;
   const host = tryCodeHost(deps);
   if (host === undefined) return 'unknown';
-  let answer: Readability;
   try {
-    answer = await host.canRead(ref);
+    return await host.canRead(ref);
   } catch (err) {
     // API prerequisites are optional for Git transport; explicit access denials
     // returned by the provider remain authoritative. Programming errors still fail.
@@ -75,8 +69,6 @@ export async function readabilityOf(deps: WorkspaceDeps, repo: ResolvedRepo): Pr
       throw err;
     return 'unknown';
   }
-  if (answer !== 'unknown') await deps.cache.set(key, answer, READABILITY_TTL_MS);
-  return answer;
 }
 
 // config.user first: a token-authenticated host may not know who is asking.

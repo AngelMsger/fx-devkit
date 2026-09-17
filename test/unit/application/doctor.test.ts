@@ -94,6 +94,7 @@ async function stage(
     yes?: boolean;
     updates?: boolean;
     extensions?: readonly DoctorExtension[];
+    describeProvider?: LoginDeps['describeProvider'];
   } = {},
 ): Promise<Stage> {
   const h = await harness({
@@ -106,7 +107,7 @@ async function stage(
   });
   const prompter = new FakePrompter();
   const setup: LoginDeps = {
-    describeProvider: (id) => DESCRIPTORS[id],
+    describeProvider: options.describeProvider ?? ((id) => DESCRIPTORS[id]),
     prompter,
     clock: new FakeClock(),
     home: HOME,
@@ -227,6 +228,27 @@ describe('Doctor', () => {
     expect(s.prompter.questions).toEqual([]);
   });
 
+  it('reports an undeclared provider dependency without aborting the diagnostic report', async () => {
+    const s = await stage({
+      describeProvider: (id) => {
+        const descriptor = DESCRIPTORS[id];
+        return descriptor === undefined
+          ? undefined
+          : { ...descriptor, tools: ['unknown-companion'] };
+      },
+    });
+    const report = await s.doctor.execute(check);
+    expect(report).toMatchObject({ ok: false, complete: false });
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        group: 'tools',
+        id: 'unknown-companion',
+        level: 'fail',
+        coverage: 'incomplete',
+      }),
+    );
+  });
+
   it('includes a registered check and runs its repair only when requested', async () => {
     let repaired = 0;
     const s = await stage({
@@ -317,11 +339,11 @@ describe('Doctor', () => {
     expect(by('tools')).toEqual([
       ['bitbucket-cli', 'fail'],
       ['jira-cli', 'warn'],
-      ['kubectl', 'warn'],
+      ['kubectl', 'fail'],
     ]);
     expect(by('login')).toEqual([
       ['bitbucket-cli.login', 'fail'],
-      ['kubectl.kubeconfig@dev', 'warn'],
+      ['kubectl.kubeconfig@dev', 'fail'],
     ]);
     expect(by('agents')).toEqual([
       ['claude-code:review', 'warn'],
@@ -404,7 +426,7 @@ describe('Doctor', () => {
     const report = await s.doctor.execute(check);
     expect(report.findings.filter((f) => f.level === 'fail')).toEqual([]);
     expect(report.ok).toBe(true);
-    expect(report.summary.ok).toBeGreaterThan(10);
+    expect(report.summary.ok).toBeGreaterThan(5);
   });
 
   it('with --fix, runs the run-type steps and the Skill links before diagnosing, never the manual ones', async () => {
@@ -417,7 +439,7 @@ describe('Doctor', () => {
       envs: ['dev'],
     });
     expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')?.level).toBe('ok');
-    expect(report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev')?.level).toBe('warn');
+    expect(report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev')?.level).toBe('fail');
     expect(report.findings.find((f) => f.id === 'claude-code:review')?.level).toBe('ok');
     expect(
       s.h.process.calls.some((c) => c.vector[2] === 'login' && c.options.interactive === false),

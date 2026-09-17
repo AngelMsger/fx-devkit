@@ -11,7 +11,6 @@ defaults:
 tools:
   - name: bitbucket-cli
     desc: Repositories, forks, pull requests and code review on Bitbucket
-    required: true
     min_version: '0.17.0'
     install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
     docs: https://github.com/AngelMsger/bitbucket-cli
