@@ -5,14 +5,13 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
-import { selectTools } from '../tool/select.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
+import type { DoctorToolScope } from './tool-scope.js';
 import { finding, type Finding } from './types.js';
 
-export interface ToolCheckOptions {
-  readonly names?: readonly string[] | undefined;
+export interface ToolCheckOptions extends DoctorToolScope {
   readonly trust: LoginDeps['trust'];
 }
 
@@ -22,22 +21,30 @@ export async function checkTools(
 ): Promise<Finding[]> {
   const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
   const available = toolchainOf(deps.ctx).tools;
-  const selected = new Set(selectTools(available, options.names).map((tool) => tool.name));
-  const tools = available.filter((tool) => selected.has(tool.name));
-  const findings: Finding[] = [];
+  const tools = available.filter((tool) => options.names.includes(tool.name));
+  const findings: Finding[] = options.names
+    .filter((name) => !available.some((tool) => tool.name === name))
+    .map((name) =>
+      finding('tools', name, 'fail', 'active provider requires a tool missing from the toolchain', {
+        coverage: 'incomplete',
+        fix: 'fx manifest validate',
+      }),
+    );
   for (const tool of tools) {
     try {
       const [status] = await check.execute({
-        tools: [tool],
+        tools: [{ ...tool, required: options.required.has(tool.name) }],
         trust: { ...options.trust, workspace: deps.ctx.name },
       });
       if (status !== undefined)
         findings.push({
-          ...fromStatus(status),
+          ...fromStatus(status, options.dependencies.has(tool.name)),
           evidence: {
             binary: status.binary,
             binary_path: status.binary_path ?? null,
             state: status.state,
+            required: status.required,
+            active_dependency: options.dependencies.has(tool.name),
             installed: status.installed,
             min_version: status.min_version,
           },
@@ -66,13 +73,26 @@ export async function checkTools(
   return findings;
 }
 
-function fromStatus(status: ToolStatus): Finding {
+function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
   const { name } = status;
   switch (status.state) {
     case 'ok':
       return finding('tools', name, 'ok', `${status.installed} installed`);
     case 'disabled':
-      return finding('tools', name, 'ok', 'disabled by the manifest');
+      return activeDependency
+        ? finding(
+            'tools',
+            name,
+            status.required ? 'fail' : 'warn',
+            'disabled by the manifest but used by an active provider',
+            {
+              coverage: 'incomplete',
+              fix: `fx tool show ${name}`,
+            },
+          )
+        : finding('tools', name, 'ok', 'disabled by the manifest; not checked', {
+            coverage: 'not_applicable',
+          });
     case 'missing':
       return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', {
         fix: `fx tool install ${name}`,

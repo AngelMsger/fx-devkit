@@ -147,6 +147,17 @@ export function loadToolsDocument(
   return finish(TOOLS, raw, opts, lineOf);
 }
 
+// A tools overlay has inherited requirements; lint its declared fields without standalone rules.
+export function loadToolsPatchDocument(text: string, opts: LoadOptions): LoadResult<Toolchain>;
+export function loadToolsPatchDocument(
+  text: string,
+  opts: AnyLoadOptions,
+): InspectedLoadResult<Toolchain> {
+  const { raw, lineOf } = parse(TOOLS, text);
+  const { value } = splitNulls(raw);
+  return finish({ ...TOOLS, rules: () => [] }, value, opts, lineOf);
+}
+
 // The bundled baseline is loaded in full; the team patch is only checked
 // against the schema (it is incomplete by nature); the merged result is
 // then validated and quarantined like any document.

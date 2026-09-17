@@ -13,6 +13,7 @@ export interface StatusRow {
   readonly tracked_branch: string | null;
   readonly dirty: boolean;
   readonly untracked: number;
+  readonly uncommitted: boolean;
   readonly ahead: number;
   readonly behind: number;
   readonly remotes_ok: boolean;
@@ -30,6 +31,7 @@ export function deriveStatus(
     tracked_branch: repo.branch ?? null,
     dirty: false,
     untracked: 0,
+    uncommitted: false,
     ahead: 0,
     behind: 0,
   };
@@ -52,6 +54,7 @@ export function deriveStatus(
     branch: state.branch ?? null,
     dirty: state.dirty,
     untracked: state.untracked,
+    uncommitted: state.dirty || state.untracked > 0,
     ahead: state.ahead,
     behind: state.behind,
     remotes_ok: remotesOk,

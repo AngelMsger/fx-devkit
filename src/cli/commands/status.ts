@@ -22,7 +22,8 @@ export default class StatusCommand extends FxCommand {
     }),
     dirty: Flags.boolean({
       default: false,
-      description: 'list only repositories with uncommitted changes',
+      description:
+        'list repositories with tracked changes or untracked files (ignored files excluded)',
     }),
     jobs: jobsFlag,
   };
@@ -47,7 +48,9 @@ export default class StatusCommand extends FxCommand {
       columns: [
         'name',
         'branch',
+        'uncommitted',
         'dirty',
+        'untracked',
         'ahead',
         'behind',
         ...(flags.fetch ? ['fetch'] : []),

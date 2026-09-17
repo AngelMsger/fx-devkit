@@ -88,7 +88,14 @@ export class SystemGit implements Git {
   }
 
   async status(dir: string, compareTo?: string): Promise<RepoState> {
-    const result = await this.git(['-C', dir, 'status', '--porcelain=v2', '--branch']);
+    const result = await this.git([
+      '-C',
+      dir,
+      'status',
+      '--porcelain=v2',
+      '--branch',
+      '--untracked-files=all',
+    ]);
     if (result.code !== 0) {
       throw new DevkitError(
         'conflict',

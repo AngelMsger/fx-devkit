@@ -26,6 +26,19 @@ prompts or doctor repairs. Unknown tools use the existing `TOOL_UNKNOWN` error;
 unknown environments use `ENV_NOT_FOUND`, with spelling suggestions. A disabled
 tool or one with no setup recipe remains a valid selection.
 
+Doctor's default companion checks cover manifest-declared tools and tools used by
+workspace providers or platforms present in the selected environment scope. A
+bundled catalog entry alone does not make a tool relevant or required. `--tool`
+explicitly checks any known tool. Active provider dependencies are required unless
+the manifest explicitly sets `required: false`; explicit required tools remain
+required regardless of provider selection. Disabled tools used by active providers
+have incomplete coverage, while disabled unused tools are not applicable. The
+same effective requirement controls login findings; neither a disabled tool nor an
+unused catalog entry proves readiness. Unknown or capability-mismatched providers
+in the active scope produce failure findings with incomplete coverage; a known
+provider with no companion tools remains a distinct, valid case. Sparse tools
+overlays are validated after inheritance, including during lint and doctor.
+
 A step's stable identity is tool, recipe ID and optional environment. Identical
 expanded definitions may coalesce. Different definitions with one identity are
 `step_conflict` plan problems, and those steps and their dependants are withheld.

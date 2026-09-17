@@ -168,6 +168,7 @@ describe('deriveStatus', () => {
       tracked_branch: 'dev',
       dirty: false,
       untracked: 0,
+      uncommitted: false,
       ahead: 0,
       behind: 0,
       remotes_ok: true,

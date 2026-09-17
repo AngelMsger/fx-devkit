@@ -104,6 +104,42 @@ describe('ValidateManifest', () => {
     ]);
   });
 
+  it.each([false, true])(
+    'fails absent required workspace documents with strict=%s',
+    async (strict) => {
+      const report = await new ValidateManifest(FakeFs.from({}), bundled).execute({
+        dir: path.resolve('/w'),
+        cliVersion: cli,
+        strict,
+      });
+      expect(report.ok).toBe(false);
+      expect(report.documents[0]).toMatchObject({
+        kind: 'workspace',
+        present: false,
+        problems: [{ path: '(root)', message: 'Required manifest/workspace.yaml is missing.' }],
+      });
+      expect(
+        report.documents
+          .filter((doc) => doc.kind !== 'workspace')
+          .every((doc) => doc.problems.length === 0),
+      ).toBe(true);
+    },
+  );
+
+  it('accepts missing optional documents in strict mode', async () => {
+    const report = await new ValidateManifest(workspace('v1-minimal'), bundled).execute({
+      dir: path.resolve('/w'),
+      cliVersion: cli,
+      strict: true,
+    });
+    expect(report.ok).toBe(true);
+    expect(report.documents.filter((doc) => !doc.present).map((doc) => doc.kind)).toEqual([
+      'environments',
+      'members',
+      'harness',
+    ]);
+  });
+
   it('lists problems without throwing and marks the report not ok', async () => {
     const report = await new ValidateManifest(workspace('broken'), bundled).execute({
       dir: path.resolve('/w'),
@@ -226,6 +262,19 @@ describe('LintManifest', () => {
       ['SKILL_WITHOUT_DESCRIPTION', 'skills/bad/SKILL.md'],
       ['SKILL_WITHOUT_SKILL_MD', 'skills/empty/SKILL.md'],
     ]);
+  });
+
+  it('lints sparse tools overlays using inherited requirements and supports field deletions', async () => {
+    const fs = workspace('v1-minimal');
+    await fs.writeText(
+      path.resolve('/w/manifest/tools.yaml'),
+      'schema_version: 2\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
+    );
+    const findings = await new LintManifest(fs, bundled).execute({
+      dir: path.resolve('/w'),
+      cliVersion: cli,
+    });
+    expect(findings.filter((finding) => finding.kind === 'tools')).toEqual([]);
   });
 
   it('reports an invalid tools document and skips semantic tool lint', async () => {

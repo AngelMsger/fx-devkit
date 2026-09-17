@@ -1,6 +1,7 @@
 // What a checkout looks like right now, and the parsers that read it off
 // git's machine-readable output. `dirty` means tracked changes; untracked
-// files are counted separately because they never block a fast-forward.
+// paths are counted separately from the index/worktree changes used by sync.
+// Ignored paths are not requested; Git itself refuses a conflicting fast-forward.
 
 export interface RepoState {
   readonly branch: string | undefined;
