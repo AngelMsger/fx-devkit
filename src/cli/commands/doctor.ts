@@ -3,7 +3,7 @@ import { Flags } from '@oclif/core';
 import { Doctor } from '../../application/doctor/index.js';
 import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
-import { listFlag } from '../flags.js';
+import { detailsFlag, listFlag } from '../flags.js';
 import { DOCTOR_CODES, reportNotice } from '../notices.js';
 
 export default class DoctorCommand extends FxCommand {
@@ -15,6 +15,7 @@ export default class DoctorCommand extends FxCommand {
     '<%= config.bin %> doctor --fix   # run-type login steps and Skill links; nothing a person must do',
   ];
   static override flags = {
+    details: detailsFlag,
     fix: Flags.boolean({ description: 'apply the fixes fx can make itself' }),
     env: listFlag('only these environments (login checks)'),
     tool: listFlag('only these tools (tool and login checks)'),

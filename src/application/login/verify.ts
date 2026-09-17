@@ -7,6 +7,7 @@ import path from 'node:path';
 import { matchesJson } from '../../domain/setup/json-check.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
+import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import type { LoginDeps } from './deps.js';
@@ -29,6 +30,10 @@ export class Verifier {
   ) {}
 
   async verify(step: SetupStep, options: VerifyOptions = {}): Promise<Verdict> {
+    if (step.preparation) {
+      const result = await new ServiceOperation(this.deps, this.setup).execute(step, true);
+      return { ok: result.status === 'unchanged', detail: result.detail };
+    }
     const { verify } = step;
     if ('file' in verify) {
       const target = expandHome(verify.file, this.setup.home);
@@ -51,6 +56,15 @@ export class Verifier {
       origin: step.origin,
       yes: this.setup.trust.yes,
       posture: this.setup.trust.posture,
+      ...(step.executionEnv
+        ? {
+            execution: {
+              purpose: 'service authentication',
+              resource: step.id,
+              bindings: step.executionEnv,
+            },
+          }
+        : {}),
     };
     if (options.dryRun && !(await this.setup.trust.gate.isTrusted(trust)))
       return { ok: false, detail: 'manifest command is not trusted' };
@@ -58,6 +72,8 @@ export class Verifier {
     const vector = expandHomeIn(verify.command, this.setup.home);
     const result = await this.deps.processRun(vector, {
       timeoutMs: CHECK_TIMEOUT_MS,
+      cwd: this.deps.ctx.root,
+      env: step.executionEnv,
       diagnostic: { phase: `${step.id} check` },
     });
     if (result.code === 0 && verify.json !== undefined && !matchesJson(result.stdout, verify.json))

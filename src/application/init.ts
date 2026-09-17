@@ -48,6 +48,8 @@ export interface InitInput {
 }
 
 export interface InitOutput {
+  readonly operation: 'preview' | 'apply';
+  readonly preparation_complete: boolean | null;
   readonly root: string;
   readonly name: string;
   readonly source: string;
@@ -102,6 +104,8 @@ export class Init {
     return {
       config,
       output: {
+        operation: input.dryRun ? 'preview' : 'apply',
+        preparation_complete: null,
         root,
         name,
         source: input.source.description,
@@ -158,6 +162,7 @@ export class Init {
       });
       const done = {
         ...output,
+        preparation_complete: sync.preparation_complete,
         sync,
         tool_install: toolInstall,
         prepared,
@@ -310,6 +315,7 @@ function initFailure(output: InitOutput, error: unknown, progress: InitProgress)
     { tool_install?: readonly ToolInstallOutput[] } | undefined;
   return withPartialResult(failure, {
     ...output,
+    preparation_complete: false,
     registered,
     written: materialized,
     prepared,
@@ -319,7 +325,10 @@ function initFailure(output: InitOutput, error: unknown, progress: InitProgress)
     failed_phase: phase,
     failure: toEnvelope(failure).error,
     next_steps: registered
-      ? [`fx sync --workspace ${output.name} --format json`, ...failure.nextSteps]
+      ? [
+          ...failure.nextSteps,
+          `Inspect remaining stages with fx status --workspace ${output.name} --format json.`,
+        ]
       : [
           'Correct the reported source problem and retry the same init command.',
           ...failure.nextSteps,

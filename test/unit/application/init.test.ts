@@ -152,7 +152,8 @@ describe('Init', () => {
       partialResult: {
         registered: true,
         failed_phase: 'validation',
-        next_steps: expect.arrayContaining(['fx sync --workspace new --format json']),
+        preparation_complete: false,
+        next_steps: expect.arrayContaining([expect.stringContaining('fx status --workspace new')]),
       },
     });
     expect((await s.config.read()).workspaces?.new?.root).toBe(ROOT);
@@ -182,7 +183,8 @@ describe('Init', () => {
       partialResult: {
         registered: true,
         written: true,
-        next_steps: expect.arrayContaining(['fx sync --workspace new --format json']),
+        preparation_complete: false,
+        next_steps: expect.arrayContaining([expect.stringContaining('fx status --workspace new')]),
         failed_phase: 'sync',
         phases: { registration: 'done', tools: 'done', sync: 'failed' },
         sync: { stages: { docs: { created: 2 }, skills: { status: 'failed' } } },

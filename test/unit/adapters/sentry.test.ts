@@ -75,7 +75,10 @@ describe('SentryErrorTracker', () => {
       '1000',
     ]);
     expect(proc.calls[0]?.options.timeoutMs).toBe(30_000);
-    expect(proc.calls[0]?.options.env).toEqual({ SENTRY_URL: 'https://sentry.example.com' });
+    expect(proc.calls[0]?.options.env).toEqual({
+      SENTRY_URL: 'https://sentry.example.com',
+      SENTRY_HOST: 'https://sentry.example.com',
+    });
   });
 
   it('takes the ceiling from the tracker, and refuses a row it cannot read', async () => {

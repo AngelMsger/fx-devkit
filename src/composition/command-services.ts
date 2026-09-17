@@ -4,6 +4,7 @@ import type { InitDeps } from '../application/init.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
 import type { TrustGate } from '../application/safety/trust.js';
+import { prepareServices } from '../application/services/stage.js';
 import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync.js';
@@ -97,8 +98,8 @@ export class CommandServices {
     };
   }
 
-  private previewInit(ctx: WorkspaceContext, deps: WorkspaceDeps): Promise<object> {
-    return new PreviewInitialization(
+  private async previewInit(ctx: WorkspaceContext, deps: WorkspaceDeps): Promise<object> {
+    const prepared = await new PreviewInitialization(
       toolInstall(this.input.container),
       new SkillStage(deps, skillDeps(this.input.container, this.input.agents)),
     ).execute(ctx, {
@@ -108,6 +109,7 @@ export class CommandServices {
       posture: this.input.posture,
       dryRun: true,
     });
+    return { ...prepared, services: await prepareServices(deps, this.loginDeps(), true) };
   }
 
   stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {

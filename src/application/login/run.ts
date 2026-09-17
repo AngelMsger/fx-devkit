@@ -6,6 +6,7 @@
 import { DevkitError } from '../../domain/errors.js';
 import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
+import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { buildPlan } from './collect.js';
@@ -95,6 +96,20 @@ export class Login {
   ): Promise<{ result: StepResult; detail: string | null } | 'handoff'> {
     const blocker = step.requires.find((dep) => undone.has(dep));
     if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
+    if (step.preparation) {
+      const prepared = await new ServiceOperation(this.deps, this.setup).execute(
+        step,
+        input.dryRun,
+      );
+      const results = {
+        unchanged: 'verified',
+        configured: 'done',
+        planned: 'would_run',
+        blocked: 'blocked',
+        failed: 'failed',
+      } as const;
+      return { result: results[prepared.status], detail: prepared.detail };
+    }
     const before = await this.verifier.verify(step, { dryRun: input.dryRun });
     if (before.ok) return { result: 'verified', detail: before.detail };
     if (step.kind === 'run') return this.runStep(step, input, before.detail);
@@ -120,6 +135,15 @@ export class Login {
       origin: step.origin,
       yes: this.setup.trust.yes,
       posture: input.posture,
+      ...(step.executionEnv
+        ? {
+            execution: {
+              purpose: 'service authentication',
+              resource: step.id,
+              bindings: step.executionEnv,
+            },
+          }
+        : {}),
     });
     if (!this.setup.trust.yes) {
       const go = await this.setup.prompter.confirm(
@@ -133,6 +157,8 @@ export class Login {
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
     const run = await this.deps.processRun(expandHomeIn(vector, this.setup.home), {
       interactive: !input.noInput,
+      cwd: this.deps.ctx.root,
+      env: step.executionEnv,
       diagnostic: { phase: `${step.id} setup` },
     });
     if (run.code !== 0) {

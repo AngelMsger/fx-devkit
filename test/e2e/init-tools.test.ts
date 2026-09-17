@@ -85,7 +85,7 @@ ${baseline.tools.map((t) => `  - {name: ${t.name}, enabled: false}`).join('\n')}
 describe('manifest opt-in during workspace initialization', () => {
   it('previews without installing, requires trust, installs before Skills, and leaves later sync read-only for tools', () => {
     const f = fixture();
-    const args = ['init', f.workspace, '--from', f.source, '--format', 'json'];
+    const args = ['init', '--details', f.workspace, '--from', f.source, '--format', 'json'];
     const preview = fx([...args, '--dry-run'], f.env);
     expect(preview.status, preview.stderr).toBe(0);
     expect(preview.json()).toMatchObject({ tool_install: null, written: false });
@@ -120,7 +120,11 @@ describe('manifest opt-in during workspace initialization', () => {
     expect(again.status, again.stderr).toBe(0);
     expect(again.json()).toMatchObject({ tool_install: [] });
     for (const file of f.shimFiles) rmSync(path.join(f.shims, file), { force: true });
-    const sync = fx(['sync', '--only', 'tools', '--format', 'json'], f.env, f.workspace);
+    const sync = fx(
+      ['sync', '--details', '--only', 'tools', '--format', 'json'],
+      f.env,
+      f.workspace,
+    );
     expect(sync.status, sync.stderr).toBe(0);
     expect(JSON.parse(readFileSync(f.receipt, 'utf8'))).toHaveLength(1);
     // Confirm the harness used its isolated user directory, not a real host Skill path.
@@ -132,7 +136,10 @@ describe('manifest opt-in during workspace initialization', () => {
 describe('tool installation lifecycle', () => {
   it('records explicit installs and updates and warns after the last manifest requirement disappears', () => {
     const f = fixture();
-    const boot = fx(['init', f.workspace, '--from', f.source, '--yes', '--format', 'json'], f.env);
+    const boot = fx(
+      ['init', '--details', f.workspace, '--from', f.source, '--yes', '--format', 'json'],
+      f.env,
+    );
     expect(boot.status, boot.stderr).toBe(0);
     for (const action of ['install', 'update']) {
       const result = fx(
@@ -175,7 +182,11 @@ describe('tool installation lifecycle', () => {
       ]),
       has_more: false,
     });
-    const sync = fx(['sync', '--only', 'tools', '--format', 'json'], f.env, f.workspace);
+    const sync = fx(
+      ['sync', '--details', '--only', 'tools', '--format', 'json'],
+      f.env,
+      f.workspace,
+    );
     expect(sync.status, sync.stderr).toBe(0);
     expect(sync.json()).toMatchObject({
       stage_details: {
@@ -187,7 +198,7 @@ describe('tool installation lifecycle', () => {
       },
     });
     expect(sync.stderr).toContain('TOOL_UNUSED');
-    const doctor = fx(['doctor', '--format', 'json'], f.env, f.workspace);
+    const doctor = fx(['doctor', '--details', '--format', 'json'], f.env, f.workspace);
     expect(doctor.status, doctor.stderr).toBe(0);
     expect(doctor.json()).toMatchObject({
       findings: expect.arrayContaining([

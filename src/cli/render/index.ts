@@ -9,6 +9,7 @@ import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
 import { unmatchedFields, project } from './fields.js';
 import { humanDiagnostic, humanList, humanNotice, humanProgress, humanRecord } from './human.js';
+import { compactNotice, compactReport, type ReportCommand } from './report.js';
 
 export { parseFields, project } from './fields.js';
 export { FORMATS, type Format } from '../../domain/format.js';
@@ -47,6 +48,8 @@ export function processIo(): RenderIo {
 }
 
 export interface RenderOptions {
+  readonly report?: ReportCommand | undefined;
+  readonly details?: boolean | undefined;
   readonly fields?: readonly string[] | undefined;
   readonly quiet?: boolean | undefined;
   readonly verbose?: boolean | undefined;
@@ -58,37 +61,26 @@ export function createRenderer(
   io: RenderIo,
   options: RenderOptions = {},
 ): Renderer {
+  const compact =
+    format === 'json' &&
+    options.report !== undefined &&
+    !options.details &&
+    options.fields === undefined;
   const shape = (value: unknown): unknown => shapeResult(value, options, io);
-  const line = (stream: Writable, text: string): void => {
-    stream.write(text + '\n');
-  };
-  const shared = {
-    emit: (event: DiagnosticEvent) => {
-      if (!options.verbose) return;
-      line(
-        io.err,
-        format === 'human' ? humanDiagnostic(event) : JSON.stringify({ _diagnostic: event }),
-      );
-    },
-    error: (err: DevkitError) => line(io.err, JSON.stringify(toEnvelope(err))),
-    notice: (notice: Notice) => {
-      if (options.quiet) return;
-      line(io.err, format === 'human' ? humanNotice(notice) : JSON.stringify({ _notice: notice }));
-    },
-    progress: (event: ProgressEvent) => {
-      if (options.quiet) return;
-      line(
-        io.err,
-        format === 'human' ? humanProgress(event) : JSON.stringify({ _progress: event }),
-      );
-    },
-  };
+  const shared = diagnosticRenderer(format, io, options, compact);
   switch (format) {
     case 'json':
       return {
         ...shared,
-        record: (value) => line(io.out, JSON.stringify(shape(value))),
-        list: (items, opts = {}) => line(io.out, JSON.stringify(envelope(shape(items), opts))),
+        record: (value) =>
+          line(io.out, JSON.stringify(shape(compact ? compactReport(value) : value))),
+        list: (items, opts = {}) =>
+          line(
+            io.out,
+            JSON.stringify(
+              compact ? compactReport(envelope(items, opts)) : envelope(shape(items), opts),
+            ),
+          ),
       };
     case 'ndjson':
       return {
@@ -144,4 +136,42 @@ function humanCollection(items: object[], opts: ListOptions, options: RenderOpti
     lines.push(humanRecord(trailer));
   }
   return lines.join('\n');
+}
+
+function line(stream: Writable, text: string): void {
+  stream.write(text + '\n');
+}
+
+function diagnosticRenderer(
+  format: Format,
+  io: RenderIo,
+  options: RenderOptions,
+  compact: boolean,
+): Pick<Renderer, 'emit' | 'error' | 'notice' | 'progress'> {
+  return {
+    emit: (event: DiagnosticEvent) => {
+      if (!options.verbose) return;
+      line(
+        io.err,
+        format === 'human' ? humanDiagnostic(event) : JSON.stringify({ _diagnostic: event }),
+      );
+    },
+    error: (err: DevkitError) => line(io.err, JSON.stringify(toEnvelope(err))),
+    notice: (notice: Notice) => {
+      if (options.quiet) return;
+      line(
+        io.err,
+        format === 'human'
+          ? humanNotice(notice)
+          : JSON.stringify({ _notice: compact ? compactNotice(notice) : notice }),
+      );
+    },
+    progress: (event: ProgressEvent) => {
+      if (options.quiet) return;
+      line(
+        io.err,
+        format === 'human' ? humanProgress(event) : JSON.stringify({ _progress: event }),
+      );
+    },
+  };
 }

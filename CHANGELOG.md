@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-09-17)
+
+- Breaking: init/sync/doctor/release JSON defaults to summaries; use --details for all rows and evidence. Explicit --fields still projects full results.
+- Preserve explicit empty agent selections across CLI, hooks and cleanup.
+- Add advisory FX_SKILL_VERSION verification and bundled_skill_version discovery.
+- Add operation/preparation_complete and actionable SKILL_WRITE_DENIED recovery without relocating shared locks.
+
+- Distribute public service presets during init and explicit sync, with scoped personal login and native conflict recovery.
+- Reject personal credentials in shared service declarations and preserve existing companion configuration.
 
 - Add standalone companion Skill install, uninstall, path, status and show commands.
 - Generate team Skill discovery links and trigger descriptions in workspace guides.

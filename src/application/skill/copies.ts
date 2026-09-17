@@ -12,6 +12,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import { observeCopy } from './observe.js';
 import type { SkillDeps } from './targets.js';
+import { skillWriteError } from './write-error.js';
 
 export async function canonicalSkillPath(fs: FileSystem, target: string): Promise<string> {
   const absolute = path.resolve(target);
@@ -23,6 +24,19 @@ export async function canonicalSkillPath(fs: FileSystem, target: string): Promis
 }
 
 export async function withSkillLock<T>(
+  fs: FileSystem,
+  lock: Lock | undefined,
+  target: string,
+  work: (canonical: string) => Promise<T>,
+): Promise<T> {
+  try {
+    return await lockedSkillWork(fs, lock, target, work);
+  } catch (error) {
+    throw skillWriteError(error, target);
+  }
+}
+
+async function lockedSkillWork<T>(
   fs: FileSystem,
   lock: Lock | undefined,
   target: string,

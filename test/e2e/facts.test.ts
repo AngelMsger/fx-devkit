@@ -355,7 +355,15 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
     const unloaded = fx(['repo', 'list', ...json], agentEnv, s.ws);
     expect(unloaded.stderr).toMatch(/SKILL_(MISSING|OUTDATED|AVAILABLE)/);
     expect(
-      fx(['repo', 'list', ...json], { ...agentEnv, FX_SKILL_LOADED: '1' }, s.ws).stderr,
+      fx(
+        ['repo', 'list', ...json],
+        {
+          ...agentEnv,
+          FX_SKILL_LOADED: '1',
+          FX_SKILL_VERSION: JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')).version,
+        },
+        s.ws,
+      ).stderr,
     ).not.toContain('SKILL_');
     expect(fx(['repo', 'list'], agentEnv, s.ws).stderr).toContain('SKILL_MISSING');
   });

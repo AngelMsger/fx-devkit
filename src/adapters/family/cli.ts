@@ -8,6 +8,8 @@ import { type Category, DevkitError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import type { Process, ProcessResult } from '../../ports/process.js';
 
+import { serviceFlags } from './service.js';
+
 export interface CliCall {
   readonly code: number;
   readonly stdout: string;
@@ -37,13 +39,16 @@ export class FamilyCli {
     private readonly binary: string,
     private readonly process: Process,
     private readonly context: string | undefined,
+    private readonly service?: Readonly<Record<string, string>>,
   ) {}
 
   async call(args: readonly string[], options: CallOptions = {}): Promise<CliCall> {
+    await this.checkService();
     const global = [
       '--format',
       'json',
       ...(this.context === undefined ? [] : ['--use-context', this.context]),
+      ...(this.service ? serviceFlags(this.service, false) : []),
     ];
     const result = await this.process.run([this.binary, ...global, ...args], {
       timeoutMs: options.timeoutMs,
@@ -56,6 +61,51 @@ export class FamilyCli {
       data: parse(result.stdout),
       error: envelope(result),
     };
+  }
+
+  // Repository synchronization can query the code host without a readiness command.
+  // An unprepared/conflicting preset must never fall through to an authenticated request.
+  private async checkService(): Promise<void> {
+    if (!this.context || !this.service?.['base_url']) return;
+    const result = await this.process.run(
+      [
+        this.binary,
+        'config',
+        'set-context',
+        this.context,
+        ...serviceFlags(this.service),
+        '--dry-run',
+        '--format',
+        'json',
+      ],
+      { timeoutMs: 5000 },
+    );
+    if (result.code === 0 && objectOf(parse(result.stdout))?.['changed'] === false) return;
+    throw new DevkitError(
+      'config',
+      'LOGIN_REQUIRED',
+      `${this.binary} service settings are not prepared for this context`,
+      {
+        hint: 'Resolve the public service configuration before making authenticated requests.',
+        handoff: {
+          summary: `${this.binary} requires matching public service settings`,
+          command: 'fx sync --only services',
+          userSteps: [
+            {
+              id: `${this.binary}.service`,
+              kind: 'run',
+              title: 'Review and prepare public service settings',
+              command: ['fx', 'sync', '--only', 'services'],
+            },
+          ],
+        },
+        nextSteps: [
+          'fx sync --only services --dry-run',
+          'fx sync --only services',
+          `fx login ${this.binary}`,
+        ],
+      },
+    );
   }
 }
 

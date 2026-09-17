@@ -81,7 +81,10 @@ describe('a manifest repository', () => {
     const s = stage();
     const sourceDir = manifestDirOf(s.env.FX_HOME, 'ws');
 
-    const boot = fx(['init', s.ws, '--from', s.manifest.bare, '--format', 'json'], s.env);
+    const boot = fx(
+      ['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'],
+      s.env,
+    );
     expect(boot.status, boot.stderr).toBe(0);
     expect(boot.json()).toMatchObject({ manifest: 'materialized', manifest_dir: sourceDir });
     expect(readFileSync(path.join(s.env.FX_HOME, 'config.yaml'), 'utf8')).toContain(
@@ -126,17 +129,21 @@ describe('a manifest repository', () => {
       'add c',
     );
 
-    const dry = fx(['sync', '--dry-run', '--format', 'json'], s.env, s.ws);
+    const dry = fx(['sync', '--details', '--dry-run', '--format', 'json'], s.env, s.ws);
     expect(dry.status, dry.stderr).toBe(0);
     expect(dry.stderr).toContain('MANIFEST_REFRESH_PLANNED');
     expect(names(dry)).toEqual(['a', 'b', 'fx-workspace']);
 
-    const kept = fx(['sync', '--no-refresh-manifest', '--format', 'json'], s.env, s.ws);
+    const kept = fx(
+      ['sync', '--details', '--no-refresh-manifest', '--format', 'json'],
+      s.env,
+      s.ws,
+    );
     expect(kept.status, kept.stderr).toBe(0);
     expect(kept.stderr).not.toContain('MANIFEST_REFRESHED');
     expect(names(kept)).toEqual(['a', 'b', 'fx-workspace']);
 
-    const refreshed = fx(['sync', '--format', 'json'], s.env, s.ws);
+    const refreshed = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(refreshed.status, refreshed.stderr).toBe(0);
     expect(refreshed.stderr).toContain('MANIFEST_REFRESHED');
     expect(names(refreshed)).toEqual(['a', 'b', 'c', 'fx-workspace']);
@@ -163,7 +170,7 @@ describe('a manifest repository', () => {
       { 'skills/review/SKILL.md': '---\nname: review\ndescription: Review changes\n---\n' },
       'reword',
     );
-    const busy = fx(['sync', '--format', 'json'], s.env, s.ws);
+    const busy = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(busy.status, busy.stderr).toBe(0);
     expect(busy.stderr).toContain('MANIFEST_REFRESH_KEPT');
     expect(busy.stderr).toContain('on skill-triage, not main');
@@ -174,17 +181,23 @@ describe('a manifest repository', () => {
     expect(readFileSync(path.join(sourceDir, 'skills', 'review', 'SKILL.md'), 'utf8')).toContain(
       'Review changes',
     );
-    const back = fx(['sync', '--format', 'json'], s.env, s.ws);
+    const back = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(back.status, back.stderr).toBe(0);
     expect(back.stderr).not.toContain('MANIFEST_REFRESH_KEPT');
 
     const other = repository(path.dirname(s.ws), 'other', {
       'manifest/workspace.yaml': workspaceYaml(s.host, ['a']),
     });
-    const swapped = fx(['init', s.ws, '--from', other.bare, '--format', 'json'], s.env);
+    const swapped = fx(
+      ['init', '--details', s.ws, '--from', other.bare, '--format', 'json'],
+      s.env,
+    );
     expect(swapped.status).toBe(11);
     expect(swapped.error().code).toBe('SOURCE_MISMATCH');
-    const again = fx(['init', s.ws, '--from', s.manifest.bare, '--format', 'json'], s.env);
+    const again = fx(
+      ['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'],
+      s.env,
+    );
     expect(again.status, again.stderr).toBe(0);
     expect(again.json()).toMatchObject({ manifest: 'refreshed', registered: false });
 

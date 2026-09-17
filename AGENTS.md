@@ -107,6 +107,10 @@ own branches and histories.
 - `init` writes workspace data only into the user-selected target or registered directories.
   Tools explicitly marked `install_on_init` may also install missing global packages
   through approved installer/probe vectors before repository and Skill synchronization.
+  Explicit service declarations also let init/sync prepare public companion settings
+  through trusted native commands. Credentials and personal identities stay in each
+  member's own CLI storage; never distribute them through service declarations.
+  Configuration conflicts preserve existing values. Background hooks only check services.
   Existing installations are preserved; ordinary sync and lifecycle hooks never install packages.
   `repo remove` removes a reference, not files. Import reads checkouts and writes
   only to an explicit output outside the imported directory.

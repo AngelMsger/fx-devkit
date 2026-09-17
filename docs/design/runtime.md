@@ -127,3 +127,27 @@ before cwd discovery. Unknown explicit selectors fail rather than editing a near
 checkout. Without a selector, standalone source maintenance keeps cwd precedence.
 Commands taking a source-independent schema or explicit directory retain those
 contracts. All file-output flags include the `-o` shorthand.
+
+## Workflow report views (0.2.0)
+
+The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
+results and INIT_PREPARED notices. Application values remain complete. --details
+returns those values; explicit --fields projects them before any summary filter.
+Human and NDJSON retain their defaults. Summaries expose output_mode and omitted
+counts, keep exception rows and exact trust/recovery data, and remove successful
+rows and large finding evidence. Error envelopes remain intact on stderr.
+
+Init/sync operation distinguishes preview/apply. preparation_complete is null in
+preview, otherwise accounts for selected repositories and requested stages.
+Protected or unavailable work and unverified activation are incomplete. Excluded
+and explicitly inapplicable resources do not reduce completion. Doctor/release
+ok and coverage complete keep their existing independent meanings.
+
+Explicit empty agent lists survive scalar conversion in every entrypoint,
+including hooks and harness cleanup; an unset value alone selects detection.
+FX_SKILL_VERSION acknowledges the package-versioned bundled Skill. A legacy
+FX_SKILL_LOADED boolean does not bypass version checks. This is advisory session
+metadata, not an execution permission or proof of model comprehension.
+Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
+SKILL_WRITE_DENIED with their original cause and local recovery. Global locks
+continue coordinating shared targets across FX_HOME directories.

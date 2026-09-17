@@ -14,7 +14,7 @@ import { resolveManifestDir } from '../application/manifest/locate.js';
 import { resolvePosture, type WritePosture } from '../application/safety/posture.js';
 import { replacementFor } from '../application/safety/replace-files.js';
 import { TrustGate } from '../application/safety/trust.js';
-import { SKILL_LOADED_ENV, skillNotice } from '../application/skill/notice.js';
+import { SKILL_LOADED_ENV, SKILL_VERSION_ENV, skillNotice } from '../application/skill/notice.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync.js';
 import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
@@ -41,6 +41,7 @@ import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
 import { createRenderer, parseFields, processIo, type Renderer } from './render/index.js';
+import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
 import { shouldCheckUpdates, updateNotices } from './update-notices.js';
@@ -98,6 +99,8 @@ export abstract class FxCommand extends Command {
     }
     this.format = format ?? DEFAULT_FORMAT;
     this.renderer = createRenderer(this.format, processIo(), {
+      report: reportCommand(this.id),
+      details: flags['details'] === true,
       fields: parseFields(flags.fields),
       quiet: flags.quiet,
       verbose: flags.verbose,
@@ -140,16 +143,14 @@ export abstract class FxCommand extends Command {
   private async handshake(): Promise<void> {
     if (this.skillNoticeSent || this.quietOn || process.stderr.isTTY) return;
     const topic = this.id?.split(':')[0];
-    if (
-      !topic ||
-      ['skill', 'self', 'config', 'login', 'init', 'completion', 'hook'].includes(topic)
-    )
+    if (!topic || ['skill', 'self', 'config', 'login', 'completion', 'hook'].includes(topic))
       return;
     this.skillNoticeSent = true;
     const notice = await skillNotice(this.container.fs, this.skillDeps(), {
       format: this.format,
       terminal: false,
       loaded: process.env[SKILL_LOADED_ENV] === '1',
+      loadedVersion: process.env[SKILL_VERSION_ENV],
       enabled: this.skillNoticeOn,
       cliVersion: this.config.version,
     });

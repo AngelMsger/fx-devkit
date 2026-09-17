@@ -180,3 +180,11 @@ fx doctor --tool openobserve-cli --format json
 ```
 
 `fx manifest render` 自动填入名称、触发说明和源文件链接。新建指南默认带有该区域；已有指南缺少时只提示维护者添加，不自动插入人写内容。源指南使用相对链接，派生到工作区根的指南使用解析后的源路径，不依赖某个宿主的 Skill 链接。`fx sync --only docs,skills` 会更新新增、删除及元数据变化。目录帮助发现，不证明宿主已经安装或加载。仅覆盖工作区根，不修改业务仓库指南。
+
+## 公共服务预设
+
+fx 0.1.3 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.1.3'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。
+
+相同预设可共享本地目标，同一目标的不同预设会阻止配置。冲突的旧 vars 应删除，避免两个来源。用户名、邮箱、密码、PAT/API Token 值、Cookie 和浏览器会话不可分发；每人通过自己的 CLI 获取并保存凭证。额外 service 字段在非严格模式下也校验失败；URL 中的凭证会被拒绝且不会回显。
+
+预设要求 Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0，需在 tools.yaml 设置版本下限。init、显式 sync 和 login 使用受信任命令准备配置；`fx sync --only services --dry-run` 预览。非空冲突不会自动覆盖或切换激活项；Sentry 公共工作区默认值遵循同样的保留原则。

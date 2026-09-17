@@ -1,10 +1,17 @@
 # 変更履歴
 
-## 未リリース
+## 0.2.0 (2026-09-17)
+
+- 互換性変更：4 種のワークフロー報告は既定で JSON を要約し、全詳細は `--details`、明示的な `--fields` は完全な結果から抽出します。
+- 明示的な空 Agent 選択を修正。`FX_SKILL_VERSION` の確認と `bundled_skill_version` を追加。
+- `operation`、`preparation_complete`、`SKILL_WRITE_DENIED` を追加し、部分結果と具体的な復旧手順を保持。
 
 - 単独の同梱 Skill install、uninstall、path、status、show コマンドを追加。
 - ガイドにチーム Skill の利用条件とソースリンクを生成。
 - 明示的な更新と自動保守を分け、共有ソースを保護。
+
+- init と明示的 sync で公開サービスプリセットを配布し、対象を指定した個人ログインとネイティブ競合復旧を提供。
+- 共有 service 内の個人認証情報を拒否し、既存の対応 CLI 設定を保持。
 
 ## 0.1.2
 

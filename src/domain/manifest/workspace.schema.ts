@@ -5,10 +5,12 @@
 import * as z from 'zod';
 
 import { coordinate, minCli, schemaVersion } from './common.schema.js';
+import { serviceSchema } from './service.schema.js';
 
 export const providerBinding = z
   .strictObject({
     provider: z.string().min(1).describe('provider id, e.g. bitbucket-cli'),
+    service: serviceSchema.optional(),
     vars: z
       .record(z.string(), z.string())
       .optional()

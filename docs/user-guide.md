@@ -177,6 +177,47 @@ manager owns installation locations; tools are shared across workspaces.
 enabled tools in the selected toolchain. Named operations can explicitly select
 a disabled tool. No-argument invocations fail before package operations.
 
+### Shared service settings and personal credentials
+
+With fx 0.1.3, a manifest can declare public `service` settings for a provider or
+platform. `fx init` prepares them after installing missing tools and before
+repository queries. Explicit `fx sync` also prepares them; use
+`fx sync --only services --dry-run` to inspect just this stage. Background hooks
+only check readiness and never change companion service settings.
+
+When diagnosing overrides, inspect the companion's scoped public configuration
+and its field provenance. Do not dump the process environment or filter all
+variables by a tool prefix: those outputs can contain personal tokens or passwords.
+A check blocked by trust, read-only mode or tool availability means authentication
+is unverified; it does not establish missing or expired credentials. For machine
+checks, parse JSON stdout separately from diagnostic stderr.
+
+Service preparation is offline and separate from authentication. Every member
+must obtain their own Personal Access Token, API token, password or browser
+session and store it through the companion CLI. `auth_scheme: pat`, `token`,
+`basic` or `session` names a method, never a credential value. The manifest accepts
+only public connection fields and rejects additional fields inside `service`,
+even without strict validation. Do not put credentials in URLs or shared files.
+
+Family companions use `config set-context` without `--activate` or `--overwrite`.
+Matching settings remain unchanged; conflicts preserve existing values and report
+public field differences plus an explicit overwrite preview. Browser-managed
+OpenObserve sessions require a new context to change their service or scheme.
+Each login/check uses the declared context and service address. OpenObserve
+`session` uses `auth login --browser`; personal authorization is never part of sync.
+
+Sentry receives only URL and organization defaults in the workspace's
+`.sentryclirc`. Matching public defaults are reused; conflicting files and links
+are preserved. Login names the instance with `--url`, and fx queries use the same
+address. fx never copies an existing token into this file or changes global Sentry
+defaults. Each member completes their own authorization.
+
+Inspect `stage_details.services.items` for `configured`, `unchanged`, `planned`,
+`blocked` or `failed` and recovery steps. Service setup may be partial; successful
+preparation does not establish authentication or resource access. Old companions
+are reported for upgrade, not silently replaced. A dry run neither writes settings
+nor records trust. Old manifests without `service` retain their setup flow.
+
 ### Tool installation history
 
 ```sh
@@ -263,13 +304,13 @@ confirmation and a backup. Preview with `--dry-run`; read-only posture applies.
 non-interactive call), preserves foreign paths, and leaves workspace selection
 unchanged: a later sync can reinstall a selected host's user copy.
 
-`status` distinguishes installation, version alignment and the `FX_SKILL_LOADED=1`
+`status` distinguishes installation, version alignment and the `FX_SKILL_VERSION`
 handshake. Installation does not prove the agent loaded the Skill. `path` reports
 installation destinations; `self info` locates the bundled source. `show` prints
 raw SKILL.md in every output format. Skill commands are local: no update checks,
 manifest refresh, companion installers or service login probes. Non-TTY business
-commands provide a structured discovery notice until the Skill is loaded; setup
-and Skill commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
+commands, including init, provide a structured notice until the bundled Skill
+version is acknowledged. Self info and Skill bootstrap commands remain quiet. `FX_SKILL_NOTICE=0` disables that notice.
 
 **Team Skills** are maintained in the manifest's `skills/` tree and linked into
 selected agents' project Skill directories by `init` and `sync`. Windows uses
@@ -399,9 +440,43 @@ a handoff, never a reason to invent authentication or override host trust.
 
 Use the bundled [fx-workspace Skill](https://angelmsger.github.io/fx-devkit/docs/agent-skill/) and its
 [command guide](https://angelmsger.github.io/fx-devkit/docs/agent-commands/) for response semantics.
-`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1`
-after reading it, using your shell's environment syntax. The Skill is shipped in
+`fx self info --format json` locates the bundled Skill source. Set `FX_SKILL_LOADED=1` and `FX_SKILL_VERSION` to the returned
+`bundled_skill_version` after reading it, using your shell's environment syntax. The Skill is shipped in
 the package; source architecture and verification pages are additional references.
+
+## Migrating to 0.2.0
+
+`init`, `sync`, `doctor` and `release` now summarize JSON by default. The
+`output_mode: summary` result retains overall counts, every exception and its
+recovery actions; `omitted` counts normal rows and evidence left out of that view.
+Use `--details` for complete results, including successful rows and evidence.
+Explicit `--fields` projects the complete result. Human output, NDJSON and fact
+queries such as `repo list`, `where` and `can` keep their previous defaults.
+`--verbose` controls diagnostics, independently of `--details`.
+
+`init` and `sync` report `operation: preview|apply` and `preparation_complete`.
+Preview returns `null` and describes intended effects, including registration;
+apply returns `true` only when the selected, requested preparation is complete.
+Protected dirty/diverged repositories, blocked or failed work and unverified
+activation leave it `false`; unselected or explicitly inapplicable resources do
+not. This is not proof that remote services are healthy. Doctor/release retain
+their existing, separate `ok` and coverage `complete` semantics and exit behavior.
+
+An explicit `agents: []`, or an empty `FX_AGENTS`, selects no agents. Remove that
+setting with `fx config unset agents` (and unset any environment override) to
+restore automatic detection. `FX_HOME` still does not relocate global Skills.
+`SKILL_WRITE_DENIED` (permission, exit 5) identifies denied Skill/lock access and
+preserves partial results. Continue with available source files or use scoped
+`fx sync --only repos,docs --no-refresh-manifest`; retry Skill writes only after
+filesystem access changes, respecting the existing trust boundary.
+
+For an agent, first run `fx self info --format json`, read the returned
+`bundled_skill/SKILL.md` (or `fx skill show`), and declare both
+`FX_SKILL_LOADED=1` and `FX_SKILL_VERSION=<bundled_skill_version>`.
+The boolean alone cannot establish version alignment. Missing/mismatched versions
+produce non-blocking notices, including during init. No global Skill installation
+is needed to read the bundled instructions. Keep JSON stdout separate from stderr;
+parse/project fields instead of truncating JSON with `head -c` or `tail -c`.
 
 ## Configuration
 

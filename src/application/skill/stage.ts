@@ -2,7 +2,13 @@
 
 import path from 'node:path';
 
-import { asDevkitError, exitCodeFor, toEnvelope, withPartialResult } from '../../domain/errors.js';
+import {
+  asDevkitError,
+  DevkitError,
+  exitCodeFor,
+  toEnvelope,
+  withPartialResult,
+} from '../../domain/errors.js';
 import { shellLine } from '../../domain/shell.js';
 import {
   decideCopy,
@@ -23,6 +29,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import { SkillCopies } from './copies.js';
 import { FX_SKILL, observeCopy, observeLink, teamSkillsRoot } from './observe.js';
 import { projectSkillTargets, skillTargets, type SkillDeps } from './targets.js';
+import { skillWriteError } from './write-error.js';
 
 export interface SkillStageInput {
   readonly background?: boolean;
@@ -168,12 +175,15 @@ export class SkillStage {
         status: items[index]!.status === 'skipped' ? 'skipped' : 'done',
       };
     } catch (error) {
+      const item = items[index]!;
+      const failure =
+        'path' in item && typeof item.path === 'string' ? skillWriteError(error, item.path) : error;
       items[index] = {
         ...items[index]!,
         status: 'failed',
-        failure: toEnvelope(asDevkitError(error)).error,
+        failure: toEnvelope(asDevkitError(failure)).error,
       };
-      throw error;
+      throw failure;
     }
   }
 
@@ -247,13 +257,7 @@ export class SkillStage {
         (await this.deps.processWhich(tool.binary)) === undefined &&
         !(input.dryRun && tool.installOnInit)
       ) {
-        items.push({
-          tool: tool.name,
-          vector: null,
-          code: null,
-          note: 'not installed',
-          origin: commandOrigin(tool, 'skill'),
-        });
+        items.push(missingToolSkill(tool));
         continue;
       }
       const flag = tool.skill.agentFlag;
@@ -449,4 +453,24 @@ function summarize(
     else bump(item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed');
   }
   return summary;
+}
+
+function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
+  return {
+    tool: tool.name,
+    vector: null,
+    code: null,
+    note: 'not installed',
+    origin: commandOrigin(tool, 'skill'),
+    failure: toEnvelope(
+      new DevkitError(
+        'not_found',
+        'TOOL_MISSING',
+        `${tool.name} is required to prepare its Skill`,
+        {
+          nextSteps: [`fx tool show ${tool.name}`, `fx tool install ${tool.name} --dry-run`],
+        },
+      ),
+    ).error,
+  };
 }

@@ -4,6 +4,8 @@
 // them.
 
 import type { Capability } from '../domain/capability.js';
+import type { ServiceSettings } from '../domain/manifest/service.schema.js';
+import type { ServiceDefinition } from '../domain/setup/service.js';
 import type { SetupRecipe } from '../domain/setup/types.js';
 
 import type { Clock } from './clock.js';
@@ -29,6 +31,7 @@ export interface ProviderDescriptor<P> {
   readonly capability: Capability;
   readonly tools: readonly string[];
   readonly recipes: readonly SetupRecipe[];
+  readonly service?: (settings: ServiceSettings) => ServiceDefinition;
   readonly vars: readonly VarSpec[];
   // A reference provider creates a pure entry coordinate, not a live business client.
   readonly reference?: true;

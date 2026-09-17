@@ -1,6 +1,6 @@
 // The Skill handshake: installed, version-aligned and loaded are three different states,
-// and only an agent needs to hear about them. A person in a terminal never sees this; an
-// agent that loaded the Skill says so with FX_SKILL_LOADED=1 and hears nothing either.
+// only non-interactive callers receive guidance. A matching declared bundled
+// version acknowledges loading without requiring global installation.
 
 import path from 'node:path';
 
@@ -13,11 +13,13 @@ import { FX_SKILL, observeCopy } from './observe.js';
 import { skillTargets, type SkillDeps } from './targets.js';
 
 export const SKILL_LOADED_ENV = 'FX_SKILL_LOADED';
+export const SKILL_VERSION_ENV = 'FX_SKILL_VERSION';
 
 export interface SkillNoticeInput {
   readonly format: Format;
   readonly terminal?: boolean;
   readonly loaded: boolean;
+  readonly loadedVersion?: string | undefined;
   readonly enabled: boolean;
   readonly cliVersion: string;
 }
@@ -29,8 +31,15 @@ export async function skillNotice(
   skills: SkillDeps,
   input: SkillNoticeInput,
 ): Promise<Notice | undefined> {
-  if ((input.terminal ?? input.format === 'human') || !input.enabled || input.loaded)
-    return undefined;
+  if ((input.terminal ?? input.format === 'human') || !input.enabled) return undefined;
+  if (input.loadedVersion === input.cliVersion) return undefined;
+  const file = path.join(skills.bundledSkillDir, 'SKILL.md');
+  const nextSteps = [
+    `Read ${file}, or run fx skill show.`,
+    `After loading it, run fx with ${SKILL_LOADED_ENV}=1 and ${SKILL_VERSION_ENV}=${input.cliVersion}.`,
+  ];
+  if (input.loadedVersion !== undefined || input.loaded)
+    return versionNotice(input, file, nextSteps);
   const targets = await skillTargets(skills, undefined);
   const actions: CopyAction[] = [];
   for (const target of targets) {
@@ -42,7 +51,7 @@ export async function skillNotice(
     return {
       code: 'SKILL_MISSING',
       message: `the ${FX_SKILL} Skill is not installed for every enabled agent; agents drive fx better with it`,
-      nextSteps: ['fx skill status', 'fx skill install'],
+      nextSteps,
       silence: SILENCE,
     };
   }
@@ -50,7 +59,7 @@ export async function skillNotice(
     return {
       code: 'SKILL_OUTDATED',
       message: `the installed ${FX_SKILL} Skill is older than this fx (${input.cliVersion})`,
-      nextSteps: ['fx skill status', 'fx skill install'],
+      nextSteps,
       silence: SILENCE,
     };
   }
@@ -59,13 +68,27 @@ export async function skillNotice(
       code: 'SKILL_FOREIGN',
       message:
         'A companion Skill location contains foreign content; inspect it before installation.',
-      nextSteps: ['fx skill path', 'fx skill show'],
+      nextSteps,
       silence: SILENCE,
     };
   return {
     code: 'SKILL_AVAILABLE',
     message: `the ${FX_SKILL} Skill is installed but was not loaded for this call`,
-    nextSteps: [`load the ${FX_SKILL} Skill, then run fx with ${SKILL_LOADED_ENV}=1`],
+    nextSteps,
+    silence: SILENCE,
+  };
+}
+
+function versionNotice(input: SkillNoticeInput, file: string, nextSteps: string[]): Notice {
+  return {
+    code: input.loadedVersion === undefined ? 'SKILL_VERSION_UNVERIFIED' : 'SKILL_VERSION_MISMATCH',
+    message: `Loaded Skill version ${input.loadedVersion ?? 'unknown'}; this fx bundles ${input.cliVersion}.`,
+    nextSteps,
+    data: {
+      bundled_skill: file,
+      bundled_skill_version: input.cliVersion,
+      loaded_version: input.loadedVersion ?? null,
+    },
     silence: SILENCE,
   };
 }

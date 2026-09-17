@@ -100,7 +100,11 @@ describe('doctor checks a tool with trust-on-first-use', () => {
   it('keeps trusting the initial vector, then asks once when its arguments change', () => {
     const s = stage();
     const check = (...extra: string[]) => {
-      const run = fx(['doctor', '--tool', 'fake-tool', '--format', 'json', ...extra], s.env, s.ws);
+      const run = fx(
+        ['doctor', '--details', '--tool', 'fake-tool', '--format', 'json', ...extra],
+        s.env,
+        s.ws,
+      );
       expect(run.status, run.stderr).toBe(0);
       return (run.json() as { findings: ToolFinding[] }).findings.find(
         (f) => f.group === 'tools' && f.id === 'fake-tool',
@@ -186,7 +190,11 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
       s.toolsFile,
       'schema_version: 2\ntools:\n  - name: fake-tool\n    install: [{via: manual}]\n    skill: {command: [skill, install]}\n',
     );
-    const result = fx(['sync', '--only', 'skills', '--yes', '--format', 'json'], s.env, s.ws);
+    const result = fx(
+      ['sync', '--details', '--only', 'skills', '--yes', '--format', 'json'],
+      s.env,
+      s.ws,
+    );
     expect(result.status, result.stderr).toBe(0);
     const output = result.json() as {
       stages: { skills: { tools_failed: number } };
@@ -213,7 +221,8 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
     writeFileSync(path.join(skills, 'review', 'SKILL.md'), '---\nname: review\n---\n');
     const link = path.join(s.ws, '.claude', 'skills');
     const copy = path.join(userHome, '.claude', 'skills', 'fx-workspace');
-    const sync = () => fx(['sync', '--only', 'skills', '--format', 'json'], s.env, s.ws);
+    const sync = () =>
+      fx(['sync', '--details', '--only', 'skills', '--format', 'json'], s.env, s.ws);
     const summary = (run: ReturnType<typeof fx>) =>
       (run.json() as { stages: { skills: Record<string, number> } }).stages.skills;
 
@@ -250,8 +259,12 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
 it('uses the same collection selection for repeated and comma-separated flags', () => {
   const s = stage();
   const options = ['--dry-run', '--no-refresh-manifest', '--format', 'json'];
-  const repeated = fx(['sync', '--only', 'docs', '--only', 'skills', ...options], s.env, s.ws);
-  const comma = fx(['sync', '--only', 'docs,skills', ...options], s.env, s.ws);
+  const repeated = fx(
+    ['sync', '--details', '--only', 'docs', '--only', 'skills', ...options],
+    s.env,
+    s.ws,
+  );
+  const comma = fx(['sync', '--details', '--only', 'docs,skills', ...options], s.env, s.ws);
   expect(repeated.status, repeated.stderr).toBe(0);
   expect(comma.status, comma.stderr).toBe(0);
   expect(repeated.json()).toEqual(comma.json());

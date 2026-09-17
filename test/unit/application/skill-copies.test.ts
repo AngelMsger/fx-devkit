@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SkillCopies } from '../../../src/application/skill/copies.js';
 import { StandaloneSkill } from '../../../src/application/skill/standalone.js';
+import { asDevkitError } from '../../../src/domain/errors.js';
 import type { Lock } from '../../../src/ports/lock.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
@@ -15,6 +16,51 @@ const text = (version: string) => `---\nname: fx-workspace\nversion: ${version}\
 const files = { [path.join(source, 'SKILL.md')]: text('1.0.0') };
 
 describe('shared Skill copy service', () => {
+  it.each(['EPERM', 'EACCES'])(
+    'reports denied lock access with local recovery: %s',
+    async (code) => {
+      const fs = FakeFs.from(files);
+      const resource = '/home/.fx/locks';
+      const copies = new SkillCopies(fs, '1.0.0', {
+        bundledSkillDir: source,
+        globalLock: {
+          acquire: async () => {
+            throw asDevkitError(Object.assign(new Error('denied'), { code, path: resource }));
+          },
+        },
+      });
+      await expect(copies.install(target)).rejects.toMatchObject({
+        code: 'SKILL_WRITE_DENIED',
+        category: 'permission',
+        retryable: false,
+        message: expect.stringContaining(resource),
+        nextSteps: expect.arrayContaining([expect.stringContaining('--only repos,docs')]),
+      });
+      expect(fs.writes).toEqual([]);
+    },
+  );
+
+  it('releases the lease after a denied target write and preserves other failures', async () => {
+    class DeniedFs extends FakeFs {
+      override async replaceDir(): Promise<void> {
+        throw Object.assign(new Error('denied'), { code: 'EACCES', path: target });
+      }
+    }
+    let released = false;
+    const fs = DeniedFs.from(files);
+    const copies = new SkillCopies(fs, '1.0.0', {
+      bundledSkillDir: source,
+      globalLock: {
+        acquire: async () => ({
+          release: async () => {
+            released = true;
+          },
+        }),
+      },
+    });
+    await expect(copies.install(target)).rejects.toMatchObject({ code: 'SKILL_WRITE_DENIED' });
+    expect(released).toBe(true);
+  });
   it('refreshes explicit installs but never downgrades during maintenance', async () => {
     const fs = FakeFs.from({ ...files, [path.join(target, 'SKILL.md')]: text('2.0.0') });
     const copies = new SkillCopies(fs, '1.0.0', { bundledSkillDir: source });

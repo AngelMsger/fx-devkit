@@ -2,6 +2,16 @@
 
 安装 fx，连接团队 manifest，并管理仓库、工具与编码 Agent。
 
+## 迁移到 0.2.0 {#migrating-to-020}
+
+`init`、`sync`、`doctor`、`release` 的 JSON 默认变为摘要。`output_mode: summary` 标明视图，`omitted` 统计省略的正常行和证据；所有异常及恢复动作仍保留。需要完整行与证据时使用 `--details`。显式 `--fields` 从完整结果投影；human、NDJSON 和 `repo list`、`where`、`can` 等事实查询保持原有默认行为。`--verbose` 独立控制诊断。
+
+`init/sync` 新增 `operation: preview|apply` 和 `preparation_complete`。预览返回 `null`，注册等字段描述计划；执行只有在选中且请求的准备工作完成时才返回 `true`。脏仓库或分叉被保护、权限/信任阻塞、失败或未验证的激活都会返回 `false`；未选和明确不适用的资源不扣分。准备完成不代表远端健康。doctor/release 的 `ok`、覆盖率 `complete` 和退出行为保持原义。
+
+`agents: []` 或空 `FX_AGENTS` 表示不选择任何 Agent。使用 `fx config unset agents` 并取消环境覆盖可恢复自动检测。`FX_HOME` 仍不隔离全局 Skill。`SKILL_WRITE_DENIED` 为权限错误、退出码 5，保留被拒绝的路径和部分结果；可继续分析已有源码，或在受影响工作区执行 `fx sync --only repos,docs --no-refresh-manifest`。仅在访问条件改变后重试 Skill 写入，并遵守原有信任边界。
+
+Agent 先运行 `fx self info --format json`，读取返回的 `bundled_skill/SKILL.md` 或 `fx skill show`，再设置 `FX_SKILL_LOADED=1` 和 `FX_SKILL_VERSION=<bundled_skill_version>`。仅布尔声明不能证明版本匹配；缺失或不匹配时，包括 init 在内的业务命令会给出非阻断提示。读取 bundled Skill 不需要全局安装。分开解析 JSON stdout 与诊断 stderr，按字段读取，不用 `head -c` 或 `tail -c` 截断 JSON。
+
 ## 环境要求 {#requirements}
 
 - Node.js ≥22；开发版本以 package.json 为准。Bun 也可以作为运行时。
@@ -156,7 +166,7 @@ fx skill show
 
 显式 `skill install` 将已识别副本刷新到当前 CLI 版本，包括同版修复和覆盖较新副本；`init/sync` 则同版复用且不降级。外来路径替换需要确认和备份。写操作支持 `--dry-run` 和只读限制。`skill uninstall` 确认后移除已识别副本，非交互使用 `--yes`；外来路径保留。卸载不修改工作区选择，后续同步可能重新安装所选宿主的用户级副本。
 
-`status` 分别报告安装状态、版本匹配和 `FX_SKILL_LOADED=1` 加载握手。安装成功不等于 Agent 已加载。`path` 查询安装目标，`self info` 提供包内源路径。`show` 在所有输出格式下都输出 SKILL.md 原文。Skill 命令仅做本地操作，不检查在线更新、不刷新 manifest、不调用配套安装器或登录探测。非 TTY 的业务命令会在未加载 Skill 时向 stderr 输出结构化发现提示；setup 和 Skill 命令保持安静。`FX_SKILL_NOTICE=0` 可关闭提示。
+`status` 分别报告安装状态、版本匹配和 `FX_SKILL_LOADED=1` 加载握手。安装成功不等于 Agent 已加载。`path` 查询安装目标，`self info` 提供包内源路径。`show` 在所有输出格式下都输出 SKILL.md 原文。Skill 命令仅做本地操作，不检查在线更新、不刷新 manifest、不调用配套安装器或登录探测。非 TTY 的业务命令会在未加载 Skill 时向 stderr 输出结构化发现提示；self info、skill show 等引导命令保持安静，init 会提示未核对的版本。`FX_SKILL_NOTICE=0` 可关闭提示。
 
 团队 Skill 保存在 manifest 的 `skills/`，由 `init/sync` 链接到所选 Agent 的 Project Skill 目录，Windows 使用 junction。工作区根 AGENTS.md 还列出每个 Skill 的触发说明和源文件链接，供 Agent 按任务读取。请从工作区根启动 Agent；不承诺子仓库内启动时能发现。`agent skills` 检查工作区分发，`sync --only docs,skills` 刷新指南和 Skill。不要经团队共享链接安装 fx 伴生 Skill；CLI 会返回 `SKILL_SOURCE_PROTECTED`。请使用用户级安装或独立目录。
 
@@ -201,7 +211,7 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 
 doctor/release 即使有失败检查也退出零；init/sync 也可能在部分成功时退出零。init 查看 `sync.summary`、`sync.stages`；sync 查看 `summary`、`stages` 和每个失败条目的 `failure`。`stage_details` 保留资源阶段结果和 handoff。不要把退出码当作就绪证据，不要捏造认证或绕过宿主信任。
 
-先读[内置 Skill](../skills/fx-workspace/SKILL.md)和[响应指南](../skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1`。`self info` 定位随包源，`skill path` 查询安装目标。
+先读[内置 Skill](../skills/fx-workspace/SKILL.md)和[响应指南](../skills/fx-workspace/references/commands.md)，再设置 `FX_SKILL_LOADED=1` 和 `FX_SKILL_VERSION=<bundled_skill_version>`。`self info` 定位随包源，`skill path` 查询安装目标。
 
 ## 配置 {#configuration}
 
@@ -239,7 +249,7 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 后续初始化阶段抛出异常时, stdout 保留含 `failed_phase`、`phases`、结构化 `failure`、已完成仓库结果和恢复步骤的部分结果. 失败结果中的阶段状态为 `done`、`failed` 或 `not_started`; 成功的同步阶段仍使用原有统计计数. stderr 保留原错误, 退出码非零. 未信任的 Skill 命令单独标记为 blocked (`tools_blocked`), 独立的自有本地投影仍可完成. 即使退出码为零也应查看 blocked 和 failed 行.
 
-仓库操作期间每五秒在 stderr 报告完成数/总数、当前仓库和耗时. 这是心跳, 不是 Git 字节进度或预计完成时间. 人类输出汇总未选择仓库和较大列表; `--verbose` 显示未选择行, `--format json` 保留完整详情. `FIELDS_UNMATCHED` 表示请求字段未出现在本次结果中, 也可能是可选字段; 投影继续宽松处理, 空集合不会产生该提示.
+仓库操作期间每五秒在 stderr 报告完成数/总数、当前仓库和耗时. 这是心跳, 不是 Git 字节进度或预计完成时间. 人类输出汇总未选择仓库和较大列表; `--verbose` 显示未选择行, `--format json --details` 获取完整报告详情. `FIELDS_UNMATCHED` 表示请求字段未出现在本次结果中, 也可能是可选字段; 投影继续宽松处理, 空集合不会产生该提示.
 
 就绪结果区分 `missing_tool`、`outdated_tool` 与 `disabled_tool`. Doctor 工具证据提供 `binary_path`, 与执行使用相同的 PATH 解析规则, 可能指向运行时管理器的 shim. 状态进程成功但 `configured=false` 不代表就绪; 配置完整也不证明资源权限或远端查询成功. `no_access` 表示环境不在个人选择范围, 并非远端 ACL 拒绝.
 
@@ -258,3 +268,17 @@ Skill 阶段中断时, `sync.stage_details.skills` 保留 `links`、`fx` 和 `to
 `agent list` 提供 `detected`、`selected`、`selection` (automatic 或 explicit) 和 `active: null`, 因为检出并不能证明当前活跃. 初始化前显式设置 `fx config set agents <id,...>` 可限制投影范围. `FX_HOME` 只隔离 fx 配置, 不隔离全局 Skill; 实验还应使用独立 HOME.
 
 Grok 1.0.25 仅在 Git 根发现项目 hook. 普通工作区根完成正常目录信任后可以发现指南和 Skill, 但不能因此修复 hook 发现. `hook list` 会说明激活限制; 需显式执行 `fx sync --only docs,skills`, 不要在工作区根初始化 Git. 宿主执行批准或取消独立于 fx 执行, auto 模式也不关闭宿主权限检查. Hook 保持 fail-open, 在 stderr 输出有界的 `HOOK_FAILED_OPEN` 诊断, 不含原始输入或异常文本; 文件投影本身不能证明激活.
+
+## 共享服务设置与个人凭证
+
+从 fx 0.1.3 起，manifest 的 `service` 可分发公共服务设置。`fx init` 在工具安装后、仓库查询前准备配置；显式 `fx sync` 也会执行。用 `fx sync --only services --dry-run` 预览这一阶段。后台 hook 只检查，不修改配套工具的服务配置。
+
+服务准备离线执行，与个人认证分开。每位成员须自行获取 PAT、API Token、密码或浏览器会话，并通过配套 CLI 存入本机。`auth_scheme` 中的 `pat`、`token`、`basic`、`session` 只是方式名称，不是凭证值。`service` 只允许公共连接字段；即使不使用严格校验，额外字段也会被拒绝。不要把凭证放进 URL 或共享文件。
+
+配套工具通过 `config set-context` 准备配置，不自动传 `--activate` 或 `--overwrite`；首次 context 的激活遵循工具原生行为。相同值不重写，冲突保留原值并返回字段差异和覆盖预览。OpenObserve 已有浏览器会话的地址或认证方式变更需要新 context；`session` 使用 `auth login --browser`。sync 不执行个人授权。登录和检查显式使用声明的 context 与地址。
+
+Sentry 在工作区 `.sentryclirc` 中只接收 URL 和组织默认值，不复制既有 Token 或修改全局默认值。公共默认值匹配则复用，冲突文件与链接保留。登录显式指定 `--url`，fx 查询使用同一地址，授权由各成员自行完成。
+
+检查 `stage_details.services.items` 的 `configured`、`unchanged`、`planned`、`blocked`、`failed` 和恢复指引。配置成功不代表认证或资源访问成功；旧版工具提示升级，不静默替换。dry-run 不写配置或信任记录。未声明 `service` 的旧 manifest 保留原流程。
+
+诊断覆盖来源时，使用配套工具针对指定 context 的公共配置视图及字段来源。不要输出完整环境变量，也不要按工具前缀批量筛选：其中可能有个人 Token 或密码。检查若因信任、只读模式或工具不可用而受阻，应报告“认证未验证”，不能据此断言凭证缺失或过期。处理机器输出时，将 JSON stdout 与诊断 stderr 分开解析。

@@ -3,6 +3,7 @@
 
 import type { Ci } from '../../../ports/ci.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';
+import { familyService } from '../../family/service.js';
 
 import { BINARY, JenkinsCi } from './ci.js';
 import { JENKINS_RECIPES } from './recipes.js';
@@ -11,6 +12,7 @@ export const jenkinsCliProvider: ProviderDescriptor<Ci> = {
   id: BINARY,
   capability: 'ci',
   tools: [BINARY],
+  service: (settings) => familyService('jenkins-cli', settings, 'authenticated', '0.9.0'),
   recipes: JENKINS_RECIPES,
   vars: [
     { name: 'host', desc: 'Jenkins host name', required: false },

@@ -10,6 +10,7 @@ import type { Confidence } from './confidence.js';
 export interface Coordinate {
   readonly label: string;
   readonly command: readonly string[];
+  readonly env?: Readonly<Record<string, string>>;
   readonly url?: string;
   readonly note?: string;
 }

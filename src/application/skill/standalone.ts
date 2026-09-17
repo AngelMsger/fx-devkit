@@ -11,7 +11,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import { SkillCopies, withSkillLock } from './copies.js';
 import { assertSkillDestination } from './destination.js';
-import { SKILL_LOADED_ENV } from './notice.js';
+import { SKILL_LOADED_ENV, SKILL_VERSION_ENV } from './notice.js';
 import { observeCopy } from './observe.js';
 import {
   standaloneTargets,
@@ -58,6 +58,9 @@ export interface SkillWriteInput extends StandaloneTargetsInput {
 export interface SkillStatus {
   readonly loaded: boolean;
   readonly loaded_env: string;
+  readonly loaded_version: string | null;
+  readonly version_env: string;
+  readonly version_verified: boolean;
   readonly embedded_version: string;
   readonly installs: readonly SkillInstallation[];
   readonly next: string;
@@ -71,18 +74,22 @@ export class StandaloneSkill {
     return Promise.all(targets.map((target) => this.inspect(target)));
   }
 
-  async status(input: StandaloneTargetsInput, loaded: boolean): Promise<SkillStatus> {
+  async status(
+    input: StandaloneTargetsInput,
+    loaded: boolean,
+    loadedVersion?: string,
+  ): Promise<SkillStatus> {
     const installs = await this.paths(input);
-    let next = '';
-    if (installs.some((i) => i.status === 'installed' && i.version_state !== 'matching'))
-      next = 'Run fx skill install for the selected target to refresh it, then reload the Skill.';
-    else if (!loaded)
-      next = installs.some((i) => i.status === 'installed')
-        ? 'Load the fx-workspace Skill before composing commands.'
-        : 'Run fx skill install, or read fx skill show, then load the Skill.';
+    const verified = loadedVersion === this.deps.version;
+    const next = verified
+      ? ''
+      : `Read fx skill show, then set ${SKILL_VERSION_ENV}=${this.deps.version}; global installation is optional.`;
     return {
-      loaded,
+      loaded: loaded || verified,
       loaded_env: SKILL_LOADED_ENV,
+      loaded_version: loadedVersion ?? null,
+      version_env: SKILL_VERSION_ENV,
+      version_verified: verified,
       embedded_version: this.deps.version,
       installs,
       next,

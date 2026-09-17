@@ -299,6 +299,10 @@ export class Readiness {
     const pending: SetupStep[] = [];
     for (const step of plan.steps) {
       try {
+        if (step.requires.some((id) => pending.some((item) => item.id === id))) {
+          pending.push(step);
+          continue;
+        }
         if (!(await verifier.verify(step)).ok) pending.push(step);
       } catch (err) {
         if (isTrustRequired(err)) return 'untrusted';

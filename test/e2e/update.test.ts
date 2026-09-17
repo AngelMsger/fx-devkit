@@ -57,7 +57,9 @@ const forget = (home: string): void =>
 describe('update notices', () => {
   it('report a manifest that moved upstream on any command, are settled by sync, and never change the result', () => {
     const s = stage();
-    expect(fx(['init', s.ws, '--from', s.manifest.bare, '--format', 'json'], s.env).status).toBe(0);
+    expect(
+      fx(['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'], s.env).status,
+    ).toBe(0);
     const json = ['--format', 'json'];
 
     const current = fx(['status', ...json], s.env, s.ws);
@@ -95,7 +97,7 @@ describe('update notices', () => {
       codes(fx(['status', ...json], { ...s.env, FX_UPDATE_CHECK: '0' }, s.ws).stderr),
     ).not.toContain('MANIFEST_OUTDATED');
 
-    expect(fx(['sync', ...json], s.env, s.ws).status).toBe(0);
+    expect(fx(['sync', '--details', ...json], s.env, s.ws).status).toBe(0);
     expect(codes(fx(['status', ...json], s.env, s.ws).stderr)).not.toContain('MANIFEST_OUTDATED');
 
     const source = manifestDirOf(s.home, 'ws');
@@ -103,7 +105,7 @@ describe('update notices', () => {
     s.manifest.commit({ 'skills/x/SKILL.md': '---\nname: x\ndescription: X\n---\n' }, 'skill');
     forget(s.home);
     expect(codes(fx(['status', ...json], s.env, s.ws).stderr)).toContain('MANIFEST_OUTDATED');
-    const kept = fx(['sync', ...json], s.env, s.ws);
+    const kept = fx(['sync', '--details', ...json], s.env, s.ws);
     expect(kept.status).toBe(0);
     expect(codes(kept.stderr)).toContain('MANIFEST_REFRESH_KEPT');
     expect(codes(kept.stderr)).not.toContain('MANIFEST_OUTDATED');
@@ -115,7 +117,7 @@ describe('update notices', () => {
       { 'skills/x/SKILL.md': '---\nname: x\ndescription: X again\n---\n' },
       'again',
     );
-    const doctor = fx(['doctor', ...json], s.env, s.ws).json() as {
+    const doctor = fx(['doctor', '--details', ...json], s.env, s.ws).json() as {
       findings: { group: string; id: string; level: string; fix?: string }[];
     };
     expect(doctor.findings.find((f) => f.id === 'upstream')).toMatchObject({
@@ -124,7 +126,11 @@ describe('update notices', () => {
       fix: 'fx sync',
     });
     expect(doctor.findings.find((f) => f.group === 'self')?.id).toBe('version');
-    const off = fx(['doctor', '--quiet', ...json], s.env, s.ws).json() as typeof doctor;
+    const off = fx(
+      ['doctor', '--details', '--quiet', ...json],
+      s.env,
+      s.ws,
+    ).json() as typeof doctor;
     expect(off.findings.find((f) => f.id === 'upstream')?.level).toBe('ok');
   });
 

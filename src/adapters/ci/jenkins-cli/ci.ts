@@ -27,7 +27,7 @@ export class JenkinsCi implements Ci {
     id: BINARY,
     capability: 'ci',
     label: 'Jenkins job {path}',
-    optionalFlags: { context: '--use-context' },
+    optionalFlags: { context: '--use-context', base_url: '--base-url' },
     command: [BINARY, 'build', 'list', '{path}'],
     probe: { label: 'job {path}', command: [BINARY, 'job', 'get', '--', '{path}'] },
   });
@@ -46,7 +46,12 @@ export class JenkinsCi implements Ci {
     const path = vars['path'] ?? '';
     // A workspace with two Jenkins servers names the one it means; without
     // a context the CLI's own selection stands.
-    const cli = new FamilyCli(BINARY, this.process, vars['context']);
+    const cli = new FamilyCli(
+      BINARY,
+      this.process,
+      vars['context'],
+      vars['base_url'] ? vars : undefined,
+    );
     const call = await cli.call(['build', 'get', path], QUERY);
     if (call.code === EXIT.not_found) return undefined;
     const data = objectOf(call.data);

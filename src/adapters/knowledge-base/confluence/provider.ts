@@ -3,6 +3,7 @@
 
 import type { Coordinate } from '../../../domain/obs/types.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';
+import { familyService } from '../../family/service.js';
 import { referenceEntry } from '../../reference/entry.js';
 
 const SPACE = [
@@ -26,6 +27,24 @@ export const confluenceProvider: ProviderDescriptor<Coordinate> = {
     { name: 'base_url', desc: 'verified Confluence site URL', required: true },
     { name: 'space', desc: 'space key', required: true },
   ],
+  service: (settings) => {
+    const service = familyService('confluence-cli', settings);
+    return {
+      ...service,
+      recipes: [
+        ...service.recipes,
+        {
+          id: 'access',
+          tool: 'confluence-cli',
+          perEnv: false,
+          kind: 'manual' as const,
+          title: 'Verify access to the Confluence space',
+          requires: ['credential'],
+          verify: { command: ['--use-context', settings.context ?? '', ...SPACE] },
+        },
+      ],
+    };
+  },
   recipes: [
     {
       id: 'access',
@@ -43,7 +62,11 @@ export const confluenceProvider: ProviderDescriptor<Coordinate> = {
     referenceEntry({
       template: {
         label: 'Confluence space {space}',
-        command: ['confluence-cli', ...SPACE],
+        command: [
+          'confluence-cli',
+          ...(vars['context'] ? ['--use-context', vars['context']] : []),
+          ...SPACE,
+        ],
         url: '{base_url}',
       },
       vars,
