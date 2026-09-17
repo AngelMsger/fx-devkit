@@ -5,6 +5,19 @@ The planner is pure; application workflows decide when to ask, check or execute,
 and ports own those effects. Readiness describes prerequisites for a later query,
 not proof that every repository or remote resource is accessible.
 
+## Manifest verification alternatives
+
+Team setup checks use the same declared command/JSON, file and provider verification
+alternatives as the runtime. Unknown-key normalization retains fields known by any
+union alternative, including nested objects, arrays and maps. It does not select a
+branch or erase conflicting branch fields; normal schema validation rejects mixed
+or invalid alternatives. Genuinely unknown keys retain the existing lenient-report
+and strict-error behavior.
+
+Tool overlays preserve null where the schema accepts it as a value, such as
+`verify.json.equals: null`. Elsewhere null retains its field-deletion meaning.
+Normalization does not run checks, grant command trust or alter verification results.
+
 ## Companion Skill destinations
 
 `skill.dir_flag` installs a companion Skill once per distinct selected global
