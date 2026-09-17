@@ -312,7 +312,16 @@ fields; `manifest record-probe <repo> --env <env> --platform <platform>` records
 verified coordinate evidence, with `--dry-run` returning a plan without probing.
 `where` remains the coordinate query entry. Compatibility entries remain available:
 `skill list`, `tool installed`, `hook inject/remove`, `manifest set` and
-`where --probe --record` retain their existing operations.
+`where --probe --record` retain their existing operations. Topic help lists canonical
+commands first and compatibility mappings separately. Command-name completion and
+typo suggestions use canonical names; flags still complete after a typed alias.
+
+For `manifest validate/lint/providers/repo-set/render`, explicit `--workspace` or
+`FX_WORKSPACE` selects the registered source even inside another source checkout.
+An unknown explicit name fails instead of falling back to that checkout. Without
+an explicit selector, these commands use the source checkout around the current
+directory before resolving a workspace. `manifest import <dir>` keeps its explicit
+input directory. File-output options accept `-o` and `--out`, including render.
 
 Collection flags such as `--only`, repeatable `--env` and `--agent` accept repeated
 or comma-separated values. Agent selection is global: pick/unpick results include
@@ -320,7 +329,7 @@ or comma-separated values. Agent selection is global: pick/unpick results includ
 `scope: workspace` and `workspace`. Inventory/history cover the entire FX_HOME,
 even when `--workspace` is supplied. Completion recognizes option values,
 positional arguments and negative flags; regenerate installed completion scripts
-after upgrading. Root help accepts global flags, but help, completion,
+after upgrading. Root and topic help accept leading global flags, but help, completion,
 `skill show` and `manifest schema` emit their native text/artifact formats.
 
 | Intent                                        | Entry                                                                              |

@@ -109,6 +109,8 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
+`manifest validate/lint/providers/repo-set/render` 優先使用明確指定的 `--workspace` 或 `FX_WORKSPACE`，即使目前目錄位於另一份來源 checkout 內。未知的明確名稱會報錯，不會退回修改附近的 manifest。未明確選擇時，仍優先使用目前目錄附近的來源 checkout，支援獨立維護。`manifest import <dir>` 保留目錄參數語意，`manifest record-probe` 使用所選已註冊工作區。所有檔案輸出參數支援 `-o` 和 `--out`，包括 render。
+
 ## 共用與維護來源 {#share-and-maintain-the-source}
 
 目錄來源是快照；本機 Git 來源使用已提交內容，不包含尚未提交的變更。持續共用應將審閱過的來源提交到權限適當的 Git 儲存庫，再把 URL 提供給 `fx init`。

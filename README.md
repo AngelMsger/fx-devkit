@@ -248,7 +248,10 @@ enabled tools, while update's `--all` updates enabled tools. Bare invocations fa
 before package operations. The bundled baseline and manifest merge policy are unchanged.
 
 Canonical entries are `agent skills`, `tool inventory`, `hook enable/disable`,
-`manifest repo-set` and `manifest record-probe`. The former entries remain compatible.
+`manifest repo-set` and `manifest record-probe`. The former entries remain compatible. Help and command-name completion
+prefer canonical names; topic help lists compatibility mappings separately.
+Explicit `--workspace`/`FX_WORKSPACE` also takes precedence over nearby source
+checkouts for manifest inspection and editing.
 Agent selection and tool inventory/history span this FX_HOME; repository and environment
 selection remain workspace-local. See the [command guide](docs/user-guide.md#commands).
 

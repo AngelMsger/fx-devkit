@@ -170,6 +170,10 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 ## 主なコマンド {#commands}
 
+トピックのヘルプは正規コマンドを優先し、互換名との対応を別に表示します。コマンド名の補完と綴りの候補は正規名を使い、入力済みの互換名でもフラグを補完できます。ルートとトピックのヘルプは先頭のグローバルフラグも受け付けます。
+
+`manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
+
 `agent skills` はワークスペースの Skill 配布を確認し、`skill install/show/path/status/uninstall` は内蔵 companion Skill を独立して管理します。`manifest repo-set` はリポジトリのフィールドを変更します。`manifest record-probe <repo> --env <env> --platform <platform>` は検証済み座標の証拠を記録し、`--dry-run` はプローブせず計画だけを返します。座標の参照は `where` を使います。互換入口の `skill list`、`tool installed`、`hook inject/remove`、`manifest set`、`where --probe --record` も引き続き利用できます。
 
 集合フラグの `--only`、繰り返し可能な `--env`、`--agent` は反復指定とカンマ区切りに対応します。Agent の選択結果は `scope: global` と `affected_workspaces`、リポジトリ／環境の選択は `scope: workspace` と `workspace` を返します。一覧と履歴は `--workspace` を指定しても FX_HOME 全体を対象にします。補完はオプション値、位置引数、否定フラグを認識するため、更新後は補完スクリプトを再生成してください。ルートヘルプはグローバルフラグを受け付けますが、ヘルプ、補完、`skill show`、`manifest schema` は本来のテキスト／成果物形式を返します。

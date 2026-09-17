@@ -4,7 +4,7 @@ import { FxCommand } from '../base.js';
 import { completionFlags, completionScript, SHELLS } from '../completion.js';
 import { globalFlags } from '../flags.js';
 
-import { COMMANDS } from './index.js';
+import { COMMANDS, compatibilityTarget } from './index.js';
 
 export default class CompletionCommand extends FxCommand {
   static override description = 'Print a shell completion script for bash, zsh, fish or PowerShell';
@@ -25,6 +25,7 @@ export default class CompletionCommand extends FxCommand {
       .filter(([, command]) => !command.hidden)
       .map(([id, command]) => ({
         id: id.replaceAll(':', ' '),
+        aliasOf: compatibilityTarget(id)?.replaceAll(':', ' '),
         flags: completionFlags(command.flags ?? {}),
       }));
     this.log(completionScript(args.shell, commands, completionFlags(globalFlags)).trimEnd());

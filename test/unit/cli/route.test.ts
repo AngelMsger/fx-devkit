@@ -6,6 +6,14 @@ const ids = ['status', 'self info', 'config get', 'config set', 'config list'];
 
 describe('routeArgv', () => {
   it.each([
+    ['--format', 'json', 'self'],
+    ['--workspace=example', 'self', '--help'],
+    ['--quiet', 'config', '--format', 'json', '--help'],
+  ])('accepts global flags before a bare topic: %j', (...argv) => {
+    expect(routeArgv(normalizeArgv(argv, ids), ids)).toEqual({ kind: 'run' });
+  });
+
+  it.each([
     ['--command-shell', 'cmd', 'config', 'list'],
     ['config', '--command-shell=cmd', 'list'],
     ['config', 'list', '--command-shell', 'cmd'],

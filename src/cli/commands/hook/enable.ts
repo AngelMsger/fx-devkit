@@ -2,19 +2,19 @@ import { manageHooks } from '../../../composition/hooks.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
-export default class HookRemoveCommand extends FxCommand {
+export default class HookEnableCommand extends FxCommand {
   static override description =
-    'Disable workspace lifecycle hooks and remove only fx-managed entries';
-  static override examples = ['<%= config.bin %> hook disable --format json'];
+    'Enable and project lifecycle hooks for the selected agents in this workspace';
+  static override examples = ['<%= config.bin %> hook enable --format json'];
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(HookRemoveCommand);
+    const { flags } = await this.parse(HookEnableCommand);
     const out = await manageHooks({
       container: this.container,
       resolve: this.resolveInput(),
       env: process.env,
-      action: 'remove',
+      action: 'inject',
       posture: this.posture,
       dryRun: flags['dry-run'],
     });

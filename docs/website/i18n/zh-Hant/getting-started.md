@@ -170,6 +170,10 @@ harness 向所選宿主投射 MCP 項目和規則參照，機密值保持為環�
 
 ## 常用命令 {#commands}
 
+主題說明優先顯示主命令，並另列相容映射。命令名稱補全和拼字建議使用主名稱；已輸入舊名稱後仍能補全參數。根說明和主題說明均接受放在前面的全局參數。
+
+`manifest validate/lint/providers/repo-set/render` 優先使用明確指定的 `--workspace` 或 `FX_WORKSPACE`，即使目前目錄位於另一份來源 checkout 內。未知的明確名稱會報錯，不會退回修改附近的 manifest。未明確選擇時，仍優先使用目前目錄附近的來源 checkout，支援獨立維護。`manifest import <dir>` 保留目錄參數語意，`manifest record-probe` 使用所選已註冊工作區。所有檔案輸出參數支援 `-o` 和 `--out`，包括 render。
+
 `agent skills` 檢查工作區 Skill 分發；`skill install/show/path/status/uninstall` 獨立管理內建伴生 Skill。`manifest repo-set` 修改倉庫欄位，`manifest record-probe <repo> --env <env> --platform <platform>` 寫回已驗證的座標證據，`--dry-run` 僅產生計畫且不探測。`where` 用於查詢。相容入口 `skill list`、`tool installed`、`hook inject/remove`、`manifest set` 和 `where --probe --record` 繼續可用。
 
 集合參數（如 `--only`、可重複的 `--env` 和 `--agent`）支援重複傳入或逗號分隔。Agent 選擇跨工作區，結果包含 `scope: global` 與 `affected_workspaces`；倉庫／環境選擇回傳 `scope: workspace` 與 `workspace`。清單及歷史涵蓋整個 FX_HOME，即使傳入 `--workspace` 也相同。補全辨識參數值、位置參數和否定選項，升級後需重新產生補全指令碼。根說明接受全局參數；說明、補全、`skill show` 和 `manifest schema` 保持原生文字／檔案格式。

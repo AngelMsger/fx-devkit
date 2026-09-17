@@ -77,6 +77,14 @@ describe('resolveManifestDir', () => {
       nextSteps: expect.arrayContaining([expect.stringContaining('fx init')]),
     });
   });
+
+  it('honours explicit workspace selection before a nearby manifest and never falls back for unknown names', async () => {
+    const selected = { ...input(path.resolve('/w/deep'), workspace('v2-full')), name: 'fx' };
+    expect(await resolveManifestDir(selected)).toBe(manifestDirFor('fx'));
+    await expect(resolveManifestDir({ ...selected, name: 'missing' })).rejects.toMatchObject({
+      code: 'WORKSPACE_UNKNOWN',
+    });
+  });
 });
 
 describe('ValidateManifest', () => {

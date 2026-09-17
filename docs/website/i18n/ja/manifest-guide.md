@@ -109,6 +109,8 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
+`manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
+
 ## ソースの共有と保守 {#share-and-maintain-the-source}
 
 ディレクトリソースはスナップショットです。ローカル Git ソースはコミット済み内容を使い、未コミットの編集を含みません。継続的に共有する場合は、レビュー済みソースを適切なアクセス権を持つ Git リポジトリにコミットし、その URL を `fx init` に渡します。

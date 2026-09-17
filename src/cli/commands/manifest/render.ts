@@ -6,7 +6,7 @@ import { dryRunFlag } from '../../flags.js';
 
 export default class ManifestRenderCommand extends FxCommand {
   static override description =
-    "Regenerate the manifest-derived regions of the manifest repository's AGENTS.md: the checkout under cwd, else the workspace's source copy";
+    'Regenerate manifest-derived AGENTS.md regions: explicit workspace selection wins, otherwise use the source checkout near cwd';
   static override examples = [
     '<%= config.bin %> manifest render',
     '<%= config.bin %> manifest render --check   # CI: exit 11 when stale',
@@ -18,6 +18,7 @@ export default class ManifestRenderCommand extends FxCommand {
       description: 'write nothing; fail when the document is stale',
     }),
     out: Flags.string({
+      char: 'o',
       description:
         'create or replace a fully rendered AGENTS.md at this path instead; nothing else is touched',
     }),

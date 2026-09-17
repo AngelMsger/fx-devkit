@@ -4,7 +4,7 @@
 
 import { Help, type Command, type Interfaces } from '@oclif/core';
 
-import { EVERYDAY } from './commands/index.js';
+import { COMMAND_ALIASES, compatibilityTarget, EVERYDAY } from './commands/index.js';
 
 const AGENT_USAGE = `AGENT USAGE
   --format json     machine-readable output; collections are {items, has_more, next?}
@@ -25,13 +25,29 @@ const AGENT_USAGE = `AGENT USAGE
   Set FX_FORMAT=json to apply the format to a whole session.`;
 
 export default class FxHelp extends Help {
+  protected override get sortedCommands(): Command.Loadable[] {
+    return super.sortedCommands.filter((command) => compatibilityTarget(command.id) === undefined);
+  }
+
   override async showCommandHelp(command: Command.Loadable): Promise<void> {
+    const target = compatibilityTarget(command.id);
+    if (target)
+      this.log(`COMPATIBILITY\n  Use fx ${target.replaceAll(':', ' ')} for this operation.\n`);
     await super.showCommandHelp(command);
     this.log(AGENT_USAGE);
   }
 
   protected override async showTopicHelp(topic: Interfaces.Topic): Promise<void> {
     await super.showTopicHelp(topic);
+    const aliases = Object.entries(COMMAND_ALIASES).filter(([alias]) =>
+      alias.startsWith(`${topic.name}:`),
+    );
+    if (aliases.length) {
+      this.log('COMPATIBILITY');
+      for (const [alias, canonical] of aliases)
+        this.log(`  ${alias.replaceAll(':', ' ')} -> ${canonical.replaceAll(':', ' ')}`);
+      this.log('');
+    }
     this.log(AGENT_USAGE);
   }
 

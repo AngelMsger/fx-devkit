@@ -1,4 +1,4 @@
-// `manifest set`: one scalar or alias array of one repository. The edited text is validated
+// `manifest repo-set`: one scalar or alias array of one repository. The edited text is validated
 // before anything is written, and an edit that introduces a problem the
 // file did not already have is refused — the manifest never gets worse by
 // going through fx.
@@ -69,7 +69,7 @@ export class SetRepoField {
       preview: previewOf(original, edit.text),
     };
     if (input.dryRun) return plan;
-    assertWritable(input.posture, `manifest set ${input.repo} ${input.field}`);
+    assertWritable(input.posture, `manifest repo-set ${input.repo} ${input.field}`);
     await this.fs.writeText(file, edit.text);
     return { ...plan, written: true };
   }

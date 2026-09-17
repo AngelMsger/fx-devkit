@@ -3,11 +3,11 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b15c4363e305f74cb2f8880326984d88b8c5e3dfb0aa63324ccdc948eb2801e4"
+      "source_sha256": "e604a250ab59467d639032bb9988ea9617f8d71f5523c1a63056eeab2c854438"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6b714db8c64bd6070c17443523a6a0d09853477620b8b5c6c182e7a6a977206b"
+      "source_sha256": "a0e55e2863fd569674cadd8bfb711fb7a1b5f6f382b6b761152c53bb21676c46"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -26,11 +26,11 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b15c4363e305f74cb2f8880326984d88b8c5e3dfb0aa63324ccdc948eb2801e4"
+      "source_sha256": "e604a250ab59467d639032bb9988ea9617f8d71f5523c1a63056eeab2c854438"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6b714db8c64bd6070c17443523a6a0d09853477620b8b5c6c182e7a6a977206b"
+      "source_sha256": "a0e55e2863fd569674cadd8bfb711fb7a1b5f6f382b6b761152c53bb21676c46"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -49,11 +49,11 @@
     "_catalog_sha256": "af33b047ee0c24bb90b9b7144ee84afc44cea9e19da9974e9c4fd4957939c71e",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b15c4363e305f74cb2f8880326984d88b8c5e3dfb0aa63324ccdc948eb2801e4"
+      "source_sha256": "e604a250ab59467d639032bb9988ea9617f8d71f5523c1a63056eeab2c854438"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6b714db8c64bd6070c17443523a6a0d09853477620b8b5c6c182e7a6a977206b"
+      "source_sha256": "a0e55e2863fd569674cadd8bfb711fb7a1b5f6f382b6b761152c53bb21676c46"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",

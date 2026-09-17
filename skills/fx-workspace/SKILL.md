@@ -272,6 +272,12 @@ on the bundled companion. Agent selection reports `scope: global` and
 Collection selectors accept repeated or comma-separated values. Compatibility
 entries remain available for skill list, tool installed, hook inject/remove,
 manifest set and where --probe --record.
+Primary help/completion prefer canonical names; typed aliases retain flag completion.
+For manifest validate/lint/providers/repo-set/render, `--workspace` or FX_WORKSPACE
+wins over a source checkout around cwd. Inspect the selected source before editing;
+an unknown explicit workspace fails instead of falling back. Without an explicit
+selector, nearby source maintenance still works. Root/topic help accepts leading
+global flags, and every file-output flag has `-o` as well as `--out`.
 
 ## Installation history and unused tools
 

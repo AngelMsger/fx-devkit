@@ -36,14 +36,15 @@ export function normalizeArgv(argv: readonly string[], commandIds: readonly stri
       i = taken.last;
       continue;
     }
-    if (token === '--' || token.startsWith('-')) return [...argv];
+    if (token === '--' || token.startsWith('-'))
+      return words.length ? [...words, ...globals, ...argv.slice(i)] : [...argv];
     words.push(token);
     const attempted = words.join(' ');
     if (commandIds.includes(attempted)) return [...words, ...globals, ...argv.slice(i + 1)];
     if (!commandIds.some((id) => id.startsWith(`${attempted} `)))
       return globals.length === 0 ? [...argv] : [...words, ...globals, ...argv.slice(i + 1)];
   }
-  return [...argv];
+  return [...words, ...globals];
 }
 
 export function routeArgv(

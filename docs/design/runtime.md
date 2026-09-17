@@ -114,3 +114,16 @@ names or `--all`; the latter selects missing enabled tools for install and all e
 tools for update. Collection flags share repeated/comma-separated syntax. Completion
 uses flag arity, negations and short names to retain routing after option values and
 positionals. Native artifact commands keep their documented raw output exceptions.
+
+Command aliases are explicit registry data. Runtime dispatch accepts them; primary
+help, typo suggestions and command-name completion advertise canonical entries.
+Topic help and generated references carry a separate compatibility mapping, with
+legacy documentation anchors retained. Completion keeps routing and flag metadata
+for already-typed aliases. Root/topic/leaf invocations normalize leading global
+flags consistently while retaining strict rejection of malformed values.
+
+Manifest source inspection and editing respect explicit workspace flags/environment
+before cwd discovery. Unknown explicit selectors fail rather than editing a nearby
+checkout. Without a selector, standalone source maintenance keeps cwd precedence.
+Commands taking a source-independent schema or explicit directory retain those
+contracts. All file-output flags include the `-o` shorthand.

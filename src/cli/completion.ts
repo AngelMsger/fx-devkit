@@ -13,6 +13,7 @@ export interface CompletionFlag {
 }
 export interface CompletionCommand {
   readonly id: string;
+  readonly aliasOf?: string | undefined;
   readonly flags: readonly CompletionFlag[];
 }
 interface FlagDefinition {
@@ -42,6 +43,7 @@ export function completionFlags(
 interface Entry {
   readonly id: string;
   readonly children: readonly string[];
+  readonly routes: readonly string[];
   readonly flags: readonly CompletionFlag[];
 }
 export function completionScript(
@@ -62,14 +64,11 @@ export function completionScript(
   const ids = ['', ...new Set(commands.flatMap(({ id }) => [id.split(' ')[0]!, id]))];
   const entries = ids.map((id): Entry => ({
     id,
-    children: [
-      ...new Set(
-        commands.flatMap((command) => {
-          if (id === '') return [command.id.split(' ')[0]!];
-          return command.id.startsWith(`${id} `) ? [command.id.slice(id.length + 1)] : [];
-        }),
-      ),
-    ],
+    children: childCommands(
+      commands.filter((command) => command.aliasOf === undefined),
+      id,
+    ),
+    routes: childCommands(commands, id),
     flags: [
       ...globals,
       ...(commands.find((command) => command.id === id)?.flags ?? []),
@@ -81,10 +80,20 @@ export function completionScript(
   if (shell === 'fish') return fish(entries);
   return posix(shell as 'bash' | 'zsh', entries);
 }
+function childCommands(commands: readonly CompletionCommand[], id: string): string[] {
+  return [
+    ...new Set(
+      commands.flatMap((command) => {
+        if (id === '') return [command.id.split(' ')[0]!];
+        return command.id.startsWith(`${id} `) ? [command.id.slice(id.length + 1)] : [];
+      }),
+    ),
+  ];
+}
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
 function posixScanner(entries: readonly Entry[]): string[] {
   const transitions = entries.flatMap((entry) =>
-    entry.children.map(
+    entry.routes.map(
       (child) =>
         `      ${quote(`${entry.id}:${child}`)}) fx_cmd=${quote([entry.id, child].filter(Boolean).join(' '))} ;;`,
     ),
@@ -177,7 +186,7 @@ function powershell(entries: readonly Entry[]): string {
   const array = (values: readonly string[]): string => `@(${values.map(q).join(', ')})`;
   const metadata = entries.map(
     (entry) =>
-      `${q(entry.id)} = @{ children = ${array(entry.children)}; flags = ${array(entry.flags.map((flag) => flag.name))}; values = @{ ${entry.flags
+      `${q(entry.id)} = @{ children = ${array(entry.children)}; routes = ${array(entry.routes)}; flags = ${array(entry.flags.map((flag) => flag.name))}; values = @{ ${entry.flags
         .filter((flag) => flag.takesValue)
         .map((flag) => `${q(flag.name)} = ${array(flag.options)}`)
         .join('; ')} } }`,
@@ -193,7 +202,7 @@ $fxCompleter = {
     if ($word -eq '--') { return }
     if ($fxCommands[$id].values.ContainsKey($word)) { $pending = $word; continue }
     if ($word.StartsWith('-')) { continue }
-    if ($fxCommands[$id].children -contains $word) { $id = ($id + ' ' + $word).Trim() }
+    if ($fxCommands[$id].routes -contains $word) { $id = ($id + ' ' + $word).Trim() }
   }
   if ($pending) { $candidates = $fxCommands[$id].values[$pending] }
   elseif ($wordToComplete.StartsWith('-')) { $candidates = $fxCommands[$id].flags }
@@ -218,7 +227,7 @@ function fishCases(entries: readonly Entry[]): {
 } {
   const q = (value: string): string => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
   const transitions = entries.flatMap((entry) =>
-    entry.children.map(
+    entry.routes.map(
       (child) =>
         `      case ${q(`${entry.id}:${child}`)}\n        set fx_cmd ${q([entry.id, child].filter(Boolean).join(' '))}`,
     ),

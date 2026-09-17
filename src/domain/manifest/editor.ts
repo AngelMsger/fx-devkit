@@ -65,9 +65,9 @@ function assertSettable(field: string): SettableRepoField {
     throw new DevkitError(
       'usage',
       'MANIFEST_SET_UNSUPPORTED',
-      `"${field}" is not supported by manifest set; edit it by hand`,
+      `"${field}" is not supported by manifest repo-set; edit it by hand`,
       {
-        hint: `manifest set changes a scalar or aka array: ${SETTABLE_REPO_FIELDS.join(', ')}.`,
+        hint: `manifest repo-set changes a scalar or aka array: ${SETTABLE_REPO_FIELDS.join(', ')}.`,
         nextSteps: ['Edit manifest/workspace.yaml directly, then run fx manifest validate.'],
       },
     );

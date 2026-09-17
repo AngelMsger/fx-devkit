@@ -2,14 +2,17 @@ import { spawnSync } from 'node:child_process';
 
 import { describe, expect, it } from 'vitest';
 
-import { COMMANDS } from '../../../src/cli/commands/index.js';
+import { COMMANDS, compatibilityTarget } from '../../../src/cli/commands/index.js';
 import { completionFlags, completionScript } from '../../../src/cli/completion.js';
 import { globalFlags } from '../../../src/cli/flags.js';
 
-const commands = Object.entries(COMMANDS).map(([id, command]) => ({
-  id: id.replaceAll(':', ' '),
-  flags: completionFlags(command.flags ?? {}),
-}));
+const commands = Object.entries(COMMANDS)
+  .filter(([, command]) => !command.hidden)
+  .map(([id, command]) => ({
+    id: id.replaceAll(':', ' '),
+    aliasOf: compatibilityTarget(id)?.replaceAll(':', ' '),
+    flags: completionFlags(command.flags ?? {}),
+  }));
 const globals = completionFlags(globalFlags);
 
 describe.each(['bash', 'zsh', 'fish', 'powershell'])('completion for %s', (shell) => {
@@ -65,6 +68,13 @@ describe.skipIf(process.platform === 'win32')('native shell completion', () => {
   it('does not offer commands for positionals or options after the terminator', () => {
     expect(complete(['fx', 'repo', 'show', 'ex'])).toEqual([]);
     expect(complete(['fx', 'repo', 'show', '--', '--'])).toEqual([]);
+  });
+  it('suggests canonical names while retaining option completion for typed aliases', () => {
+    expect(complete(['fx', 'hook', ''])).toEqual(['list', 'enable', 'disable']);
+    expect(complete(['fx', 'tool', 'inst'])).toEqual(['install']);
+    expect(complete(['fx', 'skill', 'li'])).toEqual([]);
+    expect(complete(['fx', 'hook', 'inject', '--d'])).toEqual(['--dry-run']);
+    expect(complete(['fx', 'skill', 'list', '--a'])).toEqual(['--allow-writes', '--agent']);
   });
 });
 

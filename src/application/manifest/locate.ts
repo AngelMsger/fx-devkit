@@ -1,6 +1,5 @@
-// Which manifest a manifest command works on: the checkout around cwd when
-// there is one (a maintainer inside the manifest repository, or a freshly
-// imported directory), else the registered workspace's source.
+// Explicit workspace selection wins. Otherwise use the checkout around cwd
+// for source maintenance, falling back to the registered workspace's source.
 
 import path from 'node:path';
 
@@ -21,6 +20,7 @@ export async function locateManifestDir(fs: FileSystem, cwd: string): Promise<st
 }
 
 export async function resolveManifestDir(input: ResolveInput): Promise<string> {
+  if (input.name !== undefined) return (await resolveWorkspace(input)).manifestDir;
   return (
     (await locateManifestDir(input.fs, input.cwd)) ?? (await resolveWorkspace(input)).manifestDir
   );

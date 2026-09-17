@@ -573,14 +573,6 @@ Examples:
 fx hook disable --format json
 ```
 
-## `fx hook inject`
-
-Alias of `fx hook enable`.
-
-## `fx hook remove`
-
-Alias of `fx hook disable`.
-
 ## `fx manifest validate`
 
 Check every manifest document and report each problem with its path
@@ -683,10 +675,6 @@ fx manifest repo-set fx-example-api desc "Backend monolith"
 fx manifest repo-set fx-example-api aka '["backend", "app-builder"]' --dry-run
 ```
 
-## `fx manifest set`
-
-Alias of `fx manifest repo-set`.
-
 ## `fx manifest record-probe`
 
 Probe a repository coordinate and record definite evidence in the selected workspace source manifest
@@ -714,7 +702,7 @@ fx manifest record-probe example-api --env test --platform jenkins --dry-run
 
 ## `fx manifest render`
 
-Regenerate the manifest-derived regions of the manifest repository's AGENTS.md: the checkout under cwd, else the workspace's source copy
+Regenerate manifest-derived AGENTS.md regions: explicit workspace selection wins, otherwise use the source checkout near cwd
 
 Flags:
 
@@ -722,7 +710,7 @@ Flags:
 |---|---|
 | `--check` | write nothing; fail when the document is stale (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
-| `--out` | create or replace a fully rendered AGENTS.md at this path instead; nothing else is touched |
+| `-o, --out` | create or replace a fully rendered AGENTS.md at this path instead; nothing else is touched |
 
 Examples:
 
@@ -1005,10 +993,6 @@ fx skill install --agent codex --project
 fx skill install --dir ./skills --dry-run
 ```
 
-## `fx skill list`
-
-Alias of `fx agent skills`.
-
 ## `fx skill path`
 
 Show companion Skill installation targets and their current state
@@ -1116,10 +1100,6 @@ Examples:
 fx tool inventory --format json
 ```
 
-## `fx tool installed`
-
-Alias of `fx tool inventory`.
-
 ## `fx tool show`
 
 Show one tool: its resolved entry, where each field comes from, who depends on it
@@ -1182,3 +1162,35 @@ Examples:
 ```bash
 fx tool update bitbucket-cli
 ```
+
+## Compatibility aliases
+
+These names remain executable. Help and command-name completion prefer their canonical entries.
+
+| Alias | Canonical command |
+|---|---|
+| `fx hook inject` | `fx hook enable` |
+| `fx hook remove` | `fx hook disable` |
+| `fx skill list` | `fx agent skills` |
+| `fx tool installed` | `fx tool inventory` |
+| `fx manifest set` | `fx manifest repo-set` |
+
+## `fx hook inject`
+
+Alias of `fx hook enable`.
+
+## `fx hook remove`
+
+Alias of `fx hook disable`.
+
+## `fx skill list`
+
+Alias of `fx agent skills`.
+
+## `fx tool installed`
+
+Alias of `fx tool inventory`.
+
+## `fx manifest set`
+
+Alias of `fx manifest repo-set`.

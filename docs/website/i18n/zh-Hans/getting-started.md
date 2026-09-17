@@ -170,6 +170,10 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 
 ## 常用命令 {#commands}
 
+主题帮助优先展示主命令，并单独列出兼容映射。命令名补全和拼写建议使用主名称；已输入旧名称后仍能补全参数。根帮助和主题帮助均接受放在前面的全局参数。
+
+`manifest validate/lint/providers/repo-set/render` 优先使用显式 `--workspace` 或 `FX_WORKSPACE`，即使当前目录位于另一份源 checkout 内。未知的显式名称会报错，不会退回修改附近的 manifest。未显式选择时，仍优先使用当前目录附近的源 checkout，支持独立维护。`manifest import <dir>` 保留目录参数语义，`manifest record-probe` 使用所选已注册工作区。所有文件输出参数支持 `-o` 和 `--out`，包括 render。
+
 `agent skills` 检查工作区 Skill 分发；`skill install/show/path/status/uninstall` 独立管理内置伴生 Skill。`manifest repo-set` 修改仓库字段，`manifest record-probe <repo> --env <env> --platform <platform>` 写回已验证的坐标证据，`--dry-run` 仅生成计划且不探测。`where` 用于查询。兼容入口 `skill list`、`tool installed`、`hook inject/remove`、`manifest set` 和 `where --probe --record` 继续可用。
 
 集合参数（如 `--only`、可重复的 `--env` 和 `--agent`）支持重复传入或逗号分隔。Agent 选择跨工作区，结果包含 `scope: global` 与 `affected_workspaces`；仓库／环境选择返回 `scope: workspace` 与 `workspace`。清单和历史覆盖整个 FX_HOME，即使传入 `--workspace` 也一样。补全识别参数值、位置参数和否定选项，升级后需重新生成补全脚本。根帮助接受全局参数；帮助、补全、`skill show` 和 `manifest schema` 保持其原生文本／文件格式。
