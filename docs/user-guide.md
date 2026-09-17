@@ -98,14 +98,18 @@ fx doctor
 ```
 
 `init` first installs missing tools explicitly marked `install_on_init` in the
-team manifest, after command trust approval, then synchronizes repositories and
+team manifest and enabled, after command trust approval, then synchronizes repositories and
 selected agent resources. Existing tool installations are preserved. Registration
 can succeed while some synchronization stages fail; inspect the reported failures
 and retry the relevant stages after resolving access or setup.
 
 Initialization can adopt an existing directory; `--adopt` is retained for
 compatibility and is no longer required. Inspect the plan with `--dry-run`
-before adopting or changing an unfamiliar workspace.
+before adopting or changing an unfamiliar workspace. When a checkout has only
+`origin` and its URL exactly matches the declared upstream, sync adds `upstream`
+without changing `origin`, the current branch or local files. The plan exposes
+`upstream_to_add`; the result records `upstream_added`. Conflicting remotes remain
+unchanged and need review.
 
 Bring repositories up to date and inspect a service:
 
@@ -255,6 +259,10 @@ active in the selected environments. Unused tools from the bundled catalog are
 available through `tool list` or an explicit `doctor --tool <name>` check; their
 absence does not make an unrelated workspace unhealthy. A disabled dependency of
 an active provider remains an incomplete requirement, not a passing check.
+Init and sync use the same relevant tool scope. Missing optional tools remain
+visible without blocking preparation. An enabled `install_on_init` tool must be
+verified; a disabled optional tool does not become required merely because that
+installation flag is set.
 
 ### Shared service settings and personal credentials
 
@@ -429,8 +437,12 @@ Keep the streams separate. Collections use `{items, has_more, next?}`.
 `init`, `sync`, `doctor` and `release` default to JSON summaries. They preserve
 counts, exceptions and recovery actions; `omitted` counts rows/evidence left out.
 Use `--details` for full results. Explicit `--fields` projects the full result,
-while `--verbose` controls diagnostics. Human output, NDJSON and fact queries such
-as `repo list`, `where` and `can` keep their normal behavior.
+in every output format, while `--verbose` controls diagnostics. JSON/NDJSON emit
+one projected report object; human output shows the selected key/value pairs.
+For example, `fx sync --fields operation,preparation_complete,items,summary` keeps
+those report fields and omits stage details. Dotted paths retain flat keys.
+Without `--fields`, human/NDJSON behavior is unchanged. Fact queries such as
+`repo list`, `where` and `can` still project each item and retain collection metadata.
 
 | Result              | What to read                                                                                                                        |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |

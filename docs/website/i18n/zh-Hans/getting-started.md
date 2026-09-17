@@ -68,11 +68,13 @@ fx login
 fx doctor
 ```
 
-`init` 会先在命令信任确认后安装 manifest 中显式标记 `install_on_init` 的缺失工具，再同步仓库和所选 Agent 资源。已有工具安装会保留。
+`init` 会先在命令信任确认后安装 manifest 中显式标记 `install_on_init`、已启用且缺失的工具，再同步仓库和所选 Agent 资源。已有工具安装会保留。
 
 注册成功不代表所有同步阶段成功，请检查失败条目并在解决权限或设置问题后重试相关阶段。
 
 已有目录会自动纳入管理，`--adopt` 仅为兼容保留。对陌生工作区先使用 `--dry-run` 查看计划。
+
+只有 `origin` 且其 URL 与声明的 upstream 完全匹配时，sync 会添加 `upstream`，保留 `origin`、当前分支和本地文件。预览的 `upstream_to_add` 与结果的 `upstream_added` 分别说明计划和实际效果；冲突的 remote 保持不变。
 
 ```sh
 fx sync --dry-run
@@ -163,6 +165,8 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 doctor 默认检查工作区声明的工具及所选环境中实际启用的 provider 依赖。未使用的内置工具仍可通过 `tool list` 或显式 `doctor --tool <name>` 查询；缺少它们不会导致无关工作区不健康。活跃 provider 的依赖若被禁用，仍会报告检查不完整。
 
+init/sync 使用相同的相关工具范围。缺少可选工具仍会显示，但不阻断准备。启用的 `install_on_init` 工具需要验证；已禁用的可选工具不会仅因这个安装标记而变成必需工具。
+
 ### 共享服务设置与个人凭证 {#shared-service-settings-and-personal-credentials}
 
 manifest 可声明 URL、context、组织和认证方式等公共 `service` 设置。`init`、显式 `sync` 和 `login` 通过受信任的配套命令准备这些设置；后台 hook 只检查。使用 `fx sync --only services --dry-run` 预览。
@@ -240,7 +244,7 @@ fx skill status
 
 使用 `--format json`，将 stdout 结果与 stderr 通知、进度和错误分开解析。集合采用 `{items, has_more, next?}`；`--no-input` 不等待输入，`--quiet` 抑制通知和进度。
 
-`init`、`sync`、`doctor`、`release` 默认输出摘要，保留计数、异常和恢复动作，`omitted` 统计省略项。`--details` 返回完整结果，显式 `--fields` 从完整结果投影；`--verbose` 独立控制诊断。human、NDJSON 及事实查询保持原有行为。
+`init`、`sync`、`doctor`、`release` 默认输出摘要，保留计数、异常和恢复动作，`omitted` 统计省略项。`--details` 返回完整结果，显式 `--fields` 从完整结果投影；`--verbose` 独立控制诊断。显式 `--fields` 在所有格式中均投影完整报告：JSON/NDJSON 输出一个对象，human 输出选中的键值。点路径保留为扁平键。例如 `fx sync --fields operation,preparation_complete,items,summary` 不包含阶段明细。未指定字段时，human/NDJSON 默认行为不变；事实查询仍按条目投影并保留集合元数据。
 
 | 结果             | 判读字段                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------ |

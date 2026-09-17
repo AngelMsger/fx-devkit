@@ -128,14 +128,20 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 Review inferred branches, upstreams, projects and unresolved entries in the
 report and candidate. Add team rules and Skills separately; import does not
-recover them from repository metadata. Then preview adoption:
+recover them from repository metadata. Provider inference requires evidence:
+verified local bare repositories can produce a `local-git` binding. Unrecognized
+or mixed hosting remains explicit upstream URLs with review notes, without a
+guessed provider. HTTP remotes carrying credentials or query/fragment data are
+skipped without echoing that data. Then preview adoption:
 
 ```sh
 fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
-Adoption is automatic; `--adopt` is a legacy flag. Existing guides or Skill
+Adoption is automatic; `--adopt` is a legacy flag. If only `origin` exists and its
+URL exactly matches the declared upstream, sync adds `upstream` while preserving
+`origin`, branch and local files; conflicts remain unchanged. Existing guides or Skill
 locations may require a reviewed replacement with backup. Import does not alter
 checkouts or remove submodule bookkeeping. See the [import commands](cli/README.md#fx-manifest-import).
 

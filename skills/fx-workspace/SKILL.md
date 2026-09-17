@@ -33,7 +33,8 @@ covered by the [Skill reference](references/commands.md#standalone-companion-ski
 
 - `init`, `sync`, `doctor`, `release` default to JSON summaries. `omitted` counts
   normal rows/evidence; exceptions and recovery remain. Choose `--details` for all
-  rows, or `--fields` to project the full result. Set the view before a write;
+  rows, or `--fields` to project the full result in any format. JSON/NDJSON then
+  emit one object; human output shows selected key/value pairs. Set the view before a write;
   capture its output once instead of repeating the write to retrieve details.
 - For `init/sync`, inspect `operation` and `preparation_complete`. Preview uses
   `null`. Registration, a cloned repository or exit zero alone is insufficient.

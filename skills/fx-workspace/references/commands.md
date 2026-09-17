@@ -25,7 +25,10 @@ The four workflow reports (`init`, `sync`, `doctor`, `release`) default to compa
 JSON. `output_mode: summary` and `omitted` describe the view; omitted counts are
 not pagination. All warning/failure rows and exact pending command vectors remain.
 `--details` returns the full application result; explicit `--fields` projects it.
-Human/NDJSON and fact-query defaults are unchanged. Error envelopes are never
+Explicit report projection applies in every format: JSON/NDJSON emit one object;
+human output emits selected key/value pairs. Dotted paths retain flat keys and
+array alignment. Without explicit fields, human/NDJSON defaults are unchanged.
+Fact-query projections still apply per item and retain collection metadata. Error envelopes are never
 projected or compacted. Large INIT_PREPARED notices follow the same report mode.
 
 For init/sync, `operation` is `preview` or `apply`. `preparation_complete` is null for preview,

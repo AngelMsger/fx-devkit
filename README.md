@@ -119,7 +119,9 @@ directory, or run `fx skill show`. After reading, set `FX_SKILL_LOADED=1` and
 is optional. Start sessions at the registered workspace root to use team guidance.
 
 `init`, `sync`, `doctor` and `release` summarize JSON by default. Use `--details`
-for full results or `--fields` to select fields from those results. Keep stdout
+for full results or `--fields` to select fields from those results in any output
+format. Explicit projection emits one report object in JSON/NDJSON and selected
+key/value pairs in human output. Keep stdout
 separate from diagnostic stderr. Do not repeat a write just to obtain a different
 view of its output.
 
