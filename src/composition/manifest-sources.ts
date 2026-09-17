@@ -20,9 +20,16 @@ export async function manifestSourceFor(
   replace?: ReplaceFiles,
 ): Promise<ManifestSource> {
   if (spec === '-') return new StdinSource(await stdin(), container.fs, replace);
-  if (isRepositoryUrl(spec)) return new GitRepoSource(spec, container.process, container.git);
+  if (isRepositoryUrl(spec))
+    return new GitRepoSource(
+      spec,
+      container.process,
+      container.git,
+      (await container.fs.isDirectory(path.resolve(spec))) ? path.resolve(spec) : undefined,
+      container.fs,
+    );
   const dir = path.resolve(spec);
   if (await container.fs.exists(path.join(dir, '.git')))
-    return new GitRepoSource(dir, container.process, container.git, dir);
+    return new GitRepoSource(dir, container.process, container.git, dir, container.fs);
   return new FileSource(dir, container.fs, replace);
 }

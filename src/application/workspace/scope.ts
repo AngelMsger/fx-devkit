@@ -6,6 +6,7 @@ import { shellLine } from '../../domain/shell.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import type { WorkspaceDeps } from './deps.js';
+import { validateWorkspaceLayer } from './validate-layer.js';
 
 export type ScopeOperation = 'pick' | 'unpick' | 'replace' | 'all' | 'none';
 export type ScopeMode = 'all' | 'explicit' | 'none';
@@ -53,7 +54,21 @@ export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<S
       nextSteps: [`fx ${edit.key === 'repos' ? 'repo' : 'env'} select --help`],
     });
   for (const name of edit.names) if (!edit.universe.includes(name)) throw edit.notFound(name);
-  const local = await deps.localStore.read(deps.ctx.name);
+  let planned = await planEdit(deps, edit, await deps.localStore.read(deps.ctx.name));
+  if (edit.dryRun || !planned.output.changed) return planned.output;
+  assertWritable(edit.posture, `${edit.key} ${edit.operation}`);
+  await deps.localStore.update(deps.ctx.name, async (current) => {
+    planned = await planEdit(deps, edit, current);
+    return planned.layer;
+  });
+  return { ...planned.output, written: true };
+}
+
+async function planEdit(
+  deps: WorkspaceDeps,
+  edit: ScopeEdit,
+  local: LocalLayer,
+): Promise<{ output: ScopeOutput; layer: LocalLayer }> {
   const before = local.scope?.[edit.key] ?? null;
   const next = nextList(before, edit);
   const plan: ScopeOutput = {
@@ -79,14 +94,18 @@ export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<S
     written: false,
     ...(next.reason === undefined ? {} : { reason: next.reason }),
   };
-  if (edit.dryRun || !next.changed) return plan;
-  assertWritable(edit.posture, `${edit.key} ${edit.operation}`);
   const scope = { ...local.scope };
   if (next.after === null) delete scope[edit.key];
   else scope[edit.key] = [...next.after];
   const layer: LocalLayer = { ...local, scope };
-  await deps.localStore.write(deps.ctx.name, layer);
-  return { ...plan, written: true };
+  await validateWorkspaceLayer(
+    deps.fs,
+    deps.ctx.root,
+    deps.ctx.manifest.workspace.result.doc,
+    layer,
+    deps.ctx.workspace.repos.find((repo) => repo.origin === 'manifest'),
+  );
+  return { output: plan, layer };
 }
 
 function nextList(

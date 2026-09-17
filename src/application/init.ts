@@ -69,6 +69,7 @@ export interface InitOutput {
   readonly prepared?: object | null;
   readonly plan: {
     readonly source_inspected: boolean;
+    readonly inspected_source: string | null;
     readonly manifest_action: 'materialize' | 'refresh';
     readonly registration: 'register' | 'keep';
     readonly default_workspace: 'set' | 'keep';
@@ -96,7 +97,9 @@ export class Init {
   async execute(input: InitInput): Promise<InitOutput> {
     const plan = await this.plan(input);
     if (input.dryRun) {
-      const inspection = await input.source.inspect?.();
+      const inspection = await input.source.inspect?.(
+        plan.output.plan.manifest_action === 'refresh' ? plan.output.manifest_dir : undefined,
+      );
       return {
         ...plan.output,
         plan: await inspectInitialization(this.deps, input, plan.output, inspection),
@@ -150,10 +153,9 @@ export class Init {
     };
   }
 
-  private async apply(plan: Plan, input: InitInput): Promise<InitOutput> {
-    const { output } = plan;
+  private async apply({ output, config }: Plan, input: InitInput): Promise<InitOutput> {
     let phase = 'manifest';
-    let registered = plan.config.workspaces?.[output.name] !== undefined;
+    let registered = config.workspaces?.[output.name] !== undefined;
     let materialized = false;
     let prepared: object | null = null;
     let toolInstall: readonly ToolInstallOutput[] | null = null;
@@ -165,13 +167,16 @@ export class Init {
         dir: output.manifest_dir,
         cliVersion: this.deps.cliVersion,
       });
-      const local = await initialLocalLayer(this.deps, output.name, bundle, input.repos);
+      let local = await initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos);
       if (output.manifest === 'materialized')
         await this.deps.settleManifest(output.name, output.manifest_dir);
       phase = 'registration';
       await this.register(output, input);
       registered = true;
-      if (input.repos !== undefined) await this.deps.localStore.write(output.name, local);
+      if (input.repos !== undefined)
+        local = await this.deps.localStore.update(output.name, (current) =>
+          initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos, current),
+        );
       phase = 'tools';
       const ctx = await this.context(output);
       prepared = (await this.deps.preview?.(ctx)) ?? null;
@@ -383,6 +388,7 @@ function completedInitialization(output: InitOutput, result: CompletedInitializa
     plan: {
       ...output.plan,
       source_inspected: true,
+      inspected_source: output.manifest_dir,
       repositories: result.sync.items,
       unchecked: [],
       selection: { mode: scopeMode(result.repos), repos: result.repos ?? null, validated: true },

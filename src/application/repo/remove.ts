@@ -52,14 +52,13 @@ export class RepoRemove {
     };
     if (input.dryRun) return plan;
     assertWritable(input.posture, `repo remove ${input.name}`);
-    const layer: LocalLayer = {
+    await localStore.update(ctx.name, (local): LocalLayer => ({
       ...local,
       repos: (local.repos ?? []).filter((r) => r.name !== input.name),
       ...(local.scope?.repos === undefined
         ? {}
         : { scope: { ...local.scope, repos: local.scope.repos.filter((n) => n !== input.name) } }),
-    };
-    await localStore.write(ctx.name, layer);
+    }));
     return { ...plan, written: true };
   }
 }

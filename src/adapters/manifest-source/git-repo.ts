@@ -1,8 +1,10 @@
 // Materialize and safely refresh Git manifest checkouts, preserving local work.
 
 import { realpath } from 'node:fs/promises';
+import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import type { FileReader } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
 import type {
   ManifestSource,
@@ -19,19 +21,53 @@ export class GitRepoSource implements ManifestSource {
     private readonly process: Process,
     private readonly git: Git,
     private readonly localDirectory?: string,
+    private readonly fs?: FileReader,
   ) {}
 
   get description(): string {
     return this.url;
   }
 
-  async inspect(): Promise<ManifestSourceInspection | undefined> {
+  async inspect(currentDir?: string): Promise<ManifestSourceInspection | undefined> {
+    if (currentDir !== undefined) return this.inspectRefresh(currentDir);
+    return this.localDirectory === undefined
+      ? undefined
+      : this.inspectCommit(this.localDirectory, 'HEAD');
+  }
+
+  private async inspectRefresh(dir: string): Promise<ManifestSourceInspection | undefined> {
+    const branch = (await this.git.remoteHead(dir, 'upstream')) ?? 'main';
+    const state = await this.git.status(dir);
+    if (state.branch !== branch || state.dirty) return this.inspectWorktree(dir);
     if (this.localDirectory === undefined) return undefined;
-    const dir = this.localDirectory;
+    const head = await this.git.sha(dir, 'HEAD');
+    if (head === undefined) return undefined;
+    const ancestor = await this.process.run([
+      'git',
+      '-C',
+      this.localDirectory,
+      'merge-base',
+      '--is-ancestor',
+      head,
+      branch,
+    ]);
+    if (ancestor.code === 1) return this.inspectWorktree(dir);
+    if (ancestor.code !== 0) return undefined;
+    return this.inspectCommit(this.localDirectory, branch);
+  }
+
+  private inspectWorktree(dir: string): ManifestSourceInspection | undefined {
+    const fs = this.fs;
+    return fs === undefined
+      ? undefined
+      : { root: dir, readText: (file) => fs.readText(path.join(dir, file)) };
+  }
+
+  private inspectCommit(dir: string, ref: string): ManifestSourceInspection {
     return {
-      root: dir,
+      root: `${dir}@${ref}`,
       readText: async (file) => {
-        const result = await this.process.run(['git', '-C', dir, 'show', `HEAD:${file}`]);
+        const result = await this.process.run(['git', '-C', dir, 'show', `${ref}:${file}`]);
         if (result.code === 0) return result.stdout;
         if (file !== 'manifest/workspace.yaml') return undefined;
         throw new DevkitError(

@@ -5,6 +5,8 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -137,6 +139,74 @@ describe('selection and first initialization', () => {
     const invalid = fx([...f.init, '--dry-run'], f.env);
     expect(invalid.error().code).toBe('MANIFEST_INVALID');
   });
+
+  it('rejects overlapping selection before writing and keeps recovery commands usable', () => {
+    const f = fixture();
+    const manifest = f.manifest.replace(
+      '{name: api, upstream:',
+      '{name: api, path: group/api, upstream:',
+    );
+    writeFileSync(path.join(f.source, 'manifest/workspace.yaml'), manifest);
+    expect(fx([...f.init, '--no-repos'], f.env).status).toBe(0);
+    const group = path.join(realpathSync(f.root), 'group');
+    mkdirSync(group);
+    expect(f.run(['repo', 'add', group]).status).toBe(0);
+    for (const flags of [[], ['--dry-run']]) {
+      const selected = f.run(['repo', 'select', '--all', ...flags]);
+      expect(selected.error().code).toBe('LOCAL_INVALID');
+    }
+    const retried = fx([...f.init, '--repos', 'api'], f.env);
+    expect(retried.error().code).toBe('LOCAL_INVALID');
+    expect(f.run(['status']).status).toBe(0);
+    expect(f.run(['repo', 'select', '--none']).json()).toMatchObject({
+      mode: 'none',
+      changed: false,
+    });
+    const alias = path.join(f.root, 'alias');
+    symlinkSync(group, alias, process.platform === 'win32' ? 'junction' : 'dir');
+    expect(f.run(['repo', 'add', alias]).error().code).toBe('REPO_EXISTS');
+    expect(f.run(['status']).status).toBe(0);
+  });
+
+  it.each(['dirty', 'task-branch'])(
+    'previews the managed manifest retained on %s during repeated init',
+    (retention) => {
+      const f = fixture();
+      git(['init', '-q', '-b', 'main'], f.source);
+      git(['add', '.'], f.source);
+      git(['commit', '-qm', 'initial source'], f.source);
+      expect(fx([...f.init, '--no-repos'], f.env).status).toBe(0);
+      const managed = manifestDirOf(f.home, 'workspace');
+      if (retention === 'dirty')
+        writeFileSync(
+          path.join(managed, 'manifest/workspace.yaml'),
+          f.manifest + '# personal edit\n',
+        );
+      else git(['checkout', '-qb', 'task'], managed);
+      writeFileSync(
+        path.join(f.source, 'manifest/workspace.yaml'),
+        f.manifest + '  - {name: future, upstream: "https://git.example.com/team/future.git"}\n',
+      );
+      git(['add', '.'], f.source);
+      git(['commit', '-qm', 'new shared repository'], f.source);
+      const preview = fx([...f.init, '--repos', 'future', '--dry-run'], f.env);
+      expect(preview.error().code).toBe('REPO_NOT_FOUND');
+      const valid = fx([...f.init, '--repos', 'api', '--dry-run'], f.env);
+      expect(valid.status, valid.stderr).toBe(0);
+      expect(valid.json()).toMatchObject({
+        plan: {
+          source_inspected: true,
+          inspected_source: managed,
+          selection: { repos: ['api'], validated: true },
+        },
+      });
+      const applied = fx([...f.init, '--repos', 'future'], f.env);
+      expect(applied.error().code).toBe('REPO_NOT_FOUND');
+      expect(readFileSync(path.join(managed, 'manifest/workspace.yaml'), 'utf8')).not.toContain(
+        'name: future',
+      );
+    },
+  );
 
   it('distinguishes uninspected remote content and inspects committed local Git content', () => {
     const f = fixture();

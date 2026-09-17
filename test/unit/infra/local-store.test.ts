@@ -25,6 +25,36 @@ describe('FileLocalLayerStore', () => {
     });
   });
 
+  it('serializes independent store instances without losing sibling local fields', async () => {
+    const dir = home();
+    const first = new FileLocalLayerStore(dir);
+    const second = new FileLocalLayerStore(dir);
+    await first.write('fx', { scope: { envs: ['dev'], repos: ['api'] }, hooks: { enabled: true } });
+    await Promise.all([
+      first.update('fx', async (current) => ({
+        ...current,
+        scope: { ...current.scope, repos: ['web'] },
+      })),
+      second.update('fx', async (current) => ({
+        ...current,
+        scope: { ...current.scope, envs: ['test'] },
+      })),
+    ]);
+    expect(await first.read('fx')).toEqual({
+      scope: { envs: ['test'], repos: ['web'] },
+      hooks: { enabled: true },
+    });
+    await expect(
+      first.update('fx', () => {
+        throw new Error('invalid proposal');
+      }),
+    ).rejects.toThrow('invalid proposal');
+    expect(await second.read('fx')).toEqual({
+      scope: { envs: ['test'], repos: ['web'] },
+      hooks: { enabled: true },
+    });
+  });
+
   it('refuses a layer that copies a shared field', async () => {
     const dir = home();
     mkdirSync(path.join(dir, 'workspaces', 'fx'), { recursive: true });

@@ -11,6 +11,18 @@ flag. Existing `pick` and `unpick` keep their additive and subtractive meanings.
 Picking under dynamic all is a no-op, while unpicking expands the current universe
 into an explicit list. Duplicate additions cannot create duplicate entries.
 
+Scope edits validate the proposed merged layer before writing, including physical
+checkout aliases, overlapping paths and paths containing the workspace root. The
+same guard protects initialization and local repository registration. Path resolution
+uses the nearest existing ancestor for missing checkout leaves. A rejected proposal
+leaves the previous layer and its recovery commands usable.
+
+Local-layer updates hold a per-layer lease and atomically replace the YAML file.
+Each scoped mutation merges against the current layer inside that transaction,
+preserving sibling repository/environment selections, hook preferences and setup
+acknowledgments. Public workspace operations additionally hold the shared workspace
+operation lease so selection cannot race identity changes.
+
 Scope edits return `before_mode`, `mode`, `before`, `after`, and `next_steps`.
 They change only the personal layer, preserving the sibling scope and all business
 checkouts. Repository changes require a later `sync` to clone new selections.
@@ -32,8 +44,12 @@ The previous initialization booleans described intended/new changes; consumers
 should use `plan.registration` and `plan.default_workspace` for those decisions.
 
 Local directory, stdin and local Git previews inspect content without copying it.
-A local Git preview reads committed HEAD because materialization clones committed
-content. Directory inspection rejects missing manifests and symlink payloads before
+A first local Git preview reads committed HEAD because materialization clones
+committed content. Repeated initialization previews the managed worktree when
+refresh preserves a dirty tracked branch or a task branch. For a clean managed
+branch, local-source ancestry determines whether refresh can fast-forward; a
+non-fast-forward preview keeps the managed snapshot. Unknown remote refresh results
+remain uninspected instead of claiming future declarations are validated. Directory inspection rejects missing manifests and symlink payloads before
 validation. Source inspection supplies a read-only document reader to the same
 manifest loaders used during application.
 

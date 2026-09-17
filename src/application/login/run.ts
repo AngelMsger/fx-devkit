@@ -195,11 +195,10 @@ export class Login {
   }
 
   private async acknowledge(step: SetupStep): Promise<void> {
-    const local = await this.deps.localStore.read(this.deps.ctx.name);
-    await this.deps.localStore.write(this.deps.ctx.name, {
+    await this.deps.localStore.update(this.deps.ctx.name, (local) => ({
       ...local,
       setup: { ...local.setup, [step.id]: { acknowledged: this.setup.clock.now().toISOString() } },
-    });
+    }));
   }
 }
 

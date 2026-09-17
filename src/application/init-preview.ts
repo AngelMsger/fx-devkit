@@ -12,16 +12,22 @@ import { LoadManifest, type ManifestBundle } from './manifest/load.js';
 import { toolsOf } from './tool/toolchain.js';
 import { planRepositories } from './workspace/plan.js';
 import { scopeMode } from './workspace/scope.js';
+import { validateWorkspaceLayer } from './workspace/validate-layer.js';
 import { WorkspaceContext } from './workspace-context.js';
 
 export async function initialLocalLayer(
   deps: InitDeps,
   name: string,
+  root: string,
   bundle: ManifestBundle,
   repos: readonly string[] | undefined,
+  current?: LocalLayer,
 ): Promise<LocalLayer> {
-  const local = await deps.localStore.read(name);
-  if (repos === undefined) return local;
+  const local = current ?? (await deps.localStore.read(name));
+  if (repos === undefined) {
+    await validateWorkspaceLayer(deps.fs, root, bundle.workspace.result.doc, local);
+    return local;
+  }
   const known = bundle.workspace.result.doc.repos.map((repo) => repo.name);
   const unknown = repos.filter((repo) => !known.includes(repo));
   if (unknown.length > 0)
@@ -35,7 +41,9 @@ export async function initialLocalLayer(
         ],
       },
     );
-  return { ...local, scope: { ...local.scope, repos: [...new Set(repos)] } };
+  const next = { ...local, scope: { ...local.scope, repos: [...new Set(repos)] } };
+  await validateWorkspaceLayer(deps.fs, root, bundle.workspace.result.doc, next);
+  return next;
 }
 
 export async function inspectInitialization(
@@ -53,14 +61,14 @@ export async function inspectInitialization(
     },
     deps.bundledTools,
   ).execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion });
-  const local = await initialLocalLayer(deps, output.name, bundle, input.repos);
+  const local = await initialLocalLayer(deps, output.name, output.root, bundle, input.repos);
   const context = {
     dir: output.manifest_dir,
     bundle,
     bindings: bindProviders(bundle.workspace.result.doc),
     platforms: bindPlatforms(bundle.environments?.result.doc),
   };
-  const ctx = WorkspaceContext.preview(output.root, output.name, context, local);
+  const ctx = await WorkspaceContext.preview(output.root, output.name, context, local, deps.fs);
   const repositories = await planRepositories(deps.workspaceDepsFor(ctx), {
     jobs: input.jobs,
     remote: false,
@@ -69,6 +77,7 @@ export async function inspectInitialization(
   return {
     ...plan,
     source_inspected: true,
+    inspected_source: inspection.root,
     selection: {
       mode: scopeMode(local.scope?.repos),
       repos: local.scope?.repos ?? null,
@@ -115,6 +124,7 @@ export function initialPlan(
   const selection = input.repos ?? local.scope?.repos;
   return {
     source_inspected: false,
+    inspected_source: null,
     manifest_action: refreshed ? 'refresh' : 'materialize',
     registration: config.workspaces?.[name] === undefined ? 'register' : 'keep',
     default_workspace: config.default_workspace === undefined ? 'set' : 'keep',
@@ -133,7 +143,7 @@ export function initialPlan(
         'Missing enabled tools explicitly marked install_on_init may be installed globally after trust approval.',
     },
     unchecked: [
-      'Source contents have not been acquired. Repository names, selection and resource declarations are unverified. Inspect a local checkout with --from <directory> --dry-run, or initialize to acquire and validate the remote source before repository cloning.',
+      'Effective source contents for this invocation have not been determined. Repository names, selection and resource declarations are unverified. A refresh may preserve the current managed checkout. Inspect a local checkout with --from <directory> --dry-run, or initialize to acquire and validate the remote source before repository cloning.',
     ],
   };
 }

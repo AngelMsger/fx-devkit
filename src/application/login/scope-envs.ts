@@ -54,10 +54,9 @@ export async function ensureScopeEnvs(
   const envs = [...new Set(picked)];
   if (input.dryRun) return envs;
   assertWritable(input.posture, 'env select');
-  const local = await deps.localStore.read(deps.ctx.name);
-  await deps.localStore.write(deps.ctx.name, {
+  await deps.localStore.update(deps.ctx.name, (local) => ({
     ...local,
     scope: { ...local.scope, envs: [...envs] },
-  });
+  }));
   return envs;
 }
