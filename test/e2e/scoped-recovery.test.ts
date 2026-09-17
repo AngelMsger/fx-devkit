@@ -37,7 +37,11 @@ function stage(defaultWorkspace?: string) {
       stringify({
         schema_version: 2,
         platforms: { ci: { provider: 'jenkins-cli', capability: 'ci' } },
-        envs: { [name === 'alpha' ? 'test' : 'production']: {} },
+        envs: {
+          [name === 'alpha' ? 'test' : 'production']: {
+            platforms: { ci: { vars: { path: 'services/api/main' } } },
+          },
+        },
       }),
     );
   }
@@ -223,5 +227,141 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
       follow(result.error().next_steps[0]!, s, { FX_WORKSPACE: 'beta' }).error().hint,
     ).toContain(managed);
     expect(readFileSync(path.join(managed, 'manifest/workspace.yaml'), 'utf8')).toBe(invalid);
+  });
+  it('keeps missing-environment and no-access fixes on alpha with another default and environment override', () => {
+    const s = stage('beta');
+    const env = { ...s.env, FX_WORKSPACE: 'beta', PATH: '' };
+    writeFileSync(
+      path.join(s.home, 'workspaces/alpha/local.yaml'),
+      stringify({ scope: { envs: [] } }),
+    );
+    const betaLocal = path.join(s.home, 'workspaces/beta/local.yaml');
+    const untouched = stringify({ scope: { envs: [] } });
+    writeFileSync(betaLocal, untouched);
+    const missing = fx(['can', 'ci', '--workspace', 'alpha', '--format', 'json'], env, s.base);
+    expect(missing.error()).toMatchObject({
+      code: 'ENV_REQUIRED',
+      next_steps: ['fx env list --workspace alpha', "fx can ci --env '<env>' --workspace alpha"],
+    });
+    const recovered = follow(missing.error().next_steps[0]!, s, env);
+    expect(recovered.status, recovered.stderr).toBe(0);
+    expect(recovered.json().items.map((item: { name: string }) => item.name)).toEqual(['test']);
+    const inaccessible = fx(
+      ['can', 'ci', '--env', 'test', '--workspace', 'alpha', '--format', 'json'],
+      env,
+      s.base,
+    ).json() as { status: string; alternatives: string[] };
+    expect(inaccessible).toMatchObject({
+      status: 'no_access',
+      alternatives: ['fx env pick test --workspace alpha', 'fx doctor --workspace alpha'],
+    });
+    const picked = follow(inaccessible.alternatives[0]!, s, env);
+    expect(picked.status, picked.stderr).toBe(0);
+    expect(picked.json()).toMatchObject({ workspace: 'alpha', after: ['test'] });
+    expect(readFileSync(betaLocal, 'utf8')).toBe(untouched);
+  });
+
+  it('keeps missing-tool installation and doctor fixes on the selected tool definitions', () => {
+    const s = stage('beta');
+    const env = { ...s.env, FX_WORKSPACE: 'beta', PATH: '' };
+    for (const name of ['alpha', 'beta'])
+      writeFileSync(
+        path.join(manifestDirOf(s.home, name), 'manifest/tools.yaml'),
+        stringify({
+          schema_version: 2,
+          tools: [
+            {
+              name: 'jenkins-cli',
+              binary: 'fx-fixture-missing-jenkins',
+              install: [{ via: 'manual' }],
+              docs: `https://${name}.example.com/setup`,
+            },
+          ],
+        }),
+      );
+    const verdict = fx(
+      ['can', 'ci', '--env', 'test', '--workspace', 'alpha', '--format', 'json'],
+      env,
+      s.base,
+    ).json() as { status: string; handoff: { command: string } };
+    expect(verdict).toMatchObject({
+      status: 'missing_tool',
+      handoff: { command: 'fx tool install jenkins-cli --workspace alpha' },
+    });
+    const installed = follow(verdict.handoff.command, s, env);
+    expect(installed.status, installed.stderr).toBe(0);
+    expect(installed.json().items[0]).toMatchObject({
+      name: 'jenkins-cli',
+      via: 'manual',
+      docs: 'https://alpha.example.com/setup',
+      ran: false,
+    });
+    const report = fx(
+      ['doctor', '--tool', 'jenkins-cli', '--workspace', 'alpha', '--format', 'json', '--details'],
+      env,
+      s.base,
+    ).json() as { findings: { group: string; id: string; fix?: string }[] };
+    expect(
+      report.findings.find((item) => item.group === 'tools' && item.id === 'jenkins-cli')?.fix,
+    ).toBe('fx tool install jenkins-cli --workspace alpha');
+    for (const command of ['install', 'update']) {
+      const unknown = fx(
+        ['tool', command, 'jenknis-cli', '--workspace', 'alpha', '--dry-run', '--format', 'json'],
+        env,
+        s.base,
+      );
+      expect(unknown.error()).toMatchObject({
+        code: 'TOOL_UNKNOWN',
+        next_steps: ['fx tool list --workspace alpha'],
+      });
+      const listed = follow(unknown.error().next_steps[0]!, s, env);
+      expect(listed.status, listed.stderr).toBe(0);
+    }
+  });
+
+  it('preserves login/setup handoff scope without changing global inventory semantics', () => {
+    const s = stage('beta');
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/tools.yaml'),
+      stringify({
+        schema_version: 2,
+        tools: [
+          {
+            name: 'fixture-tool',
+            install: [{ via: 'manual' }],
+            setup: [
+              {
+                id: 'access',
+                kind: 'manual',
+                title: 'Enable fixture access',
+                verify: { command: ['auth', 'status'] },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const env = { ...s.env, FX_WORKSPACE: 'beta' };
+    const result = fx(
+      ['login', 'fixture-tool', '--workspace', 'alpha', '--no-input', '--yes', '--format', 'json'],
+      env,
+      s.base,
+    );
+    expect(result.error(), result.stderr).toMatchObject({
+      code: 'LOGIN_REQUIRED',
+      next_steps: ['fx login fixture-tool --workspace alpha', 'fx doctor --workspace alpha'],
+    });
+    const pending = follow(result.error().next_steps[0]!, s, env);
+    expect(pending.error().code).toBe('LOGIN_REQUIRED');
+    const report = fx(
+      ['doctor', '--tool', 'fixture-tool', '--workspace', 'alpha', '--format', 'json', '--details'],
+      env,
+      s.base,
+    ).json() as { findings: { group: string; id: string; fix?: string }[] };
+    expect(
+      report.findings.find((item) => item.group === 'login' && item.id === 'fixture-tool.access')
+        ?.fix,
+    ).toBe('fx login fixture-tool --workspace alpha');
+    expect(fx(['tool', 'inventory', '--format', 'json'], env, s.base).status).toBe(0);
   });
 });

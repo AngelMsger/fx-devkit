@@ -1,10 +1,12 @@
 // Doctor checks declared tools and providers used by the selected workspace/environment scope.
 
 import type { Binding } from '../../domain/manifest/providers.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { SetupSelection } from '../login/selection.js';
 import { toolchainOf } from '../tool/toolchain.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 import type { WorkspaceContext } from '../workspace-context.js';
 
 import { finding, type Finding } from './types.js';
@@ -21,6 +23,7 @@ export function doctorToolScope(
   ctx: WorkspaceContext,
   describe: LoginDeps['describeProvider'],
   selection: SetupSelection,
+  commandShell?: ResolvedShell,
 ): DoctorToolScope {
   const problems: Finding[] = [];
   const dependencies = new Set<string>();
@@ -36,7 +39,7 @@ export function doctorToolScope(
           `Provider "${binding.provider}" ${provider === undefined ? 'is not registered' : `does not serve ${binding.capability}`}; readiness could not be checked.`,
           {
             coverage: 'incomplete',
-            fix: 'fx manifest providers',
+            fix: workspaceCommand({ ctx, commandShell }, 'manifest', 'providers'),
             evidence: { provider: binding.provider, capability: binding.capability },
           },
         ),

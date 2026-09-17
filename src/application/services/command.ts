@@ -32,6 +32,7 @@ export async function prepareCommand(
   const trust = {
     ...login.trust,
     workspace: deps.ctx.name,
+    commandShell: deps.commandShell,
     vector: preview,
     origin: 'patch' as const,
     label: `${step.id} preview`,

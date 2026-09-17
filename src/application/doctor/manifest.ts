@@ -10,6 +10,7 @@ import { LintManifest } from '../manifest/lint.js';
 import { ValidateManifest } from '../manifest/validate.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
 import { NOT_CHECKED } from './self.js';
 import { finding, type Finding } from './types.js';
@@ -30,13 +31,13 @@ export async function checkManifest(
     for (const p of doc.problems)
       findings.push(
         finding('manifest', `${doc.kind}:${p.path}`, 'fail', p.message, {
-          fix: 'fx manifest validate',
+          fix: workspaceCommand(deps, 'manifest', 'validate'),
         }),
       );
     for (const d of doc.dropped)
       findings.push(
         finding('manifest', `${doc.kind}:${d.name}`, 'fail', `entry skipped: ${d.reason}`, {
-          fix: 'fx manifest validate',
+          fix: workspaceCommand(deps, 'manifest', 'validate'),
         }),
       );
   }
@@ -49,7 +50,7 @@ export async function checkManifest(
           'fail',
           'no provider serves this platform',
           {
-            fix: 'fx manifest providers',
+            fix: workspaceCommand(deps, 'manifest', 'providers'),
           },
         ),
       );
@@ -59,7 +60,7 @@ export async function checkManifest(
   ))
     findings.push(
       finding('manifest', `${lint.kind}:${lint.path}`, 'warn', `${lint.code}: ${lint.message}`, {
-        fix: 'fx manifest lint',
+        fix: workspaceCommand(deps, 'manifest', 'lint'),
       }),
     );
   const docs = await checkDocs(deps, login);
@@ -96,7 +97,7 @@ async function checkUpstream(deps: WorkspaceDeps, check: UpstreamCheck): Promise
     });
   if (v.behind)
     return finding('manifest', 'upstream', 'warn', 'new commits upstream since the last fx sync', {
-      fix: 'fx sync',
+      fix: workspaceCommand(deps, 'sync'),
     });
   return finding('manifest', 'upstream', 'ok', 'up to date with upstream');
 }
@@ -114,11 +115,13 @@ async function checkDocs(
     const foreign = out.files.filter((f) => f.action === 'foreign').map((f) => f.path);
     if (foreign.length > 0)
       return finding('manifest', 'docs', 'warn', `${foreign.join(', ')} not written by fx`, {
-        fix: 'move the file aside, then fx sync --only docs',
+        fix: `Move the file aside, then ${workspaceCommand(deps, 'sync', '--only', 'docs')}`,
       });
     return finding('manifest', 'docs', 'ok', 'the root AGENTS.md and CLAUDE.md match the manifest');
   } catch (err) {
     if (!(err instanceof DevkitError) || err.code !== 'DOCS_STALE') throw err;
-    return finding('manifest', 'docs', 'warn', err.message, { fix: 'fx sync --only docs' });
+    return finding('manifest', 'docs', 'warn', err.message, {
+      fix: workspaceCommand(deps, 'sync', '--only', 'docs'),
+    });
   }
 }

@@ -9,8 +9,21 @@ export interface WorkspaceGuidance {
   readonly commandShell?: ResolvedShell | undefined;
 }
 
+export interface CommandGuidance {
+  readonly workspace?: string | undefined;
+  readonly commandShell?: ResolvedShell | undefined;
+}
+
+export function recoveryCommand(context: CommandGuidance, ...args: readonly string[]): string {
+  const scope = context.workspace === undefined ? [] : ['--workspace', context.workspace];
+  return shellLine(['fx', ...args, ...scope], context.commandShell);
+}
+
 export function workspaceCommand(context: WorkspaceGuidance, ...args: readonly string[]): string {
-  return shellLine(['fx', ...args, '--workspace', context.ctx.name], context.commandShell);
+  return recoveryCommand(
+    { workspace: context.ctx.name, commandShell: context.commandShell },
+    ...args,
+  );
 }
 
 export function workspaceItemNotFound(

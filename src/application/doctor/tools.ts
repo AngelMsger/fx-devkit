@@ -7,6 +7,7 @@ import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 import type { DoctorToolScope } from './tool-scope.js';
 import { finding, type Finding } from './types.js';
@@ -27,18 +28,19 @@ export async function checkTools(
     .map((name) =>
       finding('tools', name, 'fail', 'active provider requires a tool missing from the toolchain', {
         coverage: 'incomplete',
-        fix: 'fx manifest validate',
+        fix: workspaceCommand(deps, 'manifest', 'validate'),
       }),
     );
+  const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
   for (const tool of tools) {
     try {
       const [status] = await check.execute({
         tools: [{ ...tool, required: options.required.has(tool.name) }],
-        trust: { ...options.trust, workspace: deps.ctx.name },
+        trust,
       });
       if (status !== undefined)
         findings.push({
-          ...fromStatus(status, options.dependencies.has(tool.name)),
+          ...fromStatus(status, options.dependencies.has(tool.name), deps),
           evidence: {
             binary: status.binary,
             binary_path: status.binary_path ?? null,
@@ -55,12 +57,12 @@ export async function checkTools(
         findings.push(
           finding('tools', tool.name, 'warn', err.message, {
             coverage: 'incomplete',
-            fix: `fx tool show ${tool.name}`,
+            fix: workspaceCommand(deps, 'tool', 'show', tool.name),
           }),
         );
         continue;
       }
-      const handoff = commandTrustHandoff({ tool: tool.name, posture: options.trust.posture });
+      const handoff = commandTrustHandoff({ ...trust, tool: tool.name });
       findings.push(
         finding('tools', tool.name, 'warn', err.message, {
           coverage: 'incomplete',
@@ -73,7 +75,11 @@ export async function checkTools(
   return findings;
 }
 
-function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
+function fromStatus(
+  status: ToolStatus,
+  activeDependency: boolean,
+  deps: WorkspaceGuidance,
+): Finding {
   const { name } = status;
   switch (status.state) {
     case 'ok':
@@ -87,7 +93,7 @@ function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
             'disabled by the manifest but used by an active provider',
             {
               coverage: 'incomplete',
-              fix: `fx tool show ${name}`,
+              fix: workspaceCommand(deps, 'tool', 'show', name),
             },
           )
         : finding('tools', name, 'ok', 'disabled by the manifest; not checked', {
@@ -95,7 +101,7 @@ function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
           });
     case 'missing':
       return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', {
-        fix: `fx tool install ${name}`,
+        fix: workspaceCommand(deps, 'tool', 'install', name),
       });
     case 'outdated':
       return finding(
@@ -103,12 +109,12 @@ function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
         name,
         status.required ? 'fail' : 'warn',
         `${status.installed} installed, ${status.min_version} required`,
-        { fix: `fx tool update ${name}` },
+        { fix: workspaceCommand(deps, 'tool', 'update', name) },
       );
     case 'unknown':
       return finding('tools', name, 'warn', 'installed but its version could not be read', {
         coverage: 'incomplete',
-        fix: `fx tool show ${name}`,
+        fix: workspaceCommand(deps, 'tool', 'show', name),
       });
   }
 }

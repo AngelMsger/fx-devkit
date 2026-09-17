@@ -85,10 +85,12 @@ export class CommandServices {
       installTools: (ctx) =>
         new ToolInitialize(toolInstall(this.input.container)).execute({
           tools: toolchainOf(ctx).tools,
+          commandShell: this.input.commandShell,
           posture: this.input.posture,
           trust: {
             gate: this.input.trust,
             workspace: ctx.name,
+            commandShell: this.input.commandShell,
             yes: this.input.yes,
             posture: this.input.posture,
           },

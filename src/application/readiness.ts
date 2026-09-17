@@ -43,7 +43,6 @@ export interface Verdict {
   readonly alternatives: readonly string[];
 }
 
-const DOCTOR = 'fx doctor';
 type PendingSteps = SetupStep[] | 'untrusted' | { readonly problems: readonly string[] };
 
 export class Readiness {
@@ -58,6 +57,10 @@ export class Readiness {
     private readonly login: LoginDeps,
   ) {}
 
+  private command(...args: readonly string[]): string {
+    return workspaceCommand(this.deps, ...args);
+  }
+
   resolve(name: string, env: string | undefined): Target {
     const tools = toolchainOf(this.deps.ctx).tools;
     if ((CAPABILITIES as readonly string[]).includes(name)) {
@@ -69,7 +72,10 @@ export class Readiness {
           'config',
           'CAPABILITY_UNBOUND',
           `no provider serves ${capability}${env === undefined ? '' : ` in ${env}`}`,
-          { hint: CAPABILITY_INFO[capability].desc, nextSteps: ['fx manifest providers'] },
+          {
+            hint: CAPABILITY_INFO[capability].desc,
+            nextSteps: [this.command('manifest', 'providers')],
+          },
         );
       }
       return { capability, tool, binding };
@@ -87,7 +93,7 @@ export class Readiness {
           suggestion === undefined
             ? `Capabilities: ${CAPABILITIES.join(', ')}.`
             : `Did you mean "${suggestion}"?`,
-        nextSteps: ['fx manifest providers', 'fx tool list'],
+        nextSteps: [this.command('manifest', 'providers'), this.command('tool', 'list')],
       },
     );
   }
@@ -103,13 +109,18 @@ export class Readiness {
     const verdict = (status: ReadyStatus, extra: Partial<Verdict> = {}): Verdict => ({
       status,
       handoff: null,
-      alternatives: [DOCTOR],
+      alternatives: [this.command('doctor')],
       ...extra,
     });
     const coverage = this.coverage(target, env);
-    if (coverage !== undefined) return verdict('not_covered', { alternatives: [coverage, DOCTOR] });
+    if (coverage !== undefined)
+      return verdict('not_covered', {
+        alternatives: [coverage, this.command('doctor')],
+      });
     if (env !== null && !this.inScope(env))
-      return verdict('no_access', { alternatives: [`fx env pick ${env}`, DOCTOR] });
+      return verdict('no_access', {
+        alternatives: [this.command('env', 'pick', env), this.command('doctor')],
+      });
 
     if (target.tool === null) return verdict('ready');
 
@@ -125,7 +136,12 @@ export class Readiness {
           handoff: handoffEnvelope({
             summary: `${target.tool.name} is ${state}`,
             userSteps: [],
-            command: `fx tool ${{ disabled: 'show', outdated: 'update', missing: 'install' }[state]} ${target.tool.name}`,
+            command: workspaceCommand(
+              this.deps,
+              'tool',
+              { disabled: 'show', outdated: 'update', missing: 'install' }[state],
+              target.tool.name,
+            ),
           }),
         },
       );
@@ -138,8 +154,8 @@ export class Readiness {
         handoff: handoffEnvelope({
           summary: `Setup cannot be verified: ${pending.problems.join('; ')}`,
           userSteps: [],
-          command: 'fx manifest providers',
-          alternatives: ['fx manifest validate --strict'],
+          command: this.command('manifest', 'providers'),
+          alternatives: [this.command('manifest', 'validate', '--strict')],
         }),
       });
     if (pending.length > 0)
@@ -147,7 +163,7 @@ export class Readiness {
         handoff: handoffEnvelope({
           summary: `${pending.length} setup step${pending.length === 1 ? '' : 's'} not done for ${target.tool.name}`,
           userSteps: pending.map(handoffStep),
-          command: loginCommand(pending),
+          command: loginCommand(pending, this.deps),
         }),
       });
     return verdict('ready');
@@ -177,7 +193,10 @@ export class Readiness {
         `${capability} depends on the environment; pass --env`,
         {
           hint: 'Environments are listed by `fx env list`.',
-          nextSteps: ['fx env list', `fx can ${capability} --env <env>`],
+          nextSteps: [
+            this.command('env', 'list'),
+            this.command('can', capability, '--env', '<env>'),
+          ],
         },
       );
     }
@@ -223,8 +242,8 @@ export class Readiness {
         {
           hint: 'Choose a capability and environment with one binding; use where --platform to inspect a specific platform.',
           nextSteps: [
-            workspaceCommand(this.deps, 'manifest', 'providers'),
-            workspaceCommand(this.deps, 'env', 'list'),
+            this.command('manifest', 'providers'),
+            this.command('env', 'list'),
             'fx where --help',
           ],
         },
@@ -270,6 +289,7 @@ export class Readiness {
         trust: {
           gate: this.login.trust.gate,
           workspace: this.deps.ctx.name,
+          commandShell: this.deps.commandShell,
           yes: this.login.trust.yes,
           posture: this.login.trust.posture,
         },
@@ -318,8 +338,8 @@ export class Readiness {
   }
 
   private versionUnknown(tool: ResolvedTool): Verdict {
-    const command = shellLine(['fx', 'doctor', '--tool', tool.name], this.deps.commandShell);
-    const inspect = shellLine(['fx', 'tool', 'show', tool.name], this.deps.commandShell);
+    const command = this.command('doctor', '--tool', tool.name);
+    const inspect = this.command('tool', 'show', tool.name);
     const probe = shellLine([tool.binary, ...tool.versionArgs], this.deps.commandShell);
     return {
       status: 'unknown',
@@ -335,16 +355,21 @@ export class Readiness {
           },
         ],
       }),
-      alternatives: [inspect, DOCTOR],
+      alternatives: [inspect, this.command('doctor')],
     };
   }
 
   private untrusted(tool: string): Verdict {
-    const handoff = commandTrustHandoff({ tool, posture: this.login.trust.posture });
+    const handoff = commandTrustHandoff({
+      tool,
+      posture: this.login.trust.posture,
+      workspace: this.deps.ctx.name,
+      commandShell: this.deps.commandShell,
+    });
     return {
       status: 'unknown',
       handoff,
-      alternatives: handoff.alternatives ?? [DOCTOR],
+      alternatives: handoff.alternatives ?? [this.command('doctor')],
     };
   }
 }

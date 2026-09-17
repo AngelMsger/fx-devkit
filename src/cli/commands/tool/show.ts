@@ -15,9 +15,15 @@ export default class ToolShowCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args } = await this.parse(ToolShowCommand);
-    const { tools } = await this.toolchain();
+    const { tools, workspace } = await this.toolchain();
     this.renderer.record(
-      new ToolShow().execute({ tools, name: args.tool, dependants: toolDependants() }),
+      new ToolShow().execute({
+        tools,
+        workspace,
+        commandShell: this.commandShell,
+        name: args.tool,
+        dependants: toolDependants(),
+      }),
     );
   }
 }

@@ -11,6 +11,7 @@ import { assertWritable } from '../safety/posture.js';
 import { ToolCheck } from '../tool/check.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
 import { prepareCommand } from './command.js';
 
@@ -52,14 +53,22 @@ export class ServiceOperation {
         which: this.deps.processWhich,
       }).execute({
         tools,
-        trust: { ...this.login.trust, workspace: this.deps.ctx.name, dryRun },
+        trust: {
+          ...this.login.trust,
+          workspace: this.deps.ctx.name,
+          commandShell: this.deps.commandShell,
+          dryRun,
+        },
       });
       if (version?.state !== 'ok')
         return {
           ...base,
           status: 'blocked',
           detail: `Companion tool is ${version?.state ?? 'unknown'}; service settings were not written`,
-          next_steps: [`fx doctor --tool ${step.tool}`, `fx tool update ${step.tool}`],
+          next_steps: [
+            workspaceCommand(this.deps, 'doctor', '--tool', step.tool),
+            workspaceCommand(this.deps, 'tool', 'update', step.tool),
+          ],
         };
       return { ...base, ...(await prepareCommand(this.deps, this.login, step, dryRun)) };
     } catch (error) {
@@ -110,6 +119,7 @@ export class ServiceOperation {
     await this.login.trust.gate.ensure({
       ...this.login.trust,
       workspace: this.deps.ctx.name,
+      commandShell: this.deps.commandShell,
       vector: ['fx', 'sync', '--only', 'services'],
       origin: 'patch',
       label: step.id,

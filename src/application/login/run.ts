@@ -8,6 +8,7 @@ import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 import { buildPlan } from './collect.js';
 import type { LoginDeps } from './deps.js';
@@ -70,7 +71,10 @@ export class Login {
         'Setup steps have conflicting definitions.',
         {
           hint: conflicts.map((problem) => problem.detail).join(' '),
-          nextSteps: ['fx login --list', 'fx manifest providers'],
+          nextSteps: [
+            workspaceCommand(this.deps, 'login', '--list'),
+            workspaceCommand(this.deps, 'manifest', 'providers'),
+          ],
         },
       );
     const scopeEnvs = await ensureScopeEnvs(this.deps, this.setup.prompter, input);
@@ -85,7 +89,7 @@ export class Login {
       if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
         undone.add(step.id);
     }
-    if (pending.length > 0) throw setupRequired(pending, input);
+    if (pending.length > 0) throw setupRequired(pending, input, this.deps);
     return { items: rows, summary: summarize(rows), problems: plan.problems };
   }
 
@@ -130,6 +134,7 @@ export class Login {
     assertWritable(input.posture, `setup ${step.id}`);
     await this.setup.trust.gate.ensure({
       workspace: this.deps.ctx.name,
+      commandShell: this.deps.commandShell,
       vector,
       label: step.id,
       origin: step.origin,
@@ -210,8 +215,12 @@ export function describe(step: SetupStep): string {
   return lines.join('\n');
 }
 
-function setupRequired(pending: readonly SetupStep[], input: LoginInput): DevkitError {
-  const command = loginCommand(pending);
+function setupRequired(
+  pending: readonly SetupStep[],
+  input: LoginInput,
+  context: WorkspaceGuidance,
+): DevkitError {
+  const command = loginCommand(pending, context);
   return new DevkitError(
     'config',
     'LOGIN_REQUIRED',
@@ -220,12 +229,15 @@ function setupRequired(pending: readonly SetupStep[], input: LoginInput): Devkit
       hint: input.noInput
         ? 'Review handoff.user_steps for authorized local preparation and human interaction; verify after input changes, then resume the original task.'
         : 'Run the command below in a terminal to be guided through them.',
-      nextSteps: [command, 'fx doctor'],
+      nextSteps: [command, workspaceCommand(context, 'doctor')],
       handoff: {
         summary: `${pending.length} unfinished setup step${pending.length === 1 ? '' : 's'}`,
         userSteps: pending.map(handoffStep),
         command,
-        alternatives: ['fx login --list', 'fx doctor'],
+        alternatives: [
+          workspaceCommand(context, 'login', '--list'),
+          workspaceCommand(context, 'doctor'),
+        ],
       },
     },
   );

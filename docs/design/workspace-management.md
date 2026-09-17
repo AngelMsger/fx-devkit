@@ -98,3 +98,10 @@ worktree is identified separately. Recovery repeats the source-specific initiali
 or rebind preview, with its explicit name and source, rather than validating the old
 registered source after a failed rebind. Error codes and preflight write behavior are
 unchanged.
+
+Readiness and setup recovery follows the same context rule: `can`/`where` missing
+environment, unpicked environment, tool installation/version/trust and login handoffs
+carry the selected workspace. Doctor's workspace/tool/setup findings do too. Tool
+install/update/show errors preserve the toolchain source when it came from a
+workspace; standalone bundled toolchain recovery remains global. Global tool
+inventory/history and self-update commands retain their global scope.

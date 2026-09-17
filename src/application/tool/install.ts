@@ -7,6 +7,7 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../../domain/errors.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import type { ToolInstallation } from '../../domain/toolchain/installation.js';
 import {
   commandOrigin,
@@ -17,12 +18,14 @@ import type { Installer } from '../../ports/installer.js';
 import type { Process } from '../../ports/process.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
+import { recoveryCommand } from '../workspace/guidance.js';
 
 import type { ToolAudit } from './audit.js';
 import { assertToolSelection, selectTools } from './select.js';
 import { probeToolVersion } from './version.js';
 
 export interface ToolInstallInput {
+  readonly commandShell?: ResolvedShell | undefined;
   readonly tools: readonly ResolvedTool[];
   readonly names?: readonly string[] | undefined;
   readonly all?: boolean | undefined;
@@ -66,9 +69,14 @@ export class ToolInstall {
   async execute(input: ToolInstallInput): Promise<ToolInstallOutput[]> {
     assertToolSelection(input.names, input.all === true);
     const selected =
-      input.all === true ? await this.selectAll(input) : selectTools(input.tools, input.names);
+      input.all === true
+        ? await this.selectAll(input)
+        : selectTools(input.tools, input.names, {
+            workspace: input.trust?.workspace,
+            commandShell: input.commandShell,
+          });
     const plans: ToolInstallPlan[] = [];
-    for (const tool of selected) plans.push(await this.plan(tool, input.update));
+    for (const tool of selected) plans.push(await this.plan(tool, input));
     if (input.dryRun) return plans.map((plan) => plan.output);
     if (plans.some((plan) => plan.output.vector !== null)) {
       const action = input.update ? 'update' : 'install';
@@ -113,12 +121,12 @@ export class ToolInstall {
     return results;
   }
 
-  private async plan(tool: ResolvedTool, update: boolean): Promise<ToolInstallPlan> {
-    const { method, installer } = await this.choose(tool);
+  private async plan(tool: ResolvedTool, input: ToolInstallInput): Promise<ToolInstallPlan> {
+    const { method, installer } = await this.choose(tool, input);
     const vector =
       installer.vector(method.spec ?? tool.name, {
         registry: method.registry,
-        update,
+        update: input.update,
       }) ?? null;
     return {
       tool,
@@ -221,6 +229,7 @@ export class ToolInstall {
       if (trust !== undefined && commandOrigin(tool, 'versionArgs') === 'patch') {
         await trust.gate.ensure({
           workspace: trust.workspace,
+          commandShell: trust.commandShell,
           vector,
           label: `${tool.name} version check`,
           origin: 'patch',
@@ -241,6 +250,7 @@ export class ToolInstall {
 
   private async choose(
     tool: ResolvedTool,
+    input: ToolInstallInput,
   ): Promise<{ method: InstallMethod; installer: Installer }> {
     for (const method of tool.install) {
       const installer = this.installers.find((i) => i.id === method.via);
@@ -253,7 +263,14 @@ export class ToolInstall {
       `no package manager on this machine can install ${tool.name}: it needs ${wanted.join(' or ') || 'a manual install'}`,
       {
         hint: `Install ${wanted[0] ?? 'the tool'} first, or install ${tool.name} by hand${tool.docs === undefined ? '' : ` (${tool.docs})`}.`,
-        nextSteps: [`fx tool show ${tool.name}`],
+        nextSteps: [
+          recoveryCommand(
+            { workspace: input.trust?.workspace, commandShell: input.commandShell },
+            'tool',
+            'show',
+            tool.name,
+          ),
+        ],
       },
     );
   }

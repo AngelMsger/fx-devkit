@@ -188,7 +188,7 @@ describe('login and doctor', () => {
     ]);
     expect(err.handoff.user_steps[1]?.open).toBe('https://rancher.example.com/test');
     expect(err.handoff.command).toBe(
-      'fx login openobserve-cli kubectl --env test --env selfhosted',
+      'fx login openobserve-cli kubectl --env test --env selfhosted --workspace ws',
     );
 
     writeFileSync(path.join(s.kube, 'test.yaml'), 'k');

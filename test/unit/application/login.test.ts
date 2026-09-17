@@ -341,7 +341,7 @@ describe('Login', () => {
     ]);
     expect(err.handoff?.userSteps[0]?.command).toEqual(['bitbucket-cli', 'auth', 'login']);
     expect(err.handoff?.userSteps[1]?.expects).toEqual({ path: '~/.kube/test' });
-    expect(err.handoff?.command).toBe('fx login bitbucket-cli kubectl --env test');
+    expect(err.handoff?.command).toBe('fx login bitbucket-cli kubectl --env test --workspace fx');
     expect(s.h.process.calls.every((c) => c.options.interactive !== true)).toBe(true);
     expect(s.h.localStore.writes).toEqual([]);
   });

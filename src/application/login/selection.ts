@@ -17,7 +17,7 @@ export function validateSetupSelection(
   selection: SetupSelection,
   commandShell?: ResolvedShell,
 ): void {
-  selectTools(toolchainOf(ctx).tools, selection.tools);
+  selectTools(toolchainOf(ctx).tools, selection.tools, { workspace: ctx.name, commandShell });
   const known = Object.keys(ctx.manifest.environments?.result.doc.envs ?? {});
   for (const name of selection.envs ?? []) {
     if (!known.includes(name)) throw envNotFound({ ctx, commandShell }, name, known);
