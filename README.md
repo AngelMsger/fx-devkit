@@ -89,18 +89,24 @@ under `~/.fx/workspaces/<name>/source`; business repositories remain independent
 
 ## Everyday commands
 
-| Task                      | Command                                               |
-| ------------------------- | ----------------------------------------------------- |
-| Inspect checkouts         | `fx status`                                           |
-| Preview updates           | `fx sync --dry-run`                                   |
-| Select repositories       | `fx repo pick <name...>` / `fx repo unpick <name...>` |
-| Select environments       | `fx env pick <name...>` / `fx env unpick <name...>`   |
-| Find a service            | `fx where <repo> --env <environment>`                 |
-| Check a capability        | `fx can <capability> --env <environment>`             |
-| Refresh guides and Skills | `fx sync --only docs,skills`                          |
-| Inspect release checks    | `fx release --format json`                            |
+| Task                           | Command                                               |
+| ------------------------------ | ----------------------------------------------------- |
+| Find managed workspaces        | `fx workspace list` / `fx workspace show <name>`      |
+| Inspect checkouts              | `fx status`                                           |
+| Preview updates                | `fx sync --dry-run`                                   |
+| Replace a repository selection | `fx repo select <name...>` / `fx repo select --all`   |
+| Select repositories            | `fx repo pick <name...>` / `fx repo unpick <name...>` |
+| Select environments            | `fx env pick <name...>` / `fx env unpick <name...>`   |
+| Find a service                 | `fx where <repo> --env <environment>`                 |
+| Check a capability             | `fx can <capability> --env <environment>`             |
+| Refresh guides and Skills      | `fx sync --only docs,skills`                          |
+| Inspect release checks         | `fx release --format json`                            |
 
 Use `repo list`, `env list`, `agent list` and `tool list` to discover valid names.
+Use `repo select` and `env select` to choose an exact set, `--all` to follow the
+team's full set including future additions, or `--none` to select nothing.
+`pick/unpick` add or remove individual names. First-time setup can limit cloning
+with `fx init ./work --from <manifest-repository> --repos example-api,example-web --dry-run`.
 `where` prints coordinates and commands; it does not execute those commands.
 `release` reports on your repositories; it does not publish packages or deploy them.
 The [CLI reference](docs/cli/README.md) and `fx <command> --help` own exact syntax.

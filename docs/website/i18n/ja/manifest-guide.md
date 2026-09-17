@@ -117,6 +117,8 @@ fx init ./existing-work --from ./team-workspace
 
 登録後のソースは `~/.fx/workspaces/<name>/source` にあります。`sync` は条件を満たす Git ソースを先に更新します。ディレクトリや stdin のスナップショットは元のソースの編集を追跡しません。`fx self info --format json` で現在のワークスペースとソースを確認できます。登録済みルートに別のソースを指定しても暗黙の移行は行われません。
 
+`fx workspace rebind <name> --from <source> --dry-run` で明示的なソース変更をプレビューし、ワークスペースの識別情報と個人の選択を保持します。
+
 共有宣言はソース checkout で管理し、個人の選択は `repo pick/unpick`、`env pick/unpick`、`agent pick/unpick` で管理します。エージェント選択は同じ FX_HOME の全ワークスペースに適用されます。検証済み個人フォークからの提案は[ソースへの貢献](cli/README.md#fx-source-push)を参照してください。
 
 ## 環境の例

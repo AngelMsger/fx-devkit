@@ -87,6 +87,53 @@ fx can <capability> --env <environment>
 
 使用 `repo pick/unpick`、`env pick/unpick` 限定本機關注範圍。`fx config set agents claude-code,codex` 選擇 Agent；未設定時自動偵測。`fx sync --only docs,skills` 只更新對應資源。
 
+## 探索與管理工作區 {#find-and-manage-workspaces}
+
+`fx workspace list` 可在任意目錄執行，即使沒有預設工作區，或某項註冊的根目錄、manifest 已遺失。`fx workspace show <name>` 回傳身分、來源、健康狀態與選擇脈絡，不要求 manifest 完整。使用 `fx status --workspace <name>` 明確選擇；未指定時，目前目錄所屬工作區優先於 `default_workspace`。
+
+```sh
+fx workspace list
+fx workspace show work
+fx status --workspace work
+fx config set default_workspace work
+```
+
+目錄已移動時，使用 `workspace relocate <name> <new-dir>` 更新註冊；它不會移動或重新複製 checkout。使用 `workspace rebind <name> --from <source>` 更換 manifest 來源，同時保留工作區身分和個人選擇。將同一實體目錄註冊為第二個名稱不等於遷移。
+
+`workspace unregister <name>` 解除管理並保留業務 checkout。先使用 `--dry-run` 預覽生命週期操作，檢查受管資源清理與衝突；外來檔案會保留。
+
+## 下載前選擇儲存庫 {#choose-repositories-before-downloading}
+
+初始化時使用 `--repos` 限制首次下載，名稱必須存在於已檢查的 manifest；`--no-repos` 表示空儲存庫集合。重複 init 時不帶這兩個參數會保留既有選擇。
+
+```sh
+fx init ./work --from <manifest-repository> --repos example-api --dry-run
+fx init ./work --from <manifest-repository> --repos example-api
+```
+
+既有工作區中，`select` 取代集合，`pick` 加入名稱，`unpick` 移除名稱。選擇操作不刪除檔案，也不會自行下載 checkout；隨後執行 sync 取得或更新已選儲存庫。
+
+```sh
+fx repo select example-api
+fx repo pick example-web
+fx sync --dry-run
+fx sync
+fx repo select --all
+fx env select dev
+fx env select --none
+fx env select --all
+```
+
+`--all` 持續跟隨團隊完整集合，包括未來新增項目；逐個選中目前全部名稱仍是固定清單。`--none` 選擇空集合。清單與選擇結果顯示目前模式，避免將空選誤認為未設定預設值。
+
+儲存庫選擇只控制共用項目；本機另行註冊的儲存庫和 manifest checkout 仍分別管理。`select` 接收以空格分隔的名稱，init 的 `--repos` 接收以逗號分隔的清單。
+
+## 判讀儲存庫狀態 {#read-repository-status}
+
+`fx status` 標明工作區並顯示未追蹤檔案數。`fx status --dirty` 同時查找已追蹤檔案的修改與新建的未追蹤檔案。JSON 保留 `dirty` 表示已追蹤檔案或索引修改，新增 `uncommitted` 表示任一類未提交工作。被忽略檔案不計入未追蹤工作。空結果說明是未選擇儲存庫，還是沒有儲存庫符合篩選。
+
+sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
+
 ## 核心概念 {#concepts}
 
 ### 工作區和 manifest {#the-workspace-and-the-manifest}
@@ -113,6 +160,8 @@ capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provide
 工具定義由內建基線與所選工作區的 `tools.yaml` 合併。工作區優先順序為 `--workspace`、`FX_WORKSPACE`、目前目錄所屬的已註冊工作區、`default_workspace`；無法確定工作區時僅使用內建基線。套件管理器決定安裝位置，工具由多個工作區共用。
 
 `tool install` 和 `tool update` 必須指定名稱或 `--all`，兩者互斥。安裝的 `--all` 補齊已啟用且 PATH 缺少的工具；更新的 `--all` 選擇目前工具表中全部已啟用工具。明確名稱可以選擇已停用的工具。無參數呼叫會在執行套件操作前報錯。
+
+doctor 預設檢查工作區宣告的工具及所選環境中實際啟用的 provider 相依項目。未使用的內建工具仍可透過 `tool list` 或明確指定 `doctor --tool <name>` 查詢；缺少它們不會導致無關工作區不健康。活躍 provider 的相依工具若被停用，仍會回報檢查不完整。
 
 ### 共用服務設定與個人憑證 {#shared-service-settings-and-personal-credentials}
 
@@ -223,6 +272,8 @@ fx sync --format json --details > sync-result.json
 
 `config list` 顯示設定鍵、預設值、環境變數名稱及實際來源；`config get <key> --explain` 顯示各層。優先順序為明確參數、環境變數、設定檔、內建預設值。使用 `config export/import` 遷移個人設定。
 
+匯入按名稱合併工作區註冊，保留 profile 中未提到的工作區；明確列出的個人層會被取代。匯入不會改變既有工作區的根目錄或來源，請先使用 `workspace relocate` 或 `workspace rebind`。使用 `workspace unregister` 明確解除管理。計畫會列出註冊情況與仍需完成的準備步驟；遺失的 manifest checkout 可透過輸出的 init 命令恢復。匯出不複製 manifest checkout、信任或憑證。
+
 `format` 控制輸出。`command_shell` 只控制產生命令的文字，不改變執行方式；auto 在 Windows 選擇 PowerShell，其他平台選擇 POSIX。可使用 `--command-shell`、`FX_COMMAND_SHELL` 或 cmd 設定覆寫。manifest 中的 shell 範本保持原樣。
 
 自動補齊支援 bash、zsh、fish 和 PowerShell，透過 `fx completion <shell>` 產生，依需求自行載入。
@@ -253,17 +304,19 @@ Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill�
 
 init 可能先完成註冊，再在後續階段失敗。即使結束代碼非零，也要讀取部分 stdout；解決原因後，以相同名稱、來源和目錄重試。同一實體目錄的符號連結別名可接受，不同目錄仍屬衝突。
 
-| 證據                                | 含義                                                              |
-| ----------------------------------- | ----------------------------------------------------------------- |
-| `registered` / `written`            | 已註冊或發生本機寫入；完成程度另看 `preparation_complete`。       |
-| `failed_phase`、`phases`、`failure` | 初始化停止的位置與復原步驟。                                      |
-| `sync.stages`、`sync.stage_details` | init 的同步結果；sync 命令去掉 `sync` 前綴。                      |
-| `tool_install`                      | 安裝嘗試；`code: null` 不代表成功，安裝成功後也可能版本檢查失敗。 |
-| `observed`                          | Skill 失敗後的磁碟狀態，失敗寫入也可能已改變目標。                |
+| 證據                                | 含義                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `registered` / `written`            | 註冊是否存在／本次是否寫入本機狀態；仍須另行檢查 `preparation_complete`。 |
+| `failed_phase`、`phases`、`failure` | 初始化停止的位置與復原步驟。                                              |
+| `sync.stages`、`sync.stage_details` | init 的同步結果；sync 命令去掉 `sync` 前綴。                              |
+| `tool_install`                      | 安裝嘗試；`code: null` 不代表成功，安裝成功後也可能版本檢查失敗。         |
+| `observed`                          | Skill 失敗後的磁碟狀態，失敗寫入也可能已改變目標。                        |
 
 遇到 `SKILL_WRITE_DENIED` 應先檢查被拒絕的路徑；修改 FX_HOME 不會移動共用鎖。可用 `fx sync --only repos,docs --no-refresh-manifest` 繼續本機儲存庫與指南工作，但不代表 Skill 已修復。存取條件未改變時不要重試，也不要繞過命令信任。
 
-`INIT_PREPARED` 在安裝與複製前展示計畫；新的遠端來源 dry-run 不擷取 manifest，因此無法描述未知內容。stderr 進度是心跳，不是傳輸百分比或 ETA；完整 JSON 使用 `--details`。
+`INIT_PREPARED` 在安裝與複製前展示計畫。init 的 dry-run 會檢查本機目錄、stdin 與本機 Git 已提交的內容，並列出儲存庫動作而不執行。新的遠端來源不會在 dry-run 中擷取；`source_inspected: false` 表明此邊界，要求的儲存庫選擇仍未驗證。需要先查看來源內容時，依預覽提示檢查本機 checkout。計畫與實際狀態分別回報，`registered` 表示註冊目前確實存在，不再表示計畫註冊或本次新增。stderr 進度是心跳，不是傳輸百分比或 ETA；完整 JSON 使用 `--details`。
+
+正常重試會重新探測儲存庫可讀性；先前遺失的儲存庫不會被舊的負快取持續阻擋。
 
 工具、登入與更新問題見[支援](support.md#troubleshooting)。`no_access` 表示環境未被選取，不是遠端 ACL 拒絕。Git 傳輸憑證與選用的程式碼託管 API 檢查互相獨立。
 

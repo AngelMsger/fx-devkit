@@ -151,6 +151,8 @@ A registered workspace keeps its source under
 synchronizing; directory and stdin snapshots do not track subsequent source edits.
 Use `fx self info --format json` to identify the active workspace and source.
 Changing the source of an already registered root is not an implicit migration.
+Use `fx workspace rebind <name> --from <source> --dry-run` to preview an explicit
+source change while preserving the workspace identity and personal selection.
 
 `manifest validate/lint/providers/repo-set/render` honour `--workspace` and
 `FX_WORKSPACE` before looking for a source checkout around the current directory.

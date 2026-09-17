@@ -117,6 +117,8 @@ fx init ./existing-work --from ./team-workspace
 
 注册后的来源位于 `~/.fx/workspaces/<name>/source`。`sync` 先刷新符合条件的 Git 来源；目录和 stdin 快照不会持续跟踪原始来源。用 `fx self info --format json` 定位当前工作区及来源。再次指定不同来源不会隐式迁移已注册工作区。
 
+用 `fx workspace rebind <name> --from <source> --dry-run` 预览显式换源，并保留工作区身份与个人选择。
+
 在来源 checkout 维护共享声明；使用 `repo pick/unpick`、`env pick/unpick` 和 `agent pick/unpick` 管理个人选择。Agent 选择影响同一 FX_HOME 的全部工作区。通过已验证个人 fork 提交变更的流程见[共享源贡献](cli/README.md#fx-source-push)。
 
 ## 环境示例

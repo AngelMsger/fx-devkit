@@ -49,6 +49,33 @@ This does not claim the skipped Skill stage is ready or authorize trust changes.
 
 ## Shapes of the answering commands
 
+`workspace list/show` resolves registry facts without requiring a valid manifest.
+Rows include root/source, selection and health. `self info` still reports global
+installation facts when the selected workspace is degraded. Use explicit
+`workspace relocate`, `rebind` or `unregister` plans to change identity or end
+management; these preserve business checkouts and respect owned-resource cleanup.
+
+`repo select` / `env select` replace a personal collection. `--all` removes its
+explicit scope and follows future shared entries; `--none` stores an empty set.
+`pick/unpick` retain additive/removal semantics. Selection output reports modes
+and next steps; repository selection is separate from downloading via sync.
+
+`status` keeps `{items, has_more}` and adds workspace/root/selection context.
+Items preserve `dirty` as tracked changes and add `uncommitted` for tracked or
+untracked work. Human output includes untracked counts; `--dirty` filters on all
+uncommitted work. Empty results distinguish no declarations, no selected repos
+and no matching uncommitted work.
+
+Init accepts `--repos` / `--no-repos` before cloning. Its preview distinguishes
+actual registration from planned effects and states whether source contents
+were inspected; uninspected remote contents are not a validated selection.
+`registered` means registration currently exists, including a successful retry.
+
+Profile import merges registrations by name, retains unmentioned workspaces and
+refuses root/source identity changes. Its registration plan and quoted next steps
+identify missing manifest preparation. Use workspace lifecycle commands for
+relocation, rebinding and removal rather than editing an export to remove names.
+
 `fx can <capability|tool> [--env <env>]` — one record:
 
 | Field          | Meaning                                                                                                                                                                            |

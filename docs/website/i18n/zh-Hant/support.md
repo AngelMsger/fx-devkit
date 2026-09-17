@@ -12,6 +12,8 @@
 
 報告結束代碼為零不代表已就緒。請閱讀 `ok`、`complete`、各項結果和復原資訊。
 
+工作區解析或 manifest 載入失敗時，先執行 `fx workspace list`、`fx workspace show <name>` 與 `fx self info`，保留查看註冊與安裝事實的能力。目錄移動後使用 `workspace relocate` 修正根路徑；manifest 遺失時依記錄來源重新準備。必需工作區文件遺失或無效時，`manifest validate --strict` 會判定失敗；選用且未宣告的文件允許不存在。
+
 ## 更新 {#updates}
 
 <!-- distribution:internal -->
