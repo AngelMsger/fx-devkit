@@ -4,8 +4,10 @@
 import { DevkitError } from '../../domain/errors.js';
 import type { Lease } from '../../ports/lock.js';
 import { assertWritable } from '../safety/posture.js';
+import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { applySource } from './apply-source.js';
+import { assertContributionIdentity } from './identity.js';
 import { changed, planSource } from './plan-source.js';
 import type {
   PushSourceDeps,
@@ -18,6 +20,7 @@ export class PushSource {
   constructor(private readonly deps: PushSourceDeps) {}
 
   async execute(input: PushSourceInput): Promise<PushSourceOutput> {
+    await assertContributionIdentity(this.deps);
     const allocatedId = this.deps.ids.next();
     let plan = await planSource({ deps: this.deps, input, allocatedId });
     if (input.dryRun) return plan.output;
@@ -49,12 +52,15 @@ export class PushSource {
 async function withLeases<T>(deps: PushSourceDeps, work: () => Promise<T>): Promise<T> {
   const leases: Lease[] = [];
   try {
+    leases.push(await acquireWorkspaceOperation(deps.lock, deps.source.workspace));
+    await assertContributionIdentity(deps);
     for (const key of [`workspace:${deps.source.workspace}`, `source:${deps.source.dir}`]) {
       const lease = await deps.lock.acquire({ key, waitMs: 2000 });
       if (!lease)
         throw new DevkitError('conflict', 'SOURCE_BUSY', 'Another operation holds this source.');
       leases.push(lease);
     }
+    await assertContributionIdentity(deps);
     return await work();
   } finally {
     for (const lease of leases.reverse()) await lease.release();

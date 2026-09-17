@@ -47,6 +47,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   const { container } = input;
   const located = await resolveWorkspace(input.resolve);
   const entry = (await container.config.read()).workspaces?.[located.name];
+  if (!entry) throw notGit();
   const source =
     entry?.source && (await manifestSourceFor(entry.source, container, async () => ''));
   if (!source || source.kind !== 'repo' || (await container.fs.readLink(located.manifestDir)))
@@ -61,6 +62,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   );
   return {
     user: input.user,
+    registration: { expected: entry, config: container.config, fs: container.fs },
     source: { workspace: located.name, dir, kind: 'repo' },
     git: new ContributionSystemGit(container.process),
     transport: new ContributionGitTransport(container.process),

@@ -21,8 +21,11 @@ are checked; protected filenames are replaced with positional placeholders in
 failed previews. Private manifest addresses are allowed, while credentials and
 protected personnel content are rejected.
 
-Prompts run outside leases. Application holds workspace and source leases before
-re-reading the journal, routing, candidate and remote state. Changed evidence
+Prompts run outside leases. Registry identity and unfinished lifecycle journals are
+checked read-only before planning, including dry-run. After the write gate and any
+required confirmation, application acquires operation, workspace and source leases
+in that order and rechecks the captured registry/source identity. It then re-reads
+the journal, routing, candidate and remote state to validate the locked plan. Changed evidence
 rejects the old plan. Automatic lifecycle synchronization uses the same workspace
 lease, so it skips while a contribution owns the source.
 
