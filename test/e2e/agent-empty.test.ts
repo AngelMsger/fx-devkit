@@ -21,7 +21,7 @@ describe('explicit empty agent selection through the CLI', () => {
     mkdirSync(path.join(source, 'manifest'), { recursive: true });
     writeFileSync(
       path.join(source, 'manifest/workspace.yaml'),
-      'schema_version: 2\nrepos: [{name: sample}]\n',
+      'schema_version: 2\ndefaults: { branch: main }\nrepos: [{name: sample, upstream: https://git.example.com/team/sample.git}]\n',
     );
     const args = [
       'init',

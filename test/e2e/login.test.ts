@@ -99,6 +99,10 @@ function stage(): Stage {
     ].join('\n'),
   );
   const ws = path.join(base, 'ws');
+  writeFileSync(
+    path.join(manifestDir, 'tools.yaml'),
+    "schema_version: 2\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n",
+  );
   const env = {
     FX_HOME: freshHome(),
     PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
