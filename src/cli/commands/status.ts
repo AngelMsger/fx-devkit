@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { Status, type StatusInput } from '../../application/status.js';
+import { shellLine } from '../../domain/shell.js';
 import { FxCommand } from '../base.js';
 import { jobsFlag } from '../flags.js';
 
@@ -37,7 +38,11 @@ export default class StatusCommand extends FxCommand {
           jobs: flags.jobs,
         }
       : { fetch: false, dirtyOnly: flags.dirty, jobs: flags.jobs };
-    const rows = await new Status(await this.workspaceDeps()).execute(input);
+    const deps = await this.workspaceDeps();
+    const rows = await new Status(deps).execute(input);
+    const selected = deps.ctx.workspace.repos.length;
+    const declared = deps.ctx.manifest.workspace.result.doc.repos.length;
+    const emptyReason = statusEmptyReason(rows.length, selected, declared, flags.dirty);
     this.renderer.list(rows, {
       columns: [
         'name',
@@ -48,6 +53,42 @@ export default class StatusCommand extends FxCommand {
         ...(flags.fetch ? ['fetch'] : []),
         'note',
       ],
+      trailer: {
+        workspace: deps.ctx.name,
+        root: deps.ctx.root,
+        selection: deps.ctx.selection,
+        selected_repositories: selected,
+        ...(emptyReason === null
+          ? {}
+          : {
+              empty_reason: emptyReason,
+              next_steps:
+                emptyReason === 'no_repositories_selected'
+                  ? [
+                      shellLine(
+                        ['fx', 'repo', 'list', '--workspace', deps.ctx.name],
+                        this.commandShell,
+                      ),
+                      shellLine(
+                        ['fx', 'repo', 'select', '--all', '--workspace', deps.ctx.name],
+                        this.commandShell,
+                      ),
+                    ]
+                  : [],
+            }),
+      },
     });
   }
+}
+
+function statusEmptyReason(
+  rows: number,
+  selected: number,
+  declared: number,
+  dirtyOnly: boolean,
+): string | null {
+  if (rows > 0) return null;
+  if (selected === 0)
+    return declared === 0 ? 'no_repositories_declared' : 'no_repositories_selected';
+  return dirtyOnly ? 'no_uncommitted_changes' : 'no_repositories';
 }
