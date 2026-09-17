@@ -17,7 +17,7 @@ export function editEnvScope(
   input: EnvScopeInput,
   operation: ScopeOperation,
 ): Promise<ScopeOutput> {
-  const known = Object.keys(environmentsOf(deps.ctx).envs);
+  const known = Object.keys(environmentsOf(deps.ctx, deps.commandShell).envs);
   return editScope(deps, {
     key: 'envs',
     operation,
@@ -25,6 +25,6 @@ export function editEnvScope(
     names: input.names,
     dryRun: input.dryRun,
     posture: input.posture,
-    notFound: (name) => envNotFound(name, known),
+    notFound: (name) => envNotFound(deps, name, known),
   });
 }

@@ -14,8 +14,13 @@ import type { ManifestSource } from '../ports/manifest-source.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { ConfigFile, ConfigStore, LocalLayerStore, WorkspaceEntry } from '../ports/stores.js';
 
-import { initialLocalLayer, inspectInitialization, initialPlan } from './init-preview.js';
-import { LoadManifest } from './manifest/load.js';
+import {
+  initialLocalLayer,
+  inspectInitialization,
+  initializationSourceError,
+  initialPlan,
+} from './init-preview.js';
+import { LoadManifest, type ManifestBundle } from './manifest/load.js';
 import { RefreshManifest } from './refresh-manifest.js';
 import { assertWritable, type WritePosture } from './safety/posture.js';
 import { Sync, type SyncOutput, type SyncStages } from './sync.js';
@@ -102,9 +107,15 @@ export class Init {
   async execute(input: InitInput): Promise<InitOutput> {
     const preview = await this.plan(input);
     if (input.dryRun) {
-      const inspection = await input.source.inspect?.(
-        preview.output.plan.manifest_action === 'refresh' ? preview.output.manifest_dir : undefined,
-      );
+      const inspection = await input.source
+        .inspect?.(
+          preview.output.plan.manifest_action === 'refresh'
+            ? preview.output.manifest_dir
+            : undefined,
+        )
+        .catch((error: unknown) => {
+          throw initializationSourceError(this.deps, input, preview.output, undefined, error);
+        });
       return {
         ...preview.output,
         plan: await inspectInitialization(this.deps, input, preview.output, inspection),
@@ -176,10 +187,7 @@ export class Init {
       await this.materialize(output, input);
       materialized = true;
       phase = 'validation';
-      const bundle = await new LoadManifest(this.deps.fs, this.deps.bundledTools).execute({
-        dir: output.manifest_dir,
-        cliVersion: this.deps.cliVersion,
-      });
+      const bundle = await this.loadSourceManifest(output, input);
       let local = await initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos);
       if (output.manifest === 'materialized')
         await this.deps.settleManifest(output.name, output.manifest_dir);
@@ -225,6 +233,26 @@ export class Init {
     } catch (error) {
       throw initFailure(output, error, { phase, registered, materialized, prepared, toolInstall });
     }
+  }
+
+  private async loadSourceManifest(output: InitOutput, input: InitInput): Promise<ManifestBundle> {
+    return new LoadManifest(this.deps.fs, this.deps.bundledTools)
+      .execute({
+        dir: output.manifest_dir,
+        cliVersion: this.deps.cliVersion,
+      })
+      .catch((error: unknown) => {
+        throw initializationSourceError(
+          this.deps,
+          input,
+          output,
+          {
+            root: output.manifest_dir,
+            ...(output.manifest === 'refreshed' ? { contents: 'worktree' as const } : {}),
+          },
+          error,
+        );
+      });
   }
 
   private async materialize(output: InitOutput, input: InitInput): Promise<void> {

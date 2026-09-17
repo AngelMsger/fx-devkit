@@ -55,7 +55,7 @@ export class Doctor {
   ) {}
 
   async execute(input: DoctorInput): Promise<DoctorReport> {
-    validateSetupSelection(this.deps.ctx, input);
+    validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
     const toolScope = doctorToolScope(this.deps.ctx, this.doctor.login.describeProvider, input);
     const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
     const groups = await Promise.all([

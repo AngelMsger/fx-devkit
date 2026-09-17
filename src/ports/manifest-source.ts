@@ -10,6 +10,7 @@ export interface RefreshOutcome {
 
 export interface ManifestSourceInspection {
   readonly root: string;
+  readonly contents?: 'commit' | 'worktree';
   readText(relativePath: string): Promise<string | undefined>;
 }
 

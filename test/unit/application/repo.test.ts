@@ -100,7 +100,7 @@ describe('RepoShow', () => {
     await expect(new RepoFork(h.deps).execute({ name: 'platfrm', ...write })).rejects.toMatchObject(
       {
         code: 'REPO_NOT_FOUND',
-        hint: 'fx repo list shows the known names.',
+        hint: 'Known: first, scratch, second.',
       },
     );
     expect(h.localStore.writes).toEqual([]);
@@ -118,7 +118,7 @@ describe('RepoShow', () => {
     await expect(new RepoShow(h.deps).execute({ name: 'shared' })).rejects.toMatchObject({
       category: 'conflict',
       code: 'REPO_ALIAS_AMBIGUOUS',
-      nextSteps: ['fx repo show first', 'fx repo show second'],
+      nextSteps: ['fx repo show first --workspace fx', 'fx repo show second --workspace fx'],
     });
   });
 

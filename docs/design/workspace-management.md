@@ -86,3 +86,15 @@ failures have no partial result because apply has not started.
 and resumed operations. Initial previews expose a future location separately as
 `planned_backup`; no prior source means both values are null. Successful rebinds
 from an absent source do not claim that a backup was created.
+
+Repository and environment recovery commands carry the resolved workspace identity,
+including selection typos, ambiguous repository aliases and coordinate lookups. They
+remain valid outside the root and override a different default or `FX_WORKSPACE`.
+Generated commands use the invocation's configured command shell.
+
+Rejected source diagnostics distinguish the requested candidate from the contents
+actually inspected. Local Git inspection names its committed ref; a protected managed
+worktree is identified separately. Recovery repeats the source-specific initialization
+or rebind preview, with its explicit name and source, rather than validating the old
+registered source after a failed rebind. Error codes and preflight write behavior are
+unchanged.

@@ -3,13 +3,13 @@
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
 import { resolveSharedRepo, type ResolvedRepo } from '../../domain/manifest/local.js';
 import { samePath } from '../../domain/path.js';
 import type { DiskState, Readability, RepoUrls } from '../../domain/workspace/plan.js';
 import { repoRef } from '../../domain/workspace/ref.js';
 
 import type { WorkspaceDeps } from './deps.js';
+import { workspaceCommand, workspaceItemNotFound } from './guidance.js';
 
 export function checkoutDir(deps: WorkspaceDeps, repo: Pick<ResolvedRepo, 'path'>): string {
   return path.resolve(deps.ctx.root, repo.path);
@@ -87,7 +87,7 @@ export function findRepo(deps: WorkspaceDeps, name: string): ResolvedRepo {
   const repo = deps.ctx.workspace.repos.find((r) => r.name === name);
   if (repo !== undefined) return repo;
   const known = [...deps.ctx.workspace.repos.map((r) => r.name), ...deps.ctx.workspace.available];
-  return missingRepo(name, known);
+  throw workspaceItemNotFound(deps, { kind: 'repo', name, known });
 }
 
 // Discovery can inspect unpicked shared entries without widening the
@@ -113,30 +113,15 @@ export function findKnownRepo(deps: WorkspaceDeps, name: string): ResolvedRepo {
       `repository alias "${name}" matches ${matches.map((entry) => entry.name).join(', ')}`,
       {
         hint: 'Use a canonical repository name to choose one.',
-        nextSteps: matches.map((entry) => `fx repo show ${entry.name}`),
+        nextSteps: matches.map((entry) => workspaceCommand(deps, 'repo', 'show', entry.name)),
       },
     );
   }
-  return missingRepo(
+  throw workspaceItemNotFound(deps, {
+    kind: 'repo',
     name,
-    all.flatMap((entry) => [entry.name, ...(entry.aka ?? [])]),
-  );
-}
-
-function missingRepo(name: string, known: readonly string[]): never {
-  const suggestion = nearest(name, known);
-  throw new DevkitError(
-    'not_found',
-    'REPO_NOT_FOUND',
-    `no repository named "${name}" in this workspace`,
-    {
-      hint:
-        suggestion === undefined
-          ? 'fx repo list shows the known names.'
-          : `Did you mean "${suggestion}"?`,
-      nextSteps: ['fx repo list'],
-    },
-  );
+    known: all.flatMap((entry) => [entry.name, ...(entry.aka ?? [])]),
+  });
 }
 
 function tryCodeHost(deps: WorkspaceDeps): ReturnType<WorkspaceDeps['codeHost']> | undefined {

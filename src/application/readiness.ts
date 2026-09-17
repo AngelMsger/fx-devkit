@@ -19,6 +19,7 @@ import { commandTrustHandoff, isTrustRequired } from './safety/trust.js';
 import { ToolCheck } from './tool/check.js';
 import { toolchainOf } from './tool/toolchain.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
+import { workspaceCommand } from './workspace/guidance.js';
 
 export type ReadyStatus =
   | 'ready'
@@ -204,9 +205,9 @@ export class Readiness {
   ): Binding | PlatformBinding | null {
     let scoped = candidates;
     if (env !== undefined && candidates.some((binding) => 'platform' in binding)) {
-      const environments = environmentsOf(this.deps.ctx);
+      const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
       const spec = environments.envs[env];
-      if (spec === undefined) throw envNotFound(env, Object.keys(environments.envs));
+      if (spec === undefined) throw envNotFound(this.deps, env, Object.keys(environments.envs));
       const covered = candidates.filter(
         (b) => !('platform' in b) || spec.platforms?.[b.platform] !== undefined,
       );
@@ -221,7 +222,11 @@ export class Readiness {
         `${name} matches multiple bindings: ${names.join(', ')}`,
         {
           hint: 'Choose a capability and environment with one binding; use where --platform to inspect a specific platform.',
-          nextSteps: ['fx manifest providers', 'fx env list', 'fx where --help'],
+          nextSteps: [
+            workspaceCommand(this.deps, 'manifest', 'providers'),
+            workspaceCommand(this.deps, 'env', 'list'),
+            'fx where --help',
+          ],
         },
       );
     }
@@ -231,9 +236,9 @@ export class Readiness {
   private coverage(target: Target, env: string | null): string | undefined {
     if (env === null || target.binding === null || !('platform' in target.binding))
       return undefined;
-    const environments = environmentsOf(this.deps.ctx);
+    const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const spec = environments.envs[env];
-    if (spec === undefined) throw envNotFound(env, Object.keys(environments.envs));
+    if (spec === undefined) throw envNotFound(this.deps, env, Object.keys(environments.envs));
     if (spec.platforms?.[target.binding.platform] !== undefined) return undefined;
     return spec.note ?? `${env} has no ${target.binding.platform}`;
   }
