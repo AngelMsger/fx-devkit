@@ -46,7 +46,12 @@ should use `plan.registration` and `plan.default_workspace` for those decisions.
 Local directory, stdin and local Git previews inspect content without copying it.
 A first local Git preview reads committed HEAD because materialization clones
 committed content. Repeated initialization previews the managed worktree when
-refresh preserves a dirty tracked branch or a task branch. For a clean managed
+refresh preserves local tracked or untracked changes, or a task branch. Ignored
+files within the distributable source payload also preserve the managed worktree
+because fx reads those documents and assets regardless of Git ignore rules.
+Ignored non-payload files do not prevent refresh. The same protection decision is
+used by preview and refresh; upstream tracking refs can be fetched, but the source
+branch and files remain unchanged while these local payloads exist. For a clean managed
 branch, local-source ancestry determines whether refresh can fast-forward; a
 non-fast-forward preview keeps the managed snapshot. Unknown remote refresh results
 remain uninspected instead of claiming future declarations are validated. Directory inspection rejects missing manifests and symlink payloads before

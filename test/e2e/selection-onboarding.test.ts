@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -205,6 +206,55 @@ describe('selection and first initialization', () => {
       expect(readFileSync(path.join(managed, 'manifest/workspace.yaml'), 'utf8')).not.toContain(
         'name: future',
       );
+    },
+  );
+
+  it.each(['untracked-invalid', 'untracked-valid', 'ignored-valid'])(
+    'keeps preview and apply consistent with %s source payload plus upstream changes',
+    (variant) => {
+      const f = fixture();
+      rmSync(path.join(f.source, 'manifest/environments.yaml'));
+      git(['init', '-q', '-b', 'main'], f.source);
+      git(['add', '.'], f.source);
+      git(['commit', '-qm', 'initial source'], f.source);
+      expect(fx([...f.init, '--no-repos'], f.env).status).toBe(0);
+      const managed = manifestDirOf(f.home, 'workspace');
+      const before = git(['rev-parse', 'HEAD'], managed);
+      const document =
+        variant === 'untracked-invalid'
+          ? 'schema_version: 2\nplatforms: {}\nenvs: broken\n'
+          : 'schema_version: 2\nplatforms: {docs: {command: "echo documentation"}}\nenvs: {personal: {label: Personal}}\n';
+      if (variant === 'ignored-valid')
+        writeFileSync(path.join(managed, '.git/info/exclude'), 'manifest/environments.yaml\n');
+      else git(['config', 'status.showUntrackedFiles', 'no'], managed);
+      writeFileSync(path.join(managed, 'manifest/environments.yaml'), document);
+      writeFileSync(
+        path.join(f.source, 'manifest/workspace.yaml'),
+        f.manifest + '  - {name: future, upstream: "https://git.example.com/team/future.git"}\n',
+      );
+      git(['add', '.'], f.source);
+      git(['commit', '-qm', 'upstream changes'], f.source);
+      const preview = fx([...f.init, '--no-repos', '--dry-run'], f.env);
+      if (variant === 'untracked-invalid') expect(preview.error().code).toBe('MANIFEST_INVALID');
+      else {
+        expect(preview.status, preview.stderr).toBe(0);
+        expect(preview.json()).toMatchObject({
+          plan: { source_inspected: true, inspected_source: managed },
+        });
+        const future = fx([...f.init, '--repos', 'future', '--dry-run'], f.env);
+        expect(future.error().code).toBe('REPO_NOT_FOUND');
+      }
+      const applied = fx([...f.init, '--no-repos'], f.env);
+      if (variant === 'untracked-invalid') expect(applied.error().code).toBe('MANIFEST_INVALID');
+      else {
+        expect(applied.status, applied.stderr).toBe(0);
+        expect(f.run(['env', 'list']).json()).toMatchObject({ items: [{ name: 'personal' }] });
+      }
+      expect(git(['rev-parse', 'HEAD'], managed)).toBe(before);
+      expect(readFileSync(path.join(managed, 'manifest/workspace.yaml'), 'utf8')).not.toContain(
+        'name: future',
+      );
+      expect(readFileSync(path.join(managed, 'manifest/environments.yaml'), 'utf8')).toBe(document);
     },
   );
 

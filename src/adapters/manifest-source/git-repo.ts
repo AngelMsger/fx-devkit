@@ -4,6 +4,7 @@ import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import type { RepoState } from '../../domain/workspace/state.js';
 import type { FileReader } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
 import type {
@@ -12,6 +13,8 @@ import type {
   RefreshOutcome,
 } from '../../ports/manifest-source.js';
 import type { Process } from '../../ports/process.js';
+
+import { PAYLOAD_PATHS } from './payload.js';
 
 export class GitRepoSource implements ManifestSource {
   readonly kind = 'repo';
@@ -38,7 +41,8 @@ export class GitRepoSource implements ManifestSource {
   private async inspectRefresh(dir: string): Promise<ManifestSourceInspection | undefined> {
     const branch = (await this.git.remoteHead(dir, 'upstream')) ?? 'main';
     const state = await this.git.status(dir);
-    if (state.branch !== branch || state.dirty) return this.inspectWorktree(dir);
+    if (state.branch !== branch || (await this.worktreeProtection(dir, state)) !== undefined)
+      return this.inspectWorktree(dir);
     if (this.localDirectory === undefined) return undefined;
     const head = await this.git.sha(dir, 'HEAD');
     if (head === undefined) return undefined;
@@ -54,6 +58,31 @@ export class GitRepoSource implements ManifestSource {
     if (ancestor.code === 1) return this.inspectWorktree(dir);
     if (ancestor.code !== 0) return undefined;
     return this.inspectCommit(this.localDirectory, branch);
+  }
+
+  private async worktreeProtection(dir: string, state: RepoState): Promise<string | undefined> {
+    if (state.dirty) return `uncommitted changes on ${state.branch ?? 'a detached HEAD'}`;
+    if (state.untracked > 0) return 'untracked files in the manifest source';
+    const [untracked, ignored] = await Promise.all([
+      this.process.run(['git', '-C', dir, 'ls-files', '--others', '--exclude-standard']),
+      this.process.run([
+        'git',
+        '-C',
+        dir,
+        'ls-files',
+        '--others',
+        '--ignored',
+        '--exclude-standard',
+        '--',
+        ...PAYLOAD_PATHS.map((file) => file.split(path.sep).join('/')),
+      ]),
+    ]);
+    if (untracked.code !== 0 || ignored.code !== 0)
+      return 'source payload status could not be verified; the manifest worktree was preserved';
+    if (untracked.stdout.length > 0) return 'untracked files in the manifest source';
+    if (ignored.stdout.length > 0)
+      return 'ignored source payload affects workspace preparation; the manifest worktree was preserved';
+    return undefined;
   }
 
   private inspectWorktree(dir: string): ManifestSourceInspection | undefined {
@@ -138,8 +167,8 @@ export class GitRepoSource implements ManifestSource {
     const state = await this.git.status(dir);
     const kept = (reason: string): RefreshOutcome => ({ result: 'kept', reason });
     const onBranch = state.branch === branch;
-    // Like sync: a dirty tracked branch is not touched at all, not even its ref.
-    if (onBranch && state.dirty) return kept(`uncommitted changes on ${branch}`);
+    const protection = await this.worktreeProtection(dir, state);
+    if (protection !== undefined) return kept(protection);
     const outcome = await this.git.fastForward(dir, 'upstream', branch);
     if (outcome === 'diverged') {
       const suffix = onBranch ? '' : '; its ref was not moved';
