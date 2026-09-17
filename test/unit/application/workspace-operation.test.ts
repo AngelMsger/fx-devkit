@@ -75,4 +75,22 @@ describe('workspace operation leases', () => {
     expect(workspaceWriteMode('doctor', {})).toBe(null);
     expect(workspaceWriteMode('doctor', { fix: true })).toBe('workspace');
   });
+  it('locks conditional and compatibility writers without classifying read-only checks as writes', () => {
+    expect(workspaceWriteMode('where', { record: true, check: true })).toBe('workspace');
+    expect(workspaceWriteMode('where', { record: true, check: false })).toBe('workspace');
+    expect(workspaceWriteMode('where', { probe: true, check: true })).toBe(null);
+    expect(workspaceWriteMode('status', { fetch: true })).toBe('workspace');
+    expect(workspaceWriteMode('status', {})).toBe(null);
+    expect(workspaceWriteMode('manifest:render', { check: true })).toBe(null);
+    expect(workspaceWriteMode('manifest:render', { check: false })).toBe('source');
+    expect(workspaceWriteMode('manifest:record-probe', { check: true })).toBe('workspace');
+    for (const id of ['hook:inject', 'hook:remove'])
+      expect(workspaceWriteMode(id, {})).toBe('workspace');
+    expect(workspaceWriteMode('manifest:set', {})).toBe('source');
+    for (const [id, flags] of [
+      ['where', { record: true, check: true }],
+      ['status', { fetch: true }],
+    ] as const)
+      expect(workspaceWriteMode(id, { ...flags, 'dry-run': true })).toBe(null);
+  });
 });

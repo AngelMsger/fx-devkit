@@ -61,6 +61,9 @@ are retained when another same-root identity has matching ownership evidence.
 Public identity-dependent writes hold `workspace-operation:<name>` before taking
 workspace, hook, projection or configuration leases. Init plans and applies within
 that lease; CLI mutations pin their selected identity before reloading context.
+Conditional writers include `status --fetch` and the `where --probe --record`
+compatibility flow; ordinary status/where queries and `manifest render --check`
+remain read-only.
 Global agent cleanup takes the same lease per registration and rechecks it before
 retiring resources. Write posture is enforced before effectful operation leases.
 Dry-run, inspection and idempotent relocation do not acquire write leases. Background

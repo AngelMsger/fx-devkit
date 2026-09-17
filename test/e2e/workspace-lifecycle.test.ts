@@ -16,7 +16,7 @@ import { stringify } from 'yaml';
 
 import { FileLock } from '../../src/infra/lock.js';
 
-import { freshHome, fx, manifestDirOf } from './harness.js';
+import { freshHome, fx, git, manifestDirOf, repository } from './harness.js';
 
 function setup() {
   const home = realpathSync(freshHome());
@@ -356,5 +356,64 @@ describe('workspace review regressions', () => {
       fx(['workspace', 'relocate', 'alpha', s.root, '--format', 'json'], readonly, s.base).json(),
     ).toMatchObject({ written: false });
     expect(existsSync(path.join(s.home, 'locks'))).toBe(false);
+  });
+});
+
+describe('conditional writer serialization', () => {
+  it('never fetches checkout refs when the identity lease is held, while ordinary status and previews remain available', async () => {
+    const s = setup();
+    const upstream = repository(s.base, 'fetch-target', { 'README.md': 'first' });
+    const checkout = path.join(s.root, 'api');
+    git(['clone', '--quiet', upstream.bare, checkout], s.root);
+    git(['remote', 'add', 'upstream', upstream.bare], checkout);
+    git(['fetch', '--quiet', 'upstream'], checkout);
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/workspace.yaml'),
+      stringify({
+        schema_version: 2,
+        providers: { 'code-host': { provider: 'local-git', vars: { host: s.base } } },
+        defaults: { branch: 'main' },
+        repos: [{ name: 'api', path: 'api', upstream: upstream.bare }],
+      }),
+    );
+    const before = git(['rev-parse', 'refs/remotes/upstream/main'], checkout);
+    upstream.commit({ 'README.md': 'second' }, 'advance upstream');
+    const expected = git(['rev-parse', 'HEAD'], upstream.author);
+    expect(before).not.toBe(expected);
+    const lease = await new FileLock(s.home).acquire({
+      key: 'workspace-operation:alpha',
+      waitMs: 0,
+    });
+    expect(lease).not.toBeNull();
+    try {
+      expect(s.run(['status', '--fetch', '--workspace', 'alpha']).error()).toMatchObject({
+        code: 'LOCK_BUSY',
+      });
+      expect(git(['rev-parse', 'refs/remotes/upstream/main'], checkout)).toBe(before);
+      expect(s.run(['status', '--workspace', 'alpha']).status).toBe(0);
+      expect(s.run(['status', '--fetch', '--dry-run', '--workspace', 'alpha']).status).toBe(0);
+      expect(git(['rev-parse', 'refs/remotes/upstream/main'], checkout)).toBe(before);
+      expect(
+        s
+          .run([
+            'where',
+            'api',
+            '--env',
+            'test',
+            '--platform',
+            'jenkins',
+            '--probe',
+            '--record',
+            '--workspace',
+            'alpha',
+          ])
+          .error(),
+      ).toMatchObject({ code: 'LOCK_BUSY' });
+    } finally {
+      await lease?.release();
+    }
+    const fetched = s.run(['status', '--fetch', '--workspace', 'alpha']);
+    expect(fetched.status, fetched.stderr).toBe(0);
+    expect(git(['rev-parse', 'refs/remotes/upstream/main'], checkout)).toBe(expected);
   });
 });
