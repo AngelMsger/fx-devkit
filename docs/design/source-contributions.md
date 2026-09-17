@@ -89,3 +89,9 @@ supplied URL is never used as an arbitrary request destination.
 Probe recording is described in [its execution contract](probe-recording.md).
 The expanded contribution e2e matrix now covers recovery through the built CLI.
 Automated acceptance and native limitations are recorded in the validation guidance.
+
+The identity guard retains the registered logical source path alongside the captured
+physical source and workspace root. It re-resolves the logical source/root under the
+operation lease and reads pending lifecycle state through the current logical path.
+Retargeting a symlink ancestor therefore cannot pair Git operations on the old source
+with configuration or journals under a different personal home.

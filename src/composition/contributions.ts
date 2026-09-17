@@ -62,7 +62,13 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   );
   return {
     user: input.user,
-    registration: { expected: entry, config: container.config, fs: container.fs },
+    registration: {
+      expected: entry,
+      physicalRoot: located.root,
+      logicalSourceDir: located.manifestDir,
+      config: container.config,
+      fs: container.fs,
+    },
     source: { workspace: located.name, dir, kind: 'repo' },
     git: new ContributionSystemGit(container.process),
     transport: new ContributionGitTransport(container.process),

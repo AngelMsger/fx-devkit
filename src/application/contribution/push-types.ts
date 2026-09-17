@@ -46,6 +46,8 @@ export type ContributionHost = Pick<
 export interface PushSourceDeps {
   readonly registration: {
     readonly expected: WorkspaceEntry;
+    readonly physicalRoot: string;
+    readonly logicalSourceDir: string;
     readonly config: ConfigStore;
     readonly fs: FileSystem;
   };

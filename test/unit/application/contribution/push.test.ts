@@ -62,7 +62,13 @@ function fixture() {
     git.available = true;
   };
   const deps = {
-    registration: { expected, config, fs },
+    registration: {
+      expected,
+      physicalRoot: expected.root,
+      logicalSourceDir: path.resolve('/source'),
+      config,
+      fs,
+    },
     source: { workspace: 'test', dir: path.resolve('/source'), kind: 'repo' as const },
     git,
     transport,

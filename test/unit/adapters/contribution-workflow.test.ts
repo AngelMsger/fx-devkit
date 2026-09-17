@@ -81,6 +81,8 @@ describe('native contribution workflow with a durable journal', () => {
     const deps = {
       registration: {
         expected,
+        physicalRoot: expected.root,
+        logicalSourceDir: source,
         config: new FakeConfigStore({ workspaces: { test: expected } }),
         fs: new NodeFs(lock),
       },
