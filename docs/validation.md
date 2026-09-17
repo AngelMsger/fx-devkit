@@ -38,8 +38,19 @@ private validation store. Do not commit live credentials, responses or transcrip
 ## Live integrations
 
 `npm run test:contract` is opt-in and read-only. It uses explicit environment
-coordinates described in the [README](../README.md#development). Missing inputs
-skip the corresponding contract; configured but failing access is a failure.
+coordinates below and the companion's existing authentication. Missing inputs
+skip that contract. The Bitbucket identity test accepts a structured authentication
+handoff; repository-read, Jenkins and Sentry checks still require their selected
+resources to be readable.
+
+| Companion | Test inputs                                                           |
+| --------- | --------------------------------------------------------------------- |
+| Bitbucket | `FX_TEST_BITBUCKET_HOST`, `FX_TEST_BITBUCKET_REPO` (`project/repo`)   |
+| Jenkins   | `FX_TEST_JENKINS_JOB`; optional `FX_TEST_JENKINS_CONTEXT`             |
+| Sentry    | `FX_TEST_SENTRY_HOST`, `FX_TEST_SENTRY_ORG`, `FX_TEST_SENTRY_PROJECT` |
+
+The script sets `FX_TEST_LIVE=1` for its child process. These variables contain
+coordinates, not credentials; never place credential values in test fixtures.
 
 Companions own authentication. Reuse supported local credentials rather than
 copying them into fixtures. A native host's project trust is a separate boundary;

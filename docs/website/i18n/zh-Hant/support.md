@@ -18,9 +18,20 @@
 
 套件安裝使用團隊透過 `FX_REGISTRY` 指定的私有 Registry。
 
-`fx self info --format json` 顯示版本、執行環境和套件更新來源。目前預發佈版本可透過 Git 更新原始碼 checkout，再於該目錄執行 `npm ci` 和 `npm run build`。
+`fx self info --format json` 顯示版本、執行環境和套件更新來源。原始碼安裝可透過 Git 更新 checkout，再於該目錄執行 `npm ci` 和 `npm run build`。
 
 使用套件安裝且有可用更新來源時，先查看 `fx self update --dry-run`。目前版本的套件自我更新需要明確設定私有 registry；原始碼安裝可依上述方式更新，不需要該命令。更新 fx 與更新團隊 manifest 是不同操作，`fx sync` 會更新符合條件的 manifest 來源。
+
+### Registry 路由
+
+如果私有 Registry 可提供 fx，但代理公共相依套件失敗，先檢查失敗套件的 URL。團隊原則允許直接存取 npmjs 時，可讓 fx scope 維持私有來源，僅將公共相依套件導向 npmjs：
+
+```sh
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+```
+
+這是單次命令的路由選擇，不修改憑證，也不表示私有代理已修復。`FX_REGISTRY` 仍指定 fx 的內部中繼資料與自我更新來源。
+
 <!-- /distribution -->
 
 <!-- distribution:public -->

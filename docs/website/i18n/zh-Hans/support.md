@@ -18,9 +18,20 @@
 
 包安装使用团队通过 `FX_REGISTRY` 指定的私有 Registry。
 
-`fx self info --format json` 显示版本、运行时和包更新来源。当前预发布版本可通过 Git 更新源码 checkout，再在该目录执行 `npm ci` 和 `npm run build`。
+`fx self info --format json` 显示版本、运行时和包更新来源。源码安装可通过 Git 更新 checkout，再在该目录执行 `npm ci` 和 `npm run build`。
 
 使用包安装且有可用更新来源时，先查看 `fx self update --dry-run`。当前版本的包式自更新需要显式配置私有 registry；源码安装可按上述方式更新，不需要该命令。更新 fx 与更新团队 manifest 是不同操作，`fx sync` 会刷新符合条件的 manifest 来源。
+
+### Registry 路由
+
+如果私有 Registry 能提供 fx，但代理公共依赖失败，先检查失败包的 URL。团队策略允许直接访问 npmjs 时，可保持 fx scope 使用私有源，仅让公共依赖走 npmjs：
+
+```sh
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+```
+
+这是单次命令的路由选择，不修改凭证，也不表示私有代理已修复。`FX_REGISTRY` 仍指定 fx 的内部元信息及自更新来源。
+
 <!-- /distribution -->
 
 <!-- distribution:public -->

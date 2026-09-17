@@ -1,6 +1,6 @@
 {
   "heroAudience": "FOR HUMANS. FOR AGENTS.",
-  "preRelease": "INTERNAL PREVIEW",
+  "preRelease": "INTERNAL RELEASE",
   "heroMany": "Many repos.",
   "heroOne": "One ",
   "heroWorkspace": "workspace.",
@@ -30,7 +30,7 @@
   "agentBody": "Structured answers, shared Skills, and explicit handoffs. Your agent can discover what to do—and what needs you.",
   "agentLink": "Read the agent contract",
   "architectureKicker": "02 / YOUR STACK. CONNECTED.",
-  "architectureTitle": "One source of truth.<br />Zero black boxes.",
+  "architectureTitle": "Shared facts.<br />Local choices.",
   "architectureBody": "fx orchestrates your workspace. Your tools keep their jobs: authentication, service APIs, and access control.",
   "underHood": "Explore workspace concepts ↗",
   "mapLabel": "A team manifest flows through fx into repositories, tools and coding agents",
@@ -120,8 +120,8 @@
       "description": "User-visible changes to fx."
     }
   },
-  "publicRelease": "PUBLIC PREVIEW",
-  "publicInstallNote": "Install from npm. Then connect your team’s manifest.",
+  "publicRelease": "PUBLIC RELEASE PAUSED",
+  "publicInstallNote": "Public publication is paused. Use your team’s internal package.",
   "installTitle": "Install fx",
   "navInstall": "Install fx",
   "demoTitle": "One workspace. Three ways in.",

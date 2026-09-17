@@ -1,6 +1,6 @@
 # Create a manifest source
 
-A public installation of fx supplies the CLI, default tool definitions and the
+An installation of fx supplies the CLI, default tool definitions and the
 bundled agent Skill. Each team supplies its own workspace declaration. Start with
 an existing team's source, import current checkouts, or create the minimal source
 below. A private package registry is not part of the manifest format.
@@ -168,7 +168,10 @@ source changes through a verified personal fork, see
 
 ## Environment example
 
-These fictional documents show the actual source shape. Put the first block in manifest/workspace.yaml and the second in manifest/environments.yaml. obs.svc=api makes the stream example_api_test. The unverified coordinate remains separate from CLI configuration and resource access. The JSON below is an excerpt of a failed init, not a successful onboarding guarantee.
+Put these fictional examples in `manifest/workspace.yaml` and
+`manifest/environments.yaml`, respectively. `obs.svc: api` resolves the stream to
+`example_api_test`. The coordinate remains `unverified` until checked; declaring
+it does not configure the CLI or grant access.
 
 ```yaml
 schema_version: 2
@@ -186,7 +189,7 @@ platforms:
     provider: openobserve-cli
     capability: log-store
     label: Application logs
-    command: openobserve-cli search run --use-context {context} --stream {stream}
+    command: openobserve-cli search run --use-context {context} --sql "SELECT * FROM {stream} LIMIT 20" --since 1h
 envs:
   test:
     label: Test
@@ -200,21 +203,6 @@ envs:
 fx manifest validate --strict --format json
 fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
-```
-
-```json
-{
-  "registered": true,
-  "failed_phase": "sync",
-  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
-  "sync": {
-    "stages": {
-      "docs": { "created": 2 },
-      "skills": { "status": "failed" },
-      "hooks": { "status": "not_started" }
-    }
-  }
-}
 ```
 
 ## Declaring team Skills in AGENTS.md
@@ -238,8 +226,8 @@ It applies at the workspace root and does not modify business-repository guides.
 
 ## Public service presets
 
-fx 0.1.3 adds optional `service` to workspace provider bindings, platform defaults
-and per-environment platform overrides. Declare `min_cli: '0.1.3'` in documents
+fx 0.2.0 supports optional `service` to workspace provider bindings, platform defaults
+and per-environment platform overrides. Declare `min_cli: '0.2.0'` in documents
 using it. Environment overrides inherit the platform's service fields.
 
 ```yaml

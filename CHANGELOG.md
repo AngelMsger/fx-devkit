@@ -1,11 +1,17 @@
 # Changelog
 
+## 0.2.1 (2026-09-18)
+
+- Shorten the repository entry and bundled Skill; keep detailed recovery in the command reference.
+- Align report, readiness, Skill-loading and service-version guidance with current behavior across all four languages.
+- Correct website release labels and preview examples, and document scoped Registry routing for public dependencies.
+
 ## 0.2.0 (2026-09-17)
 
-- Breaking: init/sync/doctor/release JSON defaults to summaries; use --details for all rows and evidence. Explicit --fields still projects full results.
+- Breaking: `init`, `sync`, `doctor` and `release` JSON defaults to summaries. Use `--details` for all rows and evidence; `--fields` still projects full results.
 - Preserve explicit empty agent selections across CLI, hooks and cleanup.
-- Add advisory FX_SKILL_VERSION verification and bundled_skill_version discovery.
-- Add operation/preparation_complete and actionable SKILL_WRITE_DENIED recovery without relocating shared locks.
+- Add advisory `FX_SKILL_VERSION` verification and `bundled_skill_version` discovery.
+- Add `operation` / `preparation_complete` and `SKILL_WRITE_DENIED` recovery while preserving shared locks.
 
 - Distribute public service presets during init and explicit sync, with scoped personal login and native conflict recovery.
 - Reject personal credentials in shared service declarations and preserve existing companion configuration.
@@ -13,6 +19,9 @@
 - Add standalone companion Skill install, uninstall, path, status and show commands.
 - Generate team Skill discovery links and trigger descriptions in workspace guides.
 - Separate explicit Skill refresh from automatic maintenance and protect shared sources.
+
+- Track companion installation history and origin across registered workspaces; report unused fx-installed packages without uninstalling them.
+- Prefer canonical resource commands in help/completion while preserving compatibility aliases.
 
 ## 0.1.2
 

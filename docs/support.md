@@ -32,6 +32,20 @@ For a package installation with an available update source, inspect
 explicit private registry for package-based self-update. Source installations can
 be updated without using that command. Updating fx and updating the team manifest
 are separate operations; `fx sync` refreshes eligible manifest sources.
+
+### Registry routing
+
+If the private Registry serves fx but fails while proxying a public dependency,
+check the failing package URL first. Where your team's policy permits direct npmjs
+access, keep the fx scope private and route only public dependencies to npmjs:
+
+```sh
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+```
+
+This is a per-command routing choice, not a credential change or a fix to the
+private proxy. `FX_REGISTRY` still selects fx's internal metadata/self-update source.
+
 <!-- /distribution -->
 
 <!-- distribution:public -->

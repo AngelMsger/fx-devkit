@@ -1,6 +1,6 @@
 # マニフェストのソースを作成する
 
-fx の公開パッケージには CLI、既定のツール定義、内蔵 Agent Skill が含まれます。ワークスペースの宣言は各チームが用意します。既存のソースを使用する、checkout をインポートする、または以下の最小構成から始められます。プライベートレジストリはマニフェスト形式の要件ではありません。
+fx には CLI、既定のツール定義、内蔵 Agent Skill が含まれます。ワークスペースの宣言は各チームが用意します。既存のソースを使用する、checkout をインポートする、または以下の最小構成から始められます。プライベートレジストリはマニフェスト形式の要件ではありません。
 
 ## ディレクトリ構成 {#source-layout}
 
@@ -39,9 +39,9 @@ tools:
     install: [{ via: npm, spec: '@example/team-tool' }]
 ```
 
-以下のパッケージ名と実行名は架空です。Registry と認証は利用者の npm 設定を使います。`fx init` は `install_on_init: true` の有効なツールが見つからない場合だけ、リポジトリと Skill の同期前にインストールします。実行前にインストールとバージョン確認の正確なコマンドを承認します。既存のツールは最低バージョン未満でも保持され、更新は `fx tool update` で行います。通常の `fx sync` はパッケージをインストールせず、初期化もサービスにログインしません。
+上記のパッケージ名と実行名は架空です。Registry と認証は利用者の npm 設定を使います。`fx init` は `install_on_init: true` の有効なツールが見つからない場合だけ、リポジトリと Skill の同期前にインストールします。実行前にインストールとバージョン確認の正確なコマンドを承認します。既存のツールは最低バージョン未満でも保持され、更新は `fx tool update` で行います。通常の `fx sync` はパッケージをインストールせず、初期化もサービスにログインしません。
 
-成功時の `tool_install` に実行結果が入ります。dry-run はソースを物化せず、インストーラーを実行しないため、`tool_install` と `sync` は null です。読み取り専用ではインストールできません。インストールまたはバージョン確認に失敗すると `INIT_TOOL_INSTALL_FAILED` になります。登録済みの場合もあるため、npm のアクセスや PATH を修復し、同じディレクトリとソースで再実行してください。
+成功時の `tool_install` に実行結果が入ります。dry-run はソースを取得・保存せず、インストーラーを実行しないため、`tool_install` と `sync` は null です。読み取り専用ではインストールできません。インストールまたはバージョン確認に失敗すると `INIT_TOOL_INSTALL_FAILED` になります。登録済みの場合もあるため、npm のアクセスや PATH を修復し、同じディレクトリとソースで再実行してください。
 
 ## 最小の宣言 {#start-with-a-small-declaration}
 
@@ -121,7 +121,7 @@ fx init ./existing-work --from ./team-workspace
 
 ## 環境の例
 
-以下は架空の値を使った実際のソース形式です. 最初のブロックを manifest/workspace.yaml, 次を manifest/environments.yaml に保存します. obs.svc=api によりストリームは example_api_test になります. unverified の座標は CLI 設定やリソースへのアクセスとは別です. JSON は初期化失敗の抜粋であり, セットアップ成功を意味しません.
+以下の架空の例をそれぞれ `manifest/workspace.yaml` と `manifest/environments.yaml` に置きます。`obs.svc: api` からストリーム名 `example_api_test` が解決されます。確認するまで座標は `unverified` です。宣言だけでは CLI の設定やアクセス権は得られません。
 
 ```yaml
 schema_version: 2
@@ -139,7 +139,7 @@ platforms:
     provider: openobserve-cli
     capability: log-store
     label: Application logs
-    command: openobserve-cli search run --use-context {context} --stream {stream}
+    command: openobserve-cli search run --use-context {context} --sql "SELECT * FROM {stream} LIMIT 20" --since 1h
 envs:
   test:
     label: Test
@@ -155,21 +155,6 @@ fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
 ```
 
-```json
-{
-  "registered": true,
-  "failed_phase": "sync",
-  "phases": { "registration": "done", "tools": "done", "sync": "failed" },
-  "sync": {
-    "stages": {
-      "docs": { "created": 2 },
-      "skills": { "status": "failed" },
-      "hooks": { "status": "not_started" }
-    }
-  }
-}
-```
-
 ## AGENTS.md にチーム Skill を宣言する
 
 各 Skill を `skills/<name>/SKILL.md` に置き、frontmatter に `name` と `description` を記述します。ソースの AGENTS.md の希望する位置に次の領域を追加します。
@@ -181,9 +166,9 @@ fx doctor --tool openobserve-cli --format json
 
 `fx manifest render` が名前、利用条件、ソースへのリンクを生成します。新規ガイドには領域を含めます。既存ガイドにない場合は追加を案内し、人が書いた文章には自動挿入しません。ソースガイドは相対リンク、派生したルートガイドは解決済みソースパスを使うため、特定ホストの Skill リンクに依存しません。`fx sync --only docs,skills` が追加、削除、メタデータ変更を反映します。カタログは探索の補助であり、ネイティブのインストールやロードを証明しません。対象はワークスペースルートのみで、業務リポジトリのガイドは変更しません。
 
-## 公開サービスプリセット
+## 公開サービスプリセット {#public-service-presets}
 
-fx 0.1.3 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.1.3'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。
+fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。
 
 同じプリセットは同じローカル保存先を共有できますが、異なる設定を同じ保存先に宣言すると準備がブロックされます。矛盾する旧 vars は削除して設定元を一つにします。ユーザー名、メールアドレス、パスワード、PAT/API Token の値、Cookie、ブラウザーセッションは配布できません。各メンバーが自分の CLI で取得・保存します。余分な service フィールドは非 strict モードでも検証に失敗し、URL 内の認証情報は値を表示せず拒否します。
 

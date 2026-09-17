@@ -7,8 +7,8 @@ is tracked separately in [validation guidance](../validation.md).
 
 ## Terminal boundary
 
-[README installation](../../README.md#install) owns shell examples and
-[configuration](../../README.md#configuration) owns preferences and completion.
+[Installation](../user-guide.md#install) owns shell examples and
+[configuration](../user-guide.md#configuration) owns preferences and completion.
 This page specifies the Windows adapters. Shell profiles, execution policy and
 native host trust remain the user's responsibility. fx does not change them.
 
