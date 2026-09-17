@@ -11,6 +11,7 @@ import type { PlanItem } from '../domain/workspace/plan.js';
 
 import { pooled } from './pool.js';
 import { assertWritable, type WritePosture } from './safety/posture.js';
+import { prepareUpstream } from './workspace/adopt.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { checkoutDir } from './workspace/inspect.js';
 import { planRepositories } from './workspace/plan.js';
@@ -40,6 +41,7 @@ export interface SyncItem extends PlanItem {
   readonly result: 'planned' | 'done' | 'skipped' | 'failed';
   readonly outcome?: string;
   readonly origin_added?: boolean;
+  readonly upstream_added?: boolean;
   readonly error?: string;
   readonly failure?: ErrorEnvelope['error'];
 }
@@ -150,8 +152,7 @@ export class Sync {
         },
       });
       if (input.dryRun) return finish(plan.map((item) => ({ ...item, result: 'planned' })));
-      if (plan.some((item) => item.action === 'clone' || item.fetch || item.origin !== undefined))
-        assertWritable(input.posture, 'sync');
+      if (plan.some(needsRepositoryWrite)) assertWritable(input.posture, 'sync');
       phase = 'apply';
       completed = 0;
       progress();
@@ -227,16 +228,18 @@ export class Sync {
     const dir = checkoutDir(this.deps, item);
     reporter.progress({ id: item.name, state: 'start', detail: item.action });
     // A remote added before a later step fails is still added; the row says so either way.
-    let added: Pick<SyncItem, 'origin_added'> = {};
+    let added: Pick<SyncItem, 'origin_added' | 'upstream_added'> = {};
     try {
       if (item.action === 'clone' && item.upstream !== undefined && item.branch !== undefined) {
         await git.clone({ dir, upstream: item.upstream, origin: item.origin, branch: item.branch });
         reporter.progress({ id: item.name, state: 'done', detail: 'cloned' });
         return { ...item, result: 'done' };
       }
+      if (item.upstream_to_add !== undefined)
+        added = { upstream_added: await prepareUpstream(this.deps, item, dir) };
       if (item.origin !== undefined) {
         await git.addRemote(dir, 'origin', item.origin);
-        added = { origin_added: true };
+        added = { ...added, origin_added: true };
       }
       if (item.fetch) await git.fetch(dir, 'upstream');
       if (item.action === 'fast_forward' && item.branch !== undefined) {
@@ -277,4 +280,13 @@ function finish(items: readonly SyncItem[]): SyncOutput {
     },
     stages: {},
   };
+}
+
+function needsRepositoryWrite(item: PlanItem): boolean {
+  return (
+    item.action === 'clone' ||
+    item.fetch ||
+    item.origin !== undefined ||
+    item.upstream_to_add !== undefined
+  );
 }

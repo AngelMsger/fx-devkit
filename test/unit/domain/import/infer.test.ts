@@ -62,6 +62,41 @@ describe('upstream ladder', () => {
   });
 });
 
+describe('unresolved provider output', () => {
+  it('preserves Git URLs without enabling an invented API provider', () => {
+    const remote = 'git@git.example.com:team/a.git';
+    const inferred = inferRepo(
+      obs({ remotes: { origin: remote }, remoteHeads: { origin: 'main' } }),
+      [],
+      () => false,
+    );
+    expect('repo' in inferred).toBe(true);
+    if (!('repo' in inferred)) throw new Error('expected import candidate');
+    const manifest = loadWorkspace(renderManifest(foldDefaults([inferred.repo])), {
+      cliVersion: '1.0.0',
+    }).doc;
+    expect(manifest.providers).toEqual({});
+    expect(manifest.defaults).not.toHaveProperty('host');
+    expect(manifest.repos[0]?.upstream).toBe(remote);
+  });
+
+  it('omits a global binding for repositories with different verified hosts', () => {
+    const inferred = inferRepo(obs({ remotes: { origin: '/host/team/a.git' } }), [], () => false);
+    if (!('repo' in inferred)) throw new Error('expected import candidate');
+    const a = { ...inferred.repo, provider: { provider: 'local-git', host: '/host' } };
+    const b = {
+      ...a,
+      name: 'b',
+      upstream: '/other/team/b.git',
+      provider: { provider: 'local-git', host: '/other' },
+    };
+    const folded = foldDefaults([a, b]);
+    expect(folded.provider).toBeUndefined();
+    expect(folded.defaults.host).toBeUndefined();
+    expect(folded.repos.every((repo) => repo.upstream !== undefined)).toBe(true);
+  });
+});
+
 describe('branch ladder', () => {
   it('prefers .gitmodules, then the remote HEAD, then the checkout', () => {
     expect(
@@ -143,7 +178,9 @@ describe('foldDefaults and renderManifest', () => {
         [],
         () => false,
       ),
-    ].flatMap((r) => ('repo' in r ? [r.repo] : []));
+    ].flatMap((r) =>
+      'repo' in r ? [{ ...r.repo, provider: { provider: 'bitbucket-cli', host: HOST } }] : [],
+    );
     const folded = foldDefaults(repos);
     expect(folded.defaults).toEqual({
       host: HOST,

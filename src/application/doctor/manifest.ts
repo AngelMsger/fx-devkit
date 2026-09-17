@@ -25,7 +25,7 @@ export async function checkManifest(
     ...input,
     strict: false,
   });
-  const findings: Finding[] = [];
+  const findings = codeHostCoverage(deps);
   for (const doc of report.documents) {
     for (const p of doc.problems)
       findings.push(
@@ -121,4 +121,22 @@ async function checkDocs(
     if (!(err instanceof DevkitError) || err.code !== 'DOCS_STALE') throw err;
     return finding('manifest', 'docs', 'warn', err.message, { fix: 'fx sync --only docs' });
   }
+}
+
+function codeHostCoverage(deps: WorkspaceDeps): Finding[] {
+  if (
+    !deps.ctx.bindings.some(
+      (binding) => binding.capability === 'code-host' && binding.provider === null,
+    )
+  )
+    return [];
+  return [
+    finding(
+      'manifest',
+      'provider:code-host',
+      'warn',
+      'No code-host provider is declared. Git synchronization is available; hosted API readiness is not covered.',
+      { coverage: 'not_applicable', fix: 'fx manifest providers' },
+    ),
+  ];
 }

@@ -14,6 +14,7 @@ import type { SkillDeps } from '../skill/targets.js';
 import type { StageResult, SyncStages } from '../sync.js';
 import { ToolCheck } from '../tool/check.js';
 import type { ToolInstalled } from '../tool/installed.js';
+import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -93,14 +94,24 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
 }
 
 async function toolsStage(input: SyncStageInput): Promise<StageResult> {
-  const rows = await new ToolCheck(input.process).execute({
-    tools: toolchainOf(input.deps.ctx).tools,
-    trust: { ...input.trust, dryRun: input.dryRun },
-  });
+  const scope = workspaceToolScope(input.deps.ctx, input.login.describeProvider, {});
+  const tools = toolchainOf(input.deps.ctx).tools.filter((tool) => scope.names.includes(tool.name));
+  const problems = scope.problems;
+  const requiresPreparation = (name: string): boolean =>
+    scope.required.has(name) || tools.some((tool) => tool.name === name && tool.installOnInit);
+  const rows = (
+    await new ToolCheck(input.process).execute({
+      tools: tools.map((tool) => ({ ...tool, required: scope.required.has(tool.name) })),
+      trust: { ...input.trust, dryRun: input.dryRun },
+    })
+  ).map((row) => ({ ...row, preparation_required: requiresPreparation(row.name) }));
   const summary = Object.fromEntries(
     ['ok', 'missing', 'outdated', 'disabled', 'unknown'].map((state) => [
       state,
-      rows.filter((r) => r.state === state).length,
+      rows.filter(
+        (r) =>
+          r.state === state && (r.preparation_required || state === 'ok' || state === 'disabled'),
+      ).length,
     ]),
   );
   const installations = (await input.inventory?.execute()) ?? [];
@@ -113,7 +124,19 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
       data: { installation: item },
     });
   return {
-    summary: { ...summary, unused: unused.length },
-    details: { items: rows, installations },
+    summary: {
+      ...summary,
+      unused: unused.length,
+      problems: problems.length,
+      blocked: rows.filter((row) => row.preparation_required && row.state === 'disabled').length,
+    },
+    details: {
+      items: rows,
+      problems,
+      installations: installations.map((row) => ({
+        ...row,
+        preparation_required: requiresPreparation(row.name),
+      })),
+    },
   };
 }

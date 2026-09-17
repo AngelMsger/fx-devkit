@@ -51,9 +51,16 @@ Observed projects populate the manifest's project registry. Access contacts stay
 blank until someone supplies evidence; Git metadata does not identify who grants
 permissions. Manifest lint reports the resulting gaps.
 
-Common host, project, origin-pattern and branch values become defaults. Each
-repository keeps its exceptions. This reduces repetition without discarding
-per-repository differences.
+A code-host provider is emitted only when every imported repository has the same
+verified binding. Local absolute paths and file URLs matching the local-git bare
+repository layout are checked with Git before that provider is selected. Git SSH
+or HTTPS transport alone does not identify a hosted API provider. Unresolved or
+mixed providers retain every exact upstream URL, omit defaults.host, and carry
+review notes so no implicit Bitbucket binding is activated. Project and branch
+values may still be folded. HTTP(S) remotes containing userinfo or query/fragment
+data are skipped with a generic credential-removal handoff; neither generated
+YAML nor diagnostics reproduce that remote. Ordinary git@ SSH usernames remain
+valid transport metadata.
 
 ## Review and adoption
 
@@ -89,3 +96,27 @@ Import does not clean dirty work, rewire remotes, create forks, carry over team
 prose or remove submodule metadata. Use the corresponding explicit workflows
 only after reviewing and authorizing their effects. A partial report with clear
 uncertainty is useful even when a provider is unavailable.
+
+## Origin-only adoption
+
+Initialization and explicit repository sync can adopt an ordinary clone whose
+only origin exactly matches the declared upstream. The plan exposes
+`upstream_to_add`; apply rechecks both remotes, adds upstream, and records
+`upstream_added`. Existing origin is preserved. A different origin or any
+conflicting upstream is left unchanged, with skip_remote_mismatch or a concurrent
+remote-change error. No URL equivalence or personal fork identity is guessed.
+
+The addition shares the write gate with all other repository effects and is
+visible in dry-run. Existing dirty, diverged and task-branch decisions still
+control synchronization: adding upstream does not mean local work was committed
+or synchronized. A protected tracked branch can therefore report upstream_added
+and skip_dirty together. Git decides whether an allowed fast-forward is safe;
+checkouts, untracked files and original branch selection are retained.
+
+Sync and doctor share the active tool requirement policy. Unused bundled
+companions do not prevent a local Git workspace from being prepared. Tool stage
+rows retain `preparation_required` so optional observations stay visible without
+making preparation incomplete; active default dependencies, explicit required
+tools and install_on_init requests remain prerequisites. An unbound code host is
+reported as an API declaration gap, not a missing installation. Preparation does
+not establish personal login or subsequent remote health.

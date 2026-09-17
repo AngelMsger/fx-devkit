@@ -5,13 +5,13 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
+import type { WorkspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import type { DoctorToolScope } from './tool-scope.js';
 import { finding, type Finding } from './types.js';
 
-export interface ToolCheckOptions extends DoctorToolScope {
+export interface ToolCheckOptions extends WorkspaceToolScope {
   readonly trust: LoginDeps['trust'];
 }
 
@@ -22,14 +22,7 @@ export async function checkTools(
   const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
   const available = toolchainOf(deps.ctx).tools;
   const tools = available.filter((tool) => options.names.includes(tool.name));
-  const findings: Finding[] = options.names
-    .filter((name) => !available.some((tool) => tool.name === name))
-    .map((name) =>
-      finding('tools', name, 'fail', 'active provider requires a tool missing from the toolchain', {
-        coverage: 'incomplete',
-        fix: 'fx manifest validate',
-      }),
-    );
+  const findings: Finding[] = [];
   for (const tool of tools) {
     try {
       const [status] = await check.execute({

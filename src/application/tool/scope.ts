@@ -1,15 +1,19 @@
-// Doctor checks declared tools and providers used by the selected workspace/environment scope.
+// Select workspace tool requirements from declarations and providers active in the environment scope.
 
 import type { Binding } from '../../domain/manifest/providers.js';
+import { finding, type Finding } from '../../domain/report.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
-import type { LoginDeps } from '../login/deps.js';
-import type { SetupSelection } from '../login/selection.js';
-import { toolchainOf } from '../tool/toolchain.js';
+import type { ProviderDescriptor } from '../../ports/provider.js';
 import type { WorkspaceContext } from '../workspace-context.js';
 
-import { finding, type Finding } from './types.js';
+import { toolchainOf } from './toolchain.js';
 
-export interface DoctorToolScope {
+export interface ToolScopeSelection {
+  readonly tools?: readonly string[] | undefined;
+  readonly envs?: readonly string[] | undefined;
+}
+
+export interface WorkspaceToolScope {
   readonly names: readonly string[];
   readonly configuredNames: readonly string[];
   readonly required: ReadonlySet<string>;
@@ -17,11 +21,11 @@ export interface DoctorToolScope {
   readonly problems: readonly Finding[];
 }
 
-export function doctorToolScope(
+export function workspaceToolScope(
   ctx: WorkspaceContext,
-  describe: LoginDeps['describeProvider'],
-  selection: SetupSelection,
-): DoctorToolScope {
+  describe: (id: string) => ProviderDescriptor<unknown> | undefined,
+  selection: ToolScopeSelection,
+): WorkspaceToolScope {
   const problems: Finding[] = [];
   const dependencies = new Set<string>();
   for (const binding of activeBindings(ctx, selection)) {
@@ -52,6 +56,19 @@ export function doctorToolScope(
       ...dependencies,
     ]),
   ];
+  for (const name of names.filter((name) => !available.some((tool) => tool.name === name)))
+    problems.push(
+      finding(
+        'tools',
+        name,
+        'fail',
+        'Active provider requires a tool missing from the toolchain.',
+        {
+          coverage: 'incomplete',
+          fix: 'fx manifest validate',
+        },
+      ),
+    );
   return {
     names,
     problems,
@@ -66,7 +83,7 @@ export function doctorToolScope(
 
 function activeBindings(
   ctx: WorkspaceContext,
-  selection: SetupSelection,
+  selection: ToolScopeSelection,
 ): (Binding & { key: string })[] {
   const environments = Object.entries(ctx.manifest.environments?.result.doc.envs ?? {}).filter(
     ([name]) =>
