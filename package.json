@@ -110,6 +110,9 @@
       },
       "source": {
         "description": "Source contributions: validate selected files and propose a pull request"
+      },
+      "workspace": {
+        "description": "Workspace identities: discover, inspect, relocate, rebind and unregister"
       }
     }
   },

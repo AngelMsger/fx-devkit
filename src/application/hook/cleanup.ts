@@ -5,9 +5,12 @@ import { asDevkitError } from '../../domain/errors.js';
 import { parseBoolean, parseList } from '../../domain/values.js';
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
+import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { resolveKey } from '../config/resolve.js';
 import type { WritePosture } from '../safety/posture.js';
+import { assertNoWorkspaceOperation } from '../workspace/health.js';
+import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { ReconcileHooks, type HookDeps } from './reconcile.js';
 
@@ -16,6 +19,7 @@ export class CleanupAgentHooks {
     private readonly deps: HookDeps,
     private readonly config: ConfigStore,
     private readonly fs: FileSystem,
+    private readonly manifestDirFor: (name: string) => string,
   ) {}
 
   async execute(input: {
@@ -26,8 +30,16 @@ export class CleanupAgentHooks {
   }): Promise<readonly AgentCleanupRow[]> {
     const file = await this.config.read();
     const rows: AgentCleanupRow[] = [];
-    for (const [workspace, entry] of Object.entries(file.workspaces ?? {})) {
+    for (const [workspace] of Object.entries(file.workspaces ?? {})) {
+      let lease: Lease | undefined;
       try {
+        if (!input.dryRun) lease = await acquireWorkspaceOperation(this.deps.lock, workspace);
+        const entry = (await this.config.read()).workspaces?.[workspace];
+        if (!entry) continue;
+        await assertNoWorkspaceOperation(
+          { fs: this.fs },
+          { name: workspace, manifestDir: this.manifestDirFor(workspace) },
+        );
         const root = await this.fs.realpath(entry.root);
         if (!(await this.fs.isDirectory(root))) {
           rows.push(...input.ids.map((agent) => ({ workspace, agent, action: 'root_missing' })));
@@ -53,6 +65,8 @@ export class CleanupAgentHooks {
         rows.push(
           ...input.ids.map((agent) => ({ workspace, agent, action: asDevkitError(err).code })),
         );
+      } finally {
+        await lease?.release();
       }
     }
     return rows;

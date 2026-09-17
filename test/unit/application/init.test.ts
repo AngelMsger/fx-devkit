@@ -51,6 +51,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
   const codeHost = new FakeCodeHost();
   const deps: InitDeps = {
     fs,
+    lock: { acquire: async () => ({ release: async () => undefined }) },
     git,
     config,
     localStore: new FakeLocalStore(),

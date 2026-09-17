@@ -3,6 +3,9 @@
 
 import path from 'node:path';
 
+import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { WorkspaceRecord } from '../workspace/discover.js';
+
 export interface SelfInfoInput {
   readonly name: string;
   readonly version: string;
@@ -14,9 +17,12 @@ export interface SelfInfoInput {
   readonly bundledSkill: string;
   readonly registry: string | null;
   readonly workspace: WorkspaceInfo | null;
+  readonly workspaceError?: ErrorEnvelope['error'] | null;
 }
 
-export interface WorkspaceInfo {
+export interface WorkspaceInfo extends Partial<
+  Omit<WorkspaceRecord, 'name' | 'root' | 'manifest'>
+> {
   readonly name: string;
   readonly root: string;
   readonly manifest: string;
@@ -36,6 +42,7 @@ export interface SelfInfo {
   readonly bundled_skill_version: string;
   readonly registry: string | null;
   readonly workspace: WorkspaceInfo | null;
+  readonly workspace_error: ErrorEnvelope['error'] | null;
 }
 
 export function selfInfo(input: SelfInfoInput): SelfInfo {
@@ -53,5 +60,6 @@ export function selfInfo(input: SelfInfoInput): SelfInfo {
     bundled_skill_version: input.version,
     registry: input.registry,
     workspace: input.workspace,
+    workspace_error: input.workspaceError ?? null,
   };
 }

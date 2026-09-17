@@ -74,7 +74,7 @@ describe('resolveManifestDir', () => {
     ).rejects.toMatchObject({
       category: 'not_found',
       code: 'WORKSPACE_NOT_FOUND',
-      nextSteps: expect.arrayContaining([expect.stringContaining('fx init')]),
+      nextSteps: expect.arrayContaining(['fx workspace list']),
     });
   });
 

@@ -4,10 +4,11 @@ import path from 'node:path';
 
 import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
 import { samePath, windowsPathProblem } from '../domain/path.js';
-import { changeDirectoryCommand, type ResolvedShell } from '../domain/shell.js';
+import { changeDirectoryCommand, shellLine, type ResolvedShell } from '../domain/shell.js';
 import { assertWorkspaceName, assertWorkspaceNames } from '../domain/workspace/name.js';
 import type { FileSystem } from '../ports/fs.js';
 import type { Git } from '../ports/git.js';
+import type { Lock } from '../ports/lock.js';
 import type { ManifestSource } from '../ports/manifest-source.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { ConfigFile, ConfigStore, LocalLayerStore, WorkspaceEntry } from '../ports/stores.js';
@@ -18,9 +19,13 @@ import { assertWritable, type WritePosture } from './safety/posture.js';
 import { Sync, type SyncOutput, type SyncStages } from './sync.js';
 import type { ToolInstallOutput } from './tool/install.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
+import { assertNoWorkspaceOperation } from './workspace/health.js';
+import { withWorkspaceOperation } from './workspace/operation.js';
+import { assertDistinctWorkspaceRoot } from './workspace/registry.js';
 import { WorkspaceContext } from './workspace-context.js';
 
 export interface InitDeps {
+  readonly lock: Lock;
   readonly commandShell?: ResolvedShell | undefined;
   readonly fs: FileSystem;
   readonly git: Git;
@@ -75,10 +80,14 @@ export class Init {
   constructor(private readonly deps: InitDeps) {}
 
   async execute(input: InitInput): Promise<InitOutput> {
-    const plan = await this.plan(input);
-    if (input.dryRun) return plan.output;
-    assertWritable(input.posture, `init ${plan.output.root}`);
-    return this.apply(plan, input);
+    const name = input.name ?? path.basename(path.resolve(input.dir));
+    assertWorkspaceName(name);
+    return withWorkspaceOperation(this.deps.lock, name, input.dryRun, async () => {
+      const plan = await this.plan(input);
+      if (input.dryRun) return plan.output;
+      assertWritable(input.posture, `init ${plan.output.root}`);
+      return this.apply(plan, input);
+    });
   }
 
   private async plan(input: InitInput): Promise<Plan> {
@@ -89,6 +98,11 @@ export class Init {
     assertWorkspaceName(name);
     const config = await this.deps.config.read();
     assertWorkspaceNames([...new Set([...Object.keys(config.workspaces ?? {}), name])]);
+    await assertNoWorkspaceOperation(this.deps, {
+      name,
+      manifestDir: this.deps.manifestDirFor(name),
+    });
+    await assertDistinctWorkspaceRoot(config, name, root, this.deps.fs);
     const existing = config.workspaces?.[name];
     if (existing !== undefined && !(await this.sameRoot(existing.root, root)))
       throw nameTaken(name, root, existing, input.source);
@@ -196,6 +210,7 @@ export class Init {
 
   private async register(output: InitOutput, input: InitInput): Promise<void> {
     await this.deps.config.update(async (current) => {
+      await assertDistinctWorkspaceRoot(current, output.name, output.root, this.deps.fs);
       const existing = current.workspaces?.[output.name];
       if (existing && !(await this.sameRoot(existing.root, output.root)))
         throw nameTaken(output.name, output.root, existing, input.source);
@@ -219,6 +234,7 @@ export class Init {
   private context(output: InitOutput): Promise<WorkspaceContext> {
     return WorkspaceContext.locate({
       cwd: output.root,
+      allowMissingRoot: true,
       name: output.name,
       config: this.deps.config,
       fs: this.deps.fs,
@@ -261,10 +277,10 @@ function nameTaken(
     'WORKSPACE_NAME_TAKEN',
     `workspace "${name}" is already registered at ${existing.root}`,
     {
-      hint: 'Pick another name with --name, or init into the registered directory.',
+      hint: 'If the directory moved, relocate its existing identity; otherwise initialize the registered directory.',
       nextSteps: [
-        'fx config get default_workspace',
-        `fx init ${root} --from ${source.description} --name <other>`,
+        shellLine(['fx', 'workspace', 'relocate', name, root]),
+        shellLine(['fx', 'init', existing.root, '--name', name, '--from', source.description]),
       ],
     },
   );
@@ -276,8 +292,11 @@ function sourceMismatch(name: string, recorded: string, source: ManifestSource):
     'SOURCE_MISMATCH',
     `workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
     {
-      hint: 'fx does not swap one manifest source for another; register the directory under another name or keep the recorded source.',
-      nextSteps: [`fx init <dir> --from ${recorded}`, 'fx self info'],
+      hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
+      nextSteps: [
+        shellLine(['fx', 'workspace', 'rebind', name, '--from', source.description]),
+        shellLine(['fx', 'workspace', 'show', name]),
+      ],
     },
   );
 }

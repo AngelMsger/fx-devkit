@@ -18,9 +18,11 @@ import type { LocalLayerStore } from '../ports/stores.js';
 
 import { loadManifestContext, type ManifestContext } from './manifest/context.js';
 import type { ManifestBundle } from './manifest/load.js';
+import { assertWorkspacePrepared, contextualWorkspaceError } from './workspace/health.js';
 import { resolveWorkspace, type Located, type ResolveInput } from './workspace/resolve.js';
 
 export interface LocateInput extends ResolveInput {
+  readonly allowMissingRoot?: boolean;
   readonly git: Pick<Git, 'remoteHead'>;
   readonly localStore: LocalLayerStore;
   readonly bundledTools: () => string;
@@ -38,6 +40,7 @@ export class WorkspaceContext {
     readonly context: ManifestContext,
     readonly local: LocalLayer,
     readonly workspace: ResolvedWorkspace,
+    readonly selection: Located['selection'],
   ) {
     this.manifest = context.bundle;
     this.bindings = context.bindings;
@@ -50,7 +53,12 @@ export class WorkspaceContext {
 
   static async locate(input: LocateInput): Promise<WorkspaceContext> {
     const located = await resolveWorkspace(input);
-    const context = await loadManifestContext({ ...input, dir: located.manifestDir });
+    await assertWorkspacePrepared(input, located, input.allowMissingRoot);
+    const context = await loadManifestContext({ ...input, dir: located.manifestDir }).catch(
+      (error: unknown) => {
+        throw contextualWorkspaceError(input, located, error);
+      },
+    );
     const local = await input.localStore.read(located.name);
     const workspace = withManifestRepo(
       applyLocal(context.bundle.workspace.result.doc, local),
@@ -58,7 +66,14 @@ export class WorkspaceContext {
     );
     refusePathAliases(located.root, workspace.repos);
     reportUnmatched(input.reporter, workspace);
-    return new WorkspaceContext(located.root, located.name, context, local, workspace);
+    return new WorkspaceContext(
+      located.root,
+      located.name,
+      context,
+      local,
+      workspace,
+      located.selection,
+    );
   }
 }
 
