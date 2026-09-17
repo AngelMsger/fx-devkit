@@ -1,7 +1,4 @@
-// Adopting a hand-built workspace (docs/design/import.md): classify what is
-// on disk, infer upstream and branch per repository, fold into a manifest,
-// write that one file. Nothing else is touched — not a working tree, not a
-// branch, not a remote — and a network probe that fails only leaves a note.
+// Inspect existing checkouts and write only a candidate manifest, retaining unresolved inference for review.
 
 import path from 'node:path';
 
@@ -13,6 +10,7 @@ import {
   inferRepo,
   isPersonal,
   type InferredRepo,
+  type ImportProvider,
   type RepoObservation,
 } from '../domain/import/infer.js';
 import { renderManifest } from '../domain/import/render.js';
@@ -29,6 +27,7 @@ export interface ImportDeps {
   readonly fs: FileSystem;
   readonly reporter: Reporter;
   readonly codeHost: (host: string) => CodeHost | undefined;
+  readonly identifyProvider?: (upstream: string) => Promise<ImportProvider | undefined>;
 }
 
 export interface ImportInput {
@@ -76,13 +75,40 @@ export class Import {
       throw insideRoot(root, target);
     const skipped: { path: string; reason: string }[] = [];
     const observed = await this.observe(root, skipped);
-    const repos = await this.infer(observed, skipped);
+    const repos = await this.identify(await this.infer(observed, skipped));
     const manifest = renderManifest(foldDefaults(repos));
     const report = summarize(repos, skipped);
     if (target === null || input.dryRun) return { path: target, written: false, manifest, report };
     assertWritable(input.posture, 'import');
     await this.deps.fs.writeText(target, manifest);
     return { path: target, written: true, manifest, report };
+  }
+
+  private async identify(repos: readonly InferredRepo[]): Promise<InferredRepo[]> {
+    const identified = await Promise.all(
+      repos.map(async (repo) => ({
+        ...repo,
+        provider: await this.deps.identifyProvider?.(repo.upstream),
+      })),
+    );
+    const shared = identified[0]?.provider;
+    const uniform =
+      shared !== undefined &&
+      identified.every(
+        (repo) => repo.provider?.provider === shared.provider && repo.provider.host === shared.host,
+      );
+    return identified.map(({ provider, ...repo }) => ({
+      ...repo,
+      ...(provider === undefined ? {} : { provider }),
+      review: uniform
+        ? repo.review
+        : [
+            ...repo.review,
+            provider === undefined
+              ? 'code-host provider could not be verified from the Git remote; upstream URL is preserved. Configure providers.code-host before using hosted APIs.'
+              : 'repositories use different or unresolved code hosts; upstream URLs are preserved and no shared code-host provider was selected.',
+          ],
+    }));
   }
 
   // The path as the disk knows it: symbolic links resolved up to the nearest

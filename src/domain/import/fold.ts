@@ -4,10 +4,10 @@
 
 import { repoUrl } from '../workspace/ref.js';
 
-import type { InferredRepo } from './infer.js';
+import type { InferredRepo, ImportProvider } from './infer.js';
 
 export interface FoldedDefaults {
-  readonly host: string;
+  readonly host?: string;
   readonly upstream_project: string;
   readonly branch: string;
   readonly origin_pattern?: string;
@@ -24,22 +24,32 @@ export interface FoldedRepo {
 
 export interface FoldedManifest {
   readonly defaults: FoldedDefaults;
+  readonly provider?: ImportProvider;
   readonly projects: readonly string[];
   readonly repos: readonly FoldedRepo[];
 }
 
 export function foldDefaults(repos: readonly InferredRepo[]): FoldedManifest {
-  const host = mode(repos.map((r) => r.host)) ?? '';
+  const first = repos[0]?.provider;
+  const provider =
+    first !== undefined &&
+    repos.every(
+      (repo) => repo.provider?.provider === first.provider && repo.provider.host === first.host,
+    )
+      ? first
+      : undefined;
+  const host = provider?.host;
   const project = mode(repos.map((r) => r.project)) ?? '';
   const branch = mode(repos.map((r) => r.branch)) ?? 'main';
   const defaults: FoldedDefaults = {
-    host,
+    ...(host === undefined ? {} : { host }),
     upstream_project: project,
     branch,
     ...(repos.some((r) => r.originPersonal) ? { origin_pattern: '~{user}/{repo}' } : {}),
   };
   return {
     defaults,
+    ...(provider === undefined ? {} : { provider }),
     projects: [...new Set(repos.map((r) => r.project))].sort(),
     repos: [...repos]
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -48,7 +58,9 @@ export function foldDefaults(repos: readonly InferredRepo[]): FoldedManifest {
         ...(r.project === project ? {} : { project: r.project }),
         ...(r.branch === branch ? {} : { branch: r.branch }),
         ...(r.rel === r.name ? {} : { path: r.rel }),
-        ...(r.upstream === repoUrl(host, r.project, r.name) ? {} : { upstream: r.upstream }),
+        ...(host !== undefined && r.upstream === repoUrl(host, r.project, r.name)
+          ? {}
+          : { upstream: r.upstream }),
         review: r.review,
       })),
   };

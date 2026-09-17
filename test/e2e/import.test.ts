@@ -119,14 +119,7 @@ describe('import', () => {
     const valid = fx(['manifest', 'validate', '--strict', '--format', 'json'], s.env, src);
     expect(valid.status, valid.stderr).toBe(0);
 
-    // The generated manifest names bitbucket-cli; a local-git binding lets init clone from the same bare host.
-    writeFileSync(
-      manifest,
-      readFileSync(manifest, 'utf8').replace(
-        /providers:\n  code-host:[^\n]*\n(?:\s+[^\n]*\n)*?defaults:/,
-        `providers:\n  code-host: { provider: local-git, vars: { host: ${s.host}, user: alice } }\ndefaults:`,
-      ),
-    );
+    expect(out.manifest).toContain('provider: local-git');
     const target = path.join(path.dirname(s.root), 'ws2');
     const boot = fx(['init', target, '--from', src, '--format', 'json'], s.env);
     expect(boot.status, boot.stderr).toBe(0);

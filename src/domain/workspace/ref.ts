@@ -22,7 +22,9 @@ function projectRef(repo: Pick<ResolvedRepo, 'name' | 'project'>): RepoRef | und
 
 // ssh://git@host/PROJECT/name.git and git@host:PROJECT/name.git → { project: PROJECT, name }
 export function refFromUrl(url: string): RepoRef | undefined {
-  const segments = url
+  const location = fileLocation(url);
+  if (location === undefined) return undefined;
+  const segments = location
     .replace(/^([^/@]+@[^/:]+):(?!\/\/)/, '$1/')
     .replace(/\/+$/, '')
     .split('/');
@@ -34,4 +36,15 @@ export function refFromUrl(url: string): RepoRef | undefined {
 
 export function repoUrl(host: string, owner: string, name: string): string {
   return `${host.replace(/\/+$/, '')}/${owner}/${name}.git`;
+}
+
+function fileLocation(url: string): string | undefined {
+  if (!/^file:\/\//i.test(url)) return url;
+  try {
+    const parsed = new URL(url);
+    if (/%2f/i.test(parsed.pathname)) return undefined;
+    return decodeURIComponent(parsed.pathname);
+  } catch {
+    return undefined;
+  }
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { doctorToolScope } from '../../../src/application/doctor/tool-scope.js';
 import { checkTools } from '../../../src/application/doctor/tools.js';
 import { TrustGate } from '../../../src/application/safety/trust.js';
+import { workspaceToolScope } from '../../../src/application/tool/scope.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
@@ -28,7 +28,7 @@ const trust = {
 describe('doctor tool scope', () => {
   it('does not probe unused baseline tools for a local-git workspace', async () => {
     const h = await harness({ workspace });
-    const scope = doctorToolScope(h.ctx, describeProvider, {});
+    const scope = workspaceToolScope(h.ctx, describeProvider, {});
     expect(scope.names).toEqual([]);
     expect(await checkTools(h.deps, { ...scope, trust })).toEqual([]);
     expect(h.process.calls).toEqual([]);
@@ -36,12 +36,12 @@ describe('doctor tool scope', () => {
 
   it('reports unknown configured providers while preserving known zero-tool coverage', async () => {
     const h = await harness({ workspace });
-    const unknown = doctorToolScope(h.ctx, () => undefined, {});
+    const unknown = workspaceToolScope(h.ctx, () => undefined, {});
     expect(unknown.problems).toMatchObject([
       { group: 'manifest', id: 'provider:code-host', level: 'fail', coverage: 'incomplete' },
     ]);
-    expect(doctorToolScope(h.ctx, describeProvider, {}).problems).toEqual([]);
-    const mismatched = doctorToolScope(
+    expect(workspaceToolScope(h.ctx, describeProvider, {}).problems).toEqual([]);
+    const mismatched = workspaceToolScope(
       h.ctx,
       (id) => ({ ...describeProvider(id), capability: 'ci' }),
       {},
@@ -51,7 +51,7 @@ describe('doctor tool scope', () => {
 
   it('allows explicit checks of an optional baseline tool', async () => {
     const h = await harness({ workspace });
-    const scope = doctorToolScope(h.ctx, describeProvider, { tools: ['bitbucket-cli'] });
+    const scope = workspaceToolScope(h.ctx, describeProvider, { tools: ['bitbucket-cli'] });
     expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
       { id: 'bitbucket-cli', level: 'warn', evidence: { required: false, state: 'missing' } },
     ]);
@@ -59,7 +59,7 @@ describe('doctor tool scope', () => {
 
   it('requires any provider descriptor dependency without knowing the provider name', async () => {
     const h = await harness({ workspace: workspace.replace('local-git', 'custom-code-host') });
-    const scope = doctorToolScope(h.ctx, describeProvider, {});
+    const scope = workspaceToolScope(h.ctx, describeProvider, {});
     expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
       { id: 'bitbucket-cli', level: 'fail', evidence: { required: true, active_dependency: true } },
     ]);
@@ -72,11 +72,32 @@ describe('doctor tool scope', () => {
         [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, required: ${required}}]\n`,
       },
     });
-    const scope = doctorToolScope(h.ctx, describeProvider, {});
+    const scope = workspaceToolScope(h.ctx, describeProvider, {});
     expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
       { id: 'bitbucket-cli', level: required ? 'fail' : 'warn', evidence: { required } },
     ]);
   });
+
+  it.each([
+    { active: false, required: true, level: 'fail', coverage: 'incomplete' },
+    { active: false, required: false, level: 'ok', coverage: 'not_applicable' },
+    { active: true, required: true, level: 'fail', coverage: 'incomplete' },
+    { active: true, required: false, level: 'warn', coverage: 'incomplete' },
+  ])(
+    'uses the resolved requirement for disabled tools: %j',
+    async ({ active, required, level, coverage }) => {
+      const h = await harness({
+        workspace: active ? workspace.replace('local-git', 'custom-code-host') : workspace,
+        files: {
+          [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, enabled: false, required: ${required}}]\n`,
+        },
+      });
+      const scope = workspaceToolScope(h.ctx, describeProvider, {});
+      expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+        { id: 'bitbucket-cli', level, coverage, evidence: { required, active_dependency: active } },
+      ]);
+    },
+  );
 
   it('checks required and optional manifest additions without enabling all baseline tools', async () => {
     const h = await harness({
@@ -86,7 +107,7 @@ describe('doctor tool scope', () => {
           'schema_version: 2\ntools: [{name: required-tool, required: true}, {name: optional-tool}]\n',
       },
     });
-    const scope = doctorToolScope(h.ctx, describeProvider, {});
+    const scope = workspaceToolScope(h.ctx, describeProvider, {});
     expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
       { id: 'required-tool', level: 'fail' },
       { id: 'optional-tool', level: 'warn' },
@@ -101,7 +122,7 @@ describe('doctor tool scope', () => {
         'schema_version: 2\nplatforms: {build: {provider: custom-ci, capability: ci}}\nenvs: {dev: {}, test: {platforms: {build: {}}}}\n',
     };
     const h = await harness({ workspace, local: { scope: { envs: ['dev'] } }, files });
-    const inactive = doctorToolScope(h.ctx, describeProvider, {});
+    const inactive = workspaceToolScope(h.ctx, describeProvider, {});
     expect(await checkTools(h.deps, { ...inactive, trust })).toMatchObject([
       {
         id: 'bitbucket-cli',
@@ -111,11 +132,11 @@ describe('doctor tool scope', () => {
       },
     ]);
     const other = await harness({ workspace, files });
-    const active = doctorToolScope(other.ctx, describeProvider, { envs: ['test'] });
+    const active = workspaceToolScope(other.ctx, describeProvider, { envs: ['test'] });
     expect(await checkTools(other.deps, { ...active, trust })).toMatchObject([
       { id: 'bitbucket-cli', level: 'fail', coverage: 'incomplete', evidence: { required: true } },
     ]);
-    const excluded = doctorToolScope(other.ctx, describeProvider, { envs: ['dev'] });
+    const excluded = workspaceToolScope(other.ctx, describeProvider, { envs: ['dev'] });
     expect(excluded.required.has('bitbucket-cli')).toBe(false);
   });
 });

@@ -27,6 +27,13 @@ export function hasPreparationIssue(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(hasPreparationIssue);
   if (typeof value !== 'object' || value === null) return value === 'not_implemented';
   const row = value as Record<string, unknown>;
+  if (
+    row['preparation_required'] === false &&
+    (row['failure'] === undefined || row['failure'] === null) &&
+    (row['error'] === undefined || row['error'] === null)
+  )
+    return false;
+  if (row['preparation_required'] === true && row['state'] === 'disabled') return true;
   if (row['coverage'] === 'not_applicable' || row['status'] === 'not_covered') return false;
   if (
     (row['failure'] === undefined || row['failure'] === null) &&

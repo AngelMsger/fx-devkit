@@ -176,7 +176,8 @@ export function workspaceDeps(
 // `import` needs to ask which project holds a fork's parent. A host that is
 // a directory is a local-git host; anything else is the family's Bitbucket.
 export function codeHostFor(container: Container, host: string): CodeHost | undefined {
-  const provider = existsSync(host) ? 'local-git' : 'bitbucket-cli';
+  if (!path.isAbsolute(host) || !existsSync(host)) return undefined;
+  const provider = 'local-git';
   try {
     return resolveProvider<CodeHost>(
       { capability: 'code-host', provider, source: 'default', vars: { host } },

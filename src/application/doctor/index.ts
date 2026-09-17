@@ -10,6 +10,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { ToolInstalled } from '../tool/installed.js';
+import { workspaceToolScope } from '../tool/scope.js';
 import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -20,7 +21,6 @@ import { checkLogin } from './login.js';
 import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
 import { checkSelf } from './self.js';
-import { doctorToolScope } from './tool-scope.js';
 import { checkTools } from './tools.js';
 import { GROUPS, type DoctorReport, type DoctorExtension, type RepairAttempt } from './types.js';
 
@@ -56,7 +56,7 @@ export class Doctor {
 
   async execute(input: DoctorInput): Promise<DoctorReport> {
     validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
-    const toolScope = doctorToolScope(
+    const toolScope = workspaceToolScope(
       this.deps.ctx,
       this.doctor.login.describeProvider,
       input,

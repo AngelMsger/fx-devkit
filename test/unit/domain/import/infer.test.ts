@@ -12,6 +12,7 @@ import {
 } from '../../../../src/domain/import/infer.js';
 import { renderManifest } from '../../../../src/domain/import/render.js';
 import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
+import { refFromUrl } from '../../../../src/domain/workspace/ref.js';
 
 const HOST = 'ssh://git@git.example.com:12345';
 const obs = (over: Partial<RepoObservation>): RepoObservation => ({
@@ -33,6 +34,20 @@ describe('parseGitmodules', () => {
       'd/y': { url: 'ssh://h/p/y.git' },
     });
     expect(parseGitmodules('')).toEqual({});
+  });
+});
+
+describe('file URL coordinates', () => {
+  it.each([
+    ['file:///host/team%20space/api%20source.git', 'team space', 'api source'],
+    ['file:///host/team%2520space/api%2525.git', 'team%20space', 'api%25'],
+    ['/host/team%20space/api%25.git', 'team%20space', 'api%25'],
+  ])('decodes only actual file URL paths: %s', (url, project, name) => {
+    expect(refFromUrl(url)).toEqual({ project, name });
+  });
+  it('retains the encoded host separately from decoded file coordinates', () => {
+    expect(hostOf('file:///host%20root/team%20space/api%25.git')).toBe('file:///host%20root');
+    expect(refFromUrl('file:///host/team%2Fspace/api.git')).toBeUndefined();
   });
 });
 
@@ -59,6 +74,41 @@ describe('upstream ladder', () => {
       inferUpstream(obs({ remotes: { origin: `${HOST}/~alice/a.git` } }), seen, () => false),
     ).toBeUndefined();
     expect(inferUpstream(obs({}), seen, () => true)).toBeUndefined();
+  });
+});
+
+describe('unresolved provider output', () => {
+  it('preserves Git URLs without enabling an invented API provider', () => {
+    const remote = 'git@git.example.com:team/a.git';
+    const inferred = inferRepo(
+      obs({ remotes: { origin: remote }, remoteHeads: { origin: 'main' } }),
+      [],
+      () => false,
+    );
+    expect('repo' in inferred).toBe(true);
+    if (!('repo' in inferred)) throw new Error('expected import candidate');
+    const manifest = loadWorkspace(renderManifest(foldDefaults([inferred.repo])), {
+      cliVersion: '1.0.0',
+    }).doc;
+    expect(manifest.providers).toEqual({});
+    expect(manifest.defaults).not.toHaveProperty('host');
+    expect(manifest.repos[0]?.upstream).toBe(remote);
+  });
+
+  it('omits a global binding for repositories with different verified hosts', () => {
+    const inferred = inferRepo(obs({ remotes: { origin: '/host/team/a.git' } }), [], () => false);
+    if (!('repo' in inferred)) throw new Error('expected import candidate');
+    const a = { ...inferred.repo, provider: { provider: 'local-git', host: '/host' } };
+    const b = {
+      ...a,
+      name: 'b',
+      upstream: '/other/team/b.git',
+      provider: { provider: 'local-git', host: '/other' },
+    };
+    const folded = foldDefaults([a, b]);
+    expect(folded.provider).toBeUndefined();
+    expect(folded.defaults.host).toBeUndefined();
+    expect(folded.repos.every((repo) => repo.upstream !== undefined)).toBe(true);
   });
 });
 
@@ -143,7 +193,9 @@ describe('foldDefaults and renderManifest', () => {
         [],
         () => false,
       ),
-    ].flatMap((r) => ('repo' in r ? [r.repo] : []));
+    ].flatMap((r) =>
+      'repo' in r ? [{ ...r.repo, provider: { provider: 'bitbucket-cli', host: HOST } }] : [],
+    );
     const folded = foldDefaults(repos);
     expect(folded.defaults).toEqual({
       host: HOST,

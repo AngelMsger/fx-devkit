@@ -5,14 +5,14 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
+import type { WorkspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
-import type { DoctorToolScope } from './tool-scope.js';
 import { finding, type Finding } from './types.js';
 
-export interface ToolCheckOptions extends DoctorToolScope {
+export interface ToolCheckOptions extends WorkspaceToolScope {
   readonly trust: LoginDeps['trust'];
 }
 
@@ -23,14 +23,7 @@ export async function checkTools(
   const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
   const available = toolchainOf(deps.ctx).tools;
   const tools = available.filter((tool) => options.names.includes(tool.name));
-  const findings: Finding[] = options.names
-    .filter((name) => !available.some((tool) => tool.name === name))
-    .map((name) =>
-      finding('tools', name, 'fail', 'active provider requires a tool missing from the toolchain', {
-        coverage: 'incomplete',
-        fix: workspaceCommand(deps, 'manifest', 'validate'),
-      }),
-    );
+  const findings: Finding[] = [];
   const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
   for (const tool of tools) {
     try {
@@ -85,12 +78,14 @@ function fromStatus(
     case 'ok':
       return finding('tools', name, 'ok', `${status.installed} installed`);
     case 'disabled':
-      return activeDependency
+      return status.required || activeDependency
         ? finding(
             'tools',
             name,
             status.required ? 'fail' : 'warn',
-            'disabled by the manifest but used by an active provider',
+            status.required
+              ? 'disabled by the manifest but required by the workspace'
+              : 'disabled by the manifest but used by an active provider',
             {
               coverage: 'incomplete',
               fix: workspaceCommand(deps, 'tool', 'show', name),

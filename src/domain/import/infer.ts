@@ -18,6 +18,11 @@ export interface RepoObservation {
 export type UpstreamRung = 1 | 2 | 3;
 export type BranchRung = 1 | 2 | 3;
 
+export interface ImportProvider {
+  readonly provider: string;
+  readonly host: string;
+}
+
 export interface InferredRepo {
   readonly name: string;
   readonly rel: string;
@@ -29,6 +34,7 @@ export interface InferredRepo {
   readonly branchRung: BranchRung;
   readonly originPersonal: boolean;
   readonly review: readonly string[];
+  readonly provider?: ImportProvider;
 }
 
 export type Probe = (project: string, name: string) => boolean;
@@ -39,6 +45,7 @@ export function isPersonal(url: string): boolean {
 }
 
 export function hostOf(url: string): string {
+  if (/^file:\/\//i.test(url)) return url.replace(/\/[^/]+\/[^/]+\/?$/, '');
   const ref = refFromUrl(url);
   if (ref === undefined) return url;
   return url.slice(0, url.length - `/${ref.project}/${ref.name}.git`.length);
@@ -79,13 +86,19 @@ export function inferRepo(
   seenProjects: readonly string[],
   probe: Probe,
 ): Inference {
+  const candidate = obs.remotes['upstream'] ?? obs.remotes['origin'];
+  if (candidate !== undefined && unsafeHttpRemote(candidate))
+    return {
+      skipped:
+        'HTTP remote contains userinfo or query/fragment data. Remove embedded credentials and use a credential helper before importing.',
+    };
   const upstream = inferUpstream(obs, seenProjects, probe);
   if (upstream === undefined) {
     return {
       skipped:
         obs.remotes['origin'] === undefined
           ? 'no remote; a manifest describes remotes'
-          : 'origin is a personal fork and no project of this workspace has a repository of this name',
+          : 'origin is a personal fork; no upstream project could be verified from the available evidence',
     };
   }
   const ref = refFromUrl(upstream.url);
@@ -115,4 +128,14 @@ export function inferRepo(
       review,
     },
   };
+}
+
+function unsafeHttpRemote(remote: string): boolean {
+  if (!/^https?:\/\//i.test(remote)) return false;
+  try {
+    const url = new URL(remote);
+    return Boolean(url.username || url.password || url.search || url.hash);
+  } catch {
+    return true;
+  }
 }
