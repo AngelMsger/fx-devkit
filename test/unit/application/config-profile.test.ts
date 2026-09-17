@@ -15,6 +15,7 @@ const EMAIL = /[A-Za-z0-9._%+-]+@(?!git\.)[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const write = { dryRun: false, posture: { readOnly: false, source: 'default' as const } };
 const manifestDirFor = (name: string) => path.resolve('/fake/.fx/workspaces', name, 'source');
 const lock: Lock = { acquire: async () => ({ release: async () => {} }) };
+const cliVersion = '1.0.0';
 
 function stage() {
   const config = new FakeConfigStore({
@@ -41,7 +42,15 @@ function stage() {
       ['lab', {}],
     ]),
   );
-  return { config, localStore, clock: new FakeClock(), fs: FakeFs.from({}), manifestDirFor, lock };
+  return {
+    config,
+    localStore,
+    clock: new FakeClock(),
+    fs: FakeFs.from({}),
+    manifestDirFor,
+    lock,
+    cliVersion,
+  };
 }
 
 describe('profile export / import', () => {
@@ -104,6 +113,7 @@ describe('profile export / import', () => {
       fs: FakeFs.from({}),
       manifestDirFor,
       lock,
+      cliVersion,
     };
     const dry = await new ConfigImport(target).execute({ ...write, text, dryRun: true });
     expect(dry).toMatchObject({
@@ -149,6 +159,7 @@ describe('profile export / import', () => {
       fs: FakeFs.from({}),
       manifestDirFor,
       lock,
+      cliVersion,
     };
     await expect(
       new ConfigImport(fresh).execute({
@@ -220,7 +231,7 @@ describe('profile export / import', () => {
     for (const name of ['fx', 'lab'])
       await s.fs.writeText(
         path.join(manifestDirFor(name), 'manifest/workspace.yaml'),
-        'schema_version: 2\nrepos: []\n',
+        'schema_version: 2\ndefaults: { branch: main }\nrepos:\n  - { name: fx-example-api, upstream: https://git.example.com/team/api.git }\n',
       );
     const { text } = await new ConfigExport(s).execute();
     const result = await new ConfigImport(s).execute({ ...write, text });
@@ -308,5 +319,23 @@ describe('profile export / import', () => {
     ).rejects.toMatchObject({ code: 'LOCK_BUSY' });
     expect(s.config.writes).toBe(0);
     expect(s.localStore.writes).toEqual([]);
+  });
+
+  it('rejects imported layers that would make a prepared workspace unusable', async () => {
+    const s = stage();
+    await s.fs.writeText(
+      path.join(manifestDirFor('lab'), 'manifest/workspace.yaml'),
+      'schema_version: 2\ndefaults: { branch: main }\nrepos:\n  - { name: api, path: api, upstream: https://git.example.com/team/api.git }\n',
+    );
+    const text = JSON.stringify({
+      fx_profile: 1,
+      config: {},
+      workspaces: { lab: { repos: [{ name: 'local-shadow', path: 'api' }] } },
+    });
+    await expect(new ConfigImport(s).execute({ ...write, text })).rejects.toMatchObject({
+      code: 'LOCAL_INVALID',
+    });
+    expect(s.localStore.writes).toEqual([]);
+    expect(s.config.writes).toBe(0);
   });
 });

@@ -32,6 +32,7 @@ export default class ConfigImportCommand extends FxCommand {
       manifestDirFor: this.container.manifestDirFor,
       commandShell: this.commandShell,
       lock: this.container.lock,
+      cliVersion: this.config.version,
     }).execute({
       text,
       dryRun: flags['dry-run'],

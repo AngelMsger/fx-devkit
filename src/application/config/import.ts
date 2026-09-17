@@ -15,6 +15,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
 import { assertImportIdentitiesUnchanged, mergeProfileConfig } from './import-registry.js';
+import { validateImportedLayer } from './import-layer.js';
 
 export interface ConfigImportDeps {
   readonly config: ConfigStore;
@@ -23,6 +24,7 @@ export interface ConfigImportDeps {
   readonly manifestDirFor: (name: string) => string;
   readonly commandShell?: ResolvedShell;
   readonly lock: Lock;
+  readonly cliVersion: string;
 }
 
 export interface ConfigImportInput {
@@ -112,6 +114,14 @@ export class ConfigImport {
     }
     const workspaces: { name: string; action: LayerAction }[] = [];
     for (const [name, layer] of Object.entries(profile.workspaces)) {
+      await validateImportedLayer({
+        fs: this.deps.fs,
+        name,
+        entry: merged.workspaces![name]!,
+        manifestDir: this.deps.manifestDirFor(name),
+        cliVersion: this.deps.cliVersion,
+        layer,
+      });
       workspaces.push({ name, action: actionFor(await this.deps.localStore.read(name), layer) });
     }
     const resourcesChanged = !same(current.agents, merged.agents) || current.hooks !== merged.hooks;
