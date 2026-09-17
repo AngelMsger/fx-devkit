@@ -30,6 +30,7 @@ export class ToolInitialize {
       ...request,
       dryRun: false,
       requireInstallTrust: true,
+      operation: 'init',
     });
     for (const result of results) {
       if (!result.ran || result.code !== 0)

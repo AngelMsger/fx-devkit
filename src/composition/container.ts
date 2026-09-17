@@ -26,6 +26,7 @@ import { FileConfigStore } from '../infra/config-store.js';
 import { fxHome } from '../infra/home.js';
 import { FileLocalLayerStore } from '../infra/local-store.js';
 import { FileLock } from '../infra/lock.js';
+import { FileToolHistoryStore } from '../infra/tool-history.js';
 import { FileTrustStore } from '../infra/trust-store.js';
 import { manifestSourceDir } from '../infra/workspace-home.js';
 import type { AgentHost } from '../ports/agent-host.js';
@@ -42,6 +43,7 @@ import type { ProviderDescriptor } from '../ports/provider.js';
 import type { Registry } from '../ports/registry.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { Cache, ConfigStore, LocalLayerStore, TrustStore } from '../ports/stores.js';
+import type { ToolHistoryStore } from '../ports/tool-history.js';
 
 import { bundledSkillDir, bundledToolsText } from './bundled.js';
 import { DiagnosticChannel } from './diagnostics.js';
@@ -53,6 +55,7 @@ export interface Container {
   readonly localStore: LocalLayerStore;
   readonly cache: Cache;
   readonly trust: TrustStore;
+  readonly toolHistory: ToolHistoryStore;
   readonly lock: Lock;
   readonly fs: FileSystem;
   readonly process: Process;
@@ -83,6 +86,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     localStore: new FileLocalLayerStore(home),
     cache: new FileCache(home, clock),
     trust: new FileTrustStore(home, clock, lock),
+    toolHistory: new FileToolHistoryStore(home, lock),
     lock,
     fs,
     process,

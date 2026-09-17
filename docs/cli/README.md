@@ -9,30 +9,30 @@ run `npm run docs:gen` after changing commands or flags.
 |---|---|
 | `fx init` | Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced |
 | `fx sync` | Bring the workspace up to date: clone what is missing, fast-forward what is clean, never touch work in progress |
-| `fx login` | Get this machine's access to the platforms the manifest binds: log in, place kubeconfigs, confirm permissions |
+| `fx login` | Prepare tool access for the selected workspace: authentication, configuration and permission checks |
 | `fx doctor` | Check repositories, tools, login state, agent Skills, the manifest and whether fx or the manifest is behind, in one pass |
 | `fx status` | Show every tracked repository: branch, cleanliness, position against upstream |
 | `fx can` | Whether a capability or tool can be used right now; when not, what a person must do first |
 | `fx where` | Locate repository coordinates; optionally probe or record their existence |
-| `fx release` | Whether the repositories about to ship are ready: dependencies, branches, builds and unresolved errors, one finding each |
+| `fx release` | Check release readiness: dependencies, branches, builds and unresolved errors, one finding each |
 | `fx completion` | Print a shell completion script for bash, zsh, fish or PowerShell |
 
 ## Topics
 
 | Topic | Commands |
 |---|---|
-| `fx agent` | Coding agents: list, pick the ones fx projects Skills into |
+| `fx agent` | Coding agents: discover, select globally, inspect workspace Skills |
 | `fx config` | Personal settings in ~/.fx/config.yaml, and carrying them to another machine |
 | `fx env` | Environments: list, show, pick |
-| `fx hook` | Workspace lifecycle hooks: inspect, enable and remove managed entries |
-| `fx manifest` | The manifest: validate, lint, explain, edit, render its AGENTS.md, import a directory |
+| `fx hook` | Workspace lifecycle hooks: inspect, enable and disable |
+| `fx manifest` | Shared manifest: validate, explain, edit repository fields and record probe evidence |
 | `fx mcp` | Workspace MCP resources, projections and readiness |
 | `fx member` | People: list them, show who a name refers to |
 | `fx repo` | Repositories: list, show, pick, register, fork, open |
 | `fx self` | The fx tool itself: info, update |
-| `fx skill` | Skills: the team Skills and fx's own, with their state in each agent |
+| `fx skill` | Bundled fx companion Skill: install, inspect and remove without a workspace |
 | `fx source` | Source contributions: validate selected files and propose a pull request |
-| `fx tool` | Companion tools: list, show, install, update |
+| `fx tool` | Companion tools: definitions, installation, inventory and history |
 
 ## Global flags
 
@@ -48,7 +48,7 @@ Every command accepts these.
 | `--no-input` | never prompt; fail with a structured error instead (default: false) |
 | `--quiet` | suppress notices on stderr; errors are still reported (default: false) |
 | `--verbose` | diagnostic detail on stderr (default: false) |
-| `--workspace` | workspace name from ~/.fx/config.yaml; defaults to the registered one containing cwd, then default_workspace (env: FX_WORKSPACE) |
+| `--workspace` | select a workspace: containing cwd, then default_workspace when omitted; global commands still cover this FX_HOME (env: FX_WORKSPACE) |
 | `--yes` | assume yes for confirmations (default: false) |
 
 ## `fx init`
@@ -72,7 +72,7 @@ Flags:
 | `--adopt` | legacy flag; adoption is automatic (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--from` | git URL or checkout of the manifest repository, a directory holding manifest/, or - for workspace YAML / a source bundle (required) |
-| `--jobs` | independent repository checks handled at the same time (default: 4) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
 | `--name` | name in ~/.fx/config.yaml; default: the directory name |
 
 Examples:
@@ -94,8 +94,8 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--dry-run` | print the plan instead of applying it (default: false) |
-| `--jobs` | independent repository checks handled at the same time (default: 4) |
-| `--only` | run selected stages (repos, docs, skills, hooks, mcp, tools) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
+| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, docs, skills, hooks, mcp, tools) |
 | `--refresh-manifest / --no-refresh-manifest` | pull the manifest repository first; --no-refresh-manifest skips it (default: true) |
 
 Examples:
@@ -107,7 +107,7 @@ fx sync --dry-run --format json
 
 ## `fx login`
 
-Get this machine's access to the platforms the manifest binds: log in, place kubeconfigs, confirm permissions
+Prepare tool access for the selected workspace: authentication, configuration and permission checks
 
 Arguments:
 
@@ -120,7 +120,7 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--dry-run` | check current state and preview each unfinished action (default: false; exclusive with: --list) |
-| `--env` | only these environments (repeatable) |
+| `--env` | only these environments (repeatable or comma-separated) (repeatable) |
 | `--list` | print the static plan without checking current state (default: false; exclusive with: --dry-run, --skip-manual) |
 | `--skip-manual` | only steps fx can run itself (default: false; exclusive with: --list) |
 
@@ -143,9 +143,9 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--dry-run` | print the fix plan instead of applying it (requires: --fix) |
-| `--env` | only these environments (login checks) (repeatable) |
+| `--env` | only these environments (login checks) (repeatable or comma-separated) (repeatable) |
 | `--fix` | apply the fixes fx can make itself |
-| `--tool` | only these tools (tool and login checks) (repeatable) |
+| `--tool` | only these tools (tool and login checks) (repeatable or comma-separated) (repeatable) |
 
 Examples:
 
@@ -166,7 +166,7 @@ Flags:
 | `--dirty` | list only repositories with uncommitted changes (default: false) |
 | `--dry-run` | print the fetch plan instead of applying it (requires: --fetch) |
 | `--fetch` | fetch upstream first (default: report local state only) |
-| `--jobs` | independent repository checks handled at the same time (default: 4) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
 
 Examples:
 
@@ -219,7 +219,7 @@ Flags:
 | `--check / --no-check` | fill the ready column by running each provider's read-only verify (default: true) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--env` | one environment; default: every environment in scope |
-| `--jobs` | independent repository checks handled at the same time (default: 4) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
 | `--platform` | one platform; default: all |
 | `--probe` | ask each platform, read-only, whether the coordinate exists; needs --env (default: false) |
 | `--record` | record definite probe evidence in source environments.yaml; needs --probe, --env and --platform (default: false) |
@@ -233,7 +233,7 @@ fx where fx-example-api --env test --platform jenkins --probe --record --dry-run
 
 ## `fx release`
 
-Whether the repositories about to ship are ready: dependencies, branches, builds and unresolved errors, one finding each
+Check release readiness: dependencies, branches, builds and unresolved errors, one finding each
 
 Arguments:
 
@@ -246,10 +246,10 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--env` | environment whose errors count; default: release.env |
-| `--jobs` | independent repository checks handled at the same time (default: 4) |
-| `--only` | only these checks (repeatable; one of: deps, merge, ci, errors) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
+| `--only` | only these checks (repeatable or comma-separated) (repeatable; one of: deps, merge, ci, errors) |
 | `--since` | how far back a new error counts; default: release.since |
-| `--tag` | only repositories carrying this tag (repeatable) |
+| `--tag` | only repositories carrying these tags (repeatable or comma-separated) (repeatable) |
 
 Examples:
 
@@ -286,6 +286,16 @@ Examples:
 ```bash
 fx agent list
 ```
+
+## `fx agent skills`
+
+List workspace team Skills and the bundled fx Skill for selected agents
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | only these agent ids (repeatable or comma-separated) (repeatable) |
 
 ## `fx agent pick`
 
@@ -531,7 +541,7 @@ Examples:
 fx hook list --format json
 ```
 
-## `fx hook inject`
+## `fx hook enable`
 
 Enable and project lifecycle hooks for the selected agents in this workspace
 
@@ -544,10 +554,10 @@ Flags:
 Examples:
 
 ```bash
-fx hook inject --format json
+fx hook enable --format json
 ```
 
-## `fx hook remove`
+## `fx hook disable`
 
 Disable workspace lifecycle hooks and remove only fx-managed entries
 
@@ -560,7 +570,7 @@ Flags:
 Examples:
 
 ```bash
-fx hook remove --format json
+fx hook disable --format json
 ```
 
 ## `fx manifest validate`
@@ -639,7 +649,7 @@ Examples:
 fx manifest providers
 ```
 
-## `fx manifest set`
+## `fx manifest repo-set`
 
 Set a scalar field or aka array of a repository in workspace.yaml, touching nothing else
 
@@ -660,14 +670,39 @@ Flags:
 Examples:
 
 ```bash
-fx manifest set fx-example-api branch feature/x --dry-run
-fx manifest set fx-example-api desc "Backend monolith"
-fx manifest set fx-example-api aka '["backend", "app-builder"]' --dry-run
+fx manifest repo-set fx-example-api branch feature/x --dry-run
+fx manifest repo-set fx-example-api desc "Backend monolith"
+fx manifest repo-set fx-example-api aka '["backend", "app-builder"]' --dry-run
+```
+
+## `fx manifest record-probe`
+
+Probe a repository coordinate and record definite evidence in the selected workspace source manifest
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `repo` | yes | repository name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--env` | environment containing the coordinate (required) |
+| `--jobs` | independent checks handled at the same time (default: 4) |
+| `--platform` | platform containing the coordinate (required) |
+
+Examples:
+
+```bash
+fx manifest record-probe example-api --env test --platform jenkins --dry-run
 ```
 
 ## `fx manifest render`
 
-Regenerate the manifest-derived regions of the manifest repository's AGENTS.md: the checkout under cwd, else the workspace's source copy
+Regenerate manifest-derived AGENTS.md regions: explicit workspace selection wins, otherwise use the source checkout near cwd
 
 Flags:
 
@@ -675,7 +710,7 @@ Flags:
 |---|---|
 | `--check` | write nothing; fail when the document is stale (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
-| `--out` | create or replace a fully rendered AGENTS.md at this path instead; nothing else is touched |
+| `-o, --out` | create or replace a fully rendered AGENTS.md at this path instead; nothing else is touched |
 
 Examples:
 
@@ -958,16 +993,6 @@ fx skill install --agent codex --project
 fx skill install --dir ./skills --dry-run
 ```
 
-## `fx skill list`
-
-List team Skills and the fx Skill, with their state in each enabled agent
-
-Flags:
-
-| Flag | Description |
-|---|---|
-| `--agent` | only these agent ids (repeatable) |
-
 ## `fx skill path`
 
 Show companion Skill installation targets and their current state
@@ -1048,6 +1073,33 @@ Examples:
 fx tool list
 ```
 
+## `fx tool history`
+
+Read recorded tool installation attempts and outcomes across this FX_HOME, including tools removed from the manifest
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `tool` | no | filter by the recorded tool name |
+
+Examples:
+
+```bash
+fx tool history
+fx tool history bitbucket-cli --format json
+```
+
+## `fx tool inventory`
+
+Inspect known installed tools across this FX_HOME, their installation origin and workspace requirements
+
+Examples:
+
+```bash
+fx tool inventory --format json
+```
+
 ## `fx tool show`
 
 Show one tool: its resolved entry, where each field comes from, who depends on it
@@ -1072,7 +1124,7 @@ Arguments:
 
 | Argument | Required | Description |
 |---|---|---|
-| `tool` | no | tool name(s) (variadic) |
+| `tool` | no | tool name(s); required unless --all is given (variadic) |
 
 Flags:
 
@@ -1096,12 +1148,13 @@ Arguments:
 
 | Argument | Required | Description |
 |---|---|---|
-| `tool` | no | tool name(s); default: every enabled tool (variadic) |
+| `tool` | no | tool name(s); required unless --all is given (variadic) |
 
 Flags:
 
 | Flag | Description |
 |---|---|
+| `--all` | every enabled tool in the selected toolchain (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 
 Examples:
@@ -1109,3 +1162,35 @@ Examples:
 ```bash
 fx tool update bitbucket-cli
 ```
+
+## Compatibility aliases
+
+These names remain executable. Help and command-name completion prefer their canonical entries.
+
+| Alias | Canonical command |
+|---|---|
+| `fx hook inject` | `fx hook enable` |
+| `fx hook remove` | `fx hook disable` |
+| `fx skill list` | `fx agent skills` |
+| `fx tool installed` | `fx tool inventory` |
+| `fx manifest set` | `fx manifest repo-set` |
+
+## `fx hook inject`
+
+Alias of `fx hook enable`.
+
+## `fx hook remove`
+
+Alias of `fx hook disable`.
+
+## `fx skill list`
+
+Alias of `fx agent skills`.
+
+## `fx tool installed`
+
+Alias of `fx tool inventory`.
+
+## `fx manifest set`
+
+Alias of `fx manifest repo-set`.

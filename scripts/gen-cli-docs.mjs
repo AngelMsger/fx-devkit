@@ -10,11 +10,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const target = path.join(root, 'docs', 'cli', 'README.md');
 const check = process.argv.includes('--check');
 
-const { COMMANDS: registry, EVERYDAY } = await import(
-  path.join(root, 'dist', 'cli', 'commands', 'index.js')
-);
+const {
+  COMMANDS: registry,
+  COMMAND_ALIASES,
+  EVERYDAY,
+} = await import(path.join(root, 'dist', 'cli', 'commands', 'index.js'));
 const COMMANDS = Object.fromEntries(
-  Object.entries(registry).filter(([, command]) => !command.hidden),
+  Object.entries(registry).filter(([id, command]) => !command.hidden && !(id in COMMAND_ALIASES)),
 );
 const { globalFlags } = await import(path.join(root, 'dist', 'cli', 'flags.js'));
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -93,7 +95,6 @@ const ordered = [
 ];
 const summary = (command) => (command.description ?? '').split('\n')[0];
 
-const firstIdOf = new Map();
 const lines = [
   '# fx-devkit command reference',
   '',
@@ -121,15 +122,22 @@ const lines = [
   ...flagTable(globalFlags),
   '',
 ];
-for (const [id, command] of ordered) {
-  const canonical = firstIdOf.get(command);
-  if (canonical !== undefined) {
-    lines.push(`## \`${commandName(id)}\``, '', `Alias of \`${commandName(canonical)}\`.`, '');
-    continue;
-  }
-  firstIdOf.set(command, id);
-  lines.push(...section(id, command));
-}
+for (const [id, command] of ordered) lines.push(...section(id, command));
+lines.push(
+  '## Compatibility aliases',
+  '',
+  'These names remain executable. Help and command-name completion prefer their canonical entries.',
+  '',
+  '| Alias | Canonical command |',
+  '|---|---|',
+  ...Object.entries(COMMAND_ALIASES).map(
+    ([alias, canonical]) => `| \`${commandName(alias)}\` | \`${commandName(canonical)}\` |`,
+  ),
+  '',
+);
+// Retain old anchors for existing documentation links.
+for (const [alias, canonical] of Object.entries(COMMAND_ALIASES))
+  lines.push(`## \`${commandName(alias)}\``, '', `Alias of \`${commandName(canonical)}\`.`, '');
 const output = lines.join('\n').replace(/\n+$/, '\n');
 
 if (check) {

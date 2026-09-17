@@ -12,6 +12,7 @@ import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../fakes/fake-installer.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
+import { fakeToolAudit } from '../../fakes/fake-tool-history.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 
 const bundled = [
@@ -39,7 +40,7 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const installers = FakeInstaller.family(available);
   const proc = new FakeProcess().always({ code: 0, stdout: 'alpha v9.9.9\n', stderr: '' });
-  return { tools, installers, proc, install: new ToolInstall(installers, proc) };
+  return { tools, installers, proc, install: new ToolInstall(installers, proc, fakeToolAudit()) };
 }
 
 describe('ToolInstall', () => {
@@ -351,7 +352,7 @@ describe('ToolInstall with a trust gate', () => {
     const gate = new TrustGate(new FakeTrustStore(), prompter, new FakeClock());
     const base = { tools, names: ['alpha'], update: false, dryRun: false, posture: writable };
 
-    const blocked = await new ToolInstall(installers, process).execute({
+    const blocked = await new ToolInstall(installers, process, fakeToolAudit()).execute({
       ...base,
       trust: { gate, workspace: 'fx', yes: false, posture: writable },
     });
@@ -361,11 +362,41 @@ describe('ToolInstall with a trust gate', () => {
       'untrusted probe never ran',
     ).toBe(false);
 
-    const trusted = await new ToolInstall(installers, process).execute({
+    const trusted = await new ToolInstall(installers, process, fakeToolAudit()).execute({
       ...base,
       trust: { gate, workspace: 'fx', yes: true, posture: writable },
     });
     expect(trusted[0]).toMatchObject({ version_after: '1.2.3' });
     expect(process.calls.some((c) => c.vector.join(' ') === 'alpha --ver')).toBe(true);
+  });
+});
+
+describe('explicit tool selection', () => {
+  it('rejects missing and contradictory targets before running checks or installers', async () => {
+    const s = setup();
+    for (const selection of [{}, { names: ['alpha'], all: true }]) {
+      await expect(
+        s.install.execute({
+          tools: s.tools,
+          ...selection,
+          update: false,
+          dryRun: true,
+          posture: writable,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_FLAG' });
+    }
+    expect(s.proc.calls).toEqual([]);
+  });
+  it('updates all enabled tools including existing ones, while skipping disabled tools', async () => {
+    const s = setup();
+    s.proc.binaries.add('alpha');
+    const result = await s.install.execute({
+      tools: s.tools,
+      all: true,
+      update: true,
+      dryRun: true,
+      posture: writable,
+    });
+    expect(result.map((row) => row.name)).toEqual(['alpha', 'beta', 'byhand']);
   });
 });

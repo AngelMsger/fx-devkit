@@ -1,21 +1,55 @@
-// Static completion scripts from the command registry. They complete
-// command words and flag names; values are the commands' own business.
+// Generate shell completion from command and flag metadata. Scanners retain the
+// command after positional arguments and skip option values before routing words.
 
 import { DevkitError } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 
 export const SHELLS = ['bash', 'zsh', 'fish', 'powershell'] as const;
 export type Shell = (typeof SHELLS)[number];
-
+export interface CompletionFlag {
+  readonly name: string;
+  readonly takesValue: boolean;
+  readonly options: readonly string[];
+}
 export interface CompletionCommand {
   readonly id: string;
-  readonly flags: readonly string[];
+  readonly aliasOf?: string | undefined;
+  readonly flags: readonly CompletionFlag[];
 }
-
+interface FlagDefinition {
+  readonly type?: string;
+  readonly char?: string;
+  readonly allowNo?: boolean;
+  readonly hidden?: boolean;
+  readonly options?: readonly string[];
+}
+export function completionFlags(
+  definitions: Readonly<Record<string, FlagDefinition>>,
+): CompletionFlag[] {
+  return Object.entries(definitions).flatMap(([name, flag]) => {
+    if (flag.hidden) return [];
+    const names = [
+      `--${name}`,
+      ...(flag.allowNo ? [`--no-${name}`] : []),
+      ...(flag.char ? [`-${flag.char}`] : []),
+    ];
+    return names.map((spelling) => ({
+      name: spelling,
+      takesValue: flag.type === 'option',
+      options: flag.options ?? [],
+    }));
+  });
+}
+interface Entry {
+  readonly id: string;
+  readonly children: readonly string[];
+  readonly routes: readonly string[];
+  readonly flags: readonly CompletionFlag[];
+}
 export function completionScript(
   shell: string,
   commands: readonly CompletionCommand[],
-  globalFlags: readonly string[],
+  globals: readonly CompletionFlag[],
 ): string {
   if (!(SHELLS as readonly string[]).includes(shell)) {
     const suggestion = nearest(shell, SHELLS);
@@ -27,33 +61,152 @@ export function completionScript(
       nextSteps: SHELLS.map((s) => `fx completion ${s}`),
     });
   }
-  const tree = commandTree(commands);
-  const flagsOf = (id: string): string =>
-    [...(commands.find((c) => c.id === id)?.flags ?? []), ...globalFlags]
-      .map((f) => `--${f}`)
-      .join(' ');
-  return { bash, zsh, fish, powershell }[shell as Shell](tree, flagsOf, commands, globalFlags);
-}
-
-function powershell(tree: Tree, flagsOf: (id: string) => string): string {
-  const quote = (value: string): string => "'" + value.replaceAll("'", "''") + "'";
-  const entries = [...tree.entries()].flatMap(([topic, subs]) => [
-    `${quote(topic)} = @(${subs.map(quote).join(', ')})`,
-    ...[topic, ...subs.map((sub) => `${topic} ${sub}`)].map(
-      (id) =>
-        `${quote(id + ':flags')} = @(${flagsOf(id).split(' ').filter(Boolean).map(quote).join(', ')})`,
+  const ids = ['', ...new Set(commands.flatMap(({ id }) => [id.split(' ')[0]!, id]))];
+  const entries = ids.map((id): Entry => ({
+    id,
+    children: childCommands(
+      commands.filter((command) => command.aliasOf === undefined),
+      id,
     ),
-  ]);
+    routes: childCommands(commands, id),
+    flags: [
+      ...globals,
+      ...(commands.find((command) => command.id === id)?.flags ?? []),
+      { name: '--help', takesValue: false, options: [] },
+      { name: '-h', takesValue: false, options: [] },
+    ],
+  }));
+  if (shell === 'powershell') return powershell(entries);
+  if (shell === 'fish') return fish(entries);
+  return posix(shell as 'bash' | 'zsh', entries);
+}
+function childCommands(commands: readonly CompletionCommand[], id: string): string[] {
+  return [
+    ...new Set(
+      commands.flatMap((command) => {
+        if (id === '') return [command.id.split(' ')[0]!];
+        return command.id.startsWith(`${id} `) ? [command.id.slice(id.length + 1)] : [];
+      }),
+    ),
+  ];
+}
+const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
+function posixScanner(entries: readonly Entry[]): string[] {
+  const transitions = entries.flatMap((entry) =>
+    entry.routes.map(
+      (child) =>
+        `      ${quote(`${entry.id}:${child}`)}) fx_cmd=${quote([entry.id, child].filter(Boolean).join(' '))} ;;`,
+    ),
+  );
+  const options = entries.flatMap((entry) =>
+    entry.flags
+      .filter((flag) => flag.takesValue)
+      .map(
+        (flag) => `      ${quote(`${entry.id}:${flag.name}`)}) fx_pending=${quote(flag.name)} ;;`,
+      ),
+  );
+  const values = entries.flatMap((entry) =>
+    entry.flags
+      .filter((flag) => flag.options.length)
+      .map(
+        (flag) =>
+          `      ${quote(`${entry.id}:${flag.name}`)}) fx_candidates=${quote(flag.options.join(' '))} ;;`,
+      ),
+  );
+  const flags = entries.map(
+    (entry) =>
+      `      ${quote(entry.id)}) fx_candidates=${quote(entry.flags.map((flag) => flag.name).join(' '))} ;;`,
+  );
+  const children = entries.map(
+    (entry) => `      ${quote(entry.id)}) fx_candidates=${quote(entry.children.join(' '))} ;;`,
+  );
+  return [
+    '_fx_candidates() {',
+    '  local fx_cmd="" fx_pending="" fx_token',
+    '  fx_candidates=""',
+    '  for fx_token in "$@"; do',
+    '    if [[ -n "$fx_pending" ]]; then fx_pending=""; continue; fi',
+    '    if [[ "$fx_token" == -- ]]; then return; fi',
+    '    case "$fx_cmd:$fx_token" in',
+    ...options,
+    '    esac',
+    '    if [[ "$fx_token" == -* ]]; then continue; fi',
+    '    case "$fx_cmd:$fx_token" in',
+    ...transitions,
+    '    esac',
+    '  done',
+    '  if [[ -n "$fx_pending" ]]; then',
+    '    case "$fx_cmd:$fx_pending" in',
+    ...values,
+    '    esac',
+    '  elif [[ "$fx_current" == -* ]]; then',
+    '    case "$fx_cmd" in',
+    ...flags,
+    '    esac',
+    '  else',
+    '    case "$fx_cmd" in',
+    ...children,
+    '    esac',
+    '  fi',
+    '}',
+  ];
+}
+function posix(shell: 'bash' | 'zsh', entries: readonly Entry[]): string {
+  const common = posixScanner(entries);
+  if (shell === 'bash')
+    return [
+      '# fx bash completion: source this file.',
+      ...common,
+      '_fx() {',
+      '  local fx_current="${COMP_WORDS[COMP_CWORD]}" fx_candidates',
+      '  _fx_candidates "${COMP_WORDS[@]:1:COMP_CWORD-1}"',
+      '  COMPREPLY=( $(compgen -W "$fx_candidates" -- "$fx_current") )',
+      '}',
+      'complete -F _fx fx',
+      '',
+    ].join('\n');
+  return [
+    '#compdef fx',
+    '# fx zsh completion: place this file as _fx on your fpath.',
+    ...common,
+    '_fx() {',
+    '  local fx_current="${words[CURRENT]}" fx_candidates',
+    '  local -a fx_previous fx_matches',
+    '  if (( CURRENT > 2 )); then fx_previous=("${words[@]:1:$((CURRENT - 2))}"); fi',
+    '  _fx_candidates "${fx_previous[@]}"',
+    '  fx_matches=( ${(z)fx_candidates} )',
+    '  if (( ${#fx_matches} )); then compadd -- "${fx_matches[@]}"; fi',
+    '}',
+    '_fx "$@"',
+    '',
+  ].join('\n');
+}
+function powershell(entries: readonly Entry[]): string {
+  const q = (value: string): string => `'${value.replaceAll("'", "''")}'`;
+  const array = (values: readonly string[]): string => `@(${values.map(q).join(', ')})`;
+  const metadata = entries.map(
+    (entry) =>
+      `${q(entry.id)} = @{ children = ${array(entry.children)}; routes = ${array(entry.routes)}; flags = ${array(entry.flags.map((flag) => flag.name))}; values = @{ ${entry.flags
+        .filter((flag) => flag.takesValue)
+        .map((flag) => `${q(flag.name)} = ${array(flag.options)}`)
+        .join('; ')} } }`,
+  );
   return `# fx PowerShell completion: dot-source this file from your profile.
-$fxCommands = @{ ${entries.join('; ')} }
-$fxRoots = @(${[...tree.keys()].map(quote).join(', ')})
+$fxCommands = @{ ${metadata.join('; ')} }
 $fxCompleter = {
   param($wordToComplete, $commandAst, $cursorPosition)
-  $words = @($commandAst.CommandElements | Select-Object -Skip 1 | Where-Object { $_.Extent.EndOffset -lt $cursorPosition } | ForEach-Object { $_.Extent.Text })
-  $id = $words -join ' '
-  if ($wordToComplete.StartsWith('-')) { $candidates = $fxCommands[$id + ':flags'] }
-  elseif ($words.Count -eq 0) { $candidates = $fxRoots }
-  else { $candidates = $fxCommands[$id] }
+  $words = @($commandAst.CommandElements | Select-Object -Skip 1 | Where-Object { $_.Extent.EndOffset -lt $cursorPosition } | ForEach-Object { if ($null -ne $_.Value) { $_.Value } else { $_.Extent.Text } })
+  $id = ''; $pending = ''
+  foreach ($word in $words) {
+    if ($pending) { $pending = ''; continue }
+    if ($word -eq '--') { return }
+    if ($fxCommands[$id].values.ContainsKey($word)) { $pending = $word; continue }
+    if ($word.StartsWith('-')) { continue }
+    if ($fxCommands[$id].routes -contains $word) { $id = ($id + ' ' + $word).Trim() }
+  }
+  if ($pending) { $candidates = $fxCommands[$id].values[$pending] }
+  elseif ($wordToComplete.StartsWith('-')) { $candidates = $fxCommands[$id].flags }
+  else { $candidates = $fxCommands[$id].children }
   foreach ($candidate in $candidates) {
     if ($candidate.StartsWith($wordToComplete, [StringComparison]::OrdinalIgnoreCase)) {
       [System.Management.Automation.CompletionResult]::new($candidate, $candidate, 'ParameterValue', $candidate)
@@ -65,116 +218,82 @@ if ((Get-Command Register-ArgumentCompleter).Parameters.ContainsKey('Native')) {
 Register-ArgumentCompleter @fxCompletionParams
 `;
 }
-
-type Tree = Map<string, string[]>;
-
-function commandTree(commands: readonly CompletionCommand[]): Tree {
-  const tree: Tree = new Map();
-  for (const { id } of commands) {
-    const [head = '', ...rest] = id.split(' ');
-    if (!tree.has(head)) tree.set(head, []);
-    if (rest.length > 0) tree.get(head)?.push(rest.join(' '));
-  }
-  return tree;
+function fishCases(entries: readonly Entry[]): {
+  transitions: string[];
+  options: string[];
+  values: string[];
+  flags: string[];
+  children: string[];
+} {
+  const q = (value: string): string => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+  const transitions = entries.flatMap((entry) =>
+    entry.routes.map(
+      (child) =>
+        `      case ${q(`${entry.id}:${child}`)}\n        set fx_cmd ${q([entry.id, child].filter(Boolean).join(' '))}`,
+    ),
+  );
+  const options = entries.flatMap((entry) =>
+    entry.flags
+      .filter((flag) => flag.takesValue)
+      .map(
+        (flag) =>
+          `      case ${q(`${entry.id}:${flag.name}`)}\n        set fx_pending ${q(flag.name)}`,
+      ),
+  );
+  const values = entries.flatMap((entry) =>
+    entry.flags
+      .filter((flag) => flag.options.length)
+      .map(
+        (flag) =>
+          `      case ${q(`${entry.id}:${flag.name}`)}\n        printf '%s\\n' ${flag.options.map(q).join(' ')}`,
+      ),
+  );
+  const flags = entries.map(
+    (entry) =>
+      `      case ${q(entry.id)}\n        printf '%s\\n' ${entry.flags.map((flag) => q(flag.name)).join(' ')}`,
+  );
+  const children = entries
+    .filter((entry) => entry.children.length)
+    .map(
+      (entry) =>
+        `      case ${q(entry.id)}\n        printf '%s\\n' ${entry.children.map(q).join(' ')}`,
+    );
+  return { transitions, options, values, flags, children };
 }
-
-function bash(tree: Tree, flagsOf: (id: string) => string): string {
-  const cases = [...tree.entries()]
-    .filter(([, subs]) => subs.length > 0)
-    .map(
-      ([topic, subs]) =>
-        `      ${topic}) COMPREPLY=( $(compgen -W "${subs.join(' ')}" -- "$cur") ); return ;;`,
-    )
-    .join('\n');
-  const flagCases = [...tree.entries()]
-    .flatMap(([topic, subs]) =>
-      subs.length === 0 ? [[topic, topic]] : subs.map((s) => [`${topic} ${s}`, `${topic}_${s}`]),
-    )
-    .map(
-      ([id]) =>
-        `      "${id}") COMPREPLY=( $(compgen -W "${flagsOf(id ?? '')}" -- "$cur") ); return ;;`,
-    )
-    .join('\n');
+function fish(entries: readonly Entry[]): string {
+  const { transitions, options, values, flags, children } = fishCases(entries);
   return [
-    '# fx bash completion: source this file, or place it in bash_completion.d',
-    '_fx() {',
-    '  local cur="${COMP_WORDS[COMP_CWORD]}"',
-    '  local words=("${COMP_WORDS[@]:1:COMP_CWORD-1}")',
-    '  local cmd="${words[*]}"',
-    '  if [[ "$cur" == -* ]]; then',
-    '    case "$cmd" in',
-    flagCases,
-    '    esac',
-    '  fi',
-    '  case "$COMP_CWORD" in',
-    `    1) COMPREPLY=( $(compgen -W "${[...tree.keys()].join(' ')}" -- "$cur") ); return ;;`,
-    '  esac',
-    '  case "${COMP_WORDS[1]}" in',
-    cases,
-    '  esac',
-    '}',
-    'complete -F _fx fx',
+    '# fx fish completion: place this file in completions/fx.fish.',
+    'function _fx_complete',
+    '  set -l fx_words (commandline -opc)',
+    '  set -l fx_cmd ""',
+    '  set -l fx_pending ""',
+    '  for fx_token in $fx_words[2..-1]',
+    '    if test -n "$fx_pending"; set fx_pending ""; continue; end',
+    '    if test "$fx_token" = --; return; end',
+    '    switch "$fx_cmd:$fx_token"',
+    ...options,
+    '    end',
+    '    if string match -q -- "-*" "$fx_token"; continue; end',
+    '    switch "$fx_cmd:$fx_token"',
+    ...transitions,
+    '    end',
+    '  end',
+    '  if test -n "$fx_pending"',
+    '    switch "$fx_cmd:$fx_pending"',
+    ...values,
+    '    end',
+    '  else if string match -q -- "-*" (commandline -ct)',
+    '    switch "$fx_cmd"',
+    ...flags,
+    '    end',
+    '  else',
+    '    switch "$fx_cmd"',
+    ...children,
+    '    end',
+    '  end',
+    'end',
+    "complete -c fx -f -a '(_fx_complete)'",
     '',
   ].join('\n');
-}
-
-function zsh(tree: Tree, flagsOf: (id: string) => string): string {
-  const subs = [...tree.entries()]
-    .filter(([, s]) => s.length > 0)
-    .map(([topic, s]) => `    ${topic}) compadd -- ${s.join(' ')} ;;`)
-    .join('\n');
-  const flags = [...tree.entries()]
-    .flatMap(([topic, s]) => (s.length === 0 ? [topic] : s.map((x) => `${topic} ${x}`)))
-    .map((id) => `    "${id}") compadd -- ${flagsOf(id)} ;;`)
-    .join('\n');
-  return [
-    '#compdef fx',
-    '# fx zsh completion: place this file as _fx on your fpath',
-    '_fx() {',
-    '  local -a words_; words_=("${words[@]:1:CURRENT-2}")',
-    '  local cmd="${words_[*]}"',
-    '  if [[ "${words[CURRENT]}" == -* ]]; then',
-    '    case "$cmd" in',
-    flags,
-    '    esac',
-    '    return',
-    '  fi',
-    '  if (( CURRENT == 2 )); then',
-    `    compadd -- ${[...tree.keys()].join(' ')}`,
-    '    return',
-    '  fi',
-    '  case "${words[2]}" in',
-    subs,
-    '  esac',
-    '}',
-    '_fx "$@"',
-    '',
-  ].join('\n');
-}
-
-function fish(
-  tree: Tree,
-  flagsOf: (id: string) => string,
-  commands: readonly CompletionCommand[],
-  globalFlags: readonly string[],
-): string {
-  const lines = [
-    '# fx fish completion: place this file in ~/.config/fish/completions/fx.fish',
-    'complete -c fx -f',
-  ];
-  for (const topic of tree.keys())
-    lines.push(`complete -c fx -n '__fish_use_subcommand' -a ${topic}`);
-  for (const [topic, subs] of tree.entries())
-    for (const sub of subs)
-      lines.push(`complete -c fx -n '__fish_seen_subcommand_from ${topic}' -a '${sub}'`);
-  for (const flag of globalFlags) lines.push(`complete -c fx -l ${flag}`);
-  for (const { id, flags } of commands) {
-    const words = id.split(' ');
-    for (const flag of flags)
-      lines.push(
-        `complete -c fx -n '__fish_seen_subcommand_from ${words[words.length - 1]}' -l ${flag}`,
-      );
-  }
-  void flagsOf;
-  return `${lines.join('\n')}\n`;
 }

@@ -152,6 +152,14 @@ synchronizing; directory and stdin snapshots do not track subsequent source edit
 Use `fx self info --format json` to identify the active workspace and source.
 Changing the source of an already registered root is not an implicit migration.
 
+`manifest validate/lint/providers/repo-set/render` honour `--workspace` and
+`FX_WORKSPACE` before looking for a source checkout around the current directory.
+An unknown explicit workspace is an error. Without an explicit selection, the
+nearby source checkout still takes priority, so standalone source maintenance
+continues to work. `manifest import <dir>` reads the directory argument;
+`manifest record-probe` uses the selected registered workspace. Render accepts
+both `-o <file>` and `--out <file>` for an alternate output.
+
 Maintain shared declarations in the registered source checkout and personal
 selections through `repo pick/unpick`, `env pick/unpick` and `agent pick/unpick`.
 Agent selection applies across workspaces in the same FX_HOME. For contributing

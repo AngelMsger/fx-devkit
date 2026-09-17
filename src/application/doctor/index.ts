@@ -9,11 +9,13 @@ import { validateSetupSelection } from '../login/selection.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
+import type { ToolInstalled } from '../tool/installed.js';
 import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { checkAgents } from './agents.js';
+import { checkInstallations } from './installations.js';
 import { checkLogin } from './login.js';
 import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
@@ -22,6 +24,7 @@ import { checkTools } from './tools.js';
 import { GROUPS, type DoctorReport, type DoctorExtension, type RepairAttempt } from './types.js';
 
 export interface DoctorDeps {
+  readonly inventory?: ToolInstalled;
   readonly extensions?: readonly DoctorExtension[] | undefined;
   readonly login: LoginDeps;
   readonly skills: SkillDeps;
@@ -55,6 +58,7 @@ export class Doctor {
     const repairs = input.fix ? await this.fix(input) : [];
     const groups = await Promise.all([
       checkRepos(this.deps),
+      checkInstallations(this.doctor.inventory, input.tools),
       checkTools(this.deps, { names: input.tools, trust: this.doctor.login.trust }),
       checkLogin(this.deps, this.doctor.login, {
         tools: input.tools,

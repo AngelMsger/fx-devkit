@@ -52,3 +52,34 @@ describe('public discovery contracts', () => {
     );
   });
 });
+
+it('separates compatibility names from primary topic help and explains alias help', () => {
+  const topic = fx(['--format', 'json', 'hook', '--help']);
+  expect(topic.status, topic.stderr).toBe(0);
+  const primary = topic.stdout.split('COMMANDS')[1]?.split('COMPATIBILITY')[0] ?? '';
+  expect(primary).toContain('hook enable');
+  expect(primary).toContain('hook disable');
+  expect(primary).not.toContain('hook inject');
+  expect(primary).not.toContain('hook remove');
+  expect(topic.stdout).toContain('hook inject -> hook enable');
+  const alias = fx(['hook', 'inject', '--help']);
+  expect(alias.status, alias.stderr).toBe(0);
+  expect(alias.stdout).toContain('Use fx hook enable for this operation.');
+  const typo = fx(['hook', 'injec', '--format', 'json']);
+  expect(typo.status).toBe(2);
+  expect(typo.stderr).not.toContain('Did you mean `fx hook inject`');
+});
+
+it('allows leading global flags on a bare topic and still rejects invalid values', () => {
+  const result = fx(['--quiet', '--format', 'json', 'self']);
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain('self info');
+  for (const argv of [
+    ['--format', 'bogus', 'self'],
+    ['--format', 'json', 'self', '--bogus'],
+  ]) {
+    const invalid = fx(argv);
+    expect(invalid.status).toBe(2);
+    expect(invalid.error().code).toBe('BAD_FLAG');
+  }
+});

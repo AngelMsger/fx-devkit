@@ -82,19 +82,19 @@
         "description": "Environments: list, show, pick"
       },
       "agent": {
-        "description": "Coding agents: list, pick the ones fx projects Skills into"
+        "description": "Coding agents: discover, select globally, inspect workspace Skills"
       },
       "skill": {
-        "description": "Skills: the team Skills and fx's own, with their state in each agent"
+        "description": "Bundled fx companion Skill: install, inspect and remove without a workspace"
       },
       "tool": {
-        "description": "Companion tools: list, show, install, update"
+        "description": "Companion tools: definitions, installation, inventory and history"
       },
       "member": {
         "description": "People: list them, show who a name refers to"
       },
       "manifest": {
-        "description": "The manifest: validate, lint, explain, edit, render its AGENTS.md, import a directory"
+        "description": "Shared manifest: validate, explain, edit repository fields and record probe evidence"
       },
       "config": {
         "description": "Personal settings in ~/.fx/config.yaml, and carrying them to another machine"
@@ -103,7 +103,7 @@
         "description": "The fx tool itself: info, update"
       },
       "hook": {
-        "description": "Workspace lifecycle hooks: inspect, enable and remove managed entries"
+        "description": "Workspace lifecycle hooks: inspect, enable and disable"
       },
       "mcp": {
         "description": "Workspace MCP resources, projections and readiness"

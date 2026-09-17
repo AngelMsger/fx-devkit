@@ -110,6 +110,36 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 `tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
+工具定义由内置基线与所选工作区的 `tools.yaml` 合并。工作区优先级为 `--workspace`、`FX_WORKSPACE`、当前目录所属的已注册工作区、`default_workspace`；无法确定工作区时仅使用内置基线。包管理器决定安装位置，工具由多个工作区共享。
+
+`tool install` 和 `tool update` 必须指定名称或 `--all`，两者互斥。安装的 `--all` 补齐已启用且 PATH 缺失的工具；更新的 `--all` 选择当前工具表中全部已启用工具。显式名称可以选择被禁用的工具。无参数调用会在执行包操作前报错。
+
+### 工具安装历史 {#tool-installation-history}
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool inventory --format json
+```
+
+`init`、`tool install` 和 `tool update` 将尝试保存到 `$FX_HOME/tool-history.json`（默认 `~/.fx/tool-history.json`）。每次尝试有 `started`、可选的 `installed` 和 `finished` 检查点，包含工作区、包管理器与包名、脱敏安装命令、退出码、版本和操作前后的程序路径。`installed` 表示包管理器成功退出，即使之后版本验证失败；单独的 `started` 不证明执行成功。dry-run、手动安装说明及 init 跳过的已有工具不产生记录。历史属于本机操作证据，不随配置导出。
+
+`tool inventory` 的 `installation_origin` 与 `tool list/show` 展示的工具定义来源分别表达不同事实：
+
+| installation_origin | 证据                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| `fx`                | fx 成功安装此前不存在的程序，当前路径仍与记录匹配。                      |
+| `external`          | 已知程序在 fx 安装记录之外已经存在；后来由 fx 更新或重装，仍保留此来源。 |
+| `unknown`           | 旧记录、未完成操作或变化／缺失的路径无法确认当前来源。                   |
+
+`external` 不确定具体安装者，可能是用户或其他管理器。PATH 观察不能证明历史所有权，也不能识别外部在同一路径替换程序。v1 历史仍可读取，新操作写入 v2；旧记录缺少的来源证据保持未知。新版记录不保证可被旧版 fx 读取。
+
+清单包含内置定义、已注册工作区本地 manifest 中的已知工具，以及定义移除后保留在历史中的包。没有记录的 PATH 程序显示 `recorded: false`；包管理器、包名、版本及操作字段为 null，不进行猜测。查询不会补写安装凭据或接管已有程序。
+
+依赖检查覆盖同一 FX_HOME 下**全部已注册工作区**，包括启用的可选工具与内置默认项。任一工作区需要相同程序或包管理器／包时保持 `required`。禁用内置工具使用 `enabled: false`，删除覆盖项会恢复默认值。只有来源为 `fx`、执行证据完整、程序路径匹配且所有工作区都不再需要的安装，才可成为 `unused`。外部工具和未知来源不会收到卸载建议。`sync` 输出 `TOOL_UNUSED` 和 `stage_details.tools.installations`，`doctor` 增加提示；均不执行卸载。
+
+无法读取或含隔离条目的 manifest、执行证据不完整时为 `unknown`；从未成功的尝试为 `unverified`。程序缺失为 `not_on_path`，路径变化为 `changed`，有工作区外操作记录时为 `unscoped`。这些状态不建议卸载。检查只读取本地 manifest，不刷新远端；其他 FX_HOME 和未注册项目不在依赖覆盖范围内。无效历史文件会在执行前阻止新的包操作，应保留并修复后重试。
+
 ### fx 伴生 Skill 与团队 Skill
 
 fx 伴生 Skill 用于引导 Agent 使用 CLI、初始化工作区和恢复就绪状态。初始化前即可执行：
@@ -128,11 +158,11 @@ fx skill show
 
 `status` 分别报告安装状态、版本匹配和 `FX_SKILL_LOADED=1` 加载握手。安装成功不等于 Agent 已加载。`path` 查询安装目标，`self info` 提供包内源路径。`show` 在所有输出格式下都输出 SKILL.md 原文。Skill 命令仅做本地操作，不检查在线更新、不刷新 manifest、不调用配套安装器或登录探测。非 TTY 的业务命令会在未加载 Skill 时向 stderr 输出结构化发现提示；setup 和 Skill 命令保持安静。`FX_SKILL_NOTICE=0` 可关闭提示。
 
-团队 Skill 保存在 manifest 的 `skills/`，由 `init/sync` 链接到所选 Agent 的 Project Skill 目录，Windows 使用 junction。工作区根 AGENTS.md 还列出每个 Skill 的触发说明和源文件链接，供 Agent 按任务读取。请从工作区根启动 Agent；不承诺子仓库内启动时能发现。`skill list` 检查工作区分发，`sync --only docs,skills` 刷新指南和 Skill。不要经团队共享链接安装 fx 伴生 Skill；CLI 会返回 `SKILL_SOURCE_PROTECTED`。请使用用户级安装或独立目录。
+团队 Skill 保存在 manifest 的 `skills/`，由 `init/sync` 链接到所选 Agent 的 Project Skill 目录，Windows 使用 junction。工作区根 AGENTS.md 还列出每个 Skill 的触发说明和源文件链接，供 Agent 按任务读取。请从工作区根启动 Agent；不承诺子仓库内启动时能发现。`agent skills` 检查工作区分发，`sync --only docs,skills` 刷新指南和 Skill。不要经团队共享链接安装 fx 伴生 Skill；CLI 会返回 `SKILL_SOURCE_PROTECTED`。请使用用户级安装或独立目录。
 
 harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环境变量引用。`mcp list/show` 和 `can mcp:<name>` 说明前置条件；配置正确不证明宿主已激活。见 [MCP 契约](user-guide.md#for-coding-agents)。
 
-工作区启动钩子可以返回缓存上下文，并后台刷新 manifest、文档和 Skill；不会同步业务仓库或确认信任。宿主仍控制项目与钩子信任。用 `hook list/inject/remove` 管理，见[生命周期契约](user-guide.md#for-coding-agents)。
+工作区启动钩子可以返回缓存上下文，并后台刷新 manifest、文档和 Skill；不会同步业务仓库或确认信任。宿主仍控制项目与钩子信任。用 `hook list/enable/disable` 管理，见[生命周期契约](user-guide.md#for-coding-agents)。
 
 ### 贡献共享知识
 
@@ -140,18 +170,26 @@ harness 向所选宿主投射 MCP 条目和规则指针，秘密值保持为环�
 
 ## 常用命令 {#commands}
 
-| 意图                   | 命令                                                                               |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| 创建、同步和检查工作区 | `init`、`sync`、`status`                                                           |
-| 设置访问并检查就绪     | `login`、`doctor`、`can`                                                           |
-| 查询环境坐标与发布证据 | `where`、`release`                                                                 |
-| 管理仓库               | `repo list/show/pick/unpick/add/remove/fork/open`                                  |
-| 管理环境与 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                              |
-| 管理工具和 Skill       | `tool list/show/install/update`、`skill list`                                      |
-| 管理共享来源           | `manifest validate/lint/explain/schema/providers/set/render/import`、`source push` |
-| 查询成员与配置         | `member list/show`、`config list/get/set/unset/export/import`                      |
-| 检查宿主资源           | `hook list/inject/remove`、`mcp list/show`                                         |
-| CLI 信息与更新         | `self info/update`、`completion`                                                   |
+主题帮助优先展示主命令，并单独列出兼容映射。命令名补全和拼写建议使用主名称；已输入旧名称后仍能补全参数。根帮助和主题帮助均接受放在前面的全局参数。
+
+`manifest validate/lint/providers/repo-set/render` 优先使用显式 `--workspace` 或 `FX_WORKSPACE`，即使当前目录位于另一份源 checkout 内。未知的显式名称会报错，不会退回修改附近的 manifest。未显式选择时，仍优先使用当前目录附近的源 checkout，支持独立维护。`manifest import <dir>` 保留目录参数语义，`manifest record-probe` 使用所选已注册工作区。所有文件输出参数支持 `-o` 和 `--out`，包括 render。
+
+`agent skills` 检查工作区 Skill 分发；`skill install/show/path/status/uninstall` 独立管理内置伴生 Skill。`manifest repo-set` 修改仓库字段，`manifest record-probe <repo> --env <env> --platform <platform>` 写回已验证的坐标证据，`--dry-run` 仅生成计划且不探测。`where` 用于查询。兼容入口 `skill list`、`tool installed`、`hook inject/remove`、`manifest set` 和 `where --probe --record` 继续可用。
+
+集合参数（如 `--only`、可重复的 `--env` 和 `--agent`）支持重复传入或逗号分隔。Agent 选择跨工作区，结果包含 `scope: global` 与 `affected_workspaces`；仓库／环境选择返回 `scope: workspace` 与 `workspace`。清单和历史覆盖整个 FX_HOME，即使传入 `--workspace` 也一样。补全识别参数值、位置参数和否定选项，升级后需重新生成补全脚本。根帮助接受全局参数；帮助、补全、`skill show` 和 `manifest schema` 保持其原生文本／文件格式。
+
+| 意图                   | 命令                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| 创建、同步和检查工作区 | `init`、`sync`、`status`                                                                             |
+| 设置访问并检查就绪     | `login`、`doctor`、`can`                                                                             |
+| 查询环境坐标与发布证据 | `where`、`release`                                                                                   |
+| 管理仓库               | `repo list/show/pick/unpick/add/remove/fork/open`                                                    |
+| 管理环境与 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                                                |
+| 管理工具和 Skill       | `tool list/show/install/update/history/inventory`、`agent skills`                                    |
+| 管理共享来源           | `manifest validate/lint/explain/schema/providers/repo-set/record-probe/render/import`、`source push` |
+| 查询成员与配置         | `member list/show`、`config list/get/set/unset/export/import`                                        |
+| 检查宿主资源           | `hook list/enable/disable`、`mcp list/show`                                                          |
+| CLI 信息与更新         | `self info/update`、`completion`                                                                     |
 
 完整语法以 `--help` 和[生成的 CLI 参考](cli/README.md)为准。
 

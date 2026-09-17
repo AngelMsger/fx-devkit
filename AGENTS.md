@@ -71,7 +71,9 @@ not provider-specific application branches.
   Unknown commands, config keys and resource selectors offer nearest matches.
 - Resolve settings as explicit flag > environment > file > default. Effective
   configuration and `--explain` must describe that same invocation. Keep parser
-  metadata, routing, completion and generated help consistent.
+  metadata, routing, completion and generated help consistent. Register compatibility
+  names in the alias map; primary discovery uses canonical commands, while typed
+  aliases retain execution and flag completion.
 - Every write has `--dry-run`: build its plan first, then gate actual effects
   through `assertWritable`. Preserve `read_only` / `FX_READ_ONLY` and the explicit
   one-invocation `--allow-writes` override. Reads are not write-gated.
@@ -108,6 +110,12 @@ own branches and histories.
   Existing installations are preserved; ordinary sync and lifecycle hooks never install packages.
   `repo remove` removes a reference, not files. Import reads checkouts and writes
   only to an explicit output outside the imported directory.
+- Companion package operations persist immutable checkpoints in the personal tool
+  history ledger before execution and after outcomes. Keep audit failures visible;
+  reconcile all registered manifests before suggesting manual removal. Sync and
+  doctor never uninstall packages or adopt unrecorded PATH tools. Keep installation
+  origin separate from definition provenance; updating external tools never transfers
+  ownership. Legacy evidence remains unknown rather than inferred.
 - Only marked guides, owned Skill links/copies and receipted host resources are
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery

@@ -1,6 +1,7 @@
-import { Args } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
-import { ToolInstall } from '../../../application/tool/install.js';
+import { assertToolSelection } from '../../../application/tool/select.js';
+import { toolInstall } from '../../../composition/tool-install.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
@@ -11,22 +12,26 @@ export default class ToolUpdateCommand extends FxCommand {
   static override args = {
     tool: Args.string({
       ignoreStdin: true,
-      description: 'tool name(s); default: every enabled tool',
+      description: 'tool name(s); required unless --all is given',
     }),
   };
-  static override flags = { 'dry-run': dryRunFlag };
+  static override flags = {
+    all: Flags.boolean({
+      default: false,
+      description: 'every enabled tool in the selected toolchain',
+    }),
+    'dry-run': dryRunFlag,
+  };
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(ToolUpdateCommand);
+    assertToolSelection(argv as string[], flags.all);
     const { tools, workspace } = await this.toolchain();
-    const names =
-      argv.length === 0 ? tools.filter((t) => t.enabled).map((t) => t.name) : (argv as string[]);
-    const results = await new ToolInstall(
-      this.container.installers,
-      this.container.process,
-    ).execute({
+    const names = argv.length === 0 ? undefined : (argv as string[]);
+    const results = await toolInstall(this.container).execute({
       tools,
       names,
+      all: flags.all,
       update: true,
       dryRun: flags['dry-run'],
       posture: this.posture,

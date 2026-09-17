@@ -89,6 +89,39 @@ installation path. npm retains ownership of Registry authentication.
 
 Readiness preserves missing_tool, outdated_tool and disabled_tool separately. Doctor evidence records binary_path from the execution PATH resolver. The Bitbucket status recipe requires configured=true; this verifies configuration, not arbitrary resource permissions. Skill trust failures are blocked tool rows, allowing independent owned projections to proceed. No selected hosts means no companion Skill invocation. User-owned fx copies share a lock and recheck version/ownership before writing; third-party installers retain their own idempotence contracts. Agent detection is distinct from selection; current activity remains unknown. Init emits a prepared installation/Skill plan after source validation and registration, before tools and clones; fresh remote dry-runs defer content-dependent effects.
 
+## Tool installation evidence
+
+All companion package entry points use `ToolInstall` with `ToolAudit`. After write
+and initialization trust gates, persist `started` before invoking the process,
+`installed` immediately after exit zero, and `finished` with the version/path or
+failure code. A probe failure cannot erase package success. No record is written
+for plans, manual instructions or skipped installations. Failure to persist the
+initial checkpoint prevents execution; later failures retain partial command
+results and any earlier durable checkpoint. Process death leaves incomplete
+evidence. The operation ID connects checkpoints; timestamps do not order concurrent
+operations. Store order is authoritative for the latest observed outcome.
+
+`FileToolHistoryStore` reads v1/v2 and writes v2 of the versioned `FX_HOME/tool-history.json` ledger. Its
+append interface retains earlier events through a cross-process lease, private
+file permissions, fsync and atomic replacement. Missing files start empty;
+malformed, unreadable or foreign files are never overwritten. Command URL
+credentials/query components and secret flags are redacted; output bodies are not
+persisted. The file is personal state, absent from exported profiles and shared
+manifests, and does not claim cryptographic tamper resistance or historical backfill.
+
+`ToolInstalled` reads current local workspace/tool documents for every registered
+workspace, without refresh or executing manifest vectors. Enabled declarations
+retain a matching binary or manager/package even under another tool name.
+Unreadable or quarantined toolchains prevent an unused verdict. Any unfinished
+attempt for a package also prevents that verdict, including overlapping attempts.
+Only successful recorded fx-origin package operations with a matching observed binary path
+and no remaining requirements become `unused`; standalone operations, changed or
+missing PATH entries and uncertain outcomes retain separate states. Requirements
+outside this FX_HOME are not known. Sync's tools stage reports inventory and
+`TOOL_UNUSED`; doctor emits advisory findings without adding an uninstall repair.
+History and inventory inspection need no selected workspace or surviving tool
+entry. The owning user contract is [installation history](../user-guide.md#tool-installation-history).
+
 ## Standalone companion lifecycle
 
 `skill install/uninstall/path/status/show` work without WorkspaceDeps. Target flags
@@ -118,3 +151,19 @@ frontmatter. Application reads metadata; domain templates render escaped text.
 Source guides use relative links, derived root guides resolve source locations.
 Existing guides keep their prose and receive a missing-region notice until their
 maintainer adds the markers. Companion installers do not edit AGENTS.md.
+
+## Installation provenance
+
+Definition provenance (`base`/`patch`/`mixed`) and `installation_origin` are independent.
+Before each actual package operation, observe the executable path and persist it
+as `binary_path_before`. A previously absent executable establishes an fx-origin
+candidate, confirmed only by successful execution and a matching post-install path.
+A pre-existing unrecorded executable is external. Updates retain the prior origin;
+legacy or interrupted evidence and changed paths stay unknown. Never infer ownership
+merely from a successful update or backfill missing historical evidence.
+
+Inventory also observes known unrecorded executables without writing receipts;
+those rows have `recorded: false` and null package/operation fields. Existing paths
+cannot reveal the original person/manager or detect same-path external replacement.
+Only confirmed fx-origin records may produce unused-package suggestions. No
+uninstall operation is provided. Tool definitions and requirement merging remain unchanged.

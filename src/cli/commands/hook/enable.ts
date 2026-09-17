@@ -2,14 +2,14 @@ import { manageHooks } from '../../../composition/hooks.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
-export default class HookInjectCommand extends FxCommand {
+export default class HookEnableCommand extends FxCommand {
   static override description =
     'Enable and project lifecycle hooks for the selected agents in this workspace';
-  static override examples = ['<%= config.bin %> hook inject --format json'];
+  static override examples = ['<%= config.bin %> hook enable --format json'];
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(HookInjectCommand);
+    const { flags } = await this.parse(HookEnableCommand);
     const out = await manageHooks({
       container: this.container,
       resolve: this.resolveInput(),

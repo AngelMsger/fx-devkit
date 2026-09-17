@@ -104,3 +104,26 @@ Optional Bitbucket repository/user probes use five-second process deadlines. Rea
 Configuration updates await asynchronous decisions while holding the lease. Init planning and registration both compare real paths, including symlink aliases; registration rechecks current state under that lease.
 
 The executing Skill/package stage owns per-item `status` and partial results. Exceptions stop subsequent execution and retain prior rows. Skill recovery includes separate disk `observed` values because a failed operation may have written already; failed observations remain `unknown`. Package rows preserve the installer exit code even if a later version probe throws (`phase: version`). Sync nests a failing stage's partial result under `stage_details[stage]` without replacing its contents. These additions retain the original error category, code, guidance and exit status.
+
+Canonical resource entries are `agent skills`, `tool inventory`, `hook enable/disable`,
+`manifest repo-set` and `manifest record-probe`; prior spellings remain compatible.
+Standalone `skill` operations keep the oa-cli companion surface. Agent mutations
+report global scope and affected workspaces; repo/env selection reports workspace
+scope. Inventory/history are FX_HOME-wide. Tool installation/update requires either
+names or `--all`; the latter selects missing enabled tools for install and all enabled
+tools for update. Collection flags share repeated/comma-separated syntax. Completion
+uses flag arity, negations and short names to retain routing after option values and
+positionals. Native artifact commands keep their documented raw output exceptions.
+
+Command aliases are explicit registry data. Runtime dispatch accepts them; primary
+help, typo suggestions and command-name completion advertise canonical entries.
+Topic help and generated references carry a separate compatibility mapping, with
+legacy documentation anchors retained. Completion keeps routing and flag metadata
+for already-typed aliases. Root/topic/leaf invocations normalize leading global
+flags consistently while retaining strict rejection of malformed values.
+
+Manifest source inspection and editing respect explicit workspace flags/environment
+before cwd discovery. Unknown explicit selectors fail rather than editing a nearby
+checkout. Without a selector, standalone source maintenance keeps cwd precedence.
+Commands taking a source-independent schema or explicit directory retain those
+contracts. All file-output flags include the `-o` shorthand.

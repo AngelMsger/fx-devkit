@@ -1,17 +1,16 @@
-import { Flags } from '@oclif/core';
-
 import { SkillList } from '../../../application/skill/list.js';
 import { FxCommand } from '../../base.js';
+import { listFlag } from '../../flags.js';
 
-export default class SkillListCommand extends FxCommand {
+export default class AgentSkillsCommand extends FxCommand {
   static override description =
-    'List team Skills and the fx Skill, with their state in each enabled agent';
+    'List workspace team Skills and the bundled fx Skill for selected agents';
   static override flags = {
-    agent: Flags.string({ multiple: true, description: 'only these agent ids' }),
+    agent: listFlag('only these agent ids'),
   };
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(SkillListCommand);
+    const { flags } = await this.parse(AgentSkillsCommand);
     const rows = await new SkillList(await this.workspaceDeps(), this.skillDeps()).execute({
       agents: flags.agent,
     });

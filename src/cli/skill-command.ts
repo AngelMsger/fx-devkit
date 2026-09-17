@@ -5,12 +5,10 @@ import { Flags } from '@oclif/core';
 import { StandaloneSkill } from '../application/skill/standalone.js';
 
 import { FxCommand } from './base.js';
+import { listFlag } from './flags.js';
 
 export const skillTargetFlags = {
-  agent: Flags.string({
-    multiple: true,
-    description: 'target agent ids (repeatable or comma-separated)',
-  }),
+  agent: listFlag('target agent ids'),
   project: Flags.boolean({
     default: false,
     description: 'use agent Skill directories in the current directory instead of the user home',

@@ -153,3 +153,57 @@ describe('fx manifest', () => {
     );
   });
 });
+
+it.each(['flag', 'environment'])(
+  'selects manifest writes by %s before the checkout around cwd',
+  (selector) => {
+    const home = freshHome();
+    const local = workspaceFrom('v2-full');
+    const source = manifestDirOf(home, 'selected');
+    cpSync(path.join(fixtures, 'v2-full'), path.join(source, 'manifest'), { recursive: true });
+    writeFileSync(
+      path.join(home, 'config.yaml'),
+      JSON.stringify({ workspaces: { selected: { root: freshHome() } } }),
+    );
+    const localFile = path.join(local, 'manifest/workspace.yaml');
+    const selectedFile = path.join(source, 'manifest/workspace.yaml');
+    const original = readFileSync(localFile, 'utf8');
+    const selectors = selector === 'flag' ? ['--workspace', 'selected'] : [];
+    const env = { FX_HOME: home, FX_WORKSPACE: selector === 'flag' ? 'missing' : 'selected' };
+    const result = fx(
+      [
+        'manifest',
+        'repo-set',
+        'fx-example-auth',
+        'branch',
+        'release',
+        ...selectors,
+        '--format',
+        'json',
+      ],
+      env,
+      local,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.json()).toMatchObject({ written: true, before: 'main', after: 'release' });
+    expect(readFileSync(localFile, 'utf8')).toBe(original);
+    expect(readFileSync(selectedFile, 'utf8')).toContain('release');
+    const unknown = fx(
+      [
+        'manifest',
+        'repo-set',
+        'fx-example-auth',
+        'branch',
+        'wrong',
+        '--workspace',
+        'missing',
+        '--format',
+        'json',
+      ],
+      env,
+      local,
+    );
+    expect(unknown.error().code).toBe('WORKSPACE_UNKNOWN');
+    expect(readFileSync(localFile, 'utf8')).toBe(original);
+  },
+);

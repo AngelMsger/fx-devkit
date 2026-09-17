@@ -17,7 +17,7 @@ import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, userHome } from './harness.js';
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'fx-init-tools-'));
@@ -106,6 +106,16 @@ describe('manifest opt-in during workspace initialization', () => {
       ['install', '-g', '@example/init-tool@latest'],
     ]);
     expect(existsSync(f.skillReceipt)).toBe(true);
+    const history = fx(['tool', 'history', 'fixture-init-tool', '--format', 'json'], f.env);
+    expect(history.status, history.stderr).toBe(0);
+    expect(history.json()).toMatchObject({
+      items: [
+        { operation: 'init', workspace: 'workspace', event: 'started', code: null },
+        { operation: 'init', event: 'installed', code: 0 },
+        { operation: 'init', event: 'finished', version_after: '1.2.3' },
+      ],
+      has_more: false,
+    });
     const again = fx([...args, '--yes'], f.env);
     expect(again.status, again.stderr).toBe(0);
     expect(again.json()).toMatchObject({ tool_install: [] });
@@ -115,5 +125,88 @@ describe('manifest opt-in during workspace initialization', () => {
     expect(JSON.parse(readFileSync(f.receipt, 'utf8'))).toHaveLength(1);
     // Confirm the harness used its isolated user directory, not a real host Skill path.
     expect(userHome).toContain('fx-user-home-');
+  });
+});
+
+// Fake package operations persist across invocations, including manifest removal.
+describe('tool installation lifecycle', () => {
+  it('records explicit installs and updates and warns after the last manifest requirement disappears', () => {
+    const f = fixture();
+    const boot = fx(['init', f.workspace, '--from', f.source, '--yes', '--format', 'json'], f.env);
+    expect(boot.status, boot.stderr).toBe(0);
+    for (const action of ['install', 'update']) {
+      const result = fx(
+        ['tool', action, 'fixture-init-tool', '--format', 'json'],
+        f.env,
+        f.workspace,
+      );
+      expect(result.status, result.stderr).toBe(0);
+    }
+    const before = readFileSync(path.join(f.env.FX_HOME, 'tool-history.json'), 'utf8');
+    const preview = fx(
+      ['tool', 'update', 'fixture-init-tool', '--dry-run', '--format', 'json'],
+      f.env,
+      f.workspace,
+    );
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(readFileSync(path.join(f.env.FX_HOME, 'tool-history.json'), 'utf8')).toBe(before);
+    const toolsFile = path.join(
+      manifestDirOf(f.env.FX_HOME, 'workspace'),
+      'manifest',
+      'tools.yaml',
+    );
+    writeFileSync(
+      toolsFile,
+      readFileSync(toolsFile, 'utf8').replace(
+        /  - name: fixture-init-tool[\s\S]*$/,
+        '  - {name: fixture-manual, enabled: false, install: [{via: manual}]}\n',
+      ),
+    );
+    const installed = fx(['tool', 'installed', '--format', 'json'], f.env);
+    expect(installed.status, installed.stderr).toBe(0);
+    expect(installed.json()).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'fixture-init-tool',
+          state: 'unused',
+          required_by: [],
+          installation_origin: 'fx',
+        }),
+      ]),
+      has_more: false,
+    });
+    const sync = fx(['sync', '--only', 'tools', '--format', 'json'], f.env, f.workspace);
+    expect(sync.status, sync.stderr).toBe(0);
+    expect(sync.json()).toMatchObject({
+      stage_details: {
+        tools: {
+          installations: expect.arrayContaining([
+            expect.objectContaining({ name: 'fixture-init-tool', state: 'unused' }),
+          ]),
+        },
+      },
+    });
+    expect(sync.stderr).toContain('TOOL_UNUSED');
+    const doctor = fx(['doctor', '--format', 'json'], f.env, f.workspace);
+    expect(doctor.status, doctor.stderr).toBe(0);
+    expect(doctor.json()).toMatchObject({
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          group: 'tools',
+          level: 'warn',
+          evidence: { installation: expect.objectContaining({ state: 'unused' }) },
+        }),
+      ]),
+    });
+    const history = fx(['tool', 'history', 'fixture-init-tool', '--format', 'json'], f.env);
+    expect(history.json()).toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({ operation: 'init', event: 'finished' }),
+        expect.objectContaining({ operation: 'install', event: 'finished' }),
+        expect.objectContaining({ operation: 'update', event: 'finished' }),
+      ]),
+    });
+    expect(JSON.parse(readFileSync(f.receipt, 'utf8'))).toHaveLength(3);
+    expect(readFileSync(path.join(f.env.FX_HOME, 'tool-history.json'), 'utf8')).toBe(before);
   });
 });

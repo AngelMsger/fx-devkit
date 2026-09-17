@@ -8,7 +8,6 @@ import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync.js';
 import { ToolInitialize } from '../application/tool/initialize.js';
-import { ToolInstall } from '../application/tool/install.js';
 import { toolchainOf } from '../application/tool/toolchain.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
@@ -20,6 +19,8 @@ import { skillDeps, workspaceDeps } from './container.js';
 import { harnessDoctor, harnessStage } from './harness-stages.js';
 import type { HarnessCommandInput } from './harness.js';
 import { hookDoctor, hookStage } from './hooks.js';
+import { toolInstall } from './tool-install.js';
+import { toolInventory } from './tool-inventory.js';
 import { updateChecks } from './update.js';
 
 export interface CommandServiceInput extends HarnessCommandInput {
@@ -80,9 +81,7 @@ export class CommandServices {
       workspaceDepsFor: depsFor,
       preview: (ctx) => this.previewInit(ctx, depsFor(ctx)),
       installTools: (ctx) =>
-        new ToolInitialize(
-          new ToolInstall(this.input.container.installers, this.input.container.process),
-        ).execute({
+        new ToolInitialize(toolInstall(this.input.container)).execute({
           tools: toolchainOf(ctx).tools,
           posture: this.input.posture,
           trust: {
@@ -100,7 +99,7 @@ export class CommandServices {
 
   private previewInit(ctx: WorkspaceContext, deps: WorkspaceDeps): Promise<object> {
     return new PreviewInitialization(
-      new ToolInstall(this.input.container.installers, this.input.container.process),
+      toolInstall(this.input.container),
       new SkillStage(deps, skillDeps(this.input.container, this.input.agents)),
     ).execute(ctx, {
       gate: this.input.trust,
@@ -123,6 +122,7 @@ export class CommandServices {
       dryRun,
     };
     return {
+      inventory: toolInventory(this.input.container, this.input.cliVersion),
       mcp: harnessStage({ ...harness, only: 'mcp' }),
       rules: harnessStage({ ...harness, only: 'rules' }),
       hooks: hookStage({

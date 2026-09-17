@@ -110,6 +110,36 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 `tool list/show` は要件を表示し、`tool install/update` は宣言されたインストーラーを使い、`login` は設定を案内します。認証は各ツールの責任です。マニフェストの実行ベクトルには信頼が必要で、変更後は再確認します。手動手順の完了を申告するだけでは検証成功の代わりになりません。
 
+ツール定義は内蔵の基線と選択したワークスペースの `tools.yaml` を統合します。選択順は `--workspace`、`FX_WORKSPACE`、現在のディレクトリを含む登録済みルート、`default_workspace` です。解決できない場合は内蔵定義だけを使います。インストール先はパッケージ管理ツールが決め、複数のワークスペースで共有します。
+
+`tool install` と `tool update` は名前か `--all` のいずれか一方を必須とします。install の `--all` は有効で PATH にないツールを補い、update の `--all` は選択したツールチェーンの有効なツールすべてを対象にします。明示した名前では無効なツールも選べます。引数なしの呼び出しはパッケージ操作前にエラーになります。
+
+### ツールのインストール履歴 {#tool-installation-history}
+
+```sh
+fx tool history --format json
+fx tool history bitbucket-cli --format json
+fx tool inventory --format json
+```
+
+`init`、`tool install`、`tool update` は `$FX_HOME/tool-history.json`（既定は `~/.fx/tool-history.json`）に操作を記録します。各操作には `started`、任意の `installed`、`finished` があり、ワークスペース、パッケージ管理ツールとパッケージ名、機密情報を除去したコマンド、終了コード、バージョン、操作前後の実行ファイルパスを保持します。`installed` はパッケージ管理ツールの正常終了を意味し、その後のバージョン検証失敗でも残ります。`started` だけでは成功を証明しません。dry-run、手動手順、init がスキップした既存ツールは記録しません。履歴はローカルの操作証拠で、設定のエクスポートには含めません。
+
+`tool inventory` の `installation_origin` は、`tool list/show` が表示するツール定義の出所とは別の情報です。
+
+| installation_origin | 証拠                                                                                                                       |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `fx`                | fx がそれまで存在しなかった実行ファイルを正常にインストールし、現在のパスも記録と一致しています。                          |
+| `external`          | fx のインストール記録なしに既知の実行ファイルが存在していました。fx で更新や再インストールをしても、この出所を維持します。 |
+| `unknown`           | 旧履歴、未完了の操作、変更または欠落したパスのため、現在の出所を確認できません。                                           |
+
+`external` はインストールした人物を特定せず、人や別の管理ツールによるものを含みます。PATH の観察は過去の所有権を証明せず、同じパスでの外部置換も検出できません。v1 履歴は引き続き読み取れ、新しい操作は v2 で記録します。旧履歴にない出所の証拠は未知のままです。新しい履歴は旧バージョンの fx での読み取りを保証しません。
+
+一覧には内蔵定義、登録済みワークスペースのローカル manifest にある既知のツールと、定義削除後も履歴に残るパッケージを含めます。未記録の PATH 上のツールは `recorded: false` で、管理ツール、パッケージ、バージョン、操作の各項目は推測せず null にします。参照によってインストール記録を補完したり、既存ファイルを管理対象にしたりしません。
+
+依存の確認は同じ FX_HOME の**登録済みワークスペースすべて**を対象とし、有効な任意ツールと内蔵既定値も含めます。同じ実行ファイル、または同じ管理ツールとパッケージが必要なら `required` のままです。内蔵ツールの無効化には `enabled: false` を使います。上書き項目を削除すると既定値が復活します。`fx` 由来で、操作が完了し、パスが一致し、必要とするワークスペースがない場合だけ `unused` になります。外部ツールや出所不明のツールには削除を提案しません。`sync` は `TOOL_UNUSED` と `stage_details.tools.installations` を返し、`doctor` は参考所見を追加します。どちらもアンインストールしません。
+
+読み取れない manifest、隔離された項目、不完全な実行証拠は `unknown`、成功履歴のない試行は `unverified` です。実行ファイルの欠落は `not_on_path`、パスの変更は `changed`、ワークスペース外での操作履歴は `unscoped` です。これらには削除を提案しません。参照するのはローカル manifest で、リモートを更新しません。別の FX_HOME や未登録プロジェクトは依存確認の対象外です。無効な履歴は新しいパッケージ操作を実行前に止めるため、証拠を保存して修復後に再試行します。
+
 ### fx 同梱 Skill とチーム Skill
 
 fx 同梱 Skill は CLI の操作、ワークスペースの初期化、準備状態の復旧を案内します。初期化前から利用できます。
@@ -128,11 +158,11 @@ fx skill show
 
 `status` はインストール状態、版の一致、`FX_SKILL_LOADED=1` のロード済みハンドシェイクを分けて報告します。インストール成功は Agent のロード成功を意味しません。`path` は配置先、`self info` は同梱ソースの場所を示します。`show` はすべての出力形式で SKILL.md の原文を返します。Skill コマンドはローカル処理のみで、更新の通信、マニフェスト取得、連携インストーラーやログイン確認を実行しません。非 TTY の業務コマンドは未ロード時に構造化した探索通知を stderr に出します。setup と Skill コマンドは通知せず、`FX_SKILL_NOTICE=0` でも無効にできます。
 
-チーム Skill はマニフェストの `skills/` にあり、`init/sync` が選択した Agent のプロジェクトディレクトリへリンクします。Windows では junction を使います。ルート AGENTS.md にも説明とソースへのリンクを列挙し、Agent がタスクに合う Skill を読めるようにします。Agent はワークスペースのルートから起動してください。子リポジトリからの検出は保証しません。`skill list` で配布状態を確認し、`sync --only docs,skills` で更新します。共有チームリンクへの同梱 Skill のインストールは `SKILL_SOURCE_PROTECTED` で拒否します。ユーザー単位または独立ディレクトリを指定してください。
+チーム Skill はマニフェストの `skills/` にあり、`init/sync` が選択した Agent のプロジェクトディレクトリへリンクします。Windows では junction を使います。ルート AGENTS.md にも説明とソースへのリンクを列挙し、Agent がタスクに合う Skill を読めるようにします。Agent はワークスペースのルートから起動してください。子リポジトリからの検出は保証しません。`agent skills` で配布状態を確認し、`sync --only docs,skills` で更新します。共有チームリンクへの同梱 Skill のインストールは `SKILL_SOURCE_PROTECTED` で拒否します。ユーザー単位または独立ディレクトリを指定してください。
 
 harness は MCP エントリーとルールへの参照をホストに投影します。秘密の値は環境変数への参照に留めます。`mcp list/show` と `can mcp:<name>` は前提条件を説明しますが、設定の存在だけではホストでの有効化を証明できません。[MCP の契約](user-guide.md#for-coding-agents)を参照してください。
 
-起動フックはキャッシュ済みコンテキストを返し、マニフェスト、文書、Skill をバックグラウンドで更新できます。業務リポジトリの同期や信頼の承認はしません。プロジェクトとフックの信頼はホストが管理します。`hook list/inject/remove` と[ライフサイクルの契約](user-guide.md#for-coding-agents)を使用してください。
+起動フックはキャッシュ済みコンテキストを返し、マニフェスト、文書、Skill をバックグラウンドで更新できます。業務リポジトリの同期や信頼の承認はしません。プロジェクトとフックの信頼はホストが管理します。`hook list/enable/disable` と[ライフサイクルの契約](user-guide.md#for-coding-agents)を使用してください。
 
 ### 共有情報への貢献
 
@@ -140,18 +170,26 @@ harness は MCP エントリーとルールへの参照をホストに投影し�
 
 ## 主なコマンド {#commands}
 
-| 目的                   | コマンド                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| 作成、同期、状態確認   | `init`、`sync`、`status`                                                           |
-| アクセス設定と準備状態 | `login`、`doctor`、`can`                                                           |
-| 座標とリリースの根拠   | `where`、`release`                                                                 |
-| リポジトリ管理         | `repo list/show/pick/unpick/add/remove/fork/open`                                  |
-| 環境とエージェント     | `env list/show/pick/unpick`、`agent list/pick/unpick`                              |
-| ツールと Skill         | `tool list/show/install/update`、`skill list`                                      |
-| 共有ソース管理         | `manifest validate/lint/explain/schema/providers/set/render/import`、`source push` |
-| メンバーと設定         | `member list/show`、`config list/get/set/unset/export/import`                      |
-| ホストのリソース       | `hook list/inject/remove`、`mcp list/show`                                         |
-| CLI 自体の管理         | `self info/update`、`completion`                                                   |
+トピックのヘルプは正規コマンドを優先し、互換名との対応を別に表示します。コマンド名の補完と綴りの候補は正規名を使い、入力済みの互換名でもフラグを補完できます。ルートとトピックのヘルプは先頭のグローバルフラグも受け付けます。
+
+`manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
+
+`agent skills` はワークスペースの Skill 配布を確認し、`skill install/show/path/status/uninstall` は内蔵 companion Skill を独立して管理します。`manifest repo-set` はリポジトリのフィールドを変更します。`manifest record-probe <repo> --env <env> --platform <platform>` は検証済み座標の証拠を記録し、`--dry-run` はプローブせず計画だけを返します。座標の参照は `where` を使います。互換入口の `skill list`、`tool installed`、`hook inject/remove`、`manifest set`、`where --probe --record` も引き続き利用できます。
+
+集合フラグの `--only`、繰り返し可能な `--env`、`--agent` は反復指定とカンマ区切りに対応します。Agent の選択結果は `scope: global` と `affected_workspaces`、リポジトリ／環境の選択は `scope: workspace` と `workspace` を返します。一覧と履歴は `--workspace` を指定しても FX_HOME 全体を対象にします。補完はオプション値、位置引数、否定フラグを認識するため、更新後は補完スクリプトを再生成してください。ルートヘルプはグローバルフラグを受け付けますが、ヘルプ、補完、`skill show`、`manifest schema` は本来のテキスト／成果物形式を返します。
+
+| 目的                   | コマンド                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| 作成、同期、状態確認   | `init`、`sync`、`status`                                                                             |
+| アクセス設定と準備状態 | `login`、`doctor`、`can`                                                                             |
+| 座標とリリースの根拠   | `where`、`release`                                                                                   |
+| リポジトリ管理         | `repo list/show/pick/unpick/add/remove/fork/open`                                                    |
+| 環境とエージェント     | `env list/show/pick/unpick`、`agent list/pick/unpick`                                                |
+| ツールと Skill         | `tool list/show/install/update/history/inventory`、`agent skills`                                    |
+| 共有ソース管理         | `manifest validate/lint/explain/schema/providers/repo-set/record-probe/render/import`、`source push` |
+| メンバーと設定         | `member list/show`、`config list/get/set/unset/export/import`                                        |
+| ホストのリソース       | `hook list/enable/disable`、`mcp list/show`                                                          |
+| CLI 自体の管理         | `self info/update`、`completion`                                                                     |
 
 正確な構文は `--help` と[生成された CLI リファレンス](cli/README.md)が基準です。
 

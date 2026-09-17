@@ -1,7 +1,9 @@
 import { Flags } from '@oclif/core';
 
 import { Doctor } from '../../application/doctor/index.js';
+import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
+import { listFlag } from '../flags.js';
 import { DOCTOR_CODES, reportNotice } from '../notices.js';
 
 export default class DoctorCommand extends FxCommand {
@@ -14,8 +16,8 @@ export default class DoctorCommand extends FxCommand {
   ];
   static override flags = {
     fix: Flags.boolean({ description: 'apply the fixes fx can make itself' }),
-    env: Flags.string({ multiple: true, description: 'only these environments (login checks)' }),
-    tool: Flags.string({ multiple: true, description: 'only these tools (tool and login checks)' }),
+    env: listFlag('only these environments (login checks)'),
+    tool: listFlag('only these tools (tool and login checks)'),
     'dry-run': Flags.boolean({
       dependsOn: ['fix'],
       description: 'print the fix plan instead of applying it',
@@ -27,6 +29,7 @@ export default class DoctorCommand extends FxCommand {
     const deps = await this.workspaceDeps();
     const report = await new Doctor(deps, {
       extensions: this.hookDoctorChecks(),
+      inventory: toolInventory(this.container, this.config.version),
       login: this.loginDeps(),
       skills: this.skillDeps(),
       bundledTools: this.container.bundledTools,
