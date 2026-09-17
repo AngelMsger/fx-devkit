@@ -413,6 +413,15 @@ describe('Login', () => {
     expect(quiet.prompter.questions).toEqual([]);
   });
 
+  it('keeps dynamic all when guided environment selection is left empty', async () => {
+    const s = await stage({ local: {} });
+    s.loggedIn = true;
+    s.prompter.answers = [''];
+    await s.setup.execute({ ...run, tools: ['kubectl'], skipManual: true });
+    expect((await s.h.localStore.read('fx')).scope?.envs).toBeUndefined();
+    expect(s.h.localStore.writes).toEqual([]);
+  });
+
   it('respects read-only posture after verifying', async () => {
     const s = await stage();
     await expect(

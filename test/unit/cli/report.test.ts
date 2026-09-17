@@ -60,6 +60,16 @@ const report = {
 };
 
 describe('workflow JSON summaries', () => {
+  it('retains initialization plans in the default view, including normal planned installs', () => {
+    const output = render();
+    const plan = {
+      repositories: [{ name: 'api', action: 'clone' }],
+      resources: { tools: [{ name: 'tool', action: 'install_if_missing', scope: 'global' }] },
+    };
+    output.renderer.record({ operation: 'preview', plan, written: false });
+    expect(JSON.parse(output.out())).toMatchObject({ plan, omitted: {} });
+  });
+
   it('cuts a 70-unpicked report by 70% without losing protected work, stages or exact recovery', () => {
     const summary = render();
     const details = render({ details: true });

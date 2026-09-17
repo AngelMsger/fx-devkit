@@ -90,3 +90,46 @@ describe('env pick / unpick', () => {
     });
   });
 });
+
+describe('environment selection modes', () => {
+  it('restores a missing scope key without altering repository selection', async () => {
+    const h = await harness({
+      workspace: fixture('workspace.yaml'),
+      files,
+      local: { scope: { repos: ['fx-example-api'], envs: ['test'] } },
+    });
+    expect(await editEnvScope(h.deps, { names: [], ...write }, 'all')).toMatchObject({
+      before_mode: 'explicit',
+      mode: 'all',
+      after: null,
+      written: true,
+    });
+    expect((await h.localStore.read('fx')).scope).toEqual({ repos: ['fx-example-api'] });
+    expect(await editEnvScope(h.deps, { names: [], ...write }, 'none')).toMatchObject({
+      mode: 'none',
+      after: [],
+    });
+    expect(
+      await editEnvScope(h.deps, { names: ['test', 'test'], ...write }, 'replace'),
+    ).toMatchObject({ mode: 'explicit', after: ['test'] });
+  });
+
+  it('rejects contradictory or unknown input and respects readonly posture', async () => {
+    const h = await harness({ workspace: fixture('workspace.yaml'), files });
+    for (const operation of ['all', 'none'] as const)
+      await expect(
+        editEnvScope(h.deps, { names: ['test'], ...write }, operation),
+      ).rejects.toMatchObject({ code: 'INPUT_INVALID' });
+    await expect(
+      editEnvScope(h.deps, { names: ['missing'], ...write }, 'replace'),
+    ).rejects.toMatchObject({ code: 'ENV_NOT_FOUND' });
+    await expect(
+      editEnvScope(
+        h.deps,
+        { names: ['test'], dryRun: false, posture: { readOnly: true, source: 'env' } },
+        'replace',
+      ),
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect((await h.localStore.read('fx')).scope).toBeUndefined();
+  });
+});

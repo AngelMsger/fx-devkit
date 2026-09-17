@@ -23,6 +23,6 @@ export async function manifestSourceFor(
   if (isRepositoryUrl(spec)) return new GitRepoSource(spec, container.process, container.git);
   const dir = path.resolve(spec);
   if (await container.fs.exists(path.join(dir, '.git')))
-    return new GitRepoSource(dir, container.process, container.git);
+    return new GitRepoSource(dir, container.process, container.git, dir);
   return new FileSource(dir, container.fs, replace);
 }

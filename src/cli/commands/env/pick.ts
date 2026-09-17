@@ -6,7 +6,7 @@ import { dryRunFlag } from '../../flags.js';
 
 export default class EnvPickCommand extends FxCommand {
   static override description =
-    'Select the environments this machine uses; login, doctor and can expand only these';
+    'Add shared environments to the current selection; already-all is unchanged. Use env select to replace it.';
   static override examples = ['<%= config.bin %> env pick dev test'];
   static override strict = false;
   static override args = {

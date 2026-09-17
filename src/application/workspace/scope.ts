@@ -1,19 +1,25 @@
-// Editing one list of the personal layer's scope (repos or envs). "All"
-// (the key absent) and an explicit list are different things: picking under
-// "all" changes nothing, unpicking under "all" has to spell the list out
-// first, and an explicit list stays explicit.
+// Edit repository and environment scope while preserving dynamic all and explicit selections.
 
-import type { DevkitError } from '../../domain/errors.js';
+import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
+import { shellLine } from '../../domain/shell.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import type { WorkspaceDeps } from './deps.js';
+
+export type ScopeOperation = 'pick' | 'unpick' | 'replace' | 'all' | 'none';
+export type ScopeMode = 'all' | 'explicit' | 'none';
+
+export function scopeMode(names: readonly string[] | null | undefined): ScopeMode {
+  if (names === null || names === undefined) return 'all';
+  return names.length === 0 ? 'none' : 'explicit';
+}
 
 export type ScopeKey = 'repos' | 'envs';
 
 export interface ScopeEdit {
   readonly key: ScopeKey;
-  readonly operation: 'pick' | 'unpick';
+  readonly operation: ScopeOperation;
   readonly universe: readonly string[];
   readonly names: readonly string[];
   readonly dryRun: boolean;
@@ -27,12 +33,25 @@ export interface ScopeOutput {
   readonly path: string;
   readonly before: readonly string[] | null;
   readonly after: readonly string[] | null;
+  readonly before_mode: ScopeMode;
+  readonly mode: ScopeMode;
+  readonly next_steps: readonly string[];
   readonly changed: boolean;
   readonly written: boolean;
   readonly reason?: string;
 }
 
 export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<ScopeOutput> {
+  if ((edit.operation === 'all' || edit.operation === 'none') && edit.names.length > 0)
+    throw new DevkitError(
+      'usage',
+      'INPUT_INVALID',
+      'Names cannot be combined with --all or --none',
+    );
+  if (edit.operation === 'replace' && edit.names.length === 0)
+    throw new DevkitError('usage', 'INPUT_REQUIRED', 'Select names, --all, or --none', {
+      nextSteps: [`fx ${edit.key === 'repos' ? 'repo' : 'env'} select --help`],
+    });
   for (const name of edit.names) if (!edit.universe.includes(name)) throw edit.notFound(name);
   const local = await deps.localStore.read(deps.ctx.name);
   const before = local.scope?.[edit.key] ?? null;
@@ -43,16 +62,29 @@ export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<S
     path: deps.localStore.path(deps.ctx.name),
     before,
     after: next.after,
+    before_mode: scopeMode(before),
+    mode: scopeMode(next.after),
+    next_steps: [
+      shellLine(
+        [
+          'fx',
+          ...(edit.key === 'repos' ? ['sync'] : ['env', 'list']),
+          '--workspace',
+          deps.ctx.name,
+        ],
+        deps.commandShell,
+      ),
+    ],
     changed: next.changed,
     written: false,
     ...(next.reason === undefined ? {} : { reason: next.reason }),
   };
   if (edit.dryRun || !next.changed) return plan;
   assertWritable(edit.posture, `${edit.key} ${edit.operation}`);
-  const layer: LocalLayer = {
-    ...local,
-    scope: { ...local.scope, [edit.key]: [...(next.after ?? [])] },
-  };
+  const scope = { ...local.scope };
+  if (next.after === null) delete scope[edit.key];
+  else scope[edit.key] = [...next.after];
+  const layer: LocalLayer = { ...local, scope };
   await deps.localStore.write(deps.ctx.name, layer);
   return { ...plan, written: true };
 }
@@ -61,6 +93,11 @@ function nextList(
   before: readonly string[] | null,
   edit: ScopeEdit,
 ): { after: readonly string[] | null; changed: boolean; reason?: string } {
+  if (edit.operation === 'all') return { after: null, changed: before !== null };
+  if (edit.operation === 'replace' || edit.operation === 'none') {
+    const after = edit.operation === 'none' ? [] : [...new Set(edit.names)];
+    return { after, changed: JSON.stringify(before) !== JSON.stringify(after) };
+  }
   if (edit.operation === 'pick') {
     if (before === null)
       return {
@@ -68,10 +105,15 @@ function nextList(
         changed: false,
         reason: `every ${edit.key === 'repos' ? 'shared repository' : 'environment'} is already in scope`,
       };
-    const after = [...before, ...edit.names.filter((n) => !before.includes(n))];
+    const after = [...new Set([...before, ...edit.names])];
     return { after, changed: after.length !== before.length };
   }
   const base = before ?? edit.universe;
   const after = base.filter((n) => !edit.names.includes(n));
   return { after, changed: before === null || after.length !== base.length };
+}
+
+export function selectOperation(all: boolean, none: boolean): ScopeOperation {
+  if (all) return 'all';
+  return none ? 'none' : 'replace';
 }

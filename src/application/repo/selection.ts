@@ -5,7 +5,7 @@ import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
-import { editScope, type ScopeOutput } from '../workspace/scope.js';
+import { editScope, type ScopeOperation, type ScopeOutput } from '../workspace/scope.js';
 
 export interface SelectionInput {
   readonly names: readonly string[];
@@ -18,7 +18,7 @@ export type SelectionOutput = ScopeOutput;
 export function editSelection(
   deps: WorkspaceDeps,
   input: SelectionInput,
-  operation: 'pick' | 'unpick',
+  operation: ScopeOperation,
 ): Promise<SelectionOutput> {
   const shared = deps.ctx.manifest.workspace.result.doc.repos.map((r) => r.name);
   return editScope(deps, {

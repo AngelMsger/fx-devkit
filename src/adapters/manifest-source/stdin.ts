@@ -8,7 +8,7 @@ import YAML from 'yaml';
 import { DevkitError } from '../../domain/errors.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import type { FileSystem } from '../../ports/fs.js';
-import type { ManifestSource } from '../../ports/manifest-source.js';
+import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 
 import { FileSource } from './file.js';
@@ -29,6 +29,17 @@ export class StdinSource implements ManifestSource {
     private readonly fs: FileSystem,
     private readonly replace?: ReplaceFiles,
   ) {}
+
+  async inspect(): Promise<ManifestSourceInspection> {
+    const files = this.files();
+    return {
+      root: 'stdin',
+      readText: async (name) => {
+        const file = files.find((item) => item.name === name);
+        return file === undefined ? undefined : Buffer.from(file.bytes).toString('utf8');
+      },
+    };
+  }
 
   async materialize(dir: string): Promise<void> {
     const files = this.files();

@@ -8,10 +8,16 @@ export interface RefreshOutcome {
   readonly reason?: string;
 }
 
+export interface ManifestSourceInspection {
+  readonly root: string;
+  readText(relativePath: string): Promise<string | undefined>;
+}
+
 export interface ManifestSource {
   readonly kind: 'repo' | 'file' | 'stdin';
   // Recorded in ~/.fx/config.yaml so the source can be rebuilt later.
   readonly description: string;
+  inspect?(): Promise<ManifestSourceInspection | undefined>;
   materialize(dir: string): Promise<void>;
   refresh?(dir: string): Promise<RefreshOutcome>;
 }

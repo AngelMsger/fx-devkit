@@ -48,6 +48,17 @@ export class WorkspaceContext {
     return this.context.dir;
   }
 
+  static preview(
+    root: string,
+    name: string,
+    context: ManifestContext,
+    local: LocalLayer,
+  ): WorkspaceContext {
+    const workspace = applyLocal(context.bundle.workspace.result.doc, local);
+    refusePathAliases(root, workspace.repos);
+    return new WorkspaceContext(root, name, context, local, workspace);
+  }
+
   static async locate(input: LocateInput): Promise<WorkspaceContext> {
     const located = await resolveWorkspace(input);
     const context = await loadManifestContext({ ...input, dir: located.manifestDir });

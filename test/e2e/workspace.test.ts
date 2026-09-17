@@ -229,7 +229,7 @@ describe('workspace end to end', () => {
       s.env,
     );
     expect(again.status).toBe(0);
-    expect(again.json()).toMatchObject({ manifest: 'materialized', registered: false });
+    expect(again.json()).toMatchObject({ manifest: 'materialized', registered: true });
   });
 
   it('blocks init under read-only posture and previews under dry-run', () => {

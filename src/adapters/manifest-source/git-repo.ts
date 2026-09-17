@@ -4,7 +4,11 @@ import { realpath } from 'node:fs/promises';
 
 import { DevkitError } from '../../domain/errors.js';
 import type { Git } from '../../ports/git.js';
-import type { ManifestSource, RefreshOutcome } from '../../ports/manifest-source.js';
+import type {
+  ManifestSource,
+  ManifestSourceInspection,
+  RefreshOutcome,
+} from '../../ports/manifest-source.js';
 import type { Process } from '../../ports/process.js';
 
 export class GitRepoSource implements ManifestSource {
@@ -14,10 +18,34 @@ export class GitRepoSource implements ManifestSource {
     private readonly url: string,
     private readonly process: Process,
     private readonly git: Git,
+    private readonly localDirectory?: string,
   ) {}
 
   get description(): string {
     return this.url;
+  }
+
+  async inspect(): Promise<ManifestSourceInspection | undefined> {
+    if (this.localDirectory === undefined) return undefined;
+    const dir = this.localDirectory;
+    return {
+      root: dir,
+      readText: async (file) => {
+        const result = await this.process.run(['git', '-C', dir, 'show', `HEAD:${file}`]);
+        if (result.code === 0) return result.stdout;
+        if (file !== 'manifest/workspace.yaml') return undefined;
+        throw new DevkitError(
+          'config',
+          'MANIFEST_SOURCE_INVALID',
+          'Local Git source has no committed manifest/workspace.yaml',
+          {
+            nextSteps: [
+              'Commit the manifest source before initializing, or use a directory snapshot.',
+            ],
+          },
+        );
+      },
+    };
   }
 
   async materialize(dir: string): Promise<void> {
