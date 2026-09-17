@@ -12,6 +12,7 @@ import {
 } from '../../../../src/domain/import/infer.js';
 import { renderManifest } from '../../../../src/domain/import/render.js';
 import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
+import { refFromUrl } from '../../../../src/domain/workspace/ref.js';
 
 const HOST = 'ssh://git@git.example.com:12345';
 const obs = (over: Partial<RepoObservation>): RepoObservation => ({
@@ -33,6 +34,20 @@ describe('parseGitmodules', () => {
       'd/y': { url: 'ssh://h/p/y.git' },
     });
     expect(parseGitmodules('')).toEqual({});
+  });
+});
+
+describe('file URL coordinates', () => {
+  it.each([
+    ['file:///host/team%20space/api%20source.git', 'team space', 'api source'],
+    ['file:///host/team%2520space/api%2525.git', 'team%20space', 'api%25'],
+    ['/host/team%20space/api%25.git', 'team%20space', 'api%25'],
+  ])('decodes only actual file URL paths: %s', (url, project, name) => {
+    expect(refFromUrl(url)).toEqual({ project, name });
+  });
+  it('retains the encoded host separately from decoded file coordinates', () => {
+    expect(hostOf('file:///host%20root/team%20space/api%25.git')).toBe('file:///host%20root');
+    expect(refFromUrl('file:///host/team%2Fspace/api.git')).toBeUndefined();
   });
 });
 

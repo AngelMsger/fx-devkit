@@ -72,12 +72,14 @@ function fromStatus(status: ToolStatus, activeDependency: boolean): Finding {
     case 'ok':
       return finding('tools', name, 'ok', `${status.installed} installed`);
     case 'disabled':
-      return activeDependency
+      return status.required || activeDependency
         ? finding(
             'tools',
             name,
             status.required ? 'fail' : 'warn',
-            'disabled by the manifest but used by an active provider',
+            status.required
+              ? 'disabled by the manifest but required by the workspace'
+              : 'disabled by the manifest but used by an active provider',
             {
               coverage: 'incomplete',
               fix: `fx tool show ${name}`,

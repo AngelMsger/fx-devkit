@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { workspaceToolScope } from '../../../src/application/tool/scope.js';
 import { checkTools } from '../../../src/application/doctor/tools.js';
 import { TrustGate } from '../../../src/application/safety/trust.js';
+import { workspaceToolScope } from '../../../src/application/tool/scope.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
@@ -77,6 +77,27 @@ describe('doctor tool scope', () => {
       { id: 'bitbucket-cli', level: required ? 'fail' : 'warn', evidence: { required } },
     ]);
   });
+
+  it.each([
+    { active: false, required: true, level: 'fail', coverage: 'incomplete' },
+    { active: false, required: false, level: 'ok', coverage: 'not_applicable' },
+    { active: true, required: true, level: 'fail', coverage: 'incomplete' },
+    { active: true, required: false, level: 'warn', coverage: 'incomplete' },
+  ])(
+    'uses the resolved requirement for disabled tools: %j',
+    async ({ active, required, level, coverage }) => {
+      const h = await harness({
+        workspace: active ? workspace.replace('local-git', 'custom-code-host') : workspace,
+        files: {
+          [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, enabled: false, required: ${required}}]\n`,
+        },
+      });
+      const scope = workspaceToolScope(h.ctx, describeProvider, {});
+      expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+        { id: 'bitbucket-cli', level, coverage, evidence: { required, active_dependency: active } },
+      ]);
+    },
+  );
 
   it('checks required and optional manifest additions without enabling all baseline tools', async () => {
     const h = await harness({

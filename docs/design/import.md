@@ -53,7 +53,9 @@ permissions. Manifest lint reports the resulting gaps.
 
 A code-host provider is emitted only when every imported repository has the same
 verified binding. Local absolute paths and file URLs matching the local-git bare
-repository layout are checked with Git before that provider is selected. Git SSH
+repository layout are checked with Git before that provider is selected. File-URL
+project and repository coordinates are decoded exactly once for filesystem
+queries; literal filesystem paths retain their percent characters. Git SSH
 or HTTPS transport alone does not identify a hosted API provider. Unresolved or
 mixed providers retain every exact upstream URL, omit defaults.host, and carry
 review notes so no implicit Bitbucket binding is activated. Project and branch
@@ -117,6 +119,8 @@ Sync and doctor share the active tool requirement policy. Unused bundled
 companions do not prevent a local Git workspace from being prepared. Tool stage
 rows retain `preparation_required` so optional observations stay visible without
 making preparation incomplete; active default dependencies, explicit required
-tools and install_on_init requests remain prerequisites. An unbound code host is
+tools and install_on_init requests remain prerequisites. A required tool that is
+explicitly disabled remains an incomplete prerequisite in both sync and doctor;
+an optional disabled tool without an active provider is not applicable. An unbound code host is
 reported as an API declaration gap, not a missing installation. Preparation does
 not establish personal login or subsequent remote health.

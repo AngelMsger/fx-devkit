@@ -45,6 +45,7 @@ export function isPersonal(url: string): boolean {
 }
 
 export function hostOf(url: string): string {
+  if (/^file:\/\//i.test(url)) return url.replace(/\/[^/]+\/[^/]+\/?$/, '');
   const ref = refFromUrl(url);
   if (ref === undefined) return url;
   return url.slice(0, url.length - `/${ref.project}/${ref.name}.git`.length);
