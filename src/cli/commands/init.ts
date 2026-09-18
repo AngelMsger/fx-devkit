@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { Init } from '../../application/init.js';
+import { Init } from '../../application/init/index.js';
 import { manifestSourceFor } from '../../composition/manifest-sources.js';
 import { FxCommand } from '../base.js';
 import { detailsFlag, dryRunFlag, jobsFlag, requiredArgument, writeIntent } from '../flags.js';

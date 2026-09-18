@@ -2,7 +2,7 @@
 import type { DoctorExtension } from '../application/doctor/types.js';
 import { harnessDoctor } from '../application/harness/stages.js';
 import { hookDoctor, type HookSession } from '../application/hook/session.js';
-import type { InitDeps } from '../application/init.js';
+import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
 import type { TrustGate } from '../application/safety/trust.js';

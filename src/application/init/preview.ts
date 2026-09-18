@@ -1,20 +1,20 @@
 // Inspect initialization without registration, source materialization, provider commands or global resource writes.
 import path from 'node:path';
 
-import { DevkitError } from '../domain/errors.js';
-import { bindPlatforms, bindProviders } from '../domain/manifest/providers.js';
-import type { LocalLayer } from '../domain/manifest/types.js';
-import type { ManifestSourceInspection } from '../ports/manifest-source.js';
-import type { ConfigFile } from '../ports/stores.js';
+import { DevkitError } from '../../domain/errors.js';
+import { bindPlatforms, bindProviders } from '../../domain/manifest/providers.js';
+import type { LocalLayer } from '../../domain/manifest/types.js';
+import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
+import type { ConfigFile } from '../../ports/stores.js';
+import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
+import { toolsOf } from '../tool/toolchain.js';
+import { planRepositories } from '../workspace/plan.js';
+import { scopeMode } from '../workspace/scope.js';
+import { validateWorkspaceLayer } from '../workspace/validate-layer.js';
+import { WorkspaceContext } from '../workspace-context.js';
 
-import type { InitDeps, InitInput, InitOutput } from './init.js';
-import { LoadManifest, type ManifestBundle } from './manifest/load.js';
-import { sourceValidationError } from './manifest/source-error.js';
-import { toolsOf } from './tool/toolchain.js';
-import { planRepositories } from './workspace/plan.js';
-import { scopeMode } from './workspace/scope.js';
-import { validateWorkspaceLayer } from './workspace/validate-layer.js';
-import { WorkspaceContext } from './workspace-context.js';
+import { initializationSourceError } from './errors.js';
+import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 export async function initialLocalLayer(
   deps: InitDeps,
@@ -161,32 +161,4 @@ export function initialPlan(
       'Effective source contents for this invocation have not been determined. Repository names, selection and resource declarations are unverified. A refresh may preserve the current managed checkout. Inspect a local checkout with --from <directory> --dry-run, or initialize to acquire and validate the remote source before repository cloning.',
     ],
   };
-}
-
-export function initializationSourceError(
-  deps: Pick<InitDeps, 'commandShell'>,
-  input: InitInput,
-  output: Pick<InitOutput, 'name' | 'root'>,
-  inspected: Pick<ManifestSourceInspection, 'root' | 'contents'> | undefined,
-  error: unknown,
-): DevkitError {
-  let selection: string[] = [];
-  if (input.repos !== undefined)
-    selection = input.repos.length === 0 ? ['--no-repos'] : ['--repos', input.repos.join(',')];
-  return sourceValidationError(error, {
-    source: input.source,
-    inspected,
-    commandShell: deps.commandShell,
-    retry: [
-      'fx',
-      'init',
-      output.root,
-      '--name',
-      output.name,
-      '--from',
-      input.source.description,
-      ...selection,
-      '--dry-run',
-    ],
-  });
 }

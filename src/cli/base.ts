@@ -7,7 +7,7 @@ import { Command, Errors } from '@oclif/core';
 
 import { readSettings } from '../application/config/settings.js';
 import type { DoctorExtension } from '../application/doctor/types.js';
-import type { InitDeps } from '../application/init.js';
+import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
 import { resolveManifestDir } from '../application/manifest/locate.js';
