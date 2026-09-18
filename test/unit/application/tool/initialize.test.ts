@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { TrustGate } from '../../../../src/application/safety/trust.js';
@@ -51,7 +54,53 @@ tools:
   return { process, prompter, input, initialize };
 }
 
+// A workspace that names bundled tools runs fx's own vectors, so the only thing left to
+// approve is the automatic installation itself.
+function bundled() {
+  const loaded = loadTools(
+    readFileSync(path.resolve('defaults/tools.yaml'), 'utf8'),
+    `schema_version: 2
+tools:
+  - { name: jenkins-cli, install_on_init: true }
+  - { name: openobserve-cli, install_on_init: true }
+`,
+    { cliVersion: '1.0.0' },
+  );
+  if (!loaded.valid) throw new Error('fixture patch rejected');
+  const process = new FakeProcess()
+    .on(['npm'], { code: 0, stdout: '', stderr: '' })
+    .when((vector) => vector[1] === '--version', { code: 0, stdout: '99.0.0', stderr: '' });
+  const prompter = new FakePrompter();
+  const posture = { readOnly: false, source: 'default' as const };
+  return {
+    process,
+    prompter,
+    input: {
+      tools: resolveTools(loaded.doc, loaded.provenance, loaded.declared),
+      posture,
+      trust: {
+        gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
+        workspace: 'test',
+        yes: false,
+        posture,
+      },
+    },
+    initialize: new ToolInitialize(
+      new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+    ),
+  };
+}
+
 describe('manifest initialization installs', () => {
+  it('asks once for the whole installation, however many tools it covers', async () => {
+    const s = bundled();
+    const result = await s.initialize.execute(s.input);
+    expect(result.map((item) => item.name)).toEqual(['jenkins-cli', 'openobserve-cli']);
+    expect(s.prompter.questions).toHaveLength(1);
+    expect(s.prompter.questions[0]).toContain('@angelmsger/jenkins-cli');
+    expect(s.prompter.questions[0]).toContain('@angelmsger/openobserve-cli');
+  });
+
   it('installs only missing opt-ins after approving the exact installation and probe vectors', async () => {
     const s = setup();
     const result = await s.initialize.execute(s.input);

@@ -108,16 +108,16 @@ export class ToolInstall {
             ],
           },
         );
-      for (const plan of plans) {
-        if (plan.output.vector === null) continue;
-        for (const vector of [plan.output.vector, [plan.tool.binary, ...plan.tool.versionArgs]])
-          await input.trust.gate.ensure({
-            ...input.trust,
-            vector,
-            origin: 'patch',
-            label: `${plan.tool.name} initialization`,
-          });
-      }
+      await input.trust.gate.ensureAll({
+        ...input.trust,
+        vectors: plans.flatMap((plan) =>
+          plan.output.vector === null
+            ? []
+            : [plan.output.vector, [plan.tool.binary, ...plan.tool.versionArgs]],
+        ),
+        origin: 'patch',
+        label: 'workspace initialization',
+      });
     }
     const results: ToolInstallOutput[] = plans.map((plan) => ({
       ...plan.output,
