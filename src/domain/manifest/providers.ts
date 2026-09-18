@@ -58,6 +58,12 @@ export function bindingOf(bindings: readonly Binding[], capability: Capability):
   );
 }
 
+// fx reaches for the code host in several workflows; naming the capability once
+// keeps the word out of the callers that only want the binding.
+export function codeHostBinding(bindings: readonly Binding[]): Binding {
+  return bindingOf(bindings, 'code-host');
+}
+
 export function bindProviders(workspace: Workspace, providers: ProviderCatalog): Binding[] {
   const explicit = workspace.providers ?? {};
   const implied = providers.find((provider) => provider.impliedByDefaultHost);

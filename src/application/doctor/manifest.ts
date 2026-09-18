@@ -4,6 +4,7 @@
 // agents, so missing or stale ones only warn.
 
 import { DevkitError } from '../../domain/errors.js';
+import { codeHostBinding } from '../../domain/manifest/providers.js';
 import { DeriveDocs } from '../docs/derive.js';
 import type { LoginDeps } from '../login/deps.js';
 import { LintManifest } from '../manifest/lint.js';
@@ -131,12 +132,7 @@ async function checkDocs(
 }
 
 function codeHostCoverage(deps: WorkspaceDeps): Finding[] {
-  if (
-    !deps.ctx.bindings.some(
-      (binding) => binding.capability === 'code-host' && binding.provider === null,
-    )
-  )
-    return [];
+  if (codeHostBinding(deps.ctx.bindings).provider !== null) return [];
   return [
     finding(
       'manifest',
