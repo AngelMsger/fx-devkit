@@ -1,6 +1,9 @@
 // oclif's help plus the AGENT USAGE block: the part of the contract an agent needs even
 // when it has loaded no Skill. The root page puts the everyday commands before the
 // topics.
+//
+// oclif constructs this class from the config alone, with no command and so no Renderer;
+// help writes through its own `log`, and is the one stdout channel outside that contract.
 
 import { Help, type Command, type Interfaces } from '@oclif/core';
 
