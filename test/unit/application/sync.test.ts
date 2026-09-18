@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BitbucketCodeHost } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
-import { Sync } from '../../../src/application/sync.js';
+import { Sync } from '../../../src/application/sync/index.js';
 import { DevkitError } from '../../../src/domain/errors.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeGit } from '../../fakes/fake-git.js';

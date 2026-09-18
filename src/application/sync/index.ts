@@ -1,16 +1,16 @@
 // Plan repository updates and aggregate repository and resource-stage outcomes.
 
-import { asDevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
-import { hasPreparationIssue } from '../domain/preparation.js';
-import type { PlanItem } from '../domain/workspace/plan.js';
+import { asDevkitError, toEnvelope, withPartialResult } from '../../domain/errors.js';
+import { hasPreparationIssue } from '../../domain/preparation.js';
+import type { PlanItem } from '../../domain/workspace/plan.js';
+import { pooled } from '../pool.js';
+import { assertWritable } from '../safety/posture.js';
+import { prepareUpstream } from '../workspace/adopt.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
+import { checkoutDir } from '../workspace/inspect.js';
+import { planRepositories } from '../workspace/plan.js';
 
-import { pooled } from './pool.js';
-import { assertWritable } from './safety/posture.js';
-import type { StageSummary, SyncInput, SyncItem, SyncOutput, SyncStage } from './sync/types.js';
-import { prepareUpstream } from './workspace/adopt.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
-import { checkoutDir } from './workspace/inspect.js';
-import { planRepositories } from './workspace/plan.js';
+import type { StageSummary, SyncInput, SyncItem, SyncOutput, SyncStage } from './types.js';
 
 export class Sync {
   constructor(private readonly deps: WorkspaceDeps) {}

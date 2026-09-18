@@ -1,8 +1,8 @@
 import { Flags } from '@oclif/core';
 
+import { Sync } from '../../application/sync/index.js';
 import { syncStageIds } from '../../application/sync/stages.js';
 import { SYNC_COLUMNS } from '../../application/sync/types.js';
-import { Sync } from '../../application/sync.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';

@@ -7,7 +7,7 @@ import { replacementFor } from '../../../src/application/safety/replace-files.js
 import { TrustGate } from '../../../src/application/safety/trust.js';
 import { SkillList } from '../../../src/application/skill/list.js';
 import { SkillStage } from '../../../src/application/skill/stage.js';
-import { Sync } from '../../../src/application/sync.js';
+import { Sync } from '../../../src/application/sync/index.js';
 import { DevkitError } from '../../../src/domain/errors.js';
 import { loadTools } from '../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../src/domain/toolchain/resolve.js';
