@@ -36,7 +36,7 @@ describe('SelfUpdate', () => {
       code: 0,
       reason: null,
     });
-    expect(process.calls[0]?.options.interactive).toBe(true);
+    expect(process.soleCallTo(['npm']).options.interactive).toBe(true);
     expect(prompter.questions).toHaveLength(1);
   });
 

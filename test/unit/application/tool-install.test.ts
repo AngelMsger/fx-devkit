@@ -155,8 +155,8 @@ describe('ToolInstall', () => {
       posture: writable,
     });
     expect(result).toMatchObject({ ran: true, code: 0, version_after: null });
-    expect(s.proc.calls[0]?.options.timeoutMs).toBeUndefined();
-    expect(s.proc.calls[1]?.options.timeoutMs).toBe(5000);
+    expect(s.proc.soleCallTo(['npm']).options.timeoutMs).toBeUndefined();
+    expect(s.proc.soleCallTo(['alpha', '--version']).options.timeoutMs).toBe(5000);
   });
 
   it('uses the first available installer and puts the registry in the vector', async () => {
@@ -184,7 +184,7 @@ describe('ToolInstall', () => {
       code: 0,
       version_after: '9.9.9',
     });
-    expect(s.proc.calls[0]?.vector).toEqual([
+    expect(s.proc.soleCallTo(['npm']).vector).toEqual([
       'npm',
       'install',
       '-g',
@@ -316,7 +316,9 @@ describe('ToolInstall', () => {
         posture: writable,
       });
       expect(result[0]).toMatchObject({ ran: true, code: 1, error, version_after: null });
-      expect(s.proc.calls).toHaveLength(1);
+      expect(s.proc.calledWith(['beta', '--version']), 'no success probe after a failure').toBe(
+        false,
+      );
     },
   );
 

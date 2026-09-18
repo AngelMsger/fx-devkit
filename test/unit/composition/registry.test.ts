@@ -44,7 +44,7 @@ describe('provider registry', () => {
       { ...deps, process },
     );
     await ci.lastBuild({ path: 'team/job' });
-    expect(process.calls[0]?.options.diagnostic).toEqual({
+    expect(process.soleCallTo(['jenkins-cli']).options.diagnostic).toEqual({
       phase: 'jenkins-cli build get',
       capability: 'ci',
       provider: 'jenkins-cli',

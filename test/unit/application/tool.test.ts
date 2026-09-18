@@ -130,6 +130,6 @@ describe('ToolCheck with a trust gate', () => {
       },
     });
     expect(rows[0]?.state).toBe('ok');
-    expect(proc.calls[0]?.vector).toEqual(['alpha', '--ver']);
+    expect(proc.vectors(), 'the untrusted attempt never ran').toEqual([['alpha', '--ver']]);
   });
 });

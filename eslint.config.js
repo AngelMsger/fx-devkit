@@ -106,6 +106,25 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', innerImports(true)] },
   },
   {
+    // A fake records calls so a test can say which ones ran, not in what
+    // position; `vectors()` states that the order itself is the contract.
+    files: ['test/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[computed=true][object.property.name='calls']",
+          message: 'Select a recorded call by its vector, not by its position.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='at'][callee.object.property.name='calls']",
+          message: 'Select a recorded call by its vector, not by its position.',
+        },
+      ],
+    },
+  },
+  {
     files: ['scripts/**/*.mjs'],
     plugins: { 'import-x': importX },
     rules: { 'import-x/order': 'error' },

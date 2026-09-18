@@ -38,7 +38,7 @@ describe('BitbucketCodeHost queries', () => {
       { name: 'dev', sha: 'aaa', default: true },
       { name: 'main', sha: 'bbb', default: false },
     ]);
-    expect(proc.calls[0]?.options.timeoutMs).toBe(15_000);
+    expect(proc.soleCallTo([...BB, 'branch', 'list']).options.timeoutMs).toBe(15_000);
   });
 
   it('compares two refs and turns the epoch-millisecond date into ISO 8601', async () => {
@@ -104,7 +104,7 @@ describe('BitbucketCodeHost queries', () => {
     ];
     const present = new FakeProcess().on(vector, { code: 0, stdout: '1.2.3\n', stderr: '' });
     expect(await host(present).readFile(ref, 'VERSION', 'main')).toBe('1.2.3\n');
-    expect(present.calls[0]?.vector.slice(-2)).toEqual(['--output', '-']);
+    expect(present.soleCallTo(vector).vector.slice(-2)).toEqual(['--output', '-']);
 
     const absent = new FakeProcess().on(vector, fail(6, 'not there'));
     expect(await host(absent).readFile(ref, 'VERSION', 'main')).toBeUndefined();

@@ -188,7 +188,7 @@ describe('Verifier', () => {
 
     const base = plan.steps.find((x) => x.id === 'kubectl.access@dev')!;
     expect((await verifier.verify(base)).ok).toBe(false);
-    expect(s.h.process.calls.at(-1)?.vector).toEqual([
+    expect(s.h.process.soleCallTo(['kubectl']).vector).toEqual([
       'kubectl',
       '--kubeconfig',
       `${HOME}/.kube/dev`,

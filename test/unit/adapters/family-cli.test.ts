@@ -22,7 +22,7 @@ describe('FamilyCli', () => {
   it('passes the timeout and the context through', async () => {
     const proc = new FakeProcess().always({ code: 0, stdout: '{}', stderr: '' });
     await cli(proc, 'work').call(['x'], { timeoutMs: 15_000 });
-    expect(proc.calls[0]?.vector).toEqual([
+    expect(proc.soleCallTo(['tool-cli']).vector).toEqual([
       'tool-cli',
       '--format',
       'json',
@@ -30,7 +30,7 @@ describe('FamilyCli', () => {
       'work',
       'x',
     ]);
-    expect(proc.calls[0]?.options.timeoutMs).toBe(15_000);
+    expect(proc.soleCallTo(['tool-cli']).options.timeoutMs).toBe(15_000);
   });
 
   it('reads the error envelope from stderr after the notices', async () => {

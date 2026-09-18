@@ -105,7 +105,7 @@ describe('SystemGit command vectors', () => {
       origin: 'ssh://o/x.git',
       branch: 'dev',
     });
-    expect(proc.calls.map((c) => c.vector)).toEqual([
+    expect(proc.vectors(), 'clone before the origin remote, in this order').toEqual([
       [
         'git',
         'clone',
@@ -128,7 +128,7 @@ describe('SystemGit command vectors', () => {
     await sut.fetch('/w/x', 'upstream');
     await sut.fastForward('/w/x', 'upstream', 'dev');
     await sut.status('/w/x');
-    const flat = proc.calls.map((c) => c.vector.join(' '));
+    const flat = proc.vectors().map((vector) => vector.join(' '));
     for (const forbidden of ['checkout', 'reset', 'stash', 'rebase', 'pull']) {
       expect(flat.some((v) => v.includes(` ${forbidden}`))).toBe(false);
     }
@@ -237,7 +237,7 @@ describe('SystemGit remote heads', () => {
     proc.always({ code: 128, stdout: '', stderr: 'fatal: could not read from remote' });
     const sys = new SystemGit(proc);
     expect(await sys.askRemoteHead('/w/x', 'upstream', 2000)).toBeUndefined();
-    expect(proc.calls[0]).toMatchObject({
+    expect(proc.soleCallTo(['git', '-C', '/w/x', 'ls-remote'])).toMatchObject({
       vector: ['git', '-C', '/w/x', 'ls-remote', '--quiet', '--symref', 'upstream', 'HEAD'],
       options: { timeoutMs: 2000 },
     });
@@ -261,6 +261,6 @@ describe('SystemGit remote heads', () => {
       sha: 'c'.repeat(40),
       branch: undefined,
     });
-    expect(proc.calls).toHaveLength(2);
+    expect(proc.callsTo(['git', '-C', '/w/x', 'ls-remote'])).toHaveLength(2);
   });
 });
