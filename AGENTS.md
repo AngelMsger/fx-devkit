@@ -194,6 +194,10 @@ Export the minimum; avoid `any`, nested ternaries and policy hidden in factories
 Functions name actions; boolean names state a predicate. Keep implementations
 readable rather than splitting them only to satisfy a line limit.
 
+An error `message` is a headline: it starts with a capital letter, unless it
+starts with an identifier, path, command or flag that keeps its own spelling,
+and it carries no trailing period; `hint` and `next_steps` are sentences and do.
+
 A file begins with a short responsibility/contract paragraph. Command classes
 normally need only their description. Inline comments explain a non-obvious
 constraint, not the neighboring statement or another module's rationale.
