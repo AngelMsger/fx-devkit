@@ -3,6 +3,7 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ConfigSet extends FxCommand {
+  static override announcesSkill = false;
   static override description = 'Set a config key in ~/.fx/config.yaml';
   static override examples = [
     '<%= config.bin %> config set format json',

@@ -3,6 +3,7 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ConfigUnset extends FxCommand {
+  static override announcesSkill = false;
   static override description = 'Remove a config key from ~/.fx/config.yaml';
   static override examples = ['<%= config.bin %> config unset format'];
   static override args = {

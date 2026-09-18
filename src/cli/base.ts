@@ -51,6 +51,10 @@ import { workspaceWriteMode } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
+  // The handshake offers fx's own companion Skill to an agent that has not
+  // loaded it. A command that manages fx itself declares itself out of it,
+  // because its caller is already working on the thing being offered.
+  static announcesSkill = true;
 
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(DEFAULT_FORMAT, processIo());
@@ -69,6 +73,11 @@ export abstract class FxCommand extends Command {
   private updateCheckOn = false;
   private quietOn = false;
   private located: WorkspaceContext | undefined;
+  // One instance each per execution: a second TrustGate would ask again for
+  // approval the first one already holds.
+  private commandServices: CommandServices | undefined;
+  private trust: TrustGate | undefined;
+  private replaceFiles: ReplaceFiles | undefined;
   private operationLease: Lease | undefined;
   private selection: ResolveInput['selection'];
 
@@ -164,9 +173,7 @@ export abstract class FxCommand extends Command {
   // Discovery is local and available before a workspace exists.
   private async handshake(): Promise<void> {
     if (this.skillNoticeSent || this.quietOn || process.stderr.isTTY) return;
-    const topic = this.id?.split(':')[0];
-    if (!topic || ['skill', 'self', 'config', 'login', 'completion', 'hook'].includes(topic))
-      return;
+    if (!(this.constructor as typeof FxCommand).announcesSkill) return;
     this.skillNoticeSent = true;
     const notice = await skillNotice(this.container.fs, this.skillDeps(), {
       format: this.format,
@@ -192,7 +199,7 @@ export abstract class FxCommand extends Command {
   }
 
   private services(): CommandServices {
-    return new CommandServices({
+    this.commandServices ??= new CommandServices({
       commandShell: this.commandShell,
       ...this.harnessInput(),
       reporter: this.reporter,
@@ -201,6 +208,7 @@ export abstract class FxCommand extends Command {
       agents: this.configAgents,
       user: this.user,
     });
+    return this.commandServices;
   }
 
   protected hookDoctorChecks(): DoctorExtension[] {
@@ -221,20 +229,22 @@ export abstract class FxCommand extends Command {
   }
 
   protected replacement(): ReplaceFiles {
-    return replacementFor(
+    this.replaceFiles ??= replacementFor(
       this.container.fs,
       this.container.prompter(this.noInput),
       this.reporter,
       this.yes,
     );
+    return this.replaceFiles;
   }
 
   protected trustGate(): TrustGate {
-    return new TrustGate(
+    this.trust ??= new TrustGate(
       this.container.trust,
       this.container.prompter(this.noInput),
       this.container.clock,
     );
+    return this.trust;
   }
 
   // Tool commands work outside a workspace too, on the bundled baseline.

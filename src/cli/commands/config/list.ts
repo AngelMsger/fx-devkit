@@ -3,6 +3,7 @@ import { FxCommand } from '../../base.js';
 import { configFlagValues } from '../../config-flags.js';
 
 export default class ConfigList extends FxCommand {
+  static override announcesSkill = false;
   static override description = 'List every config key with its effective value and source';
   static override examples = [
     '<%= config.bin %> config list',

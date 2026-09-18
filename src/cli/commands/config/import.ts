@@ -4,6 +4,7 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ConfigImportCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Apply a profile: named settings and personal layers win; workspace registrations merge by name, without relocating, rebinding or removing existing workspaces';
   static override examples = [

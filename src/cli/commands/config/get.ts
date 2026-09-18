@@ -7,6 +7,7 @@ import { configFlagValues } from '../../config-flags.js';
 import { requiredArgument } from '../../flags.js';
 
 export default class ConfigGet extends FxCommand {
+  static override announcesSkill = false;
   static override description = 'Show the effective value of a config key and where it comes from';
   static override examples = ['<%= config.bin %> config get format --explain'];
   static override args = {

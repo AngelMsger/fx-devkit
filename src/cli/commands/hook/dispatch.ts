@@ -5,6 +5,7 @@ import { requiredArgument } from '../../flags.js';
 import { hookMain } from '../../hook-entry.js';
 
 export default class HookDispatchCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Dispatch a host lifecycle event; failures never fail the host session';
   static override hidden = true;

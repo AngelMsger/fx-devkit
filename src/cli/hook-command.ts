@@ -12,6 +12,8 @@ interface DryRunFlag {
 }
 
 export abstract class HookCommand extends FxCommand {
+  static override announcesSkill = false;
+
   protected async reconcile(action: ReconcileInput['action'], dryRun: boolean): Promise<void> {
     const out = await manageHooks({
       container: this.container,

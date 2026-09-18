@@ -26,6 +26,8 @@ export interface SkillTargetFlags {
 }
 
 export abstract class SkillCommand extends FxCommand {
+  static override announcesSkill = false;
+
   protected companionSkill(): StandaloneSkill {
     this.skipUpdateChecks();
     return new StandaloneSkill({

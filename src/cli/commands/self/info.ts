@@ -5,6 +5,7 @@ import { asDevkitError, toEnvelope } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
 
 export default class SelfInfoCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Where this fx is: version, runtime, personal directory, bundled assets, registry, workspace';
   static override examples = ['<%= config.bin %> self info --format json'];
