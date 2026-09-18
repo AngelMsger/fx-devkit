@@ -26,7 +26,7 @@ export interface ImportDeps {
   readonly git: Git;
   readonly fs: FileSystem;
   readonly reporter: Reporter;
-  readonly codeHost: (host: string) => CodeHost | undefined;
+  readonly codeHost: (host: string) => Promise<CodeHost | undefined>;
   readonly identifyProvider?: (upstream: string) => Promise<ImportProvider | undefined>;
 }
 
@@ -229,7 +229,7 @@ export class Import {
   ): Promise<Map<string, boolean>> {
     const answers = new Map<string, boolean>();
     for (const obs of later) {
-      const codeHost = this.deps.codeHost(hostOf(obs.remotes['origin'] ?? ''));
+      const codeHost = await this.deps.codeHost(hostOf(obs.remotes['origin'] ?? ''));
       for (const project of seen) {
         const key = `${project}/${obs.name}`;
         if (answers.has(key) || codeHost === undefined) continue;

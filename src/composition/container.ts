@@ -1,7 +1,6 @@
 // The one place that sees every layer: it picks concrete implementations
 // for the ports and hands them to command wiring.
 
-import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -171,18 +170,18 @@ export function workspaceDeps(
   };
 }
 
-// Import can resolve local Git hosts before a workspace exists; remote hosts need verified bindings.
-export function codeHostFor(container: Container, host: string): CodeHost | undefined {
-  if (!path.isAbsolute(host) || !existsSync(host)) return undefined;
-  const provider = 'local-git';
-  try {
-    return resolveProvider<CodeHost>(
-      { capability: 'code-host', provider, source: 'default', vars: { host } },
-      { process: container.process, fs: container.fs, clock: container.clock },
-    );
-  } catch {
-    return undefined;
-  }
+// Import can resolve local Git hosts before a workspace exists; remote hosts need verified
+// bindings. Only a host that is not an existing absolute path is "no code host"; a provider
+// that refuses to resolve is a configuration failure the caller must see.
+export async function codeHostFor(
+  container: Container,
+  host: string,
+): Promise<CodeHost | undefined> {
+  if (!path.isAbsolute(host) || !(await container.fs.exists(host))) return undefined;
+  return resolveProvider<CodeHost>(
+    { capability: 'code-host', provider: 'local-git', source: 'default', vars: { host } },
+    { process: container.process, fs: container.fs, clock: container.clock },
+  );
 }
 
 export function skillDeps(
