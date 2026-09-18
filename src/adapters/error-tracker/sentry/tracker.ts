@@ -7,7 +7,7 @@ import type { Coordinate, ProbeVector } from '../../../domain/obs/types.js';
 import type { Vars } from '../../../domain/template.js';
 import type { ErrorTracker, Issue, IssuePage, IssueQuery } from '../../../ports/error-tracker.js';
 import type { Process } from '../../../ports/process.js';
-import { objectOf, stringAt, unreadable } from '../../family/cli.js';
+import { objectOf, stringAt, unreadableError } from '../../family/cli.js';
 import { TemplatePlatform } from '../../platform/template-platform.js';
 
 import { BINARY, SentryCli, sentryFailed } from './client.js';
@@ -73,14 +73,14 @@ export class SentryErrorTracker implements ErrorTracker {
     if (call.code !== 0 || !Array.isArray(rows))
       throw sentryFailed(call, `list the unresolved issues of ${project}`);
     const more = body?.['hasMore'];
-    if (typeof more !== 'boolean') throw unreadable(BINARY, `an issue page of ${project}`);
+    if (typeof more !== 'boolean') throw unreadableError(BINARY, `an issue page of ${project}`);
     return { issues: rows.map((row) => issueOf(objectOf(row) ?? {}, project)), more };
   }
 }
 
 function issueOf(row: Record<string, unknown>, project: string): Issue {
   const id = stringAt(row, 'id') ?? stringAt(row, 'shortId');
-  if (id === undefined) throw unreadable(BINARY, `an issue of ${project}`);
+  if (id === undefined) throw unreadableError(BINARY, `an issue of ${project}`);
   const count = row['count'];
   return {
     id,

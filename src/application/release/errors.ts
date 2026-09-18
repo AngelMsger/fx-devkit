@@ -9,7 +9,7 @@ import { environmentsOf } from '../env/names.js';
 import { platformAs } from '../workspace/platforms.js';
 
 import { attempt, type CheckContext } from './facts.js';
-import { blocked } from './gates.js';
+import { blockedFinding } from './gates.js';
 
 export function checkErrors(ctx: CheckContext): Promise<ReleaseFinding> {
   const repo = ctx.repo.name;
@@ -18,7 +18,7 @@ export function checkErrors(ctx: CheckContext): Promise<ReleaseFinding> {
     if (env === undefined)
       return notChecked('errors', repo, 'no environment for errors in the release policy');
     const gate = await ctx.gates.through('error-tracker', env);
-    if (!gate.open) return blocked('errors', repo, gate);
+    if (!gate.open) return blockedFinding('errors', repo, gate);
     const tracker = platformAs<ErrorTracker>(ctx.deps, 'error-tracker', 'issues', env);
     if (tracker.platform === undefined) return unanswered('errors', repo, tracker.reason);
     const coordinate = locateRepo({

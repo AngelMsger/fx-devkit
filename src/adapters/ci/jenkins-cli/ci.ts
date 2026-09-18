@@ -6,7 +6,14 @@ import type { Coordinate, ProbeVector } from '../../../domain/obs/types.js';
 import type { Vars } from '../../../domain/template.js';
 import type { Build, BuildStatus, Ci } from '../../../ports/ci.js';
 import type { Process } from '../../../ports/process.js';
-import { EXIT, FamilyCli, objectOf, queryFailed, stringAt, unreadable } from '../../family/cli.js';
+import {
+  EXIT,
+  FamilyCli,
+  objectOf,
+  queryFailed,
+  stringAt,
+  unreadableError,
+} from '../../family/cli.js';
 import { TemplatePlatform } from '../../platform/template-platform.js';
 
 export const BINARY = 'jenkins-cli';
@@ -57,7 +64,8 @@ export class JenkinsCi implements Ci {
     const data = objectOf(call.data);
     if (call.code !== 0 || data === undefined)
       throw queryFailed(BINARY, call, `read the last build of ${path}`);
-    if (typeof data['number'] !== 'number') throw unreadable(BINARY, `the last build of ${path}`);
+    if (typeof data['number'] !== 'number')
+      throw unreadableError(BINARY, `the last build of ${path}`);
     return {
       number: data['number'],
       status: statusOf(data),

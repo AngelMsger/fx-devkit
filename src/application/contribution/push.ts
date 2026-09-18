@@ -8,7 +8,7 @@ import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { applySource } from './apply-source.js';
 import { assertContributionIdentity } from './identity.js';
-import { changed, planSource } from './plan-source.js';
+import { sourceChangedError, planSource } from './plan-source.js';
 import type {
   PushSourceDeps,
   PushSourceInput,
@@ -42,7 +42,7 @@ export class PushSource {
       return { ...plan.output, action: 'cancelled', written: fetched, fetched };
     const result = await withLeases(this.deps, async () => {
       const current = await planSource({ deps: this.deps, input, allocatedId });
-      if (current.key !== plan.key) throw changed();
+      if (current.key !== plan.key) throw sourceChangedError();
       return applySource({ deps: this.deps, input, plan: current });
     });
     return { ...result, fetched, written: result.written || fetched };

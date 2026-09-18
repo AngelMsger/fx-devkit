@@ -11,7 +11,7 @@ import { shellLine } from '../domain/shell.js';
 import {
   assertProbeSources,
   assertSafeNote,
-  changed,
+  probeChangedError,
   planProbeRecord,
   recordValues,
   validateEdited,
@@ -54,7 +54,7 @@ export class RecordProbe {
         coordinateFingerprint(probed) !== coordinateFingerprint(plan.output.row) ||
         JSON.stringify(probed.probe_template) !== JSON.stringify(plan.template)
       )
-        throw changed();
+        throw probeChangedError();
       const row = { ...probed, ready: ready?.ready ?? null, handoff: ready?.handoff ?? null };
       return await this.record(plan, row);
     } finally {
@@ -85,7 +85,7 @@ export class RecordProbe {
       before: plan.environmentSnapshot,
       text,
     });
-    if (result === 'conflict' || result === 'busy') throw changed();
+    if (result === 'conflict' || result === 'busy') throw probeChangedError();
     return {
       ...output,
       action: result === 'written' ? 'recorded' : 'unchanged',

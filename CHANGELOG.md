@@ -5,6 +5,7 @@
 - Preserve explicit report fields in all output formats, workspace scope in recovery commands, and source identity through contribution locking.
 - Import verified local Git coordinates, safely add matching upstream remotes to existing clones, and align preparation with enabled/required tool declarations.
 - Accept all declared setup verification forms and preserve nullable comparison values through manifest overlays.
+- Compatibility: `fx skill show` reports a missing bundled Skill as `BUNDLED_SKILL_MISSING`; `SKILL_MISSING` now names only the agent-facing notice.
 
 - Add global workspace discovery, health, unregister, relocation and source rebinding while preserving business checkouts and preventing duplicate directory identities.
 - Add repo/env select with explicit, dynamic-all and empty scopes, first-init repository selection and inspected local-source previews.

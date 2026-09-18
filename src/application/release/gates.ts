@@ -53,7 +53,11 @@ export class Gates {
   }
 }
 
-export function blocked(check: Check, repo: string, gate: Gate & { open: false }): ReleaseFinding {
+export function blockedFinding(
+  check: Check,
+  repo: string,
+  gate: Gate & { open: false },
+): ReleaseFinding {
   const fix = gate.verdict?.handoff?.command ?? gate.verdict?.alternatives[0];
   return unanswered(check, repo, gate.reason, {
     fix,

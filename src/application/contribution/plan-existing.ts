@@ -85,7 +85,7 @@ async function updatePlan(context: OperationPlanning, head: string | null): Prom
     pullRequestState: 'open',
     forceNew: false,
   });
-  if (decision === 'conflict') throw diverged();
+  if (decision === 'conflict') throw divergedError();
   if (decision === 'new')
     return {
       ...plan,
@@ -122,7 +122,7 @@ async function updatePlan(context: OperationPlanning, head: string | null): Prom
 async function resume(context: OperationPlanning, head: string | null): Promise<SourcePlan> {
   const { deps, input, plan, operation } = context;
   assertResumeSelection(input, operation);
-  if (head !== operation.commit && head !== operation.previousHead) throw diverged();
+  if (head !== operation.commit && head !== operation.previousHead) throw divergedError();
   const action = operation.phase === 'creating_pr' ? 'recover' : 'resume';
   if (operation.phase !== 'prepared') {
     const commit =
@@ -249,7 +249,7 @@ function snapshotChangedError(dir: string, operation: ContributionOperation): De
   );
 }
 
-export function diverged(): DevkitError {
+export function divergedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_REMOTE_DIVERGED',

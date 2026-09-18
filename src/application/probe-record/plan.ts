@@ -33,7 +33,7 @@ export async function planProbeRecord(
     previewProbe: true,
     check: false,
   });
-  if (!row) throw changed();
+  if (!row) throw probeChangedError();
   const repo = findKnownRepo(deps.workspace, row.repo);
   assertShared(repo.origin);
   const template = row.probe_template ?? null;
@@ -120,7 +120,7 @@ async function readDocuments(deps: RecordProbeDeps) {
     JSON.stringify(environments.doc) !==
       JSON.stringify(deps.workspace.ctx.manifest.environments?.result.doc)
   )
-    throw changed();
+    throw probeChangedError();
   return {
     workspaceSnapshot,
     environmentSnapshot,
@@ -139,7 +139,7 @@ export async function assertProbeSources(
     [MANIFEST_FILES.environments, plan.environmentSnapshot],
   ] as const) {
     const current = await deps.files.read({ root, relative });
-    if (current.kind !== before.kind || current.text !== before.text) throw changed();
+    if (current.kind !== before.kind || current.text !== before.text) throw probeChangedError();
   }
 }
 
@@ -200,7 +200,7 @@ function inputRequired(repo: string): DevkitError {
   );
 }
 
-export function changed(): DevkitError {
+export function probeChangedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'PROBE_RECORD_CHANGED',

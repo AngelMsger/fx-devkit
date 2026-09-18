@@ -4,7 +4,7 @@
 import type { ContributionOperation } from '../../domain/contribution/operation.js';
 import { DevkitError } from '../../domain/errors.js';
 
-import { assertMatchingPr, diverged } from './plan-existing.js';
+import { assertMatchingPr, divergedError } from './plan-existing.js';
 import type {
   PushSourceDeps,
   PushSourceInput,
@@ -98,7 +98,7 @@ async function publishOperation(context: OperationPublishing): Promise<Contribut
       commit: operation.commit!,
     };
     const head = await deps.transport.head(request);
-    if (head !== operation.commit && head !== operation.previousHead) throw diverged();
+    if (head !== operation.commit && head !== operation.previousHead) throw divergedError();
     if (head !== operation.commit) await deps.transport.push(request);
     operation = { ...operation, phase: 'pushed' };
     await save(operation);

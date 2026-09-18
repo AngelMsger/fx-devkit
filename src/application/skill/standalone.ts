@@ -101,7 +101,7 @@ export class StandaloneSkill {
       path.join(this.deps.skills.bundledSkillDir, 'SKILL.md'),
     );
     if (text === undefined)
-      throw new DevkitError('config', 'SKILL_MISSING', 'The bundled Skill is missing', {
+      throw new DevkitError('config', 'BUNDLED_SKILL_MISSING', 'The bundled Skill is missing', {
         nextSteps: ['Check fx self info and repair the fx installation.'],
       });
     return text;

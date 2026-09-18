@@ -50,7 +50,8 @@ export class AutomaticSync {
       now - previous.lastAttempt < 15000
     )
       return;
-    if (!(await this.update(input, { lastAttempt: now }))) return;
+    const delayed: HookObservation[] = [];
+    if (!(await this.update(input, { lastAttempt: now }, delayed))) return;
     const refreshAt = previous?.lastRefresh;
     if (
       refreshAt === null ||
@@ -58,11 +59,19 @@ export class AutomaticSync {
       now - refreshAt >= MANIFEST_UPDATE_TTL_MS ||
       now < refreshAt
     ) {
-      if (!(await this.update(input, { lastRefresh: now }))) return;
-      await this.step(input, 'manifest', this.deps.refresh, 'MANIFEST_REFRESH_FAILED', 'fx sync');
+      if (!(await this.update(input, { lastRefresh: now }, delayed))) return;
+      await this.step(
+        input,
+        delayed,
+        'manifest',
+        this.deps.refresh,
+        'MANIFEST_REFRESH_FAILED',
+        'fx sync',
+      );
     }
     await this.step(
       input,
+      delayed,
       'docs',
       () => this.deps.docs(lease),
       'DOCS_SYNC_FAILED',
@@ -70,18 +79,28 @@ export class AutomaticSync {
     );
     await this.step(
       input,
+      delayed,
       'skills',
       this.deps.skills,
       'SKILL_SYNC_FAILED',
       'fx sync --only skills',
     );
     if (this.deps.self)
-      await this.step(input, 'self', this.deps.self, 'FX_UPDATE_UNAVAILABLE', 'fx doctor');
-    await this.step(input, 'checks', this.deps.checks, 'HOOK_CHECKS_INCOMPLETE', 'fx doctor');
+      await this.step(input, delayed, 'self', this.deps.self, 'FX_UPDATE_UNAVAILABLE', 'fx doctor');
+    await this.step(
+      input,
+      delayed,
+      'checks',
+      this.deps.checks,
+      'HOOK_CHECKS_INCOMPLETE',
+      'fx doctor',
+    );
+    if (delayed.length) await this.update(input, {}, delayed);
   }
 
   private async step(
     input: AutomaticSyncInput,
+    delayed: HookObservation[],
     phase: string,
     run: () => Promise<readonly HookObservation[]>,
     code: string,
@@ -103,20 +122,29 @@ export class AutomaticSync {
         },
       ];
     }
-    await this.update(input, {}, phase, observations);
+    await this.update(input, {}, delayed, phase, observations);
   }
 
   private async update(
     input: AutomaticSyncInput,
     patch: Partial<Pick<HookState, 'lastAttempt' | 'lastRefresh'>>,
+    delayed: HookObservation[],
     phase?: string,
     observations: readonly HookObservation[] = [],
   ): Promise<boolean> {
     const lease = await this.deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 0 });
-    if (!lease) return false;
+    if (!lease) {
+      // A hook never waits for the state lease, and a phase whose outcome is
+      // dropped would read as unchanged. Keep it as a concurrency note for the
+      // next write of this run instead of losing the phase silently.
+      delayed.push(...observations.map((observation) => concurrent(observation)));
+      return false;
+    }
+    const pending = [...delayed, ...observations];
     try {
       const current = await this.deps.state.read(input.workspace);
       if (current && !samePath(current.root, input.root)) return false;
+      const replaced = new Set(pending.map((observation) => observation.phase));
       await this.deps.state.write(input.workspace, {
         root: input.root,
         receipts: current?.receipts ?? [],
@@ -124,15 +152,30 @@ export class AutomaticSync {
         lastRefresh: current?.lastRefresh ?? null,
         ...patch,
         observations: [
-          ...(current?.observations ?? []).filter((o) => o.phase !== phase),
-          ...observations,
+          ...(current?.observations ?? []).filter(
+            (o) => o.phase !== phase && !replaced.has(o.phase),
+          ),
+          ...pending,
         ],
       });
+      delayed.length = 0;
       return true;
     } finally {
       await lease.release();
     }
   }
+}
+
+function concurrent(observation: HookObservation): HookObservation {
+  return {
+    ...observation,
+    code: 'HOOK_STATE_BUSY',
+    detail: oneLine(
+      observation.detail === undefined
+        ? observation.code
+        : `${observation.code}: ${observation.detail}`,
+    ),
+  };
 }
 
 // Observations are dated status fields, not a log: the reason is kept as a

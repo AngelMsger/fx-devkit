@@ -147,7 +147,7 @@ async function connectHost(deps: PushSourceDeps, plan: SourcePlan): Promise<Sour
     user: deps.user ?? (await host.whoami()).user,
     branch: plan.output.branch,
   });
-  if (remote.targetBranch !== plan.upstream.branch) throw changed();
+  if (remote.targetBranch !== plan.upstream.branch) throw sourceChangedError();
   const identity = createHash('sha256').update(JSON.stringify(remote)).digest('hex');
   return {
     ...plan,
@@ -204,7 +204,7 @@ export function finish(plan: SourcePlan): SourcePlan {
   };
 }
 
-export function changed(): DevkitError {
+export function sourceChangedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_PLAN_CHANGED',

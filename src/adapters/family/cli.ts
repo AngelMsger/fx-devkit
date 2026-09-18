@@ -144,7 +144,7 @@ export function queryFailed(binary: string, call: CliCall, what: string): Devkit
 // A zero exit whose payload cannot be read is a failure too: dropping the
 // rows that did not parse would turn a changed schema into a confident
 // "nothing to report".
-export function unreadable(binary: string, what: string): DevkitError {
+export function unreadableError(binary: string, what: string): DevkitError {
   return new DevkitError(
     'server',
     'PLATFORM_QUERY_FAILED',
