@@ -5,6 +5,9 @@
 import type { Process } from '../../ports/process.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
+import type { HarnessSession } from '../harness/session.js';
+import { harnessStage } from '../harness/stages.js';
+import { hookStage, type HookSession } from '../hook/session.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
@@ -20,9 +23,10 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export interface SyncStageInput {
   readonly inventory?: ToolInstalled;
-  readonly mcp?: () => Promise<StageResult>;
-  readonly rules?: () => Promise<StageResult>;
-  readonly hooks?: () => Promise<StageResult>;
+  // The lifecycle sessions as ports: which resource each stage reconciles, and that
+  // reconciling it is a sync, is this module's decision.
+  readonly harness?: HarnessSession;
+  readonly hooks?: HookSession;
   readonly replace?: ReplaceFiles;
   readonly deps: WorkspaceDeps;
   readonly login: LoginDeps;
@@ -37,8 +41,8 @@ const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageRe
   services: (input) => prepareServices(input.deps, input.login, input.dryRun),
   docs: docsStage,
   skills: skillsStage,
-  hooks: async (input) => (await input.hooks?.()) ?? { summary: { unsupported: 0 } },
-  mcp: async (input) => (await input.mcp?.()) ?? { summary: { unsupported: 0 } },
+  hooks: async (input) => (await hooksStage(input)) ?? { summary: { unsupported: 0 } },
+  mcp: async (input) => (await harnessResource(input, 'mcp')) ?? { summary: { unsupported: 0 } },
   tools: toolsStage,
 };
 
@@ -48,6 +52,20 @@ export function syncStageIds(): string[] {
 
 export function syncStages(input: SyncStageInput): SyncStages {
   return Object.fromEntries(Object.entries(STAGES).map(([id, run]) => [id, () => run(input)]));
+}
+
+function harnessResource(
+  input: SyncStageInput,
+  only: 'mcp' | 'rules',
+): Promise<StageResult> | undefined {
+  if (input.harness === undefined) return undefined;
+  return harnessStage({ ...input.harness, action: 'sync', only, dryRun: input.dryRun })();
+}
+
+function hooksStage(input: SyncStageInput): Promise<StageResult> | undefined {
+  return input.hooks === undefined
+    ? undefined
+    : hookStage({ ...input.hooks, dryRun: input.dryRun })();
 }
 
 async function skillsStage(input: SyncStageInput): Promise<StageResult> {
@@ -79,7 +97,7 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
     summary[file.action] = (summary[file.action] ?? 0) + 1;
     summary['missing_regions'] = (summary['missing_regions'] ?? 0) + file.missing.length;
   }
-  const rules = await input.rules?.();
+  const rules = await harnessResource(input, 'rules');
   if (rules) {
     for (const [action, count] of Object.entries(rules.summary))
       if (typeof count === 'number') summary[`rules_${action}`] = count;

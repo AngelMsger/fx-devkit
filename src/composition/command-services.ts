@@ -1,7 +1,7 @@
 // Feature wiring shared by commands; the CLI base only supplies invocation context.
 import type { DoctorExtension } from '../application/doctor/types.js';
-import { harnessDoctor, harnessStage } from '../application/harness/stages.js';
-import { hookDoctor, hookStage, type HookSession } from '../application/hook/session.js';
+import { harnessDoctor } from '../application/harness/stages.js';
+import { hookDoctor, type HookSession } from '../application/hook/session.js';
 import type { InitDeps } from '../application/init.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
@@ -122,19 +122,13 @@ export class CommandServices {
   }
 
   private stageWiring(deps: WorkspaceDeps, dryRun: boolean): SyncStageInput {
-    const harness = {
-      ...harnessSession({
+    return {
+      inventory: toolInventory(this.input.container, this.input.cliVersion),
+      harness: harnessSession({
         ...this.input,
         resolve: { ...this.input.resolve, name: deps.ctx.name },
       }),
-      action: 'sync' as const,
-      dryRun,
-    };
-    return {
-      inventory: toolInventory(this.input.container, this.input.cliVersion),
-      mcp: harnessStage({ ...harness, only: 'mcp' }),
-      rules: harnessStage({ ...harness, only: 'rules' }),
-      hooks: hookStage({ ...this.hookSessionFor(deps.ctx.name), dryRun }),
+      hooks: this.hookSessionFor(deps.ctx.name),
       deps,
       replace: this.input.replace,
       login: this.loginDeps(),
