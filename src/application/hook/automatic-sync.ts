@@ -29,8 +29,13 @@ export interface AutomaticSyncDeps {
 export class AutomaticSync {
   constructor(private readonly deps: AutomaticSyncDeps) {}
 
+  // Outcomes a contended state lease could not record yet, kept for the next
+  // write of this run.
+  private delayed: HookObservation[] = [];
+
   async execute(input: AutomaticSyncInput): Promise<void> {
     if (!(await this.deps.canWrite())) return;
+    this.delayed = [];
     const lease = await this.deps.lock.acquire({ key: `workspace:${input.workspace}`, waitMs: 0 });
     if (!lease) return;
     try {
@@ -50,8 +55,7 @@ export class AutomaticSync {
       now - previous.lastAttempt < 15000
     )
       return;
-    const delayed: HookObservation[] = [];
-    if (!(await this.update(input, { lastAttempt: now }, delayed))) return;
+    if (!(await this.update(input, { lastAttempt: now }))) return;
     const refreshAt = previous?.lastRefresh;
     if (
       refreshAt === null ||
@@ -59,19 +63,11 @@ export class AutomaticSync {
       now - refreshAt >= MANIFEST_UPDATE_TTL_MS ||
       now < refreshAt
     ) {
-      if (!(await this.update(input, { lastRefresh: now }, delayed))) return;
-      await this.step(
-        input,
-        delayed,
-        'manifest',
-        this.deps.refresh,
-        'MANIFEST_REFRESH_FAILED',
-        'fx sync',
-      );
+      if (!(await this.update(input, { lastRefresh: now }))) return;
+      await this.step(input, 'manifest', this.deps.refresh, 'MANIFEST_REFRESH_FAILED', 'fx sync');
     }
     await this.step(
       input,
-      delayed,
       'docs',
       () => this.deps.docs(lease),
       'DOCS_SYNC_FAILED',
@@ -79,28 +75,19 @@ export class AutomaticSync {
     );
     await this.step(
       input,
-      delayed,
       'skills',
       this.deps.skills,
       'SKILL_SYNC_FAILED',
       'fx sync --only skills',
     );
     if (this.deps.self)
-      await this.step(input, delayed, 'self', this.deps.self, 'FX_UPDATE_UNAVAILABLE', 'fx doctor');
-    await this.step(
-      input,
-      delayed,
-      'checks',
-      this.deps.checks,
-      'HOOK_CHECKS_INCOMPLETE',
-      'fx doctor',
-    );
-    if (delayed.length) await this.update(input, {}, delayed);
+      await this.step(input, 'self', this.deps.self, 'FX_UPDATE_UNAVAILABLE', 'fx doctor');
+    await this.step(input, 'checks', this.deps.checks, 'HOOK_CHECKS_INCOMPLETE', 'fx doctor');
+    if (this.delayed.length) await this.update(input, {});
   }
 
   private async step(
     input: AutomaticSyncInput,
-    delayed: HookObservation[],
     phase: string,
     run: () => Promise<readonly HookObservation[]>,
     code: string,
@@ -122,25 +109,23 @@ export class AutomaticSync {
         },
       ];
     }
-    await this.update(input, {}, delayed, phase, observations);
+    await this.update(input, {}, phase, observations);
   }
 
   private async update(
     input: AutomaticSyncInput,
     patch: Partial<Pick<HookState, 'lastAttempt' | 'lastRefresh'>>,
-    delayed: HookObservation[],
     phase?: string,
     observations: readonly HookObservation[] = [],
   ): Promise<boolean> {
     const lease = await this.deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 0 });
     if (!lease) {
-      // A hook never waits for the state lease, and a phase whose outcome is
-      // dropped would read as unchanged. Keep it as a concurrency note for the
-      // next write of this run instead of losing the phase silently.
-      delayed.push(...observations.map((observation) => concurrent(observation)));
+      // A hook never waits for the state lease, and a dropped outcome would
+      // read as unchanged.
+      this.delayed.push(...observations.map((observation) => concurrent(observation)));
       return false;
     }
-    const pending = [...delayed, ...observations];
+    const pending = [...this.delayed, ...observations];
     try {
       const current = await this.deps.state.read(input.workspace);
       if (current && !samePath(current.root, input.root)) return false;
@@ -158,7 +143,7 @@ export class AutomaticSync {
           ...pending,
         ],
       });
-      delayed.length = 0;
+      this.delayed = [];
       return true;
     } finally {
       await lease.release();
