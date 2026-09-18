@@ -87,6 +87,27 @@ local layers select repositories and environments and carry repository overrides
 Profiles carry settings/local layers but no credentials, trust,
 cache or manifest checkout. Their paths may need adjustment on another machine.
 
+## Personal stores
+
+A store's codec is written as a schema against the domain type it persists, so a
+field the contract does not declare, one it declares and the schema drops, and
+one whose stored type disagrees are compile errors rather than a document that
+quietly stops matching the interface it claims to be.
+
+Growth is versionless. The same file is written by whichever fx an agent host
+launched and read by whichever fx the person runs next, so a field a newer fx
+added is not corruption: reads ignore what they do not know instead of failing a
+workspace closed, while writes stay strict and refuse a value outside the
+contract. An ignored field is therefore also dropped by the next write — an older
+fx degrades a document it does not understand, but never rejects it.
+
+The cache is disposable and holds no such contract. A miss only costs another
+probe, so nothing that goes wrong in it — unreadable, unwritable, not a regular
+file — is anyone's error. Nothing there is followed either: a symlink where the
+directory or an entry should be is a miss, and a write lands over it rather than
+through it. An owner replacing the directory underneath a running fx is not
+defended against; it is their directory.
+
 ## Planned effects and readiness
 
 Write use cases plan before gating. Dry-run returns the plan and makes no effect;
