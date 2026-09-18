@@ -207,6 +207,7 @@ export class ToolInstall {
       retain({ ...current, status: 'failed', failure, error: failure.message });
       throw error;
     } finally {
+      // Every path closes the ledger entry: an install that threw still happened.
       await this.audit.checkpoint(entry, {
         event: 'finished',
         code: current.code,
@@ -255,6 +256,8 @@ export class ToolInstall {
       }
       return await probeToolVersion(this.process, tool, { propagateErrors: true });
     } catch (error) {
+      // The package is already installed: a version command nobody approved leaves the
+      // version unknown, it does not turn the installation into a failure.
       if (
         !(error instanceof DevkitError) ||
         !['VECTOR_UNTRUSTED', 'VECTOR_REJECTED'].includes(error.code)
@@ -268,6 +271,8 @@ export class ToolInstall {
     tool: ResolvedTool,
     input: ToolInstallInput,
   ): Promise<{ method: InstallMethod; installer: Installer }> {
+    // Declared order is the team's preference; availability on this machine is the
+    // only thing allowed to skip a method.
     for (const method of tool.install) {
       const installer = this.installers.find((i) => i.id === method.via);
       if (installer !== undefined && (await installer.available())) return { method, installer };

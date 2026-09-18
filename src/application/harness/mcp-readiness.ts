@@ -62,6 +62,8 @@ export class McpReadiness {
     const resource = input.resource;
     const host = inspectHost(input);
     if (host) return host;
+    // Everything a person can fix without a process comes first, and both vectors are
+    // approved before either is run: the declared check is the only step that executes.
     const binary = resource.command?.[0];
     if (binary && !(await this.deps.process.which(binary)))
       return verdict(input, 'missing_tool', `Install ${binary} or add it to PATH.`);
@@ -85,6 +87,7 @@ export class McpReadiness {
         'Review the MCP configuration through fx sync --only mcp.',
       );
     if (!resource.check) {
+      // Local prerequisites say nothing about whether a remote server answers.
       if (resource.transport === 'http')
         return verdict(
           input,

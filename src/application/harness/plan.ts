@@ -68,6 +68,8 @@ async function planTarget(
     change: null,
     trusts: [],
   });
+  // Ownership decides first: a path fx will not write is no reason to ask a person
+  // for variables or to name a protocol it does not have.
   if (before.kind === 'foreign')
     return blocked('foreign', 'The native configuration path is foreign.');
   if (target.resource) {
@@ -95,6 +97,7 @@ async function planTarget(
       projected.status,
       'Native content changed or has no matching ownership evidence.',
     );
+  // A cleanup pass owns only what it removes; a target that stays keeps its bytes.
   if (input.cleanupAgents && !target.remove && receipt)
     projected = { status: 'managed', text: before.text, digest: receipt.digest };
   return finishTarget({ deps, input, target, before, receipt, row, projected });
@@ -165,6 +168,8 @@ async function finishTarget({
   let action = 'unchanged';
   if (change) action = receipt === undefined ? 'created' : 'updated';
   if (change && target.remove) action = 'removed';
+  // Last, so it wins: an unapproved vector is what the row has to say, whatever the
+  // change would otherwise have been called.
   if (!trusted) action = 'untrusted';
   return {
     row: {

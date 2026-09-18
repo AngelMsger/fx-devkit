@@ -64,6 +64,8 @@ export class CleanupAgentHarness {
           ),
         );
       } catch (error) {
+        // One workspace's failure is a row, not the end of the sweep: the others are
+        // still registered and still hold resources of the agents being dropped.
         rows.push(
           ...input.ids.map((agent) => ({
             workspace,
