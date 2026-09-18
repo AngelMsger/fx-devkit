@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveHookHost } from '../../../src/application/hook/host.js';
+import { resolveHookHost } from '../../../src/application/hook/dispatch-host.js';
 import { createAgentHosts, hookProtocolFor } from '../../../src/composition/registry.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeProcess } from '../../fakes/fake-process.js';

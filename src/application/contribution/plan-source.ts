@@ -52,7 +52,13 @@ async function initialPlan(context: SourcePlanning): Promise<SourcePlan> {
     throw new DevkitError(
       'conflict',
       'SOURCE_REMOTE_UNSAFE',
-      'Source remotes must identify one origin and upstream without routing overrides.',
+      'Source remotes must identify one origin and upstream without routing overrides',
+      {
+        nextSteps: [
+          `git -C ${deps.source.dir} remote -v`,
+          'Leave one origin and one upstream URL and remove insteadOf rewrites, mirror and receive-pack overrides, then retry.',
+        ],
+      },
     );
   const source = refFromUrl(settings.originUrls[0]!);
   const target = refFromUrl(settings.upstreamUrls[0]!);
@@ -60,7 +66,13 @@ async function initialPlan(context: SourcePlanning): Promise<SourcePlan> {
     throw new DevkitError(
       'config',
       'SOURCE_REF_REQUIRED',
-      'Source remotes must identify repository references.',
+      'Source remotes must identify repository references',
+      {
+        nextSteps: [
+          `git -C ${deps.source.dir} remote -v`,
+          'Point origin at your personal fork and upstream at the shared source repository, then retry.',
+        ],
+      },
     );
   const upstream = await deps.transport.upstream(deps.source);
   const output = initialOutput({ ...context, upstream, source, target });
@@ -121,7 +133,10 @@ async function connectHost(deps: PushSourceDeps, plan: SourcePlan): Promise<Sour
     throw new DevkitError(
       'config',
       'SOURCE_CONTRIBUTION_UNSUPPORTED',
-      'The selected code host has no contribution PR service.',
+      'The selected code host has no contribution PR service',
+      {
+        nextSteps: ['fx manifest providers', 'Open the pull request on the code host directly.'],
+      },
     );
   const origin = await host.repositoryIdentity(refFromUrl(plan.settings.originUrls[0]!)!);
   const official = await host.repositoryIdentity(plan.output.target);
@@ -132,7 +147,7 @@ async function connectHost(deps: PushSourceDeps, plan: SourcePlan): Promise<Sour
     user: deps.user ?? (await host.whoami()).user,
     branch: plan.output.branch,
   });
-  if (remote.targetBranch !== plan.upstream.branch) throw changed();
+  if (remote.targetBranch !== plan.upstream.branch) throw sourceChangedError();
   const identity = createHash('sha256').update(JSON.stringify(remote)).digest('hex');
   return {
     ...plan,
@@ -189,11 +204,11 @@ export function finish(plan: SourcePlan): SourcePlan {
   };
 }
 
-export function changed(): DevkitError {
+export function sourceChangedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_PLAN_CHANGED',
-    'Source contribution evidence changed after planning.',
+    'Source contribution evidence changed after planning',
     {
       nextSteps: [
         'Re-run the same source push command with --dry-run, then review the updated plan.',
@@ -207,14 +222,15 @@ function assertInput(deps: PushSourceDeps, input: PushSourceInput): void {
     throw new DevkitError(
       'config',
       'SOURCE_NOT_GIT',
-      'Only a registered Git source can contribute.',
+      'Only a registered Git source can contribute',
       { nextSteps: ['Register the workspace from its manifest repository URL.'] },
     );
   if (!input.paths.length || !input.issue.trim() || !input.title.trim())
     throw new DevkitError(
       'usage',
       'INPUT_REQUIRED',
-      'Select paths and supply an issue ID and PR title.',
+      'Select paths and supply an issue ID and PR title',
+      { nextSteps: ['fx source push <path>... --issue <issue-id> --title "<pr title>"'] },
     );
   if (
     !/^g-[0-9]+$/.test(input.issue) ||
@@ -224,7 +240,10 @@ function assertInput(deps: PushSourceDeps, input: PushSourceInput): void {
     throw new DevkitError(
       'usage',
       'SOURCE_METADATA_INVALID',
-      'Use an issue ID and single-line title and commit summary.',
+      'Use an issue ID and single-line title and commit summary',
+      {
+        nextSteps: ['Pass --issue as g-<digits> and keep --title and --message on one line.'],
+      },
     );
   if (
     scanBoundary({
@@ -235,12 +254,22 @@ function assertInput(deps: PushSourceDeps, input: PushSourceInput): void {
     throw new DevkitError(
       'usage',
       'SOURCE_CONTENT_SENSITIVE',
-      'Contribution metadata contains protected content.',
+      'Contribution metadata contains protected content',
+      {
+        nextSteps: [
+          'Remove credentials, personal names and email addresses from the selected paths, --title and --message, then retry.',
+        ],
+      },
     );
   if (input.forceNew && input.prRef)
     throw new DevkitError(
       'usage',
       'SOURCE_OPTIONS_CONFLICT',
-      '--new cannot be combined with --pr.',
+      '--new cannot be combined with --pr',
+      {
+        nextSteps: [
+          'Associate the known PR with --pr <id>, or start a separate contribution with --new.',
+        ],
+      },
     );
 }

@@ -7,6 +7,6 @@ export default class SkillShowCommand extends SkillCommand {
 
   async run(): Promise<void> {
     await this.parse(SkillShowCommand);
-    process.stdout.write(await this.companionSkill().show());
+    this.renderer.text(await this.companionSkill().show());
   }
 }

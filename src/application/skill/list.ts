@@ -42,6 +42,8 @@ export interface SkillRow {
   readonly states: Readonly<Record<string, SkillState>>;
 }
 
+export const SKILL_COLUMNS = ['name', 'kind', 'states', 'source'] as const;
+
 export class SkillList {
   constructor(
     private readonly deps: WorkspaceDeps,

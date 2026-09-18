@@ -48,7 +48,7 @@ export class TerminalPrompter implements Prompter {
   ): Promise<string> {
     if (this.noInput || this.streams.input.isTTY !== true) {
       return Promise.reject(
-        new DevkitError('config', 'INPUT_REQUIRED', `a person has to answer: ${prompt.trim()}`, {
+        new DevkitError('config', 'INPUT_REQUIRED', `A person has to answer: ${prompt.trim()}`, {
           hint: why.hint,
           nextSteps:
             why.commands === undefined

@@ -4,7 +4,7 @@
 import type { ContributionOperation } from '../../domain/contribution/operation.js';
 import { DevkitError } from '../../domain/errors.js';
 
-import { assertMatchingPr, diverged } from './plan-existing.js';
+import { assertMatchingPr, divergedError } from './plan-existing.js';
 import type {
   PushSourceDeps,
   PushSourceInput,
@@ -76,7 +76,10 @@ async function publishOperation(context: OperationPublishing): Promise<Contribut
       throw new DevkitError(
         'conflict',
         'SOURCE_TREE_MISMATCH',
-        'The prepared tree differs from the validated plan.',
+        'The prepared tree differs from the validated plan',
+        {
+          nextSteps: ['Re-run the same fx source push command with --dry-run and review the plan.'],
+        },
       );
     operation = { ...operation, commit: prepared.commit, phase: 'committed' };
     await save(operation);
@@ -95,7 +98,7 @@ async function publishOperation(context: OperationPublishing): Promise<Contribut
       commit: operation.commit!,
     };
     const head = await deps.transport.head(request);
-    if (head !== operation.commit && head !== operation.previousHead) throw diverged();
+    if (head !== operation.commit && head !== operation.previousHead) throw divergedError();
     if (head !== operation.commit) await deps.transport.push(request);
     operation = { ...operation, phase: 'pushed' };
     await save(operation);
@@ -132,7 +135,13 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
     throw new DevkitError(
       'conflict',
       'SOURCE_PR_CONFIRM_REQUIRED',
-      'Confirm the existing PR with --pr before resuming.',
+      'Confirm the existing PR with --pr before resuming',
+      {
+        nextSteps: [
+          `Find the pull request for branch ${operation.branch} on the code host.`,
+          'Re-run the same fx source push command with --pr <pr-id>.',
+        ],
+      },
     );
   let pr;
   if (operation.pullRequestId) {
@@ -141,7 +150,13 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
       throw new DevkitError(
         'conflict',
         'SOURCE_PR_CLOSED',
-        'The PR closed during contribution; review before using --new.',
+        'The PR closed during contribution; review before using --new',
+        {
+          nextSteps: [
+            `Review pull request ${operation.pullRequestId} on the code host.`,
+            'Start a separate contribution with fx source push --new.',
+          ],
+        },
       );
     assertMatchingPr(pr, operation, plan);
   } else {

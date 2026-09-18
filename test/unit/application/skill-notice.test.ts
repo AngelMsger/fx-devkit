@@ -6,12 +6,14 @@ import { skillNotice } from '../../../src/application/skill/notice.js';
 import type { SkillDeps } from '../../../src/application/skill/targets.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
+import { FakeLock } from '../../fakes/fake-lock.js';
 
 const agents = [new FakeAgentHost('claude-code', true), new FakeAgentHost('codex', true)];
 const skills: SkillDeps = {
   hosts: agents,
   configured: undefined,
   bundledSkillDir: path.resolve('/pkg/skills/fx-workspace'),
+  globalLock: new FakeLock(),
 };
 const dir = (id: string): string =>
   path.join(agents.find((a) => a.id === id)!.skillsDir('global'), 'fx-workspace', 'SKILL.md');

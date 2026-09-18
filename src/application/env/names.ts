@@ -16,7 +16,7 @@ export function environmentsOf(ctx: WorkspaceContext, commandShell?: ResolvedShe
     throw new DevkitError(
       'not_found',
       'ENVIRONMENTS_MISSING',
-      'this workspace has no manifest/environments.yaml',
+      'This workspace has no manifest/environments.yaml',
       {
         hint: 'Environments and platforms are declared there; without it there is nothing to list.',
         nextSteps: [

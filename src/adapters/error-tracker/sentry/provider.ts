@@ -12,6 +12,8 @@ import { SentryErrorTracker } from './tracker.js';
 export const sentryProvider: ProviderDescriptor<ErrorTracker> = {
   id: BINARY,
   capability: 'error-tracker',
+  impliedByPlatform: [BINARY],
+  settings: { fields: ['base_url', 'org'] },
   tools: [BINARY],
   recipes: SENTRY_RECIPES,
   service: sentryService,

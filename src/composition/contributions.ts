@@ -21,7 +21,7 @@ import { resolveWorkspace, type ResolveInput } from '../application/workspace/re
 import { DevkitError } from '../domain/errors.js';
 import { MANIFEST_FILES } from '../domain/manifest/files.js';
 import { loadWorkspace } from '../domain/manifest/loader.js';
-import { bindProviders } from '../domain/manifest/providers.js';
+import { bindProviders, codeHostBinding } from '../domain/manifest/providers.js';
 import { FileContributionStore } from '../infra/contribution-store.js';
 
 import type { Container } from './container.js';
@@ -58,6 +58,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   const validator = new ValidateContribution(
     { open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }) },
     container.bundledTools,
+    container.providers,
     container.describeProvider,
   );
   return {
@@ -90,17 +91,24 @@ function codeHostFromBase(
   try {
     workspace = loadWorkspace(files[MANIFEST_FILES.workspace] ?? '', {
       cliVersion,
+      providers: container.providers,
       strict: true,
     }).doc;
   } catch {
     throw new DevkitError(
       'config',
       'SOURCE_BASE_MANIFEST_INVALID',
-      'The committed source cannot supply valid provider configuration.',
+      'The committed source cannot supply valid provider configuration',
+      {
+        nextSteps: [
+          'fx manifest validate',
+          'Fix the committed manifest on the upstream default branch before contributing.',
+        ],
+      },
     );
   }
-  const binding = bindProviders(workspace).find((item) => item.capability === 'code-host')!;
-  return resolveProvider<ContributionHost>(binding, {
+  const bindings = bindProviders(workspace, container.providers);
+  return resolveProvider<ContributionHost>(codeHostBinding(bindings), {
     process: container.process,
     fs: container.fs,
     clock: container.clock,
@@ -111,7 +119,7 @@ function notGit(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_NOT_GIT',
-    'The registered source must be its own Git checkout, not a directory source or foreign link.',
+    'The registered source must be its own Git checkout, not a directory source or foreign link',
     { nextSteps: ['Register the workspace from its manifest repository URL.'] },
   );
 }

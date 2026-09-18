@@ -13,6 +13,8 @@ export interface HookObservation {
   readonly phase: string;
   readonly code: string;
   readonly command: string | null;
+  // One bounded line naming the failure a phase ran into, never its output.
+  readonly detail?: string | undefined;
 }
 
 export interface HookState {

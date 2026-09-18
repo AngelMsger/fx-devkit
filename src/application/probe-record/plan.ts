@@ -16,21 +16,16 @@ import { findKnownRepo } from '../workspace/inspect.js';
 
 import type {
   ProbeRecordPlan,
-  RecordProbeDeps,
-  RecordProbeInput,
-  RecordProbeOutput,
+  ProbeRecordDeps,
+  ProbeRecordInput,
+  ProbeRecordOutput,
 } from './types.js';
 
 export async function planProbeRecord(
-  deps: RecordProbeDeps,
-  input: RecordProbeInput,
+  deps: ProbeRecordDeps,
+  input: ProbeRecordInput,
 ): Promise<ProbeRecordPlan> {
-  if (!input.probe || !input.env || !input.platform)
-    throw new DevkitError(
-      'usage',
-      'PROBE_RECORD_INPUT_REQUIRED',
-      'Recording requires --probe, --env and --platform.',
-    );
+  if (!input.probe || !input.env || !input.platform) throw inputRequired(input.repo);
   const documents = await readDocuments(deps);
   const [row] = await new Where(deps.workspace, deps.login).execute({
     ...input,
@@ -38,7 +33,7 @@ export async function planProbeRecord(
     previewProbe: true,
     check: false,
   });
-  if (!row) throw changed();
+  if (!row) throw probeChangedError();
   const repo = findKnownRepo(deps.workspace, row.repo);
   assertShared(repo.origin);
   const template = row.probe_template ?? null;
@@ -61,7 +56,7 @@ export async function planProbeRecord(
   const base = ['envs', row.env, 'platforms', row.platform];
   const target = scope === 'repository' ? [...base, 'observations', row.repo] : base;
   const current = scope === 'repository' ? entry?.observations?.[row.repo] : entry;
-  const output: RecordProbeOutput = {
+  const output: ProbeRecordOutput = {
     action: scope ? 'preview' : 'skipped',
     file: path.join(deps.workspace.ctx.manifestDir, MANIFEST_FILES.environments),
     scope,
@@ -78,7 +73,7 @@ export async function planProbeRecord(
   return plan;
 }
 
-function validatePreview(deps: RecordProbeDeps, plan: ProbeRecordPlan): void {
+function validatePreview(deps: ProbeRecordDeps, plan: ProbeRecordPlan): void {
   assertSafeNote(JSON.stringify(plan.output.row.vars));
   assertSafeNote(plan.previousNote + '\n' + shellLine(plan.template!));
   const preview = setYamlStrings({
@@ -88,7 +83,7 @@ function validatePreview(deps: RecordProbeDeps, plan: ProbeRecordPlan): void {
   validateEdited(deps, plan, preview);
 }
 
-async function readDocuments(deps: RecordProbeDeps) {
+async function readDocuments(deps: ProbeRecordDeps) {
   const root = deps.workspace.ctx.manifestDir;
   const workspaceSnapshot = await deps.files.read({ root, relative: MANIFEST_FILES.workspace });
   const environmentSnapshot = await deps.files.read({
@@ -104,9 +99,20 @@ async function readDocuments(deps: RecordProbeDeps) {
     throw new DevkitError(
       'config',
       'PROBE_RECORD_FILE_UNSAFE',
-      'Recording requires regular source manifest files.',
+      'Recording requires regular source manifest files',
+      {
+        nextSteps: [
+          `Replace the symbolic links or missing files under ${root} with the regular manifest documents ${MANIFEST_FILES.workspace} and ${MANIFEST_FILES.environments}.`,
+          'fx manifest validate',
+        ],
+      },
     );
-  const opts = { cliVersion: deps.workspace.cliVersion, strict: true, allowInvalid: true as const };
+  const opts = {
+    cliVersion: deps.workspace.cliVersion,
+    providers: deps.workspace.ctx.providers,
+    strict: true,
+    allowInvalid: true as const,
+  };
   const workspace = loadWorkspace(workspaceSnapshot.text, opts);
   if (!workspace.valid || workspace.problems.length) throw invalid();
   const environments = loadEnvironments(environmentSnapshot.text, opts, {
@@ -119,7 +125,7 @@ async function readDocuments(deps: RecordProbeDeps) {
     JSON.stringify(environments.doc) !==
       JSON.stringify(deps.workspace.ctx.manifest.environments?.result.doc)
   )
-    throw changed();
+    throw probeChangedError();
   return {
     workspaceSnapshot,
     environmentSnapshot,
@@ -129,7 +135,7 @@ async function readDocuments(deps: RecordProbeDeps) {
 }
 
 export async function assertProbeSources(
-  deps: RecordProbeDeps,
+  deps: ProbeRecordDeps,
   plan: ProbeRecordPlan,
 ): Promise<void> {
   const root = deps.workspace.ctx.manifestDir;
@@ -138,7 +144,7 @@ export async function assertProbeSources(
     [MANIFEST_FILES.environments, plan.environmentSnapshot],
   ] as const) {
     const current = await deps.files.read({ root, relative });
-    if (current.kind !== before.kind || current.text !== before.text) throw changed();
+    if (current.kind !== before.kind || current.text !== before.text) throw probeChangedError();
   }
 }
 
@@ -161,13 +167,18 @@ export function recordValues(
 }
 
 export function validateEdited(
-  deps: RecordProbeDeps,
+  deps: ProbeRecordDeps,
   plan: ProbeRecordPlan,
   text: string,
 ): Environments {
   const result = loadEnvironments(
     text,
-    { cliVersion: deps.workspace.cliVersion, strict: true, allowInvalid: true },
+    {
+      cliVersion: deps.workspace.cliVersion,
+      providers: deps.workspace.ctx.providers,
+      strict: true,
+      allowInvalid: true,
+    },
     { workspace: plan.workspace },
   );
   if (!result.valid || result.problems.length) throw invalid();
@@ -179,15 +190,31 @@ export function assertSafeNote(text: string): void {
     throw new DevkitError(
       'config',
       'PROBE_RECORD_SENSITIVE',
-      'The probe note contains protected content and cannot be recorded.',
+      'The probe note contains protected content and cannot be recorded',
+      {
+        nextSteps: [
+          'Remove credentials, personal names and email addresses from the probe note, then run the probe again.',
+        ],
+      },
     );
 }
 
-export function changed(): DevkitError {
+function inputRequired(repo: string): DevkitError {
+  return new DevkitError(
+    'usage',
+    'PROBE_RECORD_INPUT_REQUIRED',
+    'Recording requires --probe, --env and --platform',
+    {
+      nextSteps: [`fx where ${repo} --env <env> --platform <platform> --probe --record --dry-run`],
+    },
+  );
+}
+
+export function probeChangedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'PROBE_RECORD_CHANGED',
-    'Source documents or probe inputs changed; the result was not recorded.',
+    'Source documents or probe inputs changed; the result was not recorded',
     { nextSteps: ['Review the current source and run the probe again.'] },
   );
 }
@@ -196,7 +223,8 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'PROBE_RECORD_MANIFEST_INVALID',
-    'The source manifest must pass schema validation before recording.',
+    'The source manifest must pass schema validation before recording',
+    { nextSteps: ['fx manifest validate', 'Fix the reported problems in the source, then retry.'] },
   );
 }
 
@@ -205,6 +233,12 @@ function assertShared(origin: string): void {
     throw new DevkitError(
       'usage',
       'PROBE_RECORD_SCOPE_INVALID',
-      'Only shared repository coordinates can be recorded in the manifest.',
+      'Only shared repository coordinates can be recorded in the manifest',
+      {
+        nextSteps: [
+          'fx repo list',
+          'Record a repository the shared manifest owns; locally added repositories keep their coordinates in personal configuration.',
+        ],
+      },
     );
 }

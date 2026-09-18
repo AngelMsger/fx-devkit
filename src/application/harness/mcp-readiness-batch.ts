@@ -4,7 +4,7 @@ import type { McpResource } from '../../domain/manifest/types.js';
 import { pooled } from '../pool.js';
 import type { WritePosture } from '../safety/posture.js';
 
-import { McpReadiness, type McpReadinessDeps, type McpVerdict } from './readiness.js';
+import { McpReadiness, type McpReadinessDeps, type McpVerdict } from './mcp-readiness.js';
 
 export interface McpReadinessBatchInput {
   readonly workspace: string;

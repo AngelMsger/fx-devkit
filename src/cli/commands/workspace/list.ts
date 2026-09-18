@@ -1,4 +1,4 @@
-import { discoverWorkspaces } from '../../../application/workspace/discover.js';
+import { discoverWorkspaces, WORKSPACE_COLUMNS } from '../../../application/workspace/discover.js';
 import { FxCommand } from '../../base.js';
 
 export default class WorkspaceList extends FxCommand {
@@ -14,19 +14,11 @@ export default class WorkspaceList extends FxCommand {
     } = await discoverWorkspaces({
       ...this.resolveInput(),
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
     });
     this.renderer.list(items, {
-      columns: [
-        'name',
-        'root',
-        'source',
-        'default',
-        'cwd_match',
-        'selected',
-        'selection',
-        'status',
-      ],
+      columns: WORKSPACE_COLUMNS,
       trailer,
     });
   }

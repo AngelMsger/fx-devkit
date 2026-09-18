@@ -1,8 +1,8 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { RepoAdd } from '../../../application/repo/add.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class RepoAddCommand extends FxCommand {
   static override description = 'Register a checkout that exists only on this machine';
@@ -10,11 +10,7 @@ export default class RepoAddCommand extends FxCommand {
     '<%= config.bin %> repo add ../scratch-x --upstream ssh://git@git.example.com/lab/scratch-x.git',
   ];
   static override args = {
-    path: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'directory of the checkout',
-    }),
+    path: requiredArgument('directory of the checkout'),
   };
   static override flags = {
     upstream: Flags.string({
@@ -28,8 +24,7 @@ export default class RepoAddCommand extends FxCommand {
     const result = await new RepoAdd(await this.workspaceDeps()).execute({
       path: args.path,
       upstream: flags.upstream,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(result);
   }

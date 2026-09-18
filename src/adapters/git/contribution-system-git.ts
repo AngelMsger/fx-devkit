@@ -30,7 +30,9 @@ export class ContributionSystemGit implements ContributionGit {
 
   async prepare(input: ConstructContribution): Promise<ConstructedContribution> {
     if (!/^fx\/contribution\/[a-zA-Z0-9_-]+$/.test(input.branch))
-      throw new DevkitError('usage', 'SOURCE_BRANCH_INVALID', 'Use a managed contribution branch.');
+      throw new DevkitError('usage', 'SOURCE_BRANCH_INVALID', 'Use a managed contribution branch', {
+        nextSteps: ['fx source push --new'],
+      });
     assertObjectId(input.parent);
     if (input.expectedHead !== null) assertObjectId(input.expectedHead);
     const current = await this.capture(input.snapshot);
@@ -38,7 +40,8 @@ export class ContributionSystemGit implements ContributionGit {
       throw new DevkitError(
         'conflict',
         'SOURCE_SNAPSHOT_CHANGED',
-        'Selected source files or HEAD changed after planning.',
+        'Selected source files or HEAD changed after planning',
+        { nextSteps: ['Re-run the same fx source push command to plan the current source state.'] },
       );
     const temporary = await fs.mkdtemp(path.join(tmpdir(), 'fx-contribution-index-'));
     const index = path.join(temporary, 'index');
@@ -76,7 +79,9 @@ export class ContributionSystemGit implements ContributionGit {
 
   async publish(input: PublishContribution): Promise<void> {
     if (!/^fx\/contribution\/[a-zA-Z0-9_-]+$/.test(input.branch))
-      throw new DevkitError('usage', 'SOURCE_BRANCH_INVALID', 'Use a managed contribution branch.');
+      throw new DevkitError('usage', 'SOURCE_BRANCH_INVALID', 'Use a managed contribution branch', {
+        nextSteps: ['fx source push --new'],
+      });
     assertObjectId(input.commit);
     if (input.expectedHead !== null) assertObjectId(input.expectedHead);
     const git = (args: readonly string[]): Promise<string> =>
@@ -86,7 +91,13 @@ export class ContributionSystemGit implements ContributionGit {
       throw new DevkitError(
         'conflict',
         'SOURCE_BRANCH_CHECKED_OUT',
-        'The contribution branch is checked out; choose a new contribution.',
+        'The contribution branch is checked out; choose a new contribution',
+        {
+          nextSteps: [
+            `git -C ${input.dir} worktree list`,
+            'Check out another branch there, or run fx source push --new.',
+          ],
+        },
       );
     if (
       (await this.inspect({ dir: input.dir, ref: `refs/heads/${input.branch}` }))?.sha ===
@@ -141,7 +152,8 @@ async function writeCandidate({
     throw new DevkitError(
       'conflict',
       'SOURCE_TREE_MISMATCH',
-      'Constructed tree differs from the preview.',
+      'Constructed tree differs from the preview',
+      { nextSteps: ['Re-run the same fx source push command with --dry-run and review the plan.'] },
     );
   const commit = (
     await git(

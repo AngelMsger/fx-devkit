@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+- Report a bound provider whose companion tool no tools document declares as `TOOL_UNDECLARED`, instead of claiming the capability has no provider.
+- Check a platform's `service` block against the provider its name implies, so a valid declaration is no longer rejected and an invalid one is no longer skipped.
+- Record the background phases a session-start run commits to, so phases a terminated worker never reached read as `HOOK_PHASE_UNREPORTED` instead of disappearing.
+
 - Preserve explicit report fields in all output formats, workspace scope in recovery commands, and source identity through contribution locking.
 - Import verified local Git coordinates, safely add matching upstream remotes to existing clones, and align preparation with enabled/required tool declarations.
 - Accept all declared setup verification forms and preserve nullable comparison values through manifest overlays.
+- Compatibility: `fx skill show` reports a missing bundled Skill as `BUNDLED_SKILL_MISSING`; `SKILL_MISSING` now names only the agent-facing notice.
 
 - Add global workspace discovery, health, unregister, relocation and source rebinding while preserving business checkouts and preventing duplicate directory identities.
 - Add repo/env select with explicit, dynamic-all and empty scopes, first-init repository selection and inspected local-source previews.

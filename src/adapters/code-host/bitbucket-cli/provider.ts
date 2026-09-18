@@ -18,7 +18,14 @@ import type {
   RepoRef,
 } from '../../../ports/code-host.js';
 import type { AdapterDeps, ProviderDescriptor, Vars } from '../../../ports/provider.js';
-import { EXIT, itemsOf, objectOf, queryFailed, stringAt, unreadable } from '../../family/cli.js';
+import {
+  EXIT,
+  itemsOf,
+  objectOf,
+  queryFailed,
+  stringAt,
+  unreadableError,
+} from '../../family/cli.js';
 import { familyService } from '../../family/service.js';
 
 import { BINARY, BitbucketCli, type CliCall } from './client.js';
@@ -112,7 +119,7 @@ export class BitbucketCodeHost implements CodeHost {
       const name = stringAt(item, 'name');
       const sha = stringAt(item, 'last_commit') ?? stringAt(item, 'target');
       if (name === undefined || sha === undefined)
-        throw unreadable(BINARY, `a branch of ${slug(ref)}`);
+        throw unreadableError(BINARY, `a branch of ${slug(ref)}`);
       return { name, sha, default: item['default'] === true };
     });
   }
@@ -127,7 +134,7 @@ export class BitbucketCodeHost implements CodeHost {
     const what = `${range.from}..${range.to} of ${slug(ref)}`;
     return rows(call.data, what).map((item) => {
       const commit = commitOf(item);
-      if (commit === undefined) throw unreadable(BINARY, `a commit of ${what}`);
+      if (commit === undefined) throw unreadableError(BINARY, `a commit of ${what}`);
       return commit;
     });
   }
@@ -172,6 +179,11 @@ export class BitbucketCodeHost implements CodeHost {
 export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   id: 'bitbucket-cli',
   capability: 'code-host',
+  impliedByDefaultHost: true,
+  settings: {
+    fields: ['base_url', 'context', 'flavor', 'auth_scheme', 'credential_url'],
+    authSchemes: ['pat', 'basic'],
+  },
   tools: [BINARY],
   service: (settings) => familyService('bitbucket-cli', settings),
   recipes: BITBUCKET_RECIPES,
@@ -192,7 +204,7 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
 // missing one.
 function rows(data: unknown, what: string): Record<string, unknown>[] {
   const items = itemsOf(data);
-  if (items === undefined) throw unreadable(BINARY, what);
+  if (items === undefined) throw unreadableError(BINARY, what);
   return items;
 }
 

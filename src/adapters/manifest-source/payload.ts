@@ -32,6 +32,11 @@ export function assertPayloadPath(name: string): void {
       'config',
       'MANIFEST_SOURCE_INVALID',
       `Invalid source payload path: ${name}`,
+      {
+        nextSteps: [
+          `Name the payload entry ${PAYLOAD_PATHS.join(', ')} or a path under docs/ or skills/, without backslash, "." or ".." segments.`,
+        ],
+      },
     );
 }
 

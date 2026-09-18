@@ -11,6 +11,11 @@ import { OPENOBSERVE_RECIPES } from './recipes.js';
 export const openobserveCliProvider: ProviderDescriptor<LogStore> = {
   id: 'openobserve-cli',
   capability: 'log-store',
+  impliedByPlatform: ['openobserve'],
+  settings: {
+    fields: ['base_url', 'context', 'org', 'auth_scheme', 'credential_url'],
+    authSchemes: ['basic', 'token', 'session'],
+  },
   tools: ['openobserve-cli'],
   service: (settings) => familyService('openobserve-cli', settings, 'authenticated', '0.13.0'),
   recipes: OPENOBSERVE_RECIPES,

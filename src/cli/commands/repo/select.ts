@@ -1,9 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
-import { editSelection } from '../../../application/repo/selection.js';
+import { editRepoScope } from '../../../application/repo/scope.js';
 import { selectOperation } from '../../../application/workspace/scope.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { argument, dryRunFlag, writeIntent } from '../../flags.js';
 
 export default class RepoSelectCommand extends FxCommand {
   static override description =
@@ -14,7 +14,7 @@ export default class RepoSelectCommand extends FxCommand {
   ];
   static override strict = false;
   static override args = {
-    name: Args.string({ ignoreStdin: true, description: 'names to select exclusively' }),
+    name: argument('names to select exclusively'),
   };
   static override flags = {
     all: Flags.boolean({
@@ -28,12 +28,11 @@ export default class RepoSelectCommand extends FxCommand {
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoSelectCommand);
     const operation = selectOperation(flags.all, flags.none);
-    const result = await editSelection(
+    const result = await editRepoScope(
       await this.workspaceDeps(),
       {
         names: argv as string[],
-        dryRun: flags['dry-run'],
-        posture: this.posture,
+        ...writeIntent(flags, this.posture),
       },
       operation,
     );

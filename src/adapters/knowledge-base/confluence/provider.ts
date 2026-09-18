@@ -21,6 +21,10 @@ const SPACE = [
 export const confluenceProvider: ProviderDescriptor<Coordinate> = {
   id: 'confluence',
   capability: 'knowledge-base',
+  settings: {
+    fields: ['base_url', 'context', 'flavor', 'auth_scheme', 'credential_url'],
+    authSchemes: ['pat', 'basic'],
+  },
   reference: true,
   tools: ['confluence-cli'],
   vars: [

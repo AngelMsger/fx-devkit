@@ -4,7 +4,10 @@
 import { hasPreparationIssue } from '../../domain/preparation.js';
 import type { Notice } from '../../ports/reporter.js';
 
-export type ReportCommand = 'init' | 'sync' | 'doctor' | 'release';
+// The commands whose result is a workflow report. The registry checks that each
+// of them is a command that exists.
+export const REPORT_COMMANDS = ['init', 'sync', 'doctor', 'release'] as const;
+export type ReportCommand = (typeof REPORT_COMMANDS)[number];
 const COLLECTIONS = new Set([
   'items',
   'repositories',
@@ -30,7 +33,7 @@ const RECOVERY = new Set([
 ]);
 
 export function reportCommand(id: string | undefined): ReportCommand | undefined {
-  return id === 'init' || id === 'sync' || id === 'doctor' || id === 'release' ? id : undefined;
+  return REPORT_COMMANDS.find((name) => name === id);
 }
 
 export function compactReport(value: object): object {

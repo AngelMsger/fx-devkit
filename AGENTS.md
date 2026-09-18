@@ -53,7 +53,11 @@ bypass dependency boundaries. ESLint enforces imports; reviewers still verify
 responsibility and data flow.
 
 A provider is one `ProviderDescriptor` under `adapters/<capability>/<id>/` plus
-registration in composition. Application code does not name providers.
+registration in composition. The descriptor is also where a provider declares what a
+manifest may say about it: the shared service settings and authentication methods it
+accepts, and the names a schema 1 document writes in place of its id. Validation reads
+those from the catalog it is handed, never from a table of its own. Application code
+does not name providers.
 `AgentHostSpec` is the sole inventory of native agent capabilities and paths;
 protocol adapters own serialization. Platform differences belong to adapters,
 not provider-specific application branches.
@@ -193,6 +197,10 @@ readonly data, explicit narrowing and small modules with one responsibility.
 Export the minimum; avoid `any`, nested ternaries and policy hidden in factories.
 Functions name actions; boolean names state a predicate. Keep implementations
 readable rather than splitting them only to satisfy a line limit.
+
+An error `message` is a headline: it starts with a capital letter, unless it
+starts with an identifier, path, command or flag that keeps its own spelling,
+and it carries no trailing period; `hint` and `next_steps` are sentences and do.
 
 A file begins with a short responsibility/contract paragraph. Command classes
 normally need only their description. Inline comments explain a non-obvious

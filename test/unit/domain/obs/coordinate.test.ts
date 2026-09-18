@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { loadEnvironments, loadWorkspace } from '../../../../src/domain/manifest/loader.js';
 import { applyLocal, type ResolvedRepo } from '../../../../src/domain/manifest/local.js';
 import { bindPlatforms } from '../../../../src/domain/manifest/providers.js';
@@ -14,7 +15,7 @@ const text = (name: string): string =>
 const cli = { cliVersion: '1.0.0' };
 const workspace = loadWorkspace(text('workspace.yaml'), cli).doc;
 const environments = loadEnvironments(text('environments.yaml'), cli, { workspace }).doc;
-const bindings = bindPlatforms(environments);
+const bindings = bindPlatforms(environments, providerCatalog());
 const repos = applyLocal(workspace, {}).repos;
 const repo = (name: string): ResolvedRepo => repos.find((r) => r.name === name)!;
 const binding = (platform: string) => bindings.find((b) => b.platform === platform);

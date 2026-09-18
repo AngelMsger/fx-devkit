@@ -2,22 +2,22 @@
 // projection writer; it does not introduce another platform execution path.
 
 import type { LoginDeps } from '../application/login/deps.js';
-import type { RecordProbeInput, RecordProbeOutput } from '../application/probe-record/types.js';
-import { RecordProbe } from '../application/record-probe.js';
+import { ProbeRecord } from '../application/probe-record/index.js';
+import type { ProbeRecordInput, ProbeRecordOutput } from '../application/probe-record/types.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import { FileProjectionStore } from '../infra/projection-store.js';
 
 import type { Container } from './container.js';
 
-interface RecordingCommand {
+interface ProbeRecordCommand {
   readonly container: Container;
   readonly workspace: WorkspaceDeps;
   readonly login: LoginDeps;
-  readonly input: RecordProbeInput;
+  readonly input: ProbeRecordInput;
 }
 
-export function recordProbe(input: RecordingCommand): Promise<RecordProbeOutput> {
-  return new RecordProbe({
+export function recordProbe(input: ProbeRecordCommand): Promise<ProbeRecordOutput> {
+  return new ProbeRecord({
     workspace: input.workspace,
     login: input.login,
     files: new FileProjectionStore(input.container.lock),

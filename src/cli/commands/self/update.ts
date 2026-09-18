@@ -1,8 +1,9 @@
 import { SelfUpdate } from '../../../application/self/update.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, writeIntent } from '../../flags.js';
 
 export default class SelfUpdateCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Update fx from its distribution registry (override with FX_REGISTRY)';
   static override examples = [
@@ -21,9 +22,8 @@ export default class SelfUpdateCommand extends FxCommand {
     ).execute({
       packageName: pjson.name,
       registry: this.fxUpdateInput().registry,
-      dryRun: flags['dry-run'],
+      ...writeIntent(flags, this.posture),
       yes: this.yes,
-      posture: this.posture,
     });
     this.renderer.record(out);
     if (!out.ran || out.code !== 0) return;

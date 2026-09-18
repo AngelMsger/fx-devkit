@@ -1,9 +1,7 @@
-import { Args } from '@oclif/core';
-
 import { AgentPick } from '../../../application/agent/pick.js';
 import { agentResourceCleanup } from '../../../composition/agent-cleanup.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class AgentUnpickCommand extends FxCommand {
   static override description =
@@ -11,11 +9,7 @@ export default class AgentUnpickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> agent unpick claude-code codex'];
   static override strict = false;
   static override args = {
-    id: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'agent id(s), e.g. claude-code',
-    }),
+    id: requiredArgument('agent id(s), e.g. claude-code'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
@@ -28,8 +22,7 @@ export default class AgentUnpickCommand extends FxCommand {
     ).execute({
       ids: argv as string[],
       action: 'unpick',
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(result);
   }

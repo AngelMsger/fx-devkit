@@ -11,6 +11,11 @@ import { JENKINS_RECIPES } from './recipes.js';
 export const jenkinsCliProvider: ProviderDescriptor<Ci> = {
   id: BINARY,
   capability: 'ci',
+  impliedByPlatform: ['jenkins'],
+  settings: {
+    fields: ['base_url', 'context', 'auth_scheme', 'credential_url'],
+    authSchemes: ['token', 'basic'],
+  },
   tools: [BINARY],
   service: (settings) => familyService('jenkins-cli', settings, 'authenticated', '0.9.0'),
   recipes: JENKINS_RECIPES,

@@ -20,6 +20,8 @@ export interface MemberRow {
   readonly areas: readonly string[];
 }
 
+export const MEMBER_COLUMNS = ['id', 'display', 'status', 'areas'] as const;
+
 export class MemberList {
   constructor(private readonly deps: WorkspaceDeps) {}
 

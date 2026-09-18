@@ -13,7 +13,7 @@ import { repoRef, type RepoRef } from '../../domain/workspace/ref.js';
 import type { CodeHostQueries } from '../../ports/code-host.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import { blocked, type Gate, type Gates } from './gates.js';
+import { blockedFinding, type Gate, type Gates } from './gates.js';
 
 // A check reads the manifest, asks a platform, and reads a repository: it
 // is handed those three and not the git, filesystem or subprocess ports
@@ -73,7 +73,7 @@ export function withoutFacts(
   outcome: Exclude<FactsOutcome, { kind: 'facts' }>,
 ): ReleaseFinding {
   return outcome.kind === 'gate'
-    ? blocked(check, repo, outcome.gate)
+    ? blockedFinding(check, repo, outcome.gate)
     : unanswered(check, repo, outcome.reason);
 }
 

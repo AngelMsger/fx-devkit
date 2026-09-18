@@ -27,7 +27,12 @@ export async function captureContribution(
     runContributionGit({ process, dir, args });
   const root = (await git(['rev-parse', '--show-toplevel'])).trim();
   if ((await fs.realpath(root)) !== dir)
-    throw new DevkitError('usage', 'SOURCE_ROOT_REQUIRED', 'Use the registered source root.');
+    throw new DevkitError('usage', 'SOURCE_ROOT_REQUIRED', 'Use the registered source root', {
+      nextSteps: [
+        'fx workspace show',
+        `Register the source at the repository root ${root}, or move the checkout out of the enclosing repository.`,
+      ],
+    });
   const base = (
     await git(['rev-parse', '--verify', '--end-of-options', `${input.base}^{commit}`])
   ).trim();
@@ -101,7 +106,13 @@ async function captureFile(
     throw new DevkitError(
       'usage',
       'SOURCE_ENTRY_UNSUPPORTED',
-      'Selected entries must be regular source files.',
+      'Selected entries must be regular source files',
+      {
+        nextSteps: [
+          `ls -l ${target}`,
+          `Remove ${file.path} from the selection; only regular files can be contributed.`,
+        ],
+      },
     );
   const bytes = await fs.readFile(target);
   let content: string;
@@ -111,14 +122,20 @@ async function captureFile(
     throw new DevkitError(
       'usage',
       'SOURCE_ENTRY_UNSUPPORTED',
-      'Selected files must be UTF-8 text.',
+      'Selected files must be UTF-8 text',
+      { nextSteps: [`Re-encode ${file.path} as UTF-8, or remove it from the selection.`] },
     );
   }
   if (content.includes('\0'))
     throw new DevkitError(
       'usage',
       'SOURCE_ENTRY_UNSUPPORTED',
-      'Binary contributions require manual review.',
+      'Binary contributions require manual review',
+      {
+        nextSteps: [
+          `Remove ${file.path} from the selection and deliver binary content through the code host.`,
+        ],
+      },
     );
   const executable =
     process.platform === 'win32' ? modes.get(file.path) === '100755' : (info.mode & 0o111) !== 0;
@@ -167,7 +184,12 @@ async function assertAncestors(root: string, file: string): Promise<void> {
       throw new DevkitError(
         'usage',
         'SOURCE_ENTRY_UNSUPPORTED',
-        'Selected paths cannot traverse symbolic links.',
+        'Selected paths cannot traverse symbolic links',
+        {
+          nextSteps: [
+            `Select ${file} through its real directory instead of the symbolic link at ${current}.`,
+          ],
+        },
       );
   }
 }

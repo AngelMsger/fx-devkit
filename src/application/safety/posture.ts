@@ -26,6 +26,11 @@ export function resolvePosture(input: PostureInput): WritePosture {
   return { readOnly: false, source: 'default' };
 }
 
+// Background work has no invocation to resolve a posture from: dispatch refuses
+// to start it unless the session is already writable, so its phases run under
+// the built-in writable answer rather than one a flag, variable or file argued for.
+export const BACKGROUND_POSTURE: WritePosture = { readOnly: false, source: 'default' };
+
 export function assertWritable(posture: WritePosture, operation: string): void {
   if (!posture.readOnly) return;
   throw new DevkitError(

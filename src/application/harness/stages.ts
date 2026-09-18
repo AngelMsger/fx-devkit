@@ -4,9 +4,9 @@ import { asDevkitError, DevkitError } from '../../domain/errors.js';
 import { finding } from '../../domain/report.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../sync.js';
+import type { StageResult } from '../sync/types.js';
 
-import { McpReadinessBatch } from './readiness-batch.js';
+import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';
 import { loadHarnessCommand, type HarnessSession } from './session.js';
 import type { HarnessInput, HarnessOutput } from './types.js';
@@ -27,7 +27,7 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
   const { deps, input } = await loadHarnessCommand(command);
   const held = command.workspaceLease;
   if (held && (held.workspace !== input.workspace || held.root !== input.root))
-    throw new DevkitError('conflict', 'HARNESS_PLAN_CHANGED', 'Workspace lease scope changed.', {
+    throw new DevkitError('conflict', 'HARNESS_PLAN_CHANGED', 'Workspace lease scope changed', {
       nextSteps: ['Retry workspace synchronization.'],
     });
   const lock = held

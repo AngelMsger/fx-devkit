@@ -45,6 +45,8 @@ export const serviceSchema = z
   );
 
 export type ServiceSettings = z.infer<typeof serviceSchema>;
+export type ServiceField = keyof ServiceSettings;
+export type AuthScheme = NonNullable<ServiceSettings['auth_scheme']>;
 
 export function serviceVars(service: ServiceSettings | undefined): Record<string, string> {
   if (!service) return {};

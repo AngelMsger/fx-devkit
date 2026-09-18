@@ -63,7 +63,13 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'config',
         'SOURCE_BASE_UNVERIFIED',
-        'The upstream did not identify its default branch.',
+        'The upstream did not identify its default branch',
+        {
+          nextSteps: [
+            `git -C ${input.dir} ls-remote --symref upstream HEAD`,
+            'Give the upstream repository a default branch, then retry.',
+          ],
+        },
       );
     assertObjectId(sha);
     return { sha, branch };
@@ -79,7 +85,13 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'conflict',
         'SOURCE_REMOTE_CHANGED',
-        'Upstream routing changed after planning.',
+        'Upstream routing changed after planning',
+        {
+          nextSteps: [
+            `git -C ${input.dir} remote -v`,
+            'Restore the planned upstream routing, or re-run fx source push to plan again.',
+          ],
+        },
       );
     await runContributionGit({
       process: this.process,
@@ -115,7 +127,13 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'parse',
         'SOURCE_REMOTE_HEAD_INVALID',
-        'The remote did not return one exact branch identity.',
+        'The remote did not return one exact branch identity',
+        {
+          nextSteps: [
+            `git -C ${input.dir} ls-remote --heads origin refs/heads/${input.branch}`,
+            'Remove the duplicate or mismatched remote branch, then retry.',
+          ],
+        },
       );
     assertObjectId(sha);
     return sha;
@@ -149,7 +167,8 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'usage',
         'SOURCE_BRANCH_INVALID',
-        'Use a dedicated contribution branch.',
+        'Use a dedicated contribution branch',
+        { nextSteps: ['fx source push --new'] },
       );
     const settings = await this.inspect(input);
     if (
@@ -163,7 +182,13 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'conflict',
         'SOURCE_REMOTE_CHANGED',
-        'Source remote routing changed after verification.',
+        'Source remote routing changed after verification',
+        {
+          nextSteps: [
+            `git -C ${input.dir} remote -v`,
+            'Restore the verified push routing, or re-run fx source push to plan again.',
+          ],
+        },
       );
   }
 }

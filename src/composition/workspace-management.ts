@@ -18,6 +18,7 @@ export function workspaceManagement(
     lock: container.lock,
     manifestDirFor: container.manifestDirFor,
     bundledTools: container.bundledTools,
+    providers: container.providers,
     cliVersion: input.cliVersion,
     commandShell: input.commandShell,
     resources: new WorkspaceResources(

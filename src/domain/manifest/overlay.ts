@@ -3,6 +3,10 @@
 // lists are replaced. Null deletes fields unless the schema accepts it as a value.
 // Provenance records each field's origin for `tool show`.
 
+import type * as z from 'zod';
+
+import { isRaw, type PathPart, type Raw } from './document.js';
+import { acceptsNullAt } from './reflect.js';
 import type { Tool, Toolchain } from './types.js';
 
 export type Origin = 'base' | 'patch';
@@ -185,4 +189,20 @@ function join(path: string, key: string): string {
 
 function lastSegment(path: string): string {
   return path.slice(path.lastIndexOf('.') + 1);
+}
+
+// Preserve schema-defined null values; other patch nulls delete fields after merging.
+export function splitNulls(schema: z.ZodType, raw: Raw): { value: Raw; deletions: MergePath[] } {
+  const deletions: MergePath[] = [];
+  const visit = (node: unknown, path: PathPart[]): unknown => {
+    if (Array.isArray(node)) return node.map((item, i) => visit(item, [...path, i]));
+    if (!isRaw(node)) return node;
+    const out: Raw = {};
+    for (const [key, child] of Object.entries(node)) {
+      if (child === null && !acceptsNullAt(schema, [...path, key])) deletions.push([...path, key]);
+      else out[key] = visit(child, [...path, key]);
+    }
+    return out;
+  };
+  return { value: visit(raw, []) as Raw, deletions };
 }

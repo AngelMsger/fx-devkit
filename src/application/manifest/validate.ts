@@ -13,6 +13,7 @@ import {
   loadWorkspace,
   type InspectLoadOptions,
 } from '../../domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type {
   Dropped,
   InspectedLoadResult,
@@ -45,6 +46,7 @@ export interface ValidateReport {
 export interface ValidateManifestInput {
   readonly dir: string;
   readonly cliVersion: string;
+  readonly providers: ProviderCatalog;
   readonly strict: boolean;
   readonly kind?: ValidatedKind | undefined;
 }
@@ -66,6 +68,7 @@ export class ValidateManifest {
   async execute(input: ValidateManifestInput): Promise<ValidateReport> {
     const opts: InspectLoadOptions = {
       cliVersion: input.cliVersion,
+      providers: input.providers,
       strict: input.strict,
       allowInvalid: true,
     };

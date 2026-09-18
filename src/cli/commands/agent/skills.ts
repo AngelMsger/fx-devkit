@@ -1,8 +1,10 @@
-import { SkillList } from '../../../application/skill/list.js';
-import { FxCommand } from '../../base.js';
+import { SKILL_COLUMNS, SkillList } from '../../../application/skill/list.js';
 import { listFlag } from '../../flags.js';
+import { SkillCommand } from '../../skill-command.js';
 
-export default class AgentSkillsCommand extends FxCommand {
+// It shares the companion wiring but reports on a workspace, not on fx itself.
+export default class AgentSkillsCommand extends SkillCommand {
+  static override announcesSkill = true;
   static override description =
     'List workspace team Skills and the bundled fx Skill for selected agents';
   static override flags = {
@@ -11,9 +13,9 @@ export default class AgentSkillsCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(AgentSkillsCommand);
-    const rows = await new SkillList(await this.workspaceDeps(), this.skillDeps()).execute({
-      agents: flags.agent,
-    });
-    this.renderer.list(rows, { columns: ['name', 'kind', 'states', 'source'] });
+    const rows = await new SkillList(await this.workspaceDeps(), this.skillDeps()).execute(
+      this.skillTarget(flags),
+    );
+    this.renderer.list(rows, { columns: SKILL_COLUMNS });
   }
 }

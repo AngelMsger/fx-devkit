@@ -15,7 +15,8 @@ import { environmentsOf, envNotFound } from './env/names.js';
 import type { LoginDeps } from './login/deps.js';
 import { expandHomeIn } from './login/verify.js';
 import { pooled } from './pool.js';
-import { Readiness, type ReadyStatus } from './readiness.js';
+import { Readiness } from './readiness/index.js';
+import type { ReadyStatus } from './readiness/types.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { workspaceCommand } from './workspace/guidance.js';
 import { findKnownRepo } from './workspace/inspect.js';
@@ -61,7 +62,7 @@ export class Where {
 
   async execute(input: WhereInput): Promise<WhereRow[]> {
     if (input.probe && input.env === undefined) {
-      throw new DevkitError('usage', 'ENV_REQUIRED', 'probing asks a real platform; pass --env', {
+      throw new DevkitError('usage', 'ENV_REQUIRED', 'Probing asks a real platform; pass --env', {
         hint: 'Environments are listed by `fx env list`.',
         nextSteps: [
           workspaceCommand(this.deps, 'env', 'list'),

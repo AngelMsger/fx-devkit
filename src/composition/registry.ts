@@ -17,12 +17,17 @@ import { wecomProvider } from '../adapters/im/wecom/provider.js';
 import { feishuProjectProvider } from '../adapters/issue-tracker/feishu-project/provider.js';
 import { confluenceProvider } from '../adapters/knowledge-base/confluence/provider.js';
 import { openobserveCliProvider } from '../adapters/log-store/openobserve-cli/provider.js';
-import type { Capability } from '../domain/capability.js';
+import type { CapabilityName } from '../domain/capability.js';
 import { DevkitError } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
-import type { Binding, PlatformBinding } from '../domain/manifest/providers.js';
+import {
+  servesCapability,
+  type Binding,
+  type PlatformBinding,
+  type ProviderCatalog,
+} from '../domain/manifest/providers.js';
 import type { AgentHost } from '../ports/agent-host.js';
 import type { HookProtocol } from '../ports/hook-protocol.js';
 import type { McpCodec } from '../ports/mcp-codec.js';
@@ -79,11 +84,11 @@ export function createAgentHosts(
   return specs.map((spec) => new SpecAgentHost(spec, deps));
 }
 
-export function register(descriptor: ProviderDescriptor<unknown>): void {
+export function register<P>(descriptor: ProviderDescriptor<P>): void {
   providers.set(descriptor.id, descriptor);
 }
 
-export function providersFor(capability: Capability): ProviderDescriptor<unknown>[] {
+export function providersFor(capability: CapabilityName): ProviderDescriptor<unknown>[] {
   return [...providers.values()].filter((p) => p.capability === capability);
 }
 
@@ -91,19 +96,25 @@ export function describeProvider(id: string): ProviderDescriptor<unknown> | unde
   return providers.get(id);
 }
 
+// What a manifest is read against: the same descriptors, narrowed to the facts the
+// documents are validated and bound with.
+export function providerCatalog(): ProviderCatalog {
+  return [...providers.values()];
+}
+
 export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: AdapterDeps): P {
   const capability = binding.capability;
   if (binding.provider === null) {
-    throw new DevkitError('config', 'PROVIDER_UNBOUND', `no provider is bound for ${capability}`, {
+    throw new DevkitError('config', 'PROVIDER_UNBOUND', `No provider is bound for ${capability}`, {
       hint: `Add \`providers.${capability}\` to manifest/workspace.yaml. Available: ${ids(capability)}.`,
       nextSteps: ['fx manifest providers', `fx manifest explain providers`],
     });
   }
   const descriptor = providers.get(binding.provider);
-  if (descriptor === undefined || descriptor.capability !== capability) {
+  if (!servesCapability(descriptor, capability)) {
     const suggestion = nearest(
       binding.provider,
-      providersFor(capability as Capability).map((p) => p.id),
+      providersFor(capability).map((p) => p.id),
     );
     throw new DevkitError(
       'config',
@@ -139,22 +150,24 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
   return descriptor.create({ ...deps, process: scoped }, binding.vars) as P;
 }
 
-function ids(capability: string): string {
+function ids(capability: CapabilityName): string {
   return (
-    providersFor(capability as Capability)
+    providersFor(capability)
       .map((p) => p.id)
       .join(', ') || '(none)'
   );
 }
 
-register(bitbucketCliProvider as ProviderDescriptor<unknown>);
-register(localGitProvider as ProviderDescriptor<unknown>);
-register(sentryProvider as ProviderDescriptor<unknown>);
-register(openobserveCliProvider as ProviderDescriptor<unknown>);
-register(jenkinsCliProvider as ProviderDescriptor<unknown>);
-register(kubectlProvider as ProviderDescriptor<unknown>);
-register(feishuProjectProvider as ProviderDescriptor<unknown>);
-register(confluenceProvider as ProviderDescriptor<unknown>);
-register(larkProvider as ProviderDescriptor<unknown>);
-
-register(wecomProvider as ProviderDescriptor<unknown>);
+// Registration is a load-time effect: importing this module is what makes the
+// built-in providers exist, and insertion order is listing order, so the lines
+// below decide how `fx manifest providers` and every "Available:" hint read.
+register(bitbucketCliProvider);
+register(localGitProvider);
+register(sentryProvider);
+register(openobserveCliProvider);
+register(jenkinsCliProvider);
+register(kubectlProvider);
+register(feishuProjectProvider);
+register(confluenceProvider);
+register(larkProvider);
+register(wecomProvider);

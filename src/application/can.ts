@@ -1,11 +1,12 @@
 // Report readiness and recovery for a resolved capability or tool.
 
 import { DevkitError } from '../domain/errors.js';
+import { servesCapability } from '../domain/manifest/providers.js';
 import { shellLine } from '../domain/shell.js';
 
 import type { LoginDeps } from './login/deps.js';
-import { Readiness, type Verdict } from './readiness.js';
-import type { Target } from './readiness.js';
+import { Readiness } from './readiness/index.js';
+import type { Target, Verdict } from './readiness/types.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { workspaceCommand } from './workspace/guidance.js';
 
@@ -35,7 +36,7 @@ export class Can {
 
   async execute(input: CanInput): Promise<CanResult> {
     if (input.agent)
-      throw new DevkitError('usage', 'BAD_FLAG', '--agent is only valid for mcp:<name>.', {
+      throw new DevkitError('usage', 'BAD_FLAG', '--agent is only valid for mcp:<name>', {
         nextSteps: ['fx can --help'],
       });
     const readiness = new Readiness(this.deps, this.login);
@@ -56,7 +57,7 @@ export class Can {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;
     const descriptor = this.login.describeProvider(binding.provider);
-    if (descriptor === undefined || descriptor.capability !== binding.capability)
+    if (!servesCapability(descriptor, binding.capability))
       throw new DevkitError(
         'config',
         'PROVIDER_UNKNOWN',

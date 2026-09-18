@@ -1,8 +1,6 @@
-import { Args } from '@oclif/core';
-
-import { RepoPick } from '../../../application/repo/pick.js';
+import { editRepoScope } from '../../../application/repo/scope.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class RepoPickCommand extends FxCommand {
   static override description =
@@ -10,17 +8,17 @@ export default class RepoPickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> repo pick fx-example-api fx-example-auth'];
   static override strict = false;
   static override args = {
-    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name(s)' }),
+    name: requiredArgument('repository name(s)'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoPickCommand);
-    const result = await new RepoPick(await this.workspaceDeps()).execute({
-      names: argv as string[],
-      dryRun: flags['dry-run'],
-      posture: this.posture,
-    });
+    const result = await editRepoScope(
+      await this.workspaceDeps(),
+      { names: argv as string[], ...writeIntent(flags, this.posture) },
+      'pick',
+    );
     this.renderer.record(result);
   }
 }

@@ -1,24 +1,21 @@
-// Repository selection is the repos list of the personal scope; the only
-// repository-specific part is which names exist and how a typo is answered.
+// The repositories half of the personal scope; the edit itself is editScope's.
 
 import type { WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceItemNotFound } from '../workspace/guidance.js';
 import { editScope, type ScopeOperation, type ScopeOutput } from '../workspace/scope.js';
 
-export interface SelectionInput {
+export interface RepoScopeInput {
   readonly names: readonly string[];
   readonly dryRun: boolean;
   readonly posture: WritePosture;
 }
 
-export type SelectionOutput = ScopeOutput;
-
-export function editSelection(
+export function editRepoScope(
   deps: WorkspaceDeps,
-  input: SelectionInput,
+  input: RepoScopeInput,
   operation: ScopeOperation,
-): Promise<SelectionOutput> {
+): Promise<ScopeOutput> {
   const shared = deps.ctx.manifest.workspace.result.doc.repos.map((r) => r.name);
   return editScope(deps, {
     key: 'repos',

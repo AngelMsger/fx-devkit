@@ -6,6 +6,7 @@ import { TrustGate } from '../../../src/application/safety/trust.js';
 import { syncStages } from '../../../src/application/sync/stages.js';
 import { hasPreparationIssue } from '../../../src/domain/preparation.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { FakeLock } from '../../fakes/fake-lock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR } from '../../fakes/workspace.js';
@@ -56,7 +57,7 @@ async function stage(
       home: '/home',
       trust,
     },
-    skills: { hosts: [], configured: [], bundledSkillDir: '/skills' },
+    skills: { hosts: [], configured: [], bundledSkillDir: '/skills', globalLock: new FakeLock() },
   });
   return { h, run: stages['tools']! };
 }

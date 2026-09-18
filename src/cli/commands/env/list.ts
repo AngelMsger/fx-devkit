@@ -1,4 +1,4 @@
-import { EnvList } from '../../../application/env/list.js';
+import { ENV_COLUMNS, EnvList } from '../../../application/env/list.js';
 import { FxCommand } from '../../base.js';
 
 export default class EnvListCommand extends FxCommand {
@@ -11,7 +11,7 @@ export default class EnvListCommand extends FxCommand {
     await this.parse(EnvListCommand);
     const rows = new EnvList(await this.workspaceDeps()).execute();
     this.renderer.list(rows, {
-      columns: ['name', 'label', 'picked', 'selection_mode', 'platforms', 'confidence', 'note'],
+      columns: ENV_COLUMNS,
     });
   }
 }

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { Import } from '../../../src/application/import.js';
+import { DevkitError } from '../../../src/domain/errors.js';
 import { loadWorkspace } from '../../../src/domain/manifest/loader.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
@@ -66,7 +67,7 @@ function stage() {
     git,
     fs,
     reporter,
-    codeHost: () => codeHost,
+    codeHost: async () => codeHost,
     identifyProvider: async () => ({ provider: 'bitbucket-cli', host: HOST }),
   });
   return { fs, git, codeHost, importer };
@@ -162,13 +163,49 @@ describe('Import', () => {
     expect(s.fs.writes).toEqual([out, out, out]);
   });
 
-  it('treats a failing probe as "not there" and keeps going', async () => {
+  it('surfaces a code-host lookup failure instead of importing as if nothing were asked', async () => {
+    const s = stage();
+    const unresolvable = new Import({
+      git: s.git,
+      fs: s.fs,
+      reporter: new FakeReporter(),
+      codeHost: async () => {
+        throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no provider is bound for code-host');
+      },
+    });
+    await expect(unresolvable.execute({ ...write, dir: ROOT, dryRun: true })).rejects.toMatchObject(
+      {
+        code: 'PROVIDER_UNBOUND',
+      },
+    );
+  });
+
+  it('keeps going when a probe fails, and says the query was never answered', async () => {
     const s = stage();
     s.codeHost.canRead = async () => {
       throw new Error('offline');
     };
     const out = await s.importer.execute({ ...write, dir: ROOT, dryRun: true });
-    expect(out.report.skipped.map((x) => x.path)).toContain('fx-example-scripts');
     expect(out.report.repos).toBe(4);
+    expect(out.report.skipped).toContainEqual({
+      path: 'fx-example-scripts',
+      reason:
+        'origin is a personal fork; no upstream project could be verified from the available evidence; the code host did not answer for fx, ai; those projects were neither confirmed nor ruled out for this repository name.',
+    });
+  });
+
+  it('marks an inferred upstream for review when an earlier project went unanswered', async () => {
+    const s = stage();
+    const scripted = s.codeHost.canRead.bind(s.codeHost);
+    s.codeHost.canRead = async (ref) => {
+      if (ref.project === 'fx') throw new Error('offline');
+      return scripted(ref);
+    };
+    const out = await s.importer.execute({ ...write, dir: ROOT, dryRun: true });
+    expect(out.report.repos).toBe(5);
+    expect(out.report.review).toContainEqual({
+      name: 'fx-example-scripts',
+      note: 'the code host did not answer for fx; those projects were neither confirmed nor ruled out for this repository name.',
+    });
   });
 });

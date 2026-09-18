@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
-import { RecordProbe } from '../../../src/application/record-probe.js';
+import { ProbeRecord } from '../../../src/application/probe-record/index.js';
 import type {
   ProjectionPath,
   ProjectionStore,
@@ -85,7 +85,7 @@ async function fixture(options: { path?: string; otherOverride?: boolean } = {})
     env,
     workspace,
     writes,
-    usecase: new RecordProbe(deps),
+    usecase: new ProbeRecord(deps),
     acquired: () => acquire,
     released: () => releases,
     conflict: () => {
@@ -189,7 +189,7 @@ describe('recording coordinate probes', () => {
         throw new Error('must not write');
       },
     };
-    const record = new RecordProbe({
+    const record = new ProbeRecord({
       workspace: h.deps,
       login: fakeLoginDeps({}),
       files,

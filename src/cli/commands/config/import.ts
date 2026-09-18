@@ -1,11 +1,10 @@
-import { Args } from '@oclif/core';
-
 import { ConfigImport } from '../../../application/config/import.js';
 import { DevkitError } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ConfigImportCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Apply a profile: named settings and personal layers win; workspace registrations merge by name, without relocating, rebinding or removing existing workspaces';
   static override examples = [
@@ -13,7 +12,7 @@ export default class ConfigImportCommand extends FxCommand {
     '<%= config.bin %> config import me.yaml',
   ];
   static override args = {
-    file: Args.string({ ignoreStdin: true, required: true, description: 'the profile file' }),
+    file: requiredArgument('the profile file'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
@@ -33,10 +32,10 @@ export default class ConfigImportCommand extends FxCommand {
       commandShell: this.commandShell,
       lock: this.container.lock,
       cliVersion: this.config.version,
+      providers: this.container.providers,
     }).execute({
       text,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(out);
     if (out.next_steps.length > 0)

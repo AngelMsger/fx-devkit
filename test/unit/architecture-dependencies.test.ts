@@ -23,24 +23,24 @@ async function restrictions(filePath: string, source: string): Promise<readonly 
 }
 
 describe('inner-layer dependencies', () => {
-  it.each(['src/domain/values.ts', 'src/application/can.ts', 'src/ports/fs.ts'])(
-    'rejects IO and service packages in %s',
-    async (file) => {
-      for (const module of [
-        'node:fs',
-        'fs/promises',
-        'node:child_process',
-        'node:http',
-        '@vendor/client',
-      ])
-        expect(await restrictions(file, `import value from '${module}';`)).toContain(
-          'no-restricted-imports',
-        );
-      expect(await restrictions(file, "await import('node:fs');")).toContain(
-        'no-restricted-syntax',
+  it.each([
+    'src/domain/values.ts',
+    'src/domain/distribution.js',
+    'src/application/can.ts',
+    'src/ports/fs.ts',
+  ])('rejects IO and service packages in %s', async (file) => {
+    for (const module of [
+      'node:fs',
+      'fs/promises',
+      'node:child_process',
+      'node:http',
+      '@vendor/client',
+    ])
+      expect(await restrictions(file, `import value from '${module}';`)).toContain(
+        'no-restricted-imports',
       );
-    },
-  );
+    expect(await restrictions(file, "await import('node:fs');")).toContain('no-restricted-syntax');
+  });
 
   it('confines schema and serialization dependencies to configuration codecs', async () => {
     for (const module of ['yaml', 'zod']) {

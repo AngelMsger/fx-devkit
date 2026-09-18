@@ -99,7 +99,7 @@ describe('ManifestUpdateCheck', () => {
     expect(await unknown.check.execute(unknown.input)).toMatchObject({
       behind: false,
       upstream: null,
-      error: 'the default branch of upstream is not known here',
+      error: 'The default branch of upstream is not known here',
     });
     await unknown.check.markCurrent('ws', DIR);
     expect(unknown.cache.entries.size).toBe(1);

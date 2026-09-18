@@ -6,7 +6,7 @@ import type { McpResource } from '../../domain/manifest/types.js';
 import { matchesJson } from '../../domain/setup/json-check.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { Process } from '../../ports/process.js';
-import type { Verdict, ReadyStatus } from '../readiness.js';
+import type { Verdict, ReadyStatus } from '../readiness/types.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustGate } from '../safety/trust.js';
 

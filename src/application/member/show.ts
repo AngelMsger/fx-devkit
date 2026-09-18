@@ -19,6 +19,16 @@ export interface PersonRow {
   readonly via: string | null;
 }
 
+export const PERSON_COLUMNS = [
+  'id',
+  'display',
+  'email',
+  'status',
+  'matched_by',
+  'via',
+  'accounts',
+] as const;
+
 export class MemberShow {
   constructor(private readonly deps: WorkspaceDeps) {}
 
@@ -30,7 +40,7 @@ export class MemberShow {
       throw new DevkitError(
         'not_found',
         'PERSON_NOT_FOUND',
-        `nobody in the members document is "${query}"`,
+        `Nobody in the members document is "${query}"`,
         {
           hint:
             suggestion === undefined

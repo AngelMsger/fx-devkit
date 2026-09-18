@@ -2,97 +2,26 @@
 
 import path from 'node:path';
 
-import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
-import { samePath, windowsPathProblem } from '../domain/path.js';
-import { changeDirectoryCommand, shellLine, type ResolvedShell } from '../domain/shell.js';
-import { assertWorkspaceName, assertWorkspaceNames } from '../domain/workspace/name.js';
-import type { PlanItem } from '../domain/workspace/plan.js';
-import type { FileSystem } from '../ports/fs.js';
-import type { Git } from '../ports/git.js';
-import type { Lock } from '../ports/lock.js';
-import type { ManifestSource } from '../ports/manifest-source.js';
-import type { Reporter } from '../ports/reporter.js';
-import type { ConfigFile, ConfigStore, LocalLayerStore, WorkspaceEntry } from '../ports/stores.js';
+import { DevkitError } from '../../domain/errors.js';
+import { samePath, windowsPathProblem } from '../../domain/path.js';
+import { changeDirectoryCommand, type ResolvedShell } from '../../domain/shell.js';
+import { assertWorkspaceName, assertWorkspaceNames } from '../../domain/workspace/name.js';
+import type { ConfigFile } from '../../ports/stores.js';
+import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
+import { RefreshManifest } from '../refresh-manifest.js';
+import { assertWritable } from '../safety/posture.js';
+import { Sync } from '../sync/index.js';
+import type { SyncOutput } from '../sync/types.js';
+import type { ToolInstallOutput } from '../tool/install.js';
+import { assertNoWorkspaceOperation } from '../workspace/health.js';
+import { withWorkspaceOperation } from '../workspace/operation.js';
+import { assertDistinctWorkspaceRoot } from '../workspace/registry.js';
+import { scopeMode } from '../workspace/scope.js';
+import { WorkspaceContext } from '../workspace-context.js';
 
-import {
-  initialLocalLayer,
-  inspectInitialization,
-  initializationSourceError,
-  initialPlan,
-} from './init-preview.js';
-import { LoadManifest, type ManifestBundle } from './manifest/load.js';
-import { RefreshManifest } from './refresh-manifest.js';
-import { assertWritable, type WritePosture } from './safety/posture.js';
-import { Sync, type SyncOutput, type SyncStages } from './sync.js';
-import type { ToolInstallOutput } from './tool/install.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
-import { assertNoWorkspaceOperation } from './workspace/health.js';
-import { withWorkspaceOperation } from './workspace/operation.js';
-import { assertDistinctWorkspaceRoot } from './workspace/registry.js';
-import { scopeMode, type ScopeMode } from './workspace/scope.js';
-import { WorkspaceContext } from './workspace-context.js';
-
-export interface InitDeps {
-  readonly lock: Lock;
-  readonly commandShell?: ResolvedShell | undefined;
-  readonly fs: FileSystem;
-  readonly git: Git;
-  readonly config: ConfigStore;
-  readonly localStore: LocalLayerStore;
-  readonly bundledTools: () => string;
-  readonly cliVersion: string;
-  readonly reporter: Reporter;
-  readonly manifestDirFor: (name: string) => string;
-  readonly workspaceDepsFor: (ctx: WorkspaceContext) => WorkspaceDeps;
-  readonly preview?: (ctx: WorkspaceContext) => Promise<object>;
-  readonly installTools?: (ctx: WorkspaceContext) => Promise<readonly ToolInstallOutput[]>;
-  readonly stagesFor: (ctx: WorkspaceContext) => SyncStages;
-  readonly settleManifest: (name: string, manifestDir: string) => Promise<void>;
-}
-
-export interface InitInput {
-  readonly dir: string;
-  readonly source: ManifestSource;
-  readonly name?: string | undefined;
-  readonly repos?: readonly string[] | undefined;
-  readonly adopt: boolean;
-  readonly dryRun: boolean;
-  readonly posture: WritePosture;
-  readonly jobs: number;
-}
-
-export interface InitOutput {
-  readonly operation: 'preview' | 'apply';
-  readonly preparation_complete: boolean | null;
-  readonly root: string;
-  readonly name: string;
-  readonly source: string;
-  readonly manifest_dir: string;
-  readonly manifest: 'materialized' | 'refreshed' | 'not_written';
-  readonly adopted: boolean;
-  readonly registered: boolean;
-  readonly default_workspace: boolean;
-  readonly sync: SyncOutput | null;
-  readonly tool_install: readonly ToolInstallOutput[] | null;
-  readonly next_steps: readonly string[];
-  readonly written: boolean;
-  readonly prepared?: object | null;
-  readonly plan: {
-    readonly source_inspected: boolean;
-    readonly inspected_source: string | null;
-    readonly manifest_action: 'materialize' | 'refresh';
-    readonly registration: 'register' | 'keep';
-    readonly default_workspace: 'set' | 'keep';
-    readonly selection: {
-      readonly mode: ScopeMode;
-      readonly repos: readonly string[] | null;
-      readonly validated: boolean;
-    };
-    readonly repositories: readonly PlanItem[] | null;
-    readonly resources: Readonly<Record<string, unknown>>;
-    readonly unchecked: readonly string[];
-  };
-}
+import { initFailure, initializationSourceError, nameTaken, sourceMismatch } from './errors.js';
+import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';
+import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 type DirState = 'new' | 'empty' | 'registered' | 'adopted';
 
@@ -131,7 +60,10 @@ export class Init {
   private async plan(input: InitInput): Promise<Plan> {
     const root = path.resolve(input.dir);
     const problem = path.sep === '\\' ? windowsPathProblem(root) : undefined;
-    if (problem) throw new DevkitError('usage', 'WORKSPACE_PATH_INVALID', problem);
+    if (problem)
+      throw new DevkitError('usage', 'WORKSPACE_PATH_INVALID', problem, {
+        nextSteps: [`Choose a local workspace directory Windows can address instead of ${root}.`],
+      });
     const name = input.name ?? path.basename(root);
     assertWorkspaceName(name);
     const config = await this.deps.config.read();
@@ -240,6 +172,7 @@ export class Init {
       .execute({
         dir: output.manifest_dir,
         cliVersion: this.deps.cliVersion,
+        providers: this.deps.providers,
       })
       .catch((error: unknown) => {
         throw initializationSourceError(
@@ -302,6 +235,7 @@ export class Init {
       git: this.deps.git,
       localStore: this.deps.localStore,
       bundledTools: this.deps.bundledTools,
+      providers: this.deps.providers,
       cliVersion: this.deps.cliVersion,
       reporter: this.deps.reporter,
       manifestDirFor: this.deps.manifestDirFor,
@@ -327,41 +261,6 @@ export class Init {
   }
 }
 
-function nameTaken(
-  name: string,
-  root: string,
-  existing: WorkspaceEntry,
-  source: ManifestSource,
-): DevkitError {
-  return new DevkitError(
-    'conflict',
-    'WORKSPACE_NAME_TAKEN',
-    `workspace "${name}" is already registered at ${existing.root}`,
-    {
-      hint: 'If the directory moved, relocate its existing identity; otherwise initialize the registered directory.',
-      nextSteps: [
-        shellLine(['fx', 'workspace', 'relocate', name, root]),
-        shellLine(['fx', 'init', existing.root, '--name', name, '--from', source.description]),
-      ],
-    },
-  );
-}
-
-function sourceMismatch(name: string, recorded: string, source: ManifestSource): DevkitError {
-  return new DevkitError(
-    'conflict',
-    'SOURCE_MISMATCH',
-    `workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
-    {
-      hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
-      nextSteps: [
-        shellLine(['fx', 'workspace', 'rebind', name, '--from', source.description]),
-        shellLine(['fx', 'workspace', 'show', name]),
-      ],
-    },
-  );
-}
-
 function nextSteps(root: string, sync: SyncOutput, shell?: ResolvedShell): string[] {
   const steps = [changeDirectoryCommand(root, shell), 'fx login --list', 'fx doctor'];
   for (const item of sync.items.filter((i) => i.action === 'unreadable')) {
@@ -370,51 +269,6 @@ function nextSteps(root: string, sync: SyncOutput, shell?: ResolvedShell): strin
     );
   }
   return steps;
-}
-
-interface InitProgress {
-  readonly phase: string;
-  readonly registered: boolean;
-  readonly materialized: boolean;
-  readonly prepared: object | null;
-  readonly toolInstall: readonly ToolInstallOutput[] | null;
-}
-
-function initFailure(output: InitOutput, error: unknown, progress: InitProgress): DevkitError {
-  const failure = asDevkitError(error);
-  const { phase, registered, materialized, prepared, toolInstall } = progress;
-  const names = ['manifest', 'validation', 'registration', 'tools', 'sync'];
-  const failedAt = names.indexOf(phase);
-  const phases = Object.fromEntries(
-    names.map((name, index) => {
-      if (index < failedAt) return [name, 'done'];
-      return [name, index === failedAt ? 'failed' : 'not_started'];
-    }),
-  );
-  const install = failure.partialResult as
-    { tool_install?: readonly ToolInstallOutput[] } | undefined;
-  return withPartialResult(failure, {
-    ...output,
-    preparation_complete: false,
-    manifest: materialized ? output.manifest : 'not_written',
-    registered,
-    written: materialized,
-    prepared,
-    tool_install: toolInstall ?? install?.tool_install ?? null,
-    sync: phase === 'sync' ? (failure.partialResult ?? null) : null,
-    phases,
-    failed_phase: phase,
-    failure: toEnvelope(failure).error,
-    next_steps: registered
-      ? [
-          ...failure.nextSteps,
-          `Inspect remaining stages with fx status --workspace ${output.name} --format json.`,
-        ]
-      : [
-          'Correct the reported source problem and retry the same init command.',
-          ...failure.nextSteps,
-        ],
-  });
 }
 
 interface CompletedInitialization {

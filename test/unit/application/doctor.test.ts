@@ -17,6 +17,7 @@ import type { SetupRecipe } from '../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { FakeLock } from '../../fakes/fake-lock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 import { FakeRegistry } from '../../fakes/fake-registry.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
@@ -127,7 +128,12 @@ async function stage(
     doctor: new Doctor(h.deps, {
       extensions: options.extensions,
       login: setup,
-      skills: { hosts: agents, configured: undefined, bundledSkillDir: bundledSkill.dir },
+      skills: {
+        hosts: agents,
+        configured: undefined,
+        bundledSkillDir: bundledSkill.dir,
+        globalLock: new FakeLock(),
+      },
       bundledTools: readBundled,
       updates: {
         fx: new FxUpdateCheck(probe, () => registry),

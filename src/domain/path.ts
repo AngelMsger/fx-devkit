@@ -14,7 +14,7 @@ export function samePath(left: string, right: string): boolean {
 }
 
 export function windowsPathProblem(value: string): string | undefined {
-  if (/^(?:\\\\|\/\/)/.test(value)) return 'Network workspace paths are not supported.';
+  if (/^(?:\\\\|\/\/)/.test(value)) return 'Network workspace paths are not supported';
   const tail = value.slice(path.win32.parse(value).root.length);
   for (const part of tail.split(/[\\/]/).filter(Boolean)) {
     if (part === '.' || part === '..') continue;

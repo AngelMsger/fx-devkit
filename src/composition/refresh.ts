@@ -5,7 +5,7 @@
 import { RefreshManifest } from '../application/refresh-manifest.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../application/workspace/resolve.js';
-import { DevkitError } from '../domain/errors.js';
+import { busyError } from '../domain/errors.js';
 
 import type { Container } from './container.js';
 import { manifestSourceFor } from './manifest-sources.js';
@@ -27,10 +27,7 @@ export async function refreshManifestBeforeSync(
       ? undefined
       : await container.lock.acquire({ key: `workspace:${located.name}`, waitMs: 2000 });
   if (lease === null)
-    throw new DevkitError('conflict', 'LOCK_BUSY', 'The workspace is being synchronized', {
-      retryable: true,
-      nextSteps: ['Retry fx sync shortly.'],
-    });
+    throw busyError('LOCK_BUSY', 'The workspace', { nextSteps: ['Retry fx sync shortly.'] });
   try {
     await new RefreshManifest(resolve.reporter).execute({
       manifestDir: located.manifestDir,

@@ -1,15 +1,14 @@
-import { Args } from '@oclif/core';
-
 import { ToolShow } from '../../../application/tool/show.js';
 import { toolDependants } from '../../../composition/container.js';
 import { FxCommand } from '../../base.js';
+import { requiredArgument } from '../../flags.js';
 
 export default class ToolShowCommand extends FxCommand {
   static override description =
     'Show one tool: its resolved entry, where each field comes from, who depends on it';
   static override examples = ['<%= config.bin %> tool show bitbucket-cli'];
   static override args = {
-    tool: Args.string({ ignoreStdin: true, required: true, description: 'tool name' }),
+    tool: requiredArgument('tool name'),
   };
   static override flags = {};
 

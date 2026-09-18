@@ -6,9 +6,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { assertWritable } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import type { ServiceResult } from './operation.js';
-
-type Result = Omit<ServiceResult, 'id' | 'tool' | 'env'>;
+import type { ServiceOutcome } from './types.js';
 
 function object(text: string): Record<string, unknown> {
   try {
@@ -26,7 +24,7 @@ export async function prepareCommand(
   login: LoginDeps,
   step: SetupStep,
   dryRun: boolean,
-): Promise<Result> {
+): Promise<ServiceOutcome> {
   const vector = step.run ?? [];
   const preview = [...vector, '--dry-run'];
   const trust = {
@@ -76,7 +74,11 @@ export async function prepareCommand(
   };
 }
 
-function commandFailure(stderr: string, vector: readonly string[], deps: WorkspaceDeps): Result {
+function commandFailure(
+  stderr: string,
+  vector: readonly string[],
+  deps: WorkspaceDeps,
+): ServiceOutcome {
   const fields = errorEnvelope(stderr) ?? {};
   const code = fields['code'];
   const conflict = code === 'CONFIG_CONTEXT_CONFLICT';

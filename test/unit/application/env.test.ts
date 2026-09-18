@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { EnvList } from '../../../src/application/env/list.js';
 import { editEnvScope } from '../../../src/application/env/scope.js';
 import { EnvShow } from '../../../src/application/env/show.js';
-import { editSelection } from '../../../src/application/repo/selection.js';
+import { editRepoScope } from '../../../src/application/repo/scope.js';
 import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
@@ -122,7 +122,7 @@ describe('environment selection modes', () => {
       local: { scope: { repos: ['fx-example-api'], envs: ['test'] } },
     });
     await Promise.all([
-      editSelection(h.deps, { names: [], ...write }, 'all'),
+      editRepoScope(h.deps, { names: [], ...write }, 'all'),
       editEnvScope(h.deps, { names: ['selfhosted'], ...write }, 'replace'),
     ]);
     expect((await h.localStore.read('fx')).scope).toEqual({ envs: ['selfhosted'] });

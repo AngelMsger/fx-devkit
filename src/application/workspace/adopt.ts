@@ -19,7 +19,7 @@ export async function prepareUpstream(
     throw new DevkitError(
       'conflict',
       'REPO_REMOTES_CHANGED',
-      `Remotes changed before adopting ${item.name}; existing remotes were preserved.`,
+      `Remotes changed before adopting ${item.name}; existing remotes were preserved`,
       {
         nextSteps: [
           shellLine(['git', '-C', dir, 'remote', '-v'], deps.commandShell),

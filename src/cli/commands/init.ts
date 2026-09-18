@@ -1,9 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
-import { Init } from '../../application/init.js';
+import { Init } from '../../application/init/index.js';
 import { manifestSourceFor } from '../../composition/manifest-sources.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, dryRunFlag, jobsFlag } from '../flags.js';
+import { detailsFlag, dryRunFlag, jobsFlag, requiredArgument, writeIntent } from '../flags.js';
 import { readStdin } from '../stdin.js';
 
 export default class InitCommand extends FxCommand {
@@ -15,11 +15,7 @@ export default class InitCommand extends FxCommand {
     'cat workspace.yaml | <%= config.bin %> init ./ws --from -',
   ];
   static override args = {
-    dir: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'directory to create, reuse or adopt',
-    }),
+    dir: requiredArgument('directory to create, reuse or adopt'),
   };
   static override flags = {
     details: detailsFlag,
@@ -57,8 +53,7 @@ export default class InitCommand extends FxCommand {
       name: flags.name,
       repos: flags['no-repos'] ? [] : flags.repos?.split(',').map((name) => name.trim()),
       adopt: flags.adopt,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
       jobs: flags.jobs,
     });
     this.renderer.record(result);

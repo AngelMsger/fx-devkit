@@ -1,4 +1,4 @@
-import { AgentList } from '../../../application/agent/list.js';
+import { AGENT_COLUMNS, AgentList } from '../../../application/agent/list.js';
 import { FxCommand } from '../../base.js';
 
 export default class AgentListCommand extends FxCommand {
@@ -13,7 +13,7 @@ export default class AgentListCommand extends FxCommand {
       configured: this.configAgents,
     });
     this.renderer.list(rows, {
-      columns: ['id', 'label', 'detected', 'enabled', 'skills_dir', 'note'],
+      columns: AGENT_COLUMNS,
     });
   }
 }

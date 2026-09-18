@@ -43,14 +43,8 @@ export class AgentPick {
     const file = await this.config.read();
     const before = file.agents ?? null;
     const base = before ?? (await enabledHosts(this.hosts, undefined)).map((h) => h.id);
-    const after =
-      input.action === 'pick'
-        ? [...new Set([...base, ...input.ids])]
-        : base.filter((id) => !input.ids.includes(id));
-    const changed =
-      before === null ||
-      after.length !== before.length ||
-      after.some((id, index) => id !== before[index]);
+    const after = applySelection(base, input.ids, input.action);
+    const changed = differs(before, after);
     const plan: AgentPickOutput = {
       scope: 'global',
       affected_workspaces: Object.keys(file.workspaces ?? {}).sort(),
@@ -66,24 +60,25 @@ export class AgentPick {
     };
     if (input.dryRun || (!changed && !plan.hooks)) return plan;
     assertWritable(input.posture, `agent ${input.action} ${input.ids.join(' ')}`);
-    let appliedAfter = after;
+    let applied = { before, after, changed };
     if (changed) {
+      // Both ends of the report come from the configuration the write itself
+      // read, so a concurrent change cannot produce a pair that never existed.
+      let observed = before;
       const saved = await this.config.update((current) => {
-        const selected = current.agents ?? base;
+        observed = current.agents ?? null;
         return {
           ...current,
-          agents:
-            input.action === 'pick'
-              ? [...new Set([...selected, ...input.ids])]
-              : selected.filter((id) => !input.ids.includes(id)),
+          agents: applySelection(observed ?? base, input.ids, input.action),
         };
       });
-      appliedAfter = [...(saved.agents ?? after)];
+      const appliedAfter = [...(saved.agents ?? after)];
+      applied = { before: observed, after: appliedAfter, changed: differs(observed, appliedAfter) };
     }
     const hooks = input.action === 'unpick' ? await this.cleanup?.apply(input.ids) : undefined;
     return {
       ...plan,
-      after: appliedAfter,
+      ...applied,
       written: changed,
       ...(hooks === undefined ? {} : cleanupOutput(hooks)),
     };
@@ -103,6 +98,24 @@ export class AgentPick {
       nextSteps: ['fx agent list'],
     });
   }
+}
+
+function differs(before: readonly string[] | null, after: readonly string[]): boolean {
+  return (
+    before === null ||
+    after.length !== before.length ||
+    after.some((id, index) => id !== before[index])
+  );
+}
+
+function applySelection(
+  base: readonly string[],
+  ids: readonly string[],
+  action: AgentPickInput['action'],
+): string[] {
+  return action === 'pick'
+    ? [...new Set([...base, ...ids])]
+    : base.filter((id) => !ids.includes(id));
 }
 
 function cleanupOutput(

@@ -14,7 +14,7 @@ export function describeSessionStart(input: {
   const lines =
     input.state?.observations.map(
       (o) =>
-        `${new Date(o.checkedAt).toISOString()}: ${o.code}${o.command ? `; check with ${o.command}` : ''}`,
+        `${new Date(o.checkedAt).toISOString()}: ${o.code}${o.detail ? ` (${o.detail})` : ''}${o.command ? `; check with ${o.command}` : ''}`,
     ) ?? [];
   return [
     input.readOnly

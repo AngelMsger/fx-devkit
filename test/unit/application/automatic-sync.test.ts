@@ -10,19 +10,19 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AutomaticSync } from '../../../src/application/hook/automatic-sync.js';
 import { createContainer } from '../../../src/composition/container.js';
-import { createHookServices } from '../../../src/composition/hook-services.js';
-import type { HookState } from '../../../src/domain/harness/state.js';
+import { automaticSyncWiring } from '../../../src/composition/hook-wiring.js';
+import type { HookObservation, HookState } from '../../../src/domain/harness/state.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 
 describe('automatic workspace synchronization', () => {
   it('does not describe an unconfigured manifest source as a static or current source', async () => {
     const home = mkdtempSync(path.join(tmpdir(), 'fx-source-observation-'));
     try {
-      const services = await createHookServices({
+      const wiring = await automaticSyncWiring({
         container: createContainer({ FX_HOME: home }),
         request: {
           event: 'session-start',
@@ -35,7 +35,7 @@ describe('automatic workspace synchronization', () => {
         env: {},
         canWrite: async () => true,
       });
-      expect((await services.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
+      expect((await wiring.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
     } finally {
       rmSync(home, { recursive: true, force: true });
     }
@@ -72,8 +72,51 @@ describe('automatic workspace synchronization', () => {
     expect(refreshes).toBe(1);
     expect(docs).toBe(2);
     expect(
-      (state as HookState | null)?.observations.some((o) => o.code === 'MANIFEST_REFRESH_FAILED'),
-    ).toBe(true);
+      (state as HookState | null)?.observations.find((o) => o.code === 'MANIFEST_REFRESH_FAILED'),
+    ).toMatchObject({ detail: 'INTERNAL: network' });
+  });
+  it('dates every phase it commits to, so a run killed mid-phase is not silent', async () => {
+    let state: HookState | null = null;
+    const clock = new FakeClock();
+    const observation = (phase: string, code: string): HookObservation => ({
+      phase,
+      code,
+      command: null,
+      checkedAt: clock.now().getTime(),
+    });
+    const sync = new AutomaticSync({
+      clock,
+      lock: { acquire: async () => ({ release: async () => {} }) },
+      state: {
+        read: async () => state,
+        write: async (_name, next) => {
+          state = next;
+        },
+      },
+      canWrite: async () => true,
+      refresh: async () => [observation('manifest', 'MANIFEST_UP_TO_DATE')],
+      docs: async () => [observation('docs', 'DOCS_CURRENT')],
+      // The supervisor kills the worker group here; nothing later ever runs.
+      skills: () => new Promise(() => {}),
+      checks: async () => [observation('checks', 'LOGIN_CHECKED')],
+    });
+    void sync.execute({ workspace: 'test', root: path.resolve('/workspace') });
+    await vi.waitFor(() =>
+      expect(state?.observations.map((o) => o.code)).toContain('MANIFEST_UP_TO_DATE'),
+    );
+    await vi.waitFor(() =>
+      expect(state?.observations.map((o) => o.code)).toContain('DOCS_CURRENT'),
+    );
+    expect(
+      [...((state as HookState | null)?.observations ?? [])]
+        .sort((a, b) => a.phase.localeCompare(b.phase))
+        .map((o) => [o.phase, o.code, o.command]),
+    ).toEqual([
+      ['checks', 'HOOK_PHASE_UNREPORTED', 'fx doctor'],
+      ['docs', 'DOCS_CURRENT', null],
+      ['manifest', 'MANIFEST_UP_TO_DATE', null],
+      ['skills', 'HOOK_PHASE_UNREPORTED', 'fx sync --only skills'],
+    ]);
   });
   it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
     const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));
@@ -95,7 +138,7 @@ describe('automatic workspace synchronization', () => {
     const lease = await container.lock.acquire({ key: 'workspace:test', waitMs: 0 });
     expect(lease).not.toBeNull();
     try {
-      const services = await createHookServices({
+      const wiring = await automaticSyncWiring({
         container,
         request: {
           event: 'session-start',
@@ -108,7 +151,7 @@ describe('automatic workspace synchronization', () => {
         env: { FX_UPDATE_CHECK: '0' },
         canWrite: async () => true,
       });
-      await services.docs(lease!);
+      await wiring.docs(lease!);
       expect(readFileSync(path.join(root, 'GEMINI.md'), 'utf8')).toContain('AGENTS.md');
       expect(existsSync(path.join(root, '.gemini/settings.json'))).toBe(false);
       expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);

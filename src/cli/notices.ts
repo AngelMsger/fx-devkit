@@ -2,7 +2,7 @@
 // problems, a summary line. Data went to stdout already; these are for the
 // person reading along.
 
-import type { SyncOutput } from '../application/sync.js';
+import type { SyncOutput } from '../application/sync/types.js';
 import type { Report } from '../domain/report.js';
 import type { Notice } from '../ports/reporter.js';
 

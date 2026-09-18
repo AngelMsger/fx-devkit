@@ -14,7 +14,9 @@ interface ContributionSelection {
 
 export function selectContributionFiles(input: ContributionSelection): readonly ContributionFile[] {
   if (input.paths.length === 0)
-    throw new DevkitError('usage', 'INPUT_REQUIRED', 'Select files to contribute.');
+    throw new DevkitError('usage', 'INPUT_REQUIRED', 'Select files to contribute', {
+      nextSteps: ['fx source push <path>...'],
+    });
   for (const path of input.paths) assertSafePath(path);
   for (const file of input.changes) assertSafePath(file.path);
   const selected = new Map<string, ContributionFile>();
@@ -45,7 +47,12 @@ function assertSafePath(path: string): void {
     throw new DevkitError(
       'usage',
       'SOURCE_PATH_INVALID',
-      'Contribution paths must be plain source-relative paths.',
+      'Contribution paths must be plain source-relative paths',
+      {
+        nextSteps: [
+          `Replace "${path}" with a source-relative path without backslashes, "." , ".." or ".git" segments.`,
+        ],
+      },
     );
 }
 
@@ -57,19 +64,26 @@ function assertSupported(
     throw new DevkitError(
       'usage',
       'SOURCE_ENTRY_UNSUPPORTED',
-      'Contributions accept regular files and deletions only.',
+      'Contributions accept regular files and deletions only',
+      {
+        nextSteps: [
+          `Remove ${file.path} from the selection; symbolic links and submodules cannot be contributed.`,
+        ],
+      },
     );
   if ((file.kind === 'deleted') !== (file.content === null))
     throw new DevkitError(
       'conflict',
       'SOURCE_SNAPSHOT_INVALID',
-      'The captured file state is inconsistent.',
+      'The captured file state is inconsistent',
+      { nextSteps: ['Re-run the same fx source push command to capture the source again.'] },
     );
   if (file.renamePeer !== undefined && !selected.has(file.renamePeer))
     throw new DevkitError(
       'usage',
       'SOURCE_RENAME_INCOMPLETE',
-      'Select both paths of a renamed file.',
+      'Select both paths of a renamed file',
+      { nextSteps: [`Add ${file.renamePeer} to the selection, then retry.`] },
     );
 }
 
@@ -80,15 +94,10 @@ function missingSelection(value: string, changes: readonly ContributionFile[]): 
       .map((file) => file.path)
       .filter((file) => scanBoundary({ text: file, policy: 'manifest' }).length === 0),
   );
-  return new DevkitError(
-    'usage',
-    'SOURCE_SELECTION_EMPTY',
-    'A selection matches no changed file.',
-    {
-      hint: suggestion
-        ? `Did you mean "${suggestion}"?`
-        : 'Choose changed files or directories relative to the source root.',
-      nextSteps: ['Review the changed source paths and retry with an explicit selection.'],
-    },
-  );
+  return new DevkitError('usage', 'SOURCE_SELECTION_EMPTY', 'A selection matches no changed file', {
+    hint: suggestion
+      ? `Did you mean "${suggestion}"?`
+      : 'Choose changed files or directories relative to the source root.',
+    nextSteps: ['Review the changed source paths and retry with an explicit selection.'],
+  });
 }

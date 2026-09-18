@@ -1,46 +1,46 @@
 // Resolves workspace hook settings and owns sync and doctor workflow policy.
 import { asDevkitError, handoffEnvelope } from '../../domain/errors.js';
 import { finding } from '../../domain/report.js';
-import { parseBoolean, parseList } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { DoctorExtension } from '../doctor/types.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync.js';
+import type { StageResult } from '../sync/types.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
-import {
-  ReconcileHooks,
-  type HookDeps,
-  type HookOutput,
-  type ReconcileInput,
-} from './reconcile.js';
+import { ReconcileHooks } from './reconcile.js';
+import type { HookDeps, HookOutput, ReconcileInput } from './types.js';
 
-export interface ManageHooksInput {
+export interface HookSession {
   readonly deps: HookDeps;
   readonly config: ConfigStore;
   readonly resolve: ResolveInput;
   readonly env: Readonly<Record<string, string | undefined>>;
-  readonly action: ReconcileInput['action'];
   readonly posture: WritePosture;
+}
+
+export interface ManageHooksInput extends HookSession {
+  readonly action: ReconcileInput['action'];
   readonly dryRun: boolean;
 }
 
 export async function manageHooks(input: ManageHooksInput): Promise<HookOutput> {
   const located = await resolveWorkspace(input.resolve);
-  const file = await input.config.read();
+  const settings = readSettings({ env: input.env, file: await input.config.read() });
   return new ReconcileHooks(input.deps).execute({
     workspace: located.name,
     root: located.root,
     action: input.action,
     posture: input.posture,
     dryRun: input.dryRun,
-    globalEnabled: parseBoolean(resolveKey('hooks', { env: input.env, file }).value) !== false,
-    configured: parseList(resolveKey('agents', { env: input.env, file }).value),
+    globalEnabled: settings.hooks,
+    configured: settings.agents,
   });
 }
 
-export function hookStage(input: Omit<ManageHooksInput, 'action'>): () => Promise<StageResult> {
+export function hookStage(
+  input: HookSession & { readonly dryRun: boolean },
+): () => Promise<StageResult> {
   return async () => {
     const out = await manageHooks({ ...input, action: 'sync' });
     const summary: Record<string, number> = {};
@@ -49,7 +49,7 @@ export function hookStage(input: Omit<ManageHooksInput, 'action'>): () => Promis
   };
 }
 
-export function hookDoctor(input: Omit<ManageHooksInput, 'action' | 'dryRun'>): DoctorExtension {
+export function hookDoctor(input: HookSession): DoctorExtension {
   return {
     group: 'hooks',
     check: async () => {

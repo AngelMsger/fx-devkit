@@ -8,15 +8,22 @@ import {
   checkoutPathsOverlap,
   isWorkspaceCheckoutPath,
 } from '../../workspace/checkout.js';
+import type { ProviderCatalog } from '../providers.js';
 import type { Problem, Workspace } from '../types.js';
 
 import { serviceRules } from './services.js';
 
-export function workspaceRules(doc: Workspace): Problem[] {
+export function workspaceRules(doc: Workspace, providers: ProviderCatalog | undefined): Problem[] {
   const problems: Problem[] = [];
   for (const [name, binding] of Object.entries(doc.providers ?? {}))
     problems.push(
-      ...serviceRules(binding.provider, binding.service, binding.vars, `providers.${name}.service`),
+      ...serviceRules({
+        providers,
+        provider: binding.provider,
+        service: binding.service,
+        vars: binding.vars,
+        path: `providers.${name}.service`,
+      }),
     );
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {
     problems.push({ path: 'min_cli', message: 'must be a semantic version' });

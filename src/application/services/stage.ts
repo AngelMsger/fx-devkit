@@ -1,10 +1,11 @@
 // Explicit setup runs only public preparation, never login or credential acquisition.
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
-import type { StageResult } from '../sync.js';
+import type { StageResult } from '../sync/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import { ServiceOperation, type ServiceResult } from './operation.js';
+import { ServiceOperation } from './operation.js';
+import type { ServiceResult } from './types.js';
 
 export async function prepareServices(
   deps: WorkspaceDeps,

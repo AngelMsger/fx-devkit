@@ -34,6 +34,9 @@ explicit configuration from a fallback.
 
 Provider requests are read-only. A failed lookup leaves an unresolved item in
 the report rather than preventing the rest of the directory from being imported.
+A project the host could not answer for is recorded as unanswered, never as a
+confirmed absence; the affected entry names those projects in its review note or
+skip reason.
 
 ### Shared branch
 

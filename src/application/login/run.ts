@@ -38,6 +38,8 @@ export interface StepRow {
   readonly detail: string | null;
 }
 
+export const LOGIN_STEP_COLUMNS = ['id', 'kind', 'result', 'detail'] as const;
+
 export interface LoginOutput {
   readonly items: readonly StepRow[];
   readonly summary: Readonly<Record<StepResult, number>>;
@@ -68,7 +70,7 @@ export class Login {
       throw new DevkitError(
         'config',
         'SETUP_PLAN_CONFLICT',
-        'Setup steps have conflicting definitions.',
+        'Setup steps have conflicting definitions',
         {
           hint: conflicts.map((problem) => problem.detail).join(' '),
           nextSteps: [

@@ -85,7 +85,7 @@ async function updatePlan(context: OperationPlanning, head: string | null): Prom
     pullRequestState: 'open',
     forceNew: false,
   });
-  if (decision === 'conflict') throw diverged();
+  if (decision === 'conflict') throw divergedError();
   if (decision === 'new')
     return {
       ...plan,
@@ -122,7 +122,7 @@ async function updatePlan(context: OperationPlanning, head: string | null): Prom
 async function resume(context: OperationPlanning, head: string | null): Promise<SourcePlan> {
   const { deps, input, plan, operation } = context;
   assertResumeSelection(input, operation);
-  if (head !== operation.commit && head !== operation.previousHead) throw diverged();
+  if (head !== operation.commit && head !== operation.previousHead) throw divergedError();
   const action = operation.phase === 'creating_pr' ? 'recover' : 'resume';
   if (operation.phase !== 'prepared') {
     const commit =
@@ -133,11 +133,7 @@ async function resume(context: OperationPlanning, head: string | null): Promise<
       commit.parents.length !== 1 ||
       commit.parents[0] !== operation.parent
     )
-      throw new DevkitError(
-        'conflict',
-        'SOURCE_OPERATION_INVALID',
-        'The recorded commit no longer matches the prepared contribution.',
-      );
+      throw operationInvalidError(deps.source.dir, operation);
     return {
       ...plan,
       output: {
@@ -155,11 +151,7 @@ async function resume(context: OperationPlanning, head: string | null): Promise<
     paths: operation.paths,
   });
   if (snapshot.fingerprint !== operation.sourceFingerprint)
-    throw new DevkitError(
-      'conflict',
-      'SOURCE_SNAPSHOT_CHANGED',
-      'Prepared source content changed; review a new contribution.',
-    );
+    throw snapshotChangedError(deps.source.dir, operation);
   const validation = await deps.validator.execute({
     files: buildContributionCandidate({ base: snapshot.baseFiles, changes: snapshot.files }),
     changes: snapshot.files,
@@ -202,7 +194,13 @@ function assertResumeSelection(input: PushSourceInput, operation: ContributionOp
     throw new DevkitError(
       'conflict',
       'SOURCE_RECOVERY_REQUIRED',
-      'Resume with the original path selection or use --new.',
+      'Resume with the original path selection or use --new',
+      {
+        nextSteps: [
+          `Re-run with the recorded paths: ${operation.paths.join(' ')}`,
+          'Or start a separate contribution with --new.',
+        ],
+      },
     );
 }
 
@@ -223,11 +221,39 @@ export function assertMatchingPr(
     throw associationInvalid();
 }
 
-export function diverged(): DevkitError {
+function operationInvalidError(dir: string, operation: ContributionOperation): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'SOURCE_OPERATION_INVALID',
+    'The recorded commit no longer matches the prepared contribution',
+    {
+      nextSteps: [
+        `git -C ${dir} show --stat ${operation.commit ?? operation.tree}`,
+        'Start a separate contribution with --new.',
+      ],
+    },
+  );
+}
+
+function snapshotChangedError(dir: string, operation: ContributionOperation): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'SOURCE_SNAPSHOT_CHANGED',
+    'Prepared source content changed; review a new contribution',
+    {
+      nextSteps: [
+        `git -C ${dir} diff -- ${operation.paths.join(' ')}`,
+        'Contribute the current content with --new.',
+      ],
+    },
+  );
+}
+
+export function divergedError(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_REMOTE_DIVERGED',
-    'The contribution branch advanced outside this operation.',
+    'The contribution branch advanced outside this operation',
     { nextSteps: ['Review the remote branch and use --new for a separate contribution.'] },
   );
 }
@@ -236,7 +262,7 @@ function associationInvalid(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_PR_ASSOCIATION_INVALID',
-    'The known PR does not match this recorded contribution.',
+    'The known PR does not match this recorded contribution',
     { nextSteps: ['Verify the PR repository, source branch and target before using --pr.'] },
   );
 }

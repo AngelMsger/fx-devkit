@@ -2,8 +2,10 @@ import { Flags } from '@oclif/core';
 
 import { ConfigExport } from '../../../application/config/export.js';
 import { FxCommand } from '../../base.js';
+import { writeIntent } from '../../flags.js';
 
 export default class ConfigExportCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     "Write the personal state worth carrying to another machine: config.yaml and each workspace's local.yaml; never trust records, cache or credentials";
   static override examples = [
@@ -31,8 +33,7 @@ export default class ConfigExportCommand extends FxCommand {
         ? {}
         : {
             out: flags.out,
-            dryRun: flags['dry-run'],
-            posture: this.posture,
+            ...writeIntent(flags, this.posture),
           },
     );
     if (flags.out !== undefined) {
@@ -43,7 +44,7 @@ export default class ConfigExportCommand extends FxCommand {
       });
       return;
     }
-    if (this.format === 'human') this.log(result.text.trimEnd());
+    if (this.format === 'human') this.renderer.text(`${result.text.trimEnd()}\n`);
     else this.renderer.record(result.profile);
   }
 }

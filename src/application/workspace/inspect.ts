@@ -110,7 +110,7 @@ export function findKnownRepo(deps: WorkspaceDeps, name: string): ResolvedRepo {
     throw new DevkitError(
       'conflict',
       'REPO_ALIAS_AMBIGUOUS',
-      `repository alias "${name}" matches ${matches.map((entry) => entry.name).join(', ')}`,
+      `Repository alias "${name}" matches ${matches.map((entry) => entry.name).join(', ')}`,
       {
         hint: 'Use a canonical repository name to choose one.',
         nextSteps: matches.map((entry) => workspaceCommand(deps, 'repo', 'show', entry.name)),

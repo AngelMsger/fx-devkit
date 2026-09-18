@@ -54,7 +54,7 @@ export class NpmHttpRegistry implements Registry {
       throw new DevkitError(
         'parse',
         'REGISTRY_RESPONSE_INVALID',
-        'registry metadata has no dist-tags.latest',
+        'Registry metadata has no dist-tags.latest',
         { nextSteps: ['Check the package metadata in the configured registry.'] },
       );
     return latest;

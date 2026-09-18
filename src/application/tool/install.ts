@@ -39,6 +39,16 @@ export interface ToolInstallInput {
   readonly trust?: TrustContext | undefined;
 }
 
+export const TOOL_INSTALL_COLUMNS = [
+  'name',
+  'via',
+  'vector',
+  'ran',
+  'code',
+  'version_after',
+  'error',
+] as const;
+
 export interface ToolInstallOutput {
   readonly name: string;
   readonly via: string;
@@ -90,7 +100,13 @@ export class ToolInstall {
         throw new DevkitError(
           'config',
           'VECTOR_UNTRUSTED',
-          'Automatic installation requires workspace command trust.',
+          'Automatic installation requires workspace command trust',
+          {
+            nextSteps: [
+              'Re-run the same command in a terminal and review the install vector.',
+              `fx tool install ${selected.map((tool) => tool.name).join(' ')}`,
+            ],
+          },
         );
       for (const plan of plans) {
         if (plan.output.vector === null) continue;
@@ -260,7 +276,7 @@ export class ToolInstall {
     throw new DevkitError(
       'config',
       'INSTALLER_UNAVAILABLE',
-      `no package manager on this machine can install ${tool.name}: it needs ${wanted.join(' or ') || 'a manual install'}`,
+      `No package manager on this machine can install ${tool.name}: it needs ${wanted.join(' or ') || 'a manual install'}`,
       {
         hint: `Install ${wanted[0] ?? 'the tool'} first, or install ${tool.name} by hand${tool.docs === undefined ? '' : ` (${tool.docs})`}.`,
         nextSteps: [

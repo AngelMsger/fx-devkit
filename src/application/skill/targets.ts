@@ -7,7 +7,7 @@ import type { Lock } from '../../ports/lock.js';
 import { enabledHosts } from '../agent/list.js';
 
 export interface SkillDeps {
-  readonly globalLock?: Lock;
+  readonly globalLock: Lock;
   readonly hosts: readonly AgentHost[];
   readonly configured: readonly string[] | undefined;
   readonly bundledSkillDir: string;

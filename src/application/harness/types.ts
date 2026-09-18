@@ -50,6 +50,15 @@ export interface HarnessRow {
   readonly variables: readonly string[];
   readonly handoff: HandoffEnvelope | null;
 }
+export const HARNESS_COLUMNS = [
+  'agent',
+  'action',
+  'activation',
+  'path',
+  'context',
+  'command',
+] as const;
+
 export interface HarnessOutput {
   readonly items: readonly HarnessRow[];
   readonly written: boolean;

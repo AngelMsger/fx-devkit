@@ -12,7 +12,7 @@ import type { WritePosture } from '../safety/posture.js';
 import type { WhereInput, WhereRow } from '../where.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-export interface RecordProbeDeps {
+export interface ProbeRecordDeps {
   readonly workspace: WorkspaceDeps;
   readonly login: LoginDeps;
   readonly files: ProjectionStore;
@@ -20,12 +20,12 @@ export interface RecordProbeDeps {
   readonly lock: Lock;
 }
 
-export interface RecordProbeInput extends WhereInput {
+export interface ProbeRecordInput extends WhereInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;
 }
 
-export interface RecordProbeOutput {
+export interface ProbeRecordOutput {
   readonly action: 'preview' | 'recorded' | 'unchanged' | 'skipped';
   readonly file: string;
   readonly scope: 'environment' | 'repository' | null;
@@ -39,7 +39,7 @@ export interface RecordProbeOutput {
 }
 
 export interface ProbeRecordPlan {
-  readonly output: RecordProbeOutput;
+  readonly output: ProbeRecordOutput;
   readonly workspaceSnapshot: ProjectionSnapshot;
   readonly environmentSnapshot: ProjectionSnapshot;
   readonly workspace: Workspace;

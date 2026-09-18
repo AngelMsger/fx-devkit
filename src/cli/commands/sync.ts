@@ -1,13 +1,13 @@
 import { Flags } from '@oclif/core';
 
+import { Sync } from '../../application/sync/index.js';
 import { syncStageIds } from '../../application/sync/stages.js';
-import { Sync } from '../../application/sync.js';
+import { SYNC_COLUMNS } from '../../application/sync/types.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, dryRunFlag, jobsFlag, listFlag } from '../flags.js';
+import { detailsFlag, dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
 import { syncNotices } from '../notices.js';
-import { parseFields } from '../render/index.js';
 
 export default class SyncCommand extends FxCommand {
   static override description =
@@ -31,7 +31,7 @@ export default class SyncCommand extends FxCommand {
   async run(): Promise<void> {
     const { flags } = await this.parse(SyncCommand);
     const only = selectSyncStages(flags.only?.join(','), syncStageIds());
-    const run = { dryRun: flags['dry-run'], posture: this.posture };
+    const run = { ...writeIntent(flags, this.posture) };
     if (flags['refresh-manifest'])
       await refreshManifestBeforeSync(this.container, this.resolveInput(), run);
     const deps = await this.workspaceDeps();
@@ -41,12 +41,13 @@ export default class SyncCommand extends FxCommand {
       only,
       stages: this.stages(deps, run.dryRun),
     });
+    const projected = this.renderOptions;
     const visible =
-      this.format === 'human' && !flags.verbose && parseFields(flags.fields) === undefined
+      this.format === 'human' && !projected.verbose && projected.fields === undefined
         ? out.items.filter((item) => item.action !== 'skip_unpicked')
         : out.items;
     this.renderer.list(visible, {
-      columns: ['name', 'action', 'result', 'outcome', 'reason'],
+      columns: SYNC_COLUMNS,
       trailer: {
         operation: out.operation,
         preparation_complete: out.preparation_complete,

@@ -6,7 +6,7 @@ import { DeriveDocs } from '../docs/derive.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
 import { validateSetupSelection } from '../login/selection.js';
-import { assertWritable, type WritePosture } from '../safety/posture.js';
+import { assertWritable } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { ToolInstalled } from '../tool/installed.js';
@@ -22,7 +22,15 @@ import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
 import { checkSelf } from './self.js';
 import { checkTools } from './tools.js';
-import { GROUPS, type DoctorReport, type DoctorExtension, type RepairAttempt } from './types.js';
+import {
+  GROUPS,
+  type DoctorInput,
+  type DoctorReport,
+  type DoctorExtension,
+  type RepairAttempt,
+} from './types.js';
+
+export type { DoctorInput };
 
 export interface DoctorDeps {
   readonly inventory?: ToolInstalled;
@@ -37,15 +45,6 @@ export interface DoctorDeps {
     // The same switch as the end-of-command notices: off means no probe.
     readonly enabled: boolean;
   };
-}
-
-export interface DoctorInput {
-  readonly envs?: readonly string[] | undefined;
-  readonly tools?: readonly string[] | undefined;
-  readonly fix: boolean;
-  readonly dryRun: boolean;
-  readonly noInput: boolean;
-  readonly posture: WritePosture;
 }
 
 export class Doctor {

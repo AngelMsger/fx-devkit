@@ -33,6 +33,9 @@ export function assertWorkspaceNames(names: readonly string[]): void {
         'config',
         'WORKSPACE_NAME_CONFLICT',
         `Workspace names alias the same local directory: ${name}`,
+        {
+          nextSteps: ['fx workspace list', `fx workspace unregister ${name}`],
+        },
       );
     seen.add(key);
   }

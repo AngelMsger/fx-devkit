@@ -15,6 +15,16 @@ export interface ToolRow {
   readonly setup_steps: number;
 }
 
+export const TOOL_COLUMNS = [
+  'name',
+  'required',
+  'enabled',
+  'min_version',
+  'install_via',
+  'origin',
+  'desc',
+] as const;
+
 export class ToolList {
   execute(input: { readonly tools: readonly ResolvedTool[] }): ToolRow[] {
     return input.tools.map((tool) => {

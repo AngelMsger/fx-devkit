@@ -129,6 +129,20 @@ export class DevkitError extends Error {
   }
 }
 
+// Lease contention: every caller holds a resource another fx process wants, so
+// the failure is always retryable and recovery is to run the command again.
+export function busyError(
+  code: string,
+  resource: string,
+  options: { readonly nextSteps?: readonly string[] } = {},
+): DevkitError {
+  return new DevkitError('conflict', code, `${resource} is busy`, {
+    retryable: true,
+    hint: 'Another fx process holds this lease.',
+    nextSteps: options.nextSteps ?? ['Retry the command shortly.'],
+  });
+}
+
 export function defaultGuidance(category: Category): Guidance {
   return GUIDANCE[category];
 }

@@ -1,11 +1,13 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
-import { Login } from '../../application/login/run.js';
+import { Login, LOGIN_STEP_COLUMNS } from '../../application/login/run.js';
+import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
-import { dryRunFlag, listFlag } from '../flags.js';
+import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
 import { loginNotices } from '../notices.js';
 
 export default class LoginCommand extends FxCommand {
+  static override announcesSkill = false;
   static override description =
     'Prepare tool access for the selected workspace: authentication, configuration and permission checks';
   static override examples = [
@@ -17,7 +19,7 @@ export default class LoginCommand extends FxCommand {
   ];
   static override strict = false;
   static override args = {
-    tool: Args.string({ ignoreStdin: true, description: 'only these tools' }),
+    tool: argument('only these tools'),
   };
   static override flags = {
     env: listFlag('only these environments'),
@@ -44,7 +46,7 @@ export default class LoginCommand extends FxCommand {
     const login = new Login(await this.workspaceDeps(), this.loginDeps());
     if (flags.list) {
       const plan = await login.plan({ tools, envs: flags.env });
-      this.renderer.list(plan.steps, { columns: ['id', 'kind', 'title', 'origin'] });
+      this.renderer.list(plan.steps, { columns: SETUP_STEP_COLUMNS });
       for (const notice of loginNotices(plan.problems)) this.renderer.notice(notice);
       return;
     }
@@ -52,11 +54,10 @@ export default class LoginCommand extends FxCommand {
       tools,
       envs: flags.env,
       skipManual: flags['skip-manual'],
-      dryRun: flags['dry-run'],
+      ...writeIntent(flags, this.posture),
       noInput: this.noInput,
-      posture: this.posture,
     });
-    this.renderer.list(out.items, { columns: ['id', 'kind', 'result', 'detail'] });
+    this.renderer.list(out.items, { columns: LOGIN_STEP_COLUMNS });
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
   }
 }

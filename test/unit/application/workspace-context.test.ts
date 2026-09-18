@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { WorkspaceContext } from '../../../src/application/workspace-context.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import { FakeConfigStore } from '../../fakes/fake-config-store.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeGit } from '../../fakes/fake-git.js';
@@ -52,6 +53,7 @@ function locate(overrides: {
     git: overrides.git ?? new FakeGit(),
     localStore: overrides.localStore ?? new FakeLocalStore(),
     bundledTools: bundled,
+    providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,

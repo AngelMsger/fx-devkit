@@ -5,9 +5,9 @@
 
 import { Command, Errors } from '@oclif/core';
 
-import { resolveKey } from '../application/config/resolve.js';
+import { readSettings } from '../application/config/settings.js';
 import type { DoctorExtension } from '../application/doctor/types.js';
-import type { InitDeps } from '../application/init.js';
+import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
 import { resolveManifestDir } from '../application/manifest/locate.js';
@@ -16,14 +16,14 @@ import { replacementFor } from '../application/safety/replace-files.js';
 import { TrustGate } from '../application/safety/trust.js';
 import { SKILL_LOADED_ENV, SKILL_VERSION_ENV, skillNotice } from '../application/skill/notice.js';
 import type { SkillDeps } from '../application/skill/targets.js';
-import type { SyncStages } from '../application/sync.js';
+import type { SyncStages } from '../application/sync/types.js';
 import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { WorkspaceContext } from '../application/workspace-context.js';
-import { CommandServices } from '../composition/command-services.js';
+import { CommandWiring } from '../composition/command-wiring.js';
 import {
   createContainer,
   skillDeps,
@@ -36,13 +36,19 @@ import { updateChecks, type UpdateChecks } from '../composition/update.js';
 import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
+import type { Report } from '../domain/report.js';
 import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
-import { parseBoolean, parseList } from '../domain/values.js';
 import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
-import { createRenderer, parseFields, processIo, type Renderer } from './render/index.js';
+import {
+  createRenderer,
+  parseFields,
+  processIo,
+  type RenderOptions,
+  type Renderer,
+} from './render/index.js';
 import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
@@ -51,13 +57,21 @@ import { workspaceWriteMode } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
+  // The handshake offers fx's own companion Skill to an agent that has not
+  // loaded it. A command that manages fx itself declares itself out of it,
+  // because its caller is already working on the thing being offered.
+  static announcesSkill = true;
 
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(DEFAULT_FORMAT, processIo());
+  private reportSink: SinkReporter | undefined;
   protected noInput = false;
   protected yes = false;
   protected posture: WritePosture = { readOnly: false, source: 'default' };
   protected format: Format = DEFAULT_FORMAT;
+  // What the renderer was built with: a command that decides which rows to hand
+  // it reads the same projection settings instead of parsing the flags again.
+  protected renderOptions: RenderOptions = {};
   protected commandShell: ResolvedShell = 'posix';
   private workspaceName: string | undefined;
   private configUser: string | undefined;
@@ -69,6 +83,11 @@ export abstract class FxCommand extends Command {
   private updateCheckOn = false;
   private quietOn = false;
   private located: WorkspaceContext | undefined;
+  // One instance each per execution: a second TrustGate would ask again for
+  // approval the first one already holds.
+  private commandWiring: CommandWiring | undefined;
+  private trust: TrustGate | undefined;
+  private replaceFiles: ReplaceFiles | undefined;
   private operationLease: Lease | undefined;
   private selection: ResolveInput['selection'];
 
@@ -81,36 +100,33 @@ export abstract class FxCommand extends Command {
     const spec = this.constructor as typeof FxCommand & { flags?: object; args?: object };
     const { flags } = await this.parse({ ...spec, baseFlags: globalFlags, strict: false });
     const file = await this.container.config.read();
-    this.commandShell = resolveCommandShell(
-      resolveKey('command_shell', {
-        flag: flags['command-shell'],
-        env: process.env,
-        file,
-      }).value,
-      process.platform === 'win32',
-    );
-    this.configUser = resolveKey('user', { env: process.env, file }).value;
-    this.configAgentList = parseList(resolveKey('agents', { env: process.env, file }).value);
-    this.skillNoticeOn =
-      parseBoolean(resolveKey('skill_notice', { env: process.env, file }).value) !== false;
-    this.updateCheckOn =
-      parseBoolean(resolveKey('update_check', { env: process.env, file }).value) !== false;
-    const format = resolveKey('format', { flag: flags.format, env: process.env, file }).value;
+    const settings = readSettings({
+      env: process.env,
+      file,
+      flags: { command_shell: flags['command-shell'], format: flags.format },
+    });
+    this.commandShell = resolveCommandShell(settings.commandShell, process.platform === 'win32');
+    this.configUser = settings.user;
+    this.configAgentList = settings.agents;
+    this.skillNoticeOn = settings.skillNotice;
+    this.updateCheckOn = settings.updateCheck;
+    const format = settings.format;
     if (format !== undefined && !isFormat(format)) {
-      throw new DevkitError('config', 'CONFIG_INVALID', `unknown output format "${format}"`, {
+      throw new DevkitError('config', 'CONFIG_INVALID', `Unknown output format "${format}"`, {
         hint: `Choose one of: human, json, ndjson.`,
         nextSteps: ['fx config set format human', 'Unset FX_FORMAT if it supplies this value.'],
       });
     }
     this.format = format ?? DEFAULT_FORMAT;
-    this.renderer = createRenderer(this.format, processIo(), {
+    this.renderOptions = {
       report: reportCommand(this.id),
       details: flags['details'] === true,
       fields: parseFields(flags.fields),
       quiet: flags.quiet,
       verbose: flags.verbose,
       noHeader: flags['no-header'],
-    });
+    };
+    this.renderer = createRenderer(this.format, processIo(), this.renderOptions);
     this.container.diagnostics.connect(this.renderer);
     this.noInput = flags['no-input'] || !process.stdin.isTTY;
     this.quietOn = flags.quiet;
@@ -141,8 +157,22 @@ export abstract class FxCommand extends Command {
     return this.configUser;
   }
 
+  // One reporter for the whole command. It reads `renderer` per call, because
+  // init replaces the default renderer once the output format is known.
   protected get reporter(): SinkReporter {
-    return new SinkReporter(this.renderer);
+    this.reportSink ??= new SinkReporter({
+      notice: (notice) => this.renderer.notice(notice),
+      progress: (event) => this.renderer.progress(event),
+    });
+    return this.reportSink;
+  }
+
+  // A human reader wants the findings as a table; every other format keeps the
+  // whole report, which the renderer also needs to honour --fields and --details.
+  protected renderReport(report: Report, columns: readonly string[]): void {
+    if (this.format === 'human')
+      this.renderer.list(report.findings, { fullReport: report, columns });
+    else this.renderer.record(report);
   }
 
   protected async workspaceDeps(): Promise<WorkspaceDeps> {
@@ -160,9 +190,7 @@ export abstract class FxCommand extends Command {
   // Discovery is local and available before a workspace exists.
   private async handshake(): Promise<void> {
     if (this.skillNoticeSent || this.quietOn || process.stderr.isTTY) return;
-    const topic = this.id?.split(':')[0];
-    if (!topic || ['skill', 'self', 'config', 'login', 'completion', 'hook'].includes(topic))
-      return;
+    if (!(this.constructor as typeof FxCommand).announcesSkill) return;
     this.skillNoticeSent = true;
     const notice = await skillNotice(this.container.fs, this.skillDeps(), {
       format: this.format,
@@ -187,8 +215,8 @@ export abstract class FxCommand extends Command {
     };
   }
 
-  private services(): CommandServices {
-    return new CommandServices({
+  private wiring(): CommandWiring {
+    this.commandWiring ??= new CommandWiring({
       commandShell: this.commandShell,
       ...this.harnessInput(),
       reporter: this.reporter,
@@ -197,19 +225,20 @@ export abstract class FxCommand extends Command {
       agents: this.configAgents,
       user: this.user,
     });
+    return this.commandWiring;
   }
 
   protected hookDoctorChecks(): DoctorExtension[] {
-    return this.services().hookDoctorChecks();
+    return this.wiring().hookDoctorChecks();
   }
   protected loginDeps(): LoginDeps {
-    return this.services().loginDeps();
+    return this.wiring().loginDeps();
   }
   protected initDeps(): InitDeps {
-    return this.services().initDeps();
+    return this.wiring().initDeps();
   }
   protected stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
-    return this.services().stages(deps, dryRun);
+    return this.wiring().stages(deps, dryRun);
   }
 
   protected skillDeps(): SkillDeps {
@@ -217,20 +246,22 @@ export abstract class FxCommand extends Command {
   }
 
   protected replacement(): ReplaceFiles {
-    return replacementFor(
+    this.replaceFiles ??= replacementFor(
       this.container.fs,
       this.container.prompter(this.noInput),
       this.reporter,
       this.yes,
     );
+    return this.replaceFiles;
   }
 
   protected trustGate(): TrustGate {
-    return new TrustGate(
+    this.trust ??= new TrustGate(
       this.container.trust,
       this.container.prompter(this.noInput),
       this.container.clock,
     );
+    return this.trust;
   }
 
   // Tool commands work outside a workspace too, on the bundled baseline.
@@ -254,6 +285,7 @@ export abstract class FxCommand extends Command {
       git: this.container.git,
       localStore: this.container.localStore,
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
     });
     return this.located;
@@ -305,6 +337,7 @@ export abstract class FxCommand extends Command {
       dir,
       fs: this.container.fs,
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
       reporter: this.reporter,
       diagnostics: this.container.diagnostics,

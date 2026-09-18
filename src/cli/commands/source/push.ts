@@ -2,6 +2,7 @@ import { Args } from '@oclif/core';
 
 import { runSourcePush } from '../../../composition/contributions.js';
 import { FxCommand } from '../../base.js';
+import { writeIntent } from '../../flags.js';
 import { sourcePushFlags } from '../../source-flags.js';
 
 export default class SourcePushCommand extends FxCommand {
@@ -34,10 +35,9 @@ export default class SourcePushCommand extends FxCommand {
         ...(flags.message === undefined ? {} : { message: flags.message }),
         ...(flags.pr === undefined ? {} : { prRef: flags.pr }),
         cliVersion: this.config.version,
-        dryRun: flags['dry-run'],
+        ...writeIntent(flags, this.posture),
         forceNew: flags.new,
         yes: this.yes,
-        posture: this.posture,
       },
     });
     this.renderer.record(result);

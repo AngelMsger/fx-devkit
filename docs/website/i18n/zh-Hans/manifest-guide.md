@@ -104,7 +104,7 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 写入后、init 前，先审阅候选中的分支、上游、项目和未确定项。团队规则与 Skill 需要单独补充，不能从 Git 元信息中恢复。已有目录自动纳入，`--adopt` 仅为兼容保留。替换已有指南或 Skill 位置可能需要审阅并备份。导入不改 checkout，不删除 submodule 元信息。见[导入契约](manifest-guide.md#import-existing-checkouts)。
 
-Provider 推断需要证据：经验证的本地 bare 仓库可生成 `local-git` 绑定。未知或混合托管保留显式 upstream URL 和待审阅说明，不猜测 provider。含凭证、查询参数或片段的 HTTP remote 会跳过且不回显这些数据。
+Provider 推断需要证据：经验证的本地 bare 仓库可生成 `local-git` 绑定。未知或混合托管保留显式 upstream URL 和待审阅说明，不猜测 provider。code host 未能作答的项目报告为未作答而非不存在，对应条目的待审阅说明或跳过原因会说明这次搜索并不完整。含凭证、查询参数或片段的 HTTP remote 会跳过且不回显这些数据。
 
 只有 `origin` 且其 URL 与声明的 upstream 完全匹配时，sync 会添加 `upstream`，保留 `origin`、当前分支和本地文件。预览的 `upstream_to_add` 与结果的 `upstream_added` 分别说明计划和实际效果；冲突的 remote 保持不变。
 
@@ -174,7 +174,7 @@ fx doctor --tool openobserve-cli --format json
 
 ## 公共服务预设 {#public-service-presets}
 
-fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.2.0'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。
+fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.2.0'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。未写 `provider` 的 platform 按其名称推导出的 provider 校验，与 `fx manifest providers` 显示的一致。
 
 相同预设可共享本地目标，同一目标的不同预设会阻止配置。冲突的旧 vars 应删除，避免两个来源。用户名、邮箱、密码、PAT/API Token 值、Cookie 和浏览器会话不可分发；每人通过自己的 CLI 获取并保存凭证。额外 service 字段在非严格模式下也校验失败；URL 中的凭证会被拒绝且不会回显。
 

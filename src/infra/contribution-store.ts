@@ -9,7 +9,7 @@ import * as z from 'zod';
 
 import { scanBoundary } from '../domain/boundary/scan.js';
 import type { ContributionOperation } from '../domain/contribution/operation.js';
-import { DevkitError } from '../domain/errors.js';
+import { busyError, DevkitError } from '../domain/errors.js';
 import { assertWorkspaceName } from '../domain/workspace/name.js';
 import type { ContributionStore } from '../ports/contribution-store.js';
 import type { Lock } from '../ports/lock.js';
@@ -90,8 +90,7 @@ export class FileContributionStore implements ContributionStore {
     }
     await assertSafeParents(this.home, file);
     const lease = await this.lock.acquire({ key: `contributions:${workspace}`, waitMs: 2000 });
-    if (!lease)
-      throw new DevkitError('conflict', 'SOURCE_BUSY', 'The contribution journal is busy.');
+    if (!lease) throw busyError('SOURCE_BUSY', 'The contribution journal');
     try {
       await this.readFile(file);
       await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -178,7 +177,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_JOURNAL_INVALID',
-    'Contribution metadata is invalid or foreign.',
+    'Contribution metadata is invalid or foreign',
     { nextSteps: ['Inspect and repair the workspace contribution journal before retrying.'] },
   );
 }

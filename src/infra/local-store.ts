@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { stringify } from 'yaml';
 
-import { DevkitError } from '../domain/errors.js';
+import { busyError } from '../domain/errors.js';
 import { loadLocal } from '../domain/manifest/loader.js';
 import type { LocalLayer } from '../domain/manifest/types.js';
 import type { LocalLayerStore } from '../ports/stores.js';
@@ -52,12 +52,9 @@ export class FileLocalLayerStore implements LocalLayerStore {
       waitMs: 5000,
     });
     if (lease === null)
-      throw new DevkitError(
-        'conflict',
-        'WORKSPACE_BUSY',
-        `Personal layer for ${workspace} is being updated`,
-        { nextSteps: ['Retry the selection change.'] },
-      );
+      throw busyError('WORKSPACE_BUSY', `The personal layer for ${workspace}`, {
+        nextSteps: ['Retry the selection change.'],
+      });
     const temporary = `${file}.${randomUUID()}.tmp`;
     try {
       const next = await change();

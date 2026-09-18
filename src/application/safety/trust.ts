@@ -75,7 +75,7 @@ export class TrustGate {
         throw new DevkitError(
           'config',
           'VECTOR_UNTRUSTED',
-          `the manifest command for ${input.label} has not been trusted yet: ${shown}`,
+          `The manifest command for ${input.label} has not been trusted yet: ${shown}`,
           {
             hint: 'A person confirms each manifest-supplied command once per workspace.',
             nextSteps: [
@@ -92,7 +92,7 @@ export class TrustGate {
       throw new DevkitError(
         'permission',
         'VECTOR_REJECTED',
-        `the command for ${input.label} was not trusted: ${shown}`,
+        `The command for ${input.label} was not trusted: ${shown}`,
         {
           hint: 'Nothing ran. Edit the manifest patch, or re-run and confirm.',
           nextSteps: [recoveryCommand(input, 'tool', 'show', '<tool>')],

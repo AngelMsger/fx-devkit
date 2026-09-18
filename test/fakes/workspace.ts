@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import type { WorkspaceDeps } from '../../src/application/workspace/deps.js';
 import { WorkspaceContext } from '../../src/application/workspace-context.js';
+import { providerCatalog } from '../../src/composition/registry.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';
 import type { Platform } from '../../src/ports/platform.js';
 
@@ -75,6 +76,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     git,
     localStore,
     bundledTools: bundled,
+    providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,

@@ -131,8 +131,10 @@ report and candidate. Add team rules and Skills separately; import does not
 recover them from repository metadata. Provider inference requires evidence:
 verified local bare repositories can produce a `local-git` binding. Unrecognized
 or mixed hosting remains explicit upstream URLs with review notes, without a
-guessed provider. HTTP remotes carrying credentials or query/fragment data are
-skipped without echoing that data. Then preview adoption:
+guessed provider. A project the code host could not answer for is reported as
+unanswered rather than absent, so the entry's review note or skip reason shows
+that the search was incomplete. HTTP remotes carrying credentials or
+query/fragment data are skipped without echoing that data. Then preview adoption:
 
 ```sh
 fx init ./existing-work --from ./team-workspace --dry-run
@@ -254,7 +256,9 @@ providers:
 clone coordinates separate. `context` selects a native CLI context. Bitbucket and
 Confluence also accept `flavor`; OpenObserve requires `org`; family companions
 require `auth_scheme` and optionally accept a public `credential_url` page.
-Sentry accepts only `base_url` and `org`. Identical declarations can share a local
+Sentry accepts only `base_url` and `org`. A platform that names no `provider` is
+checked against the provider its own name implies, the same one `fx manifest
+providers` reports for it. Identical declarations can share a local
 destination; incompatible settings for the same destination block preparation.
 Conflicting legacy variables must be removed rather than defining a second source.
 

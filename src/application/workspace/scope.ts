@@ -48,6 +48,7 @@ export async function editScope(deps: WorkspaceDeps, edit: ScopeEdit): Promise<S
       'usage',
       'INPUT_INVALID',
       'Names cannot be combined with --all or --none',
+      { nextSteps: [`fx ${edit.key === 'repos' ? 'repo' : 'env'} select --help`] },
     );
   if (edit.operation === 'replace' && edit.names.length === 0)
     throw new DevkitError('usage', 'INPUT_REQUIRED', 'Select names, --all, or --none', {

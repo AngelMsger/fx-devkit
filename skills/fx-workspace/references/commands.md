@@ -209,7 +209,9 @@ registration work, not complete synchronization or readiness.
 `fx hook list` — `items[]` with agent, action, activation, path, context and handoff,
 plus workspace/root, the effective enabled setting, and dated observations.
 `activation: unverified` means native trust/execution has not been established;
-a matching projection alone is not readiness. `fx hook enable [--dry-run]`
+a matching projection alone is not readiness. An observation whose code is
+`HOOK_PHASE_UNREPORTED` names a background phase that never answered, so its
+absence of findings is unknown rather than clean; run its `command` to find out. `fx hook enable [--dry-run]`
 enables this workspace and projects selected hosts. `fx hook disable [--dry-run]`
 disables it and removes owned entries. Global `hooks` / `FX_HOOKS` gates all
 workspaces; local `hooks.enabled` gates one. `agent unpick` remains global and
@@ -375,4 +377,5 @@ recover an executable that cannot start.
 | `unconfigured`, failed configuration/auth check                   | Inspect the companion's read-only status and scoped doctor details. Initialize only missing configuration; distinguish invalid credentials, network failure and missing permissions before starting login.         |
 | `no_access` from fx                                               | This means the environment is outside personal selection, not a remote permission verdict. Select it only within task scope; remote missing scope/forbidden requires the appropriate access decision.              |
 | `not_covered`, `CAPABILITY_UNBOUND`, unresolved recipe/coordinate | Inspect manifest providers/validation and maintain confirmed shared facts within scope. Do not substitute another environment or repeatedly ask for login.                                                         |
+| `TOOL_UNDECLARED`                                                 | The capability is bound and its provider is known; the tools document does not declare the companion the provider runs. Propose that declaration; do not rebind the capability or install the tool first.          |
 | `unknown`, parse error or unexpected failure                      | Inspect focused diagnostics and the companion Skill; preserve uncertainty, redact sensitive output, and report an actionable blocker if evidence cannot resolve it.                                                |

@@ -1,16 +1,12 @@
-import { Args } from '@oclif/core';
-
 import { showWorkspace } from '../../../application/workspace/discover.js';
 import { FxCommand } from '../../base.js';
+import { argument } from '../../flags.js';
 
 export default class WorkspaceShow extends FxCommand {
   static override description =
     'Show registered identity, selection provenance, source and readiness without requiring a healthy manifest';
   static override args = {
-    name: Args.string({
-      ignoreStdin: true,
-      description: 'registered name; defaults to current workspace resolution',
-    }),
+    name: argument('registered name; defaults to current workspace resolution'),
   };
   static override flags = {};
   async run(): Promise<void> {
@@ -21,6 +17,7 @@ export default class WorkspaceShow extends FxCommand {
         ...resolve,
         name: args.name ?? resolve.name,
         bundledTools: this.container.bundledTools,
+        providers: this.container.providers,
         cliVersion: this.config.version,
       }),
     );

@@ -1,4 +1,4 @@
-import { ToolList } from '../../../application/tool/list.js';
+import { ToolList, TOOL_COLUMNS } from '../../../application/tool/list.js';
 import { FxCommand } from '../../base.js';
 
 export default class ToolListCommand extends FxCommand {
@@ -10,8 +10,6 @@ export default class ToolListCommand extends FxCommand {
   async run(): Promise<void> {
     await this.parse(ToolListCommand);
     const { tools } = await this.toolchain();
-    this.renderer.list(new ToolList().execute({ tools }), {
-      columns: ['name', 'required', 'enabled', 'min_version', 'install_via', 'origin', 'desc'],
-    });
+    this.renderer.list(new ToolList().execute({ tools }), { columns: TOOL_COLUMNS });
   }
 }

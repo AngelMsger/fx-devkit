@@ -22,6 +22,6 @@ export default class ManifestSchema extends FxCommand {
       kind: flags.kind as Kind,
       cliVersion: this.config.version,
     });
-    process.stdout.write(`${JSON.stringify(schema, null, 2)}\n`);
+    this.renderer.text(`${JSON.stringify(schema, null, 2)}\n`);
   }
 }

@@ -1,9 +1,8 @@
-import { Args } from '@oclif/core';
-
 import { Where } from '../../application/where.js';
 import { recordProbe } from '../../composition/probe-record.js';
 import { DevkitError } from '../../domain/errors.js';
 import { FxCommand } from '../base.js';
+import { requiredArgument, writeIntent } from '../flags.js';
 import { selectWhereColumns, whereFlags } from '../where-flags.js';
 
 export default class WhereCommand extends FxCommand {
@@ -14,7 +13,7 @@ export default class WhereCommand extends FxCommand {
     '<%= config.bin %> where fx-example-api --env test --platform jenkins --probe --record --dry-run',
   ];
   static override args = {
-    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+    repo: requiredArgument('repository name'),
   };
   static override flags = whereFlags;
 
@@ -34,7 +33,7 @@ export default class WhereCommand extends FxCommand {
         container: this.container,
         workspace: await this.workspaceDeps(),
         login: this.loginDeps(),
-        input: { ...input, dryRun: flags['dry-run'], posture: this.posture },
+        input: { ...input, ...writeIntent(flags, this.posture) },
       });
       this.renderer.record(result);
       return;
@@ -43,7 +42,13 @@ export default class WhereCommand extends FxCommand {
       throw new DevkitError(
         'usage',
         'PROBE_RECORD_INPUT_REQUIRED',
-        '--dry-run on where requires --record; use --no-check for a query without live checks.',
+        '--dry-run on where requires --record; use --no-check for a query without live checks',
+        {
+          nextSteps: [
+            `fx where ${args.repo} --env <env> --platform <platform> --probe --record --dry-run`,
+            `fx where ${args.repo} --no-check`,
+          ],
+        },
       );
     const rows = await new Where(await this.workspaceDeps(), this.loginDeps()).execute(input);
     this.renderer.list(rows, { columns: selectWhereColumns(flags.probe) });

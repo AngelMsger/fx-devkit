@@ -27,8 +27,13 @@ JSON edits preserve unmanaged text, including its whitespace and escaped values.
 Ambiguous, invalid or foreign files stay unchanged. Bridge content carries an
 ownership marker and digest; a modified bridge becomes foreign. Ownership
 receipts and dated observations stay under the workspace's FX_HOME directory.
-They never contain prompts, transcripts, credentials or member data and are not
-included in exported profiles.
+A phase that failed keeps one bounded line naming the failure beside its
+observation code, so a fail-open background run stays diagnosable. A run dates
+the phases it commits to before the first of them starts, so a worker its
+supervisor terminates mid-phase leaves `HOOK_PHASE_UNREPORTED` rather than an
+absence that reads like a phase with nothing to report. Observations
+never contain prompts, transcripts, credentials, command output or member data
+and are not included in exported profiles.
 
 ## Deadlines and delivery
 
@@ -47,6 +52,9 @@ cleanup, not a stop-event handler or transcript processing.
 
 The detached background worker has a 30-second total deadline; companion
 commands get at most 15 seconds and update probes retain the 2-second limit.
+A companion command that exhausts its own budget ends the whole run: the worker
+cannot own that child's process group, so it asks its supervisor to reap the
+group, and the phases after it stay unreported.
 The supervisor kills the worker process group on POSIX; Windows uses bounded
 PID-scoped `taskkill /T /F` with direct-child fallback. Windows cleanup is
 best-effort when a root has already exited. The supervisor owns

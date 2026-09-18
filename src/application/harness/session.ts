@@ -4,18 +4,17 @@ import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { loadHarness } from '../../domain/manifest/loader.js';
-import { parseList } from '../../domain/values.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { Process } from '../../ports/process.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { enabledHosts } from '../agent/list.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { WritePosture } from '../safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { InspectMcp, type InspectMcpOutput } from './inspect.js';
+import { McpReadiness, type McpVerdict } from './mcp-readiness.js';
 import { findMcpResource } from './names.js';
-import { McpReadiness, type McpVerdict } from './readiness.js';
 import { ReconcileHarness } from './reconcile.js';
 import type { HarnessDeps, HarnessInput } from './types.js';
 
@@ -41,7 +40,7 @@ export async function loadHarnessCommand(
     throw new DevkitError(
       'config',
       'HARNESS_SOURCE_FOREIGN',
-      'The harness source is not a regular owned source file.',
+      'The harness source is not a regular owned source file',
       { nextSteps: ['Inspect manifest/harness.yaml and its parent directories.'] },
     );
   const loaded =
@@ -55,7 +54,7 @@ export async function loadHarnessCommand(
   const config = await command.config.read();
   const selected = await enabledHosts(
     deps.hosts,
-    parseList(resolveKey('agents', { env: command.env, file: config }).value),
+    readSettings({ env: command.env, file: config }).agents,
   );
   return {
     deps,
@@ -83,7 +82,7 @@ export async function canMcp(
     throw new DevkitError(
       'usage',
       'MCP_ENV_UNSUPPORTED',
-      'MCP resources are workspace-scoped; omit --env.',
+      'MCP resources are workspace-scoped; omit --env',
       { nextSteps: ['fx mcp list'] },
     );
   const { deps, input } = await loadHarnessCommand(command);
@@ -115,7 +114,7 @@ function findAgent(hosts: readonly AgentHost[], id: string): AgentHost {
     id,
     hosts.map((item) => item.id),
   );
-  throw new DevkitError('not_found', 'AGENT_UNKNOWN', 'The agent is not registered.', {
+  throw new DevkitError('not_found', 'AGENT_UNKNOWN', 'The agent is not registered', {
     hint: suggestion ? `Did you mean "${suggestion}"?` : 'Use an agent ID from fx agent list.',
     nextSteps: ['fx agent list'],
   });

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { asDevkitError, DevkitError } from '../../domain/errors.js';
+import { asDevkitError, busyError, DevkitError } from '../../domain/errors.js';
 import { pathKey } from '../../domain/path.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lock } from '../../ports/lock.js';
@@ -44,10 +44,7 @@ export class NodeFs implements FileSystem {
       key: `projection:${pathKey(file)}`,
       waitMs: 2000,
     });
-    if (lease === null)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'A projection is being written', {
-        retryable: true,
-      });
+    if (lease === null) throw busyError('LOCK_BUSY', 'The projection');
     const temporary = `${file}.${randomUUID()}.tmp`;
     try {
       await fs.mkdir(path.dirname(file), { recursive: true });
@@ -60,6 +57,7 @@ export class NodeFs implements FileSystem {
           'conflict',
           'PROJECTION_FOREIGN',
           'The projection is not a regular file',
+          { nextSteps: [`Remove or rename ${file}, then re-run the same command.`] },
         );
       await fs.writeFile(temporary, text, {
         flag: 'wx',
@@ -80,10 +78,7 @@ export class NodeFs implements FileSystem {
         'Directory replacement requires a lock',
       );
     const lease = await this.lock.acquire({ key: `projection:${pathKey(to)}`, waitMs: 2000 });
-    if (!lease)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'The Skill projection is being updated', {
-        retryable: true,
-      });
+    if (!lease) throw busyError('LOCK_BUSY', 'The Skill projection');
     try {
       const current = await fs.lstat(to).catch((err) => {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
@@ -94,6 +89,7 @@ export class NodeFs implements FileSystem {
           'conflict',
           'PROJECTION_FOREIGN',
           'The projection is not a directory',
+          { nextSteps: [`Remove or rename ${to}, then re-run the same command.`] },
         );
       await replaceDirectory(from, to);
     } catch (err) {

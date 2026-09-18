@@ -11,7 +11,9 @@ export function humanList(
 ): string {
   if (items.length === 0) return '(none)';
   const cols = columns ?? Object.keys(items[0] as Record<string, unknown>);
-  const rows = items.map((item) => cols.map((c) => cell((item as Record<string, unknown>)[c])));
+  const rows = items.map((item) =>
+    cols.map((c) => cell(column(item as Record<string, unknown>, c))),
+  );
   const widths = cols.map((column, i) =>
     Math.max(column.length, ...rows.map((r) => r[i]?.length ?? 0)),
   );
@@ -24,6 +26,19 @@ export function humanList(
   return (
     noHeader ? body : [render(cols), render(widths.map((width) => '-'.repeat(width))), ...body]
   ).join('\n');
+}
+
+// A column may name a nested value. --fields projects onto literal dotted keys,
+// so a key the row actually has always wins over walking the same path.
+function column(item: Record<string, unknown>, name: string): unknown {
+  if (name in item) return item[name];
+  return name
+    .split('.')
+    .reduce<unknown>(
+      (at, key) =>
+        typeof at === 'object' && at !== null ? (at as Record<string, unknown>)[key] : undefined,
+      item,
+    );
 }
 
 type Describers = Readonly<Record<string, (value: unknown) => readonly string[]>>;

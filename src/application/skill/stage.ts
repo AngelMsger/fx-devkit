@@ -1,81 +1,23 @@
-// Plan and execute Skill projections, retaining per-item outcomes for recovery.
+// Runs the three Skill product lines as one stage: plan them all, then write
+// links and copies before any external tool process, and summarize the outcome.
 
-import path from 'node:path';
-
-import {
-  asDevkitError,
-  DevkitError,
-  exitCodeFor,
-  toEnvelope,
-  withPartialResult,
-} from '../../domain/errors.js';
-import { shellLine } from '../../domain/shell.js';
-import {
-  decideCopy,
-  decideLink,
-  type CopyAction,
-  type LinkAction,
-} from '../../domain/skills/projection.js';
-import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';
-import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
-import type { ProcessResult } from '../../ports/process.js';
-import type { ReplaceFiles } from '../../ports/replace-files.js';
-import { assertWritable, type WritePosture } from '../safety/posture.js';
-import { isTrustRequired } from '../safety/trust.js';
-import type { TrustContext } from '../safety/trust.js';
-import type { StageSummary } from '../sync.js';
+import { withPartialResult } from '../../domain/errors.js';
+import { assertWritable } from '../safety/posture.js';
+import type { StageSummary } from '../sync/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import { SkillCopies } from './copies.js';
-import { FX_SKILL, observeCopy, observeLink, teamSkillsRoot } from './observe.js';
-import { projectSkillTargets, skillTargets, type SkillDeps } from './targets.js';
-import { skillWriteError } from './write-error.js';
-
-export interface SkillStageInput {
-  readonly background?: boolean;
-  readonly replace?: ReplaceFiles;
-  readonly agents?: readonly string[] | undefined;
-  readonly toolchain?: readonly ResolvedTool[] | undefined;
-  readonly trust?: TrustContext | undefined;
-  readonly dryRun: boolean;
-  readonly posture: WritePosture;
-}
-
-interface ItemOutcome {
-  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
-  readonly failure?: Readonly<Record<string, unknown>>;
-}
-
-export interface SkillLinkItem extends ItemOutcome {
-  readonly agent: string;
-  readonly path: string;
-  readonly target: string;
-  readonly action: LinkAction;
-  readonly reason?: string;
-}
-
-export interface FxSkillItem extends ItemOutcome {
-  readonly agent: string;
-  readonly path: string;
-  readonly action: CopyAction;
-  readonly version: string;
-}
-
-export interface ToolSkillItem extends ItemOutcome {
-  readonly tool: string;
-  readonly vector: readonly string[] | null;
-  readonly code: number | null;
-  readonly note?: string;
-  readonly failure?: Readonly<Record<string, unknown>>;
-  readonly origin: ResolvedTool['origins']['skill'];
-}
-
-export interface SkillStageOutput {
-  readonly links: readonly SkillLinkItem[];
-  readonly fx: readonly FxSkillItem[];
-  readonly tools: readonly ToolSkillItem[];
-  readonly summary: StageSummary;
-}
+import { applyCopies, planCopies } from './fx-copies.js';
+import { observeCopy, observeLink } from './observe.js';
+import type { SkillDeps } from './targets.js';
+import { applyLinks, planLinks, replaceConflicts, reportForeign } from './team-links.js';
+import { planTools, runTools, trustAll, trustedTools } from './tool-skills.js';
+import type {
+  FxSkillItem,
+  SkillLinkItem,
+  SkillStageInput,
+  SkillStageOutput,
+  ToolSkillItem,
+} from './types.js';
 
 export class SkillStage {
   constructor(
@@ -85,21 +27,16 @@ export class SkillStage {
 
   async execute(input: SkillStageInput): Promise<SkillStageOutput> {
     const status = input.dryRun ? 'planned' : 'not_started';
-    const links: SkillLinkItem[] = (await this.planLinks(input.agents)).map((item) => ({
-      ...item,
-      status,
-    }));
-    const fx: FxSkillItem[] = (await this.planCopies(input.agents)).map((item) => ({
-      ...item,
-      status,
-    }));
-    const plannedTools: ToolSkillItem[] = (await this.planTools(input)).map((item) => ({
-      ...item,
-      status,
-    }));
-    let tools = input.background
-      ? await this.trustedTools(plannedTools, input.trust)
-      : plannedTools;
+    const links: SkillLinkItem[] = (await planLinks(this.deps, this.skills, input.agents)).map(
+      (item) => ({ ...item, status }),
+    );
+    const fx: FxSkillItem[] = (await planCopies(this.deps, this.skills, input.agents)).map(
+      (item) => ({ ...item, status }),
+    );
+    const plannedTools: ToolSkillItem[] = (await planTools(this.deps, this.skills, input)).map(
+      (item) => ({ ...item, status }),
+    );
+    let tools = input.background ? await trustedTools(plannedTools, input.trust) : plannedTools;
     try {
       const writes =
         links.some((i) => i.action === 'create' || i.action === 'prune') ||
@@ -107,312 +44,53 @@ export class SkillStage {
         tools.some((t) => t.vector !== null);
       if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
       if (!input.dryRun) {
-        if (!input.background) tools = await this.trustAll(tools, input.trust);
-        await this.replaceConflicts(input, links);
-        await this.applyLinks(links);
-        await this.applyCopies(fx, input);
+        if (!input.background) tools = await trustAll(tools, input.trust);
+        await replaceConflicts(this.deps, input, links);
+        await applyLinks(this.deps, links);
+        await applyCopies(this.deps, this.skills, fx, input);
       }
-      if (!input.dryRun) await this.runTools(tools);
-      this.reportForeign(links);
+      if (!input.dryRun) await runTools(this.deps, tools);
+      reportForeign(this.deps, links);
       return { links, fx, tools, summary: summarize(links, fx, tools) };
     } catch (error) {
-      // An IO failure can occur after a write; report disk observations separately from completion.
-      const observedLinks = await Promise.all(
-        links.map(async (item) => ({
-          ...item,
-          observed: await this.observe(() => observeLink(this.deps.fs, item.path)),
-        })),
-      );
-      const observedCopies = await Promise.all(
-        fx.map(async (item) => ({
-          ...item,
-          observed: await this.observe(() => observeCopy(this.deps.fs, item.path)),
-        })),
-      );
       throw withPartialResult(error, {
-        links: observedLinks,
-        fx: observedCopies,
+        ...(await this.observed(links, fx)),
         tools,
         summary: summarize(links, fx, tools),
       });
     }
   }
 
-  private async replaceConflicts(input: SkillStageInput, links: SkillLinkItem[]): Promise<void> {
-    const conflicts: SkillLinkItem[] = [];
-    for (const item of links) {
-      if (item.action === 'foreign' && (await this.deps.fs.isDirectory(item.target)))
-        conflicts.push(item);
-    }
-    if (input.replace !== undefined && conflicts.length > 0) {
-      assertWritable(input.posture, 'replace Skill paths');
-      if (await input.replace(conflicts.map((item) => item.path))) {
-        for (let index = 0; index < links.length; index++) {
-          const item = links[index]!;
-          if (conflicts.includes(item)) links[index] = { ...item, action: 'create' };
-        }
-      }
-    }
-  }
-
-  private async observe<T>(read: () => Promise<T>): Promise<T | { kind: 'unknown' }> {
-    try {
-      return await read();
-    } catch {
-      return { kind: 'unknown' };
-    }
-  }
-
-  private async applyItem<T extends ItemOutcome>(
-    items: T[],
-    index: number,
-    apply: () => Promise<void>,
-  ): Promise<void> {
-    try {
-      await apply();
-      items[index] = {
-        ...items[index]!,
-        status: items[index]!.status === 'skipped' ? 'skipped' : 'done',
-      };
-    } catch (error) {
-      const item = items[index]!;
-      const failure =
-        'path' in item && typeof item.path === 'string' ? skillWriteError(error, item.path) : error;
-      items[index] = {
-        ...items[index]!,
-        status: 'failed',
-        failure: toEnvelope(asDevkitError(failure)).error,
-      };
-      throw failure;
-    }
-  }
-
-  private async planLinks(agents: readonly string[] | undefined): Promise<SkillLinkItem[]> {
-    const { fs, ctx } = this.deps;
-    const target = teamSkillsRoot(ctx.manifestDir);
-    const hasSource = await fs.isDirectory(target);
-    const items: SkillLinkItem[] = [];
-    for (const at of await projectSkillTargets(this.skills, ctx.root, agents)) {
-      const decision = decideLink(await observeLink(fs, at.dir), target, hasSource);
-      items.push({
-        agent: at.agent,
-        path: at.dir,
-        target,
-        action: decision.action,
-        ...(decision.reason === undefined ? {} : { reason: decision.reason }),
-      });
-    }
-    return items;
-  }
-
-  private async trustedTools(
-    items: readonly ToolSkillItem[],
-    trust?: TrustContext,
-  ): Promise<ToolSkillItem[]> {
-    const result: ToolSkillItem[] = [];
-    for (const item of items) {
-      if (
-        item.vector === null ||
-        item.origin === 'base' ||
-        (trust &&
-          (await trust.gate.isTrusted({
-            workspace: trust.workspace,
-            vector: item.vector,
-            origin: item.origin,
-          })))
-      )
-        result.push(item);
-      else result.push({ ...item, vector: null, note: 'untrusted' });
-    }
-    return result;
-  }
-
-  private async planCopies(agents: readonly string[] | undefined): Promise<FxSkillItem[]> {
-    const items: FxSkillItem[] = [];
-    for (const target of await skillTargets(this.skills, agents)) {
-      const at = path.join(target.dir, FX_SKILL);
-      const action = decideCopy(await observeCopy(this.deps.fs, at), this.deps.cliVersion);
-      items.push({ agent: target.agent, path: at, action, version: this.deps.cliVersion });
-    }
-    return items;
-  }
-
-  private async planTools(input: SkillStageInput): Promise<ToolSkillItem[]> {
-    const targets = await skillTargets(this.skills, input.agents);
-    const agents = targets.map((t) => t.agent);
-    if (agents.length === 0) return [];
-    const items: ToolSkillItem[] = [];
-    for (const tool of input.toolchain ?? []) {
-      if (!tool.enabled || tool.skill === undefined) {
-        items.push({
-          tool: tool.name,
-          vector: null,
-          code: null,
-          note: 'ships no Skill',
-          origin: commandOrigin(tool, 'skill'),
-        });
-        continue;
-      }
-      if (
-        (await this.deps.processWhich(tool.binary)) === undefined &&
-        !(input.dryRun && tool.installOnInit)
-      ) {
-        items.push(missingToolSkill(tool));
-        continue;
-      }
-      const flag = tool.skill.agentFlag;
-      if (tool.skill.dirFlag !== undefined && flag === undefined) {
-        const dirs = [...new Set(targets.map((target) => target.dir))];
-        if (dirs.length === 0) {
-          items.push({
-            tool: tool.name,
-            vector: null,
-            code: null,
-            note: 'no selected agents',
-            origin: commandOrigin(tool, 'skill'),
-          });
-        }
-        for (const dir of dirs) {
-          items.push({
-            tool: tool.name,
-            vector: [tool.binary, ...tool.skill.command, tool.skill.dirFlag, dir],
-            code: null,
-            origin: commandOrigin(tool, 'skill'),
-          });
-        }
-        continue;
-      }
-      const vector = [
-        tool.binary,
-        ...tool.skill.command,
-        ...(flag === undefined ? [] : agents.flatMap((a) => [flag, a])),
-      ];
-      items.push({ tool: tool.name, vector, code: null, origin: commandOrigin(tool, 'skill') });
-    }
-    return items;
-  }
-
-  private async applyLinks(items: SkillLinkItem[]): Promise<void> {
-    for (const [index, item] of items.entries()) {
-      await this.applyItem(items, index, async () => {
-        if (item.action === 'create') await this.deps.fs.link(item.target, item.path);
-        else if (item.action === 'prune') await this.deps.fs.remove(item.path);
-        else items[index] = { ...item, status: 'skipped' };
-      });
-    }
-  }
-
-  private async applyCopies(items: FxSkillItem[], input: SkillStageInput): Promise<void> {
-    const copies = new SkillCopies(this.deps.fs, this.deps.cliVersion, this.skills);
-    for (const [index, item] of items.entries()) {
-      await this.applyItem(items, index, async () => {
-        const action = await copies.install(item.path, {
-          posture: input.posture,
-          ...(input.background || input.replace === undefined ? {} : { replace: input.replace }),
-        });
-        items[index] = {
-          ...item,
-          action,
-          ...(action === 'install' || action === 'upgrade' ? {} : { status: 'skipped' as const }),
-        };
-      });
-    }
-  }
-
-  // Approve executable vectors before running them. A missing approval is a
-  // blocked tool row; independent owned local projections can still proceed.
-  private async trustAll(
-    items: readonly ToolSkillItem[],
-    trust?: TrustContext,
-  ): Promise<ToolSkillItem[]> {
-    if (trust === undefined) return [...items];
-    const approved: ToolSkillItem[] = [];
-    for (const item of items) {
-      if (item.vector === null) {
-        approved.push(item);
-        continue;
-      }
+  // An IO failure can occur after a write; report disk observations separately from completion.
+  private async observed(
+    links: readonly SkillLinkItem[],
+    fx: readonly FxSkillItem[],
+  ): Promise<object> {
+    const read = async <T>(observe: () => Promise<T>): Promise<T | { kind: 'unknown' }> => {
       try {
-        await trust.gate.ensure({
-          workspace: trust.workspace,
-          vector: item.vector,
-          label: `${item.tool} skill install`,
-          origin: item.origin,
-          yes: trust.yes,
-          posture: trust.posture,
-        });
-        approved.push(item);
-      } catch (error) {
-        if (!isTrustRequired(error)) throw error;
-        const failure = asDevkitError(error);
-        approved.push({
+        return await observe();
+      } catch {
+        return { kind: 'unknown' };
+      }
+    };
+    return {
+      links: await Promise.all(
+        links.map(async (item) => ({
           ...item,
-          vector: null,
-          code: exitCodeFor(failure.category),
-          note: 'approval required',
-          failure: toEnvelope(failure).error,
-        });
-      }
-    }
-    return approved;
-  }
-
-  private async runTools(items: ToolSkillItem[]): Promise<void> {
-    for (const [index, item] of items.entries()) {
-      if (item.vector === null) {
-        items[index] = { ...item, status: 'skipped' };
-        continue;
-      }
-      await this.applyItem(items, index, async () => {
-        this.deps.reporter.progress({
-          id: item.tool,
-          state: 'start',
-          detail: 'Skill installation',
-        });
-        const result = await this.deps.processRun(item.vector!, {
-          diagnostic: { phase: `${item.tool} skill install` },
-        });
-        items[index] = { ...item, code: result.code };
-        this.deps.reporter.progress({
-          id: item.tool,
-          state: result.code === 0 ? 'done' : 'fail',
-          detail: 'Skill installation finished',
-        });
-        if (result.code !== 0)
-          items[index] = { ...items[index]!, ...this.installFailure(item.tool, result) };
-      });
-      if (items[index]!.code !== 0) items[index] = { ...items[index]!, status: 'failed' };
-    }
-  }
-
-  private installFailure(
-    tool: string,
-    result: ProcessResult,
-  ): Pick<ToolSkillItem, 'note' | 'failure'> {
-    const diagnostic = result.stderr.trim() || result.stdout.trim();
-    const note = stderrReason(diagnostic, result.code);
-    const failure = errorEnvelope(diagnostic);
-    this.deps.reporter.notice({
-      code: 'SKILL_INSTALL_FAILED',
-      message: `${tool}: ${note}`,
-      nextSteps: [shellLine(['fx', 'tool', 'show', tool], this.deps.commandShell)],
-      data: { tool, exit: result.code, ...(failure === undefined ? {} : { failure }) },
-    });
-    return { note, ...(failure === undefined ? {} : { failure }) };
-  }
-
-  private reportForeign(links: readonly SkillLinkItem[]): void {
-    const foreign = links.filter((i) => i.action === 'foreign');
-    if (foreign.length === 0) return;
-    this.deps.reporter.notice({
-      code: 'SKILL_FOREIGN',
-      message: `${foreign.length} Skill location(s) hold something fx did not create and were left alone: ${foreign.map((f) => f.path).join(', ')}`,
-      nextSteps: ['Move or remove them by hand if the team Skills should be linked there.'],
-    });
+          observed: await read(() => observeLink(this.deps.fs, item.path)),
+        })),
+      ),
+      fx: await Promise.all(
+        fx.map(async (item) => ({
+          ...item,
+          observed: await read(() => observeCopy(this.deps.fs, item.path)),
+        })),
+      ),
+    };
   }
 }
 
-const COPY_KEY: Record<CopyAction, string> = {
+const COPY_KEY: Record<FxSkillItem['action'], string> = {
   install: 'install',
   upgrade: 'upgrade',
   unchanged: 'current',
@@ -453,24 +131,4 @@ function summarize(
     else bump(item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed');
   }
   return summary;
-}
-
-function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
-  return {
-    tool: tool.name,
-    vector: null,
-    code: null,
-    note: 'not installed',
-    origin: commandOrigin(tool, 'skill'),
-    failure: toEnvelope(
-      new DevkitError(
-        'not_found',
-        'TOOL_MISSING',
-        `${tool.name} is required to prepare its Skill`,
-        {
-          nextSteps: [`fx tool show ${tool.name}`, `fx tool install ${tool.name} --dry-run`],
-        },
-      ),
-    ).error,
-  };
 }

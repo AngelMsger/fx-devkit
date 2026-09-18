@@ -45,6 +45,7 @@ export class FileSource implements ManifestSource {
         'conflict',
         'MANIFEST_SOURCE_INVALID',
         'Source and destination directories must not contain one another',
+        { nextSteps: [`Choose a destination outside ${sourcePath}, then retry.`] },
       );
     for (const target of [dir, path.join(dir, MANIFEST_DIR)]) {
       if ((await this.fs.readLink(target)) !== undefined)
@@ -52,6 +53,7 @@ export class FileSource implements ManifestSource {
           'conflict',
           'MANIFEST_REPLACE_REQUIRED',
           `Source destination must not redirect through a symbolic link: ${target}`,
+          { nextSteps: [`Remove the symbolic link at ${target}, then retry.`] },
         );
     }
     const entries = PAYLOAD_PATHS.map((name) => ({
@@ -107,6 +109,11 @@ export class FileSource implements ManifestSource {
         'config',
         'MANIFEST_SOURCE_INVALID',
         `Source payload paths must not be symbolic links: ${from}`,
+        {
+          nextSteps: [
+            `Replace ${from} with a regular file or directory in the source, then retry.`,
+          ],
+        },
       );
     if (await this.fs.isDirectory(from))
       for (const name of await this.fs.readDir(from))

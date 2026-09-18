@@ -21,7 +21,7 @@ export async function assertDistinctWorkspaceRoot(
       throw new DevkitError(
         'conflict',
         'WORKSPACE_ROOT_TAKEN',
-        `This directory is already registered as "${other}".`,
+        `This directory is already registered as "${other}"`,
         {
           hint: 'One physical directory has one workspace identity. Rebind its source or relocate its registration.',
           nextSteps: [
@@ -39,7 +39,7 @@ export function assertDefaultWorkspace(config: ConfigFile): void {
   throw new DevkitError(
     'config',
     'WORKSPACE_DEFAULT_INVALID',
-    `default_workspace references unregistered workspace "${name}".`,
+    `default_workspace references unregistered workspace "${name}"`,
     {
       hint: `Registered: ${
         Object.keys(config.workspaces ?? {})

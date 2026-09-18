@@ -1,6 +1,6 @@
 // Select workspace tool requirements from declarations and providers active in the environment scope.
 
-import type { Binding } from '../../domain/manifest/providers.js';
+import { servesCapability, type Binding } from '../../domain/manifest/providers.js';
 import { finding, type Finding } from '../../domain/report.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
@@ -34,7 +34,7 @@ export function workspaceToolScope(
   for (const binding of activeBindings(ctx, selection)) {
     if (binding.provider === null || binding.source === 'misplaced') continue;
     const provider = describe(binding.provider);
-    if (provider === undefined || provider.capability !== binding.capability) {
+    if (!servesCapability(provider, binding.capability)) {
       problems.push(
         finding(
           'manifest',

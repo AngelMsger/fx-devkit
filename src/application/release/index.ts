@@ -150,7 +150,7 @@ function emptyChecklist(): DevkitError {
   return new DevkitError(
     'not_found',
     'CHECKLIST_EMPTY',
-    'no repository in this workspace is on the release checklist',
+    'No repository in this workspace is on the release checklist',
     {
       hint: 'A repository is on it unless its manifest entry says release.covered: false.',
       nextSteps: ['fx manifest lint', 'fx manifest explain repos[].release.covered'],
@@ -163,7 +163,7 @@ function tagNotFound(tags: readonly string[], known: readonly string[]): DevkitE
   return new DevkitError(
     'not_found',
     'TAG_NOT_FOUND',
-    `no repository on the release checklist is tagged ${tags.map((t) => `"${t}"`).join(' or ')}`,
+    `No repository on the release checklist is tagged ${tags.map((t) => `"${t}"`).join(' or ')}`,
     {
       hint:
         suggestion === undefined
@@ -191,7 +191,7 @@ function repoNotFound(name: string, known: readonly string[]): DevkitError {
   return new DevkitError(
     'not_found',
     'REPO_NOT_FOUND',
-    `no repository named "${name}" in this workspace`,
+    `No repository named "${name}" in this workspace`,
     {
       hint:
         suggestion === undefined

@@ -7,7 +7,8 @@ import type { Capability } from '../../domain/capability.js';
 import { asDevkitError } from '../../domain/errors.js';
 import { unanswered, type Check, type ReleaseFinding } from '../../domain/release/types.js';
 import type { LoginDeps } from '../login/deps.js';
-import { Readiness, type Verdict } from '../readiness.js';
+import { Readiness } from '../readiness/index.js';
+import type { Verdict } from '../readiness/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export type Gate =
@@ -53,7 +54,11 @@ export class Gates {
   }
 }
 
-export function blocked(check: Check, repo: string, gate: Gate & { open: false }): ReleaseFinding {
+export function blockedFinding(
+  check: Check,
+  repo: string,
+  gate: Gate & { open: false },
+): ReleaseFinding {
   const fix = gate.verdict?.handoff?.command ?? gate.verdict?.alternatives[0];
   return unanswered(check, repo, gate.reason, {
     fix,

@@ -27,6 +27,18 @@ export interface RepoRow {
   readonly contact?: string;
 }
 
+export const REPO_COLUMNS = [
+  'name',
+  'picked',
+  'selection_mode',
+  'exists',
+  'branch',
+  'project',
+  'tags',
+] as const;
+// Only an explicit unreadable listing probes these, so they are not always rows.
+export const REPO_READABILITY_COLUMNS = ['readability', 'contact'] as const;
+
 export class RepoList {
   constructor(private readonly deps: WorkspaceDeps) {}
 

@@ -2,7 +2,12 @@
 // asks fx anything. Facts that vary by person or machine — coordinates, credentials,
 // versions, people — stay out; the text points at the fx command that answers instead.
 
-import { CAPABILITY_INFO, type Capability } from '../capability.js';
+import {
+  CAPABILITY_INFO,
+  knownCapability,
+  type Capability,
+  type CapabilityName,
+} from '../capability.js';
 import type { Binding, PlatformBinding } from '../manifest/providers.js';
 import type { Environments, Workspace } from '../manifest/types.js';
 import type { ResolvedTool } from '../toolchain/resolve.js';
@@ -110,9 +115,14 @@ export function capabilities(input: TemplateInput): string {
   return lines.join('\n');
 }
 
-function row(capability: string, provider: string, input: TemplateInput, command: string): string {
-  const when =
-    WHEN[capability as Capability] ?? CAPABILITY_INFO[capability as Capability]?.desc ?? capability;
+function row(
+  capability: CapabilityName,
+  provider: string,
+  input: TemplateInput,
+  command: string,
+): string {
+  const known = knownCapability(capability);
+  const when = known === null ? capability : (WHEN[known] ?? CAPABILITY_INFO[known].desc);
   const tools = input
     .toolsOf(provider)
     .map((name) => input.tools.find((t) => t.name === name)?.binary ?? name)

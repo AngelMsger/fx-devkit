@@ -1,8 +1,9 @@
-import { ListConfig } from '../../../application/config/list.js';
+import { CONFIG_COLUMNS, ListConfig } from '../../../application/config/list.js';
 import { FxCommand } from '../../base.js';
 import { configFlagValues } from '../../config-flags.js';
 
 export default class ConfigList extends FxCommand {
+  static override announcesSkill = false;
   static override description = 'List every config key with its effective value and source';
   static override examples = [
     '<%= config.bin %> config list',
@@ -16,6 +17,6 @@ export default class ConfigList extends FxCommand {
       env: process.env,
       flags: configFlagValues({ flags, argv: this.argv }),
     });
-    this.renderer.list(items, { columns: ['key', 'value', 'source', 'env', 'desc'] });
+    this.renderer.list(items, { columns: CONFIG_COLUMNS });
   }
 }

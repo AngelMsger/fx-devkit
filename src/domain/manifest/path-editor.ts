@@ -111,7 +111,7 @@ function unsupported(): DevkitError {
   return new DevkitError(
     'config',
     'MANIFEST_EDIT_UNSUPPORTED',
-    'The selected YAML path cannot be edited without changing another scope.',
+    'The selected YAML path cannot be edited without changing another scope',
     { nextSteps: ['Use an unambiguous, unanchored mapping for the target entry and retry.'] },
   );
 }

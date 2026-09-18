@@ -9,7 +9,7 @@ import { Login } from '../../../src/application/login/run.js';
 import { Verifier } from '../../../src/application/login/verify.js';
 import { TrustGate } from '../../../src/application/safety/trust.js';
 import { ServiceOperation } from '../../../src/application/services/operation.js';
-import { Sync } from '../../../src/application/sync.js';
+import { Sync } from '../../../src/application/sync/index.js';
 import { describeProvider } from '../../../src/composition/registry.js';
 import { loadWorkspace } from '../../../src/domain/manifest/loader.js';
 import { FakeClock } from '../../fakes/fake-clock.js';

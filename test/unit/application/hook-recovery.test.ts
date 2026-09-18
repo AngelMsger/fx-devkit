@@ -1,7 +1,8 @@
 // Projection failures must not commit a preference that hides pending recovery.
 import { describe, expect, it } from 'vitest';
 
-import { ReconcileHooks, type HookDeps } from '../../../src/application/hook/reconcile.js';
+import { ReconcileHooks } from '../../../src/application/hook/reconcile.js';
+import type { HookDeps } from '../../../src/application/hook/types.js';
 import type { HookState } from '../../../src/domain/harness/state.js';
 import type { AgentHost } from '../../../src/ports/agent-host.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';

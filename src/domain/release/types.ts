@@ -9,6 +9,8 @@ export type Check = (typeof CHECKS)[number];
 export type ReleaseFinding = Finding<Check>;
 export type ReleaseReport = Report<Check>;
 
+export const RELEASE_FINDING_COLUMNS = ['group', 'level', 'id', 'message', 'fix'] as const;
+
 export function releaseFinding(
   check: Check,
   repo: string,

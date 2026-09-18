@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { loadManifestContext } from '../../../src/application/manifest/context.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import type { DiagnosticEvent } from '../../../src/ports/diagnostics.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeReporter } from '../../fakes/fake-reporter.js';
@@ -18,6 +19,7 @@ function load(dir: string, doc: string) {
     dir,
     fs: FakeFs.from({ [`${dir}/manifest/workspace.yaml`]: fixture(doc) }),
     bundledTools: bundled,
+    providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
   }).then((context) => ({ context, reporter }));
@@ -54,6 +56,7 @@ describe('loadManifestContext', () => {
         }),
       }),
       bundledTools: bundled,
+      providers: providerCatalog(),
       cliVersion: '1.0.0',
       reporter,
     });
@@ -83,6 +86,7 @@ describe('loadManifestContext', () => {
             'schema_version: 1\ndefaults: {host: ssh://git@git.example.com}\nrepos: nope\n',
         }),
         bundledTools: bundled,
+        providers: providerCatalog(),
         cliVersion: '1.0.0',
         reporter: new FakeReporter(),
         diagnostics: { emit: (event) => events.push(event) },

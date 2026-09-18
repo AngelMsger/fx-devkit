@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { lintManifest, type LintFinding } from '../../domain/manifest/lint.js';
 import { loadToolsDocument, loadToolsPatchDocument } from '../../domain/manifest/loader.js';
-import { bindPlatforms } from '../../domain/manifest/providers.js';
+import { bindPlatforms, type ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { SetupRecipe } from '../../domain/setup/types.js';
 import { lintSkill } from '../../domain/skills/lint.js';
 import { placeholders } from '../../domain/template.js';
@@ -18,6 +18,7 @@ import { ValidateManifest } from './validate.js';
 export interface LintManifestInput {
   readonly dir: string;
   readonly cliVersion: string;
+  readonly providers: ProviderCatalog;
 }
 
 export class LintManifest {
@@ -52,6 +53,7 @@ export class LintManifest {
     const environmentDoc = bundle.environments?.result.doc;
     const documents = lintManifest({
       workspace: bundle.workspace.result.doc,
+      providers: input.providers,
       ...(members === undefined
         ? {}
         : {
@@ -60,7 +62,10 @@ export class LintManifest {
             ),
           }),
       providerSetupHints: Object.fromEntries(
-        (environmentDoc === undefined ? [] : bindPlatforms(environmentDoc)).flatMap((binding) =>
+        (environmentDoc === undefined
+          ? []
+          : bindPlatforms(environmentDoc, input.providers)
+        ).flatMap((binding) =>
           binding.provider === null
             ? []
             : [

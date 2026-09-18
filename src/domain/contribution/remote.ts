@@ -51,7 +51,8 @@ export function verifyContributionRemote(input: RemoteVerification): VerifiedCon
     throw new DevkitError(
       'usage',
       'SOURCE_BRANCH_INVALID',
-      'Contributions require a dedicated managed branch.',
+      'Contributions require a dedicated managed branch',
+      { nextSteps: ['fx source push --new'] },
     );
   if (
     settings.originUrls.length !== 1 ||
@@ -139,7 +140,7 @@ function unsafe(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_REMOTE_UNSAFE',
-    'Source remotes do not identify one verified personal fork and its upstream.',
+    'Source remotes do not identify one verified personal fork and its upstream',
     {
       hint: 'Review origin and upstream, including push URLs and URL rewrites. No remote was changed.',
       nextSteps: [
@@ -154,7 +155,7 @@ function unverified(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_IDENTITY_UNVERIFIED',
-    'The companion did not establish personal fork ownership and parentage.',
+    'The companion did not establish personal fork ownership and parentage',
     {
       hint: 'Use a companion version that exposes repository parent identity; matching a URL is insufficient.',
       nextSteps: ['fx doctor', 'Verify the personal fork and update the companion CLI.'],

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { sourceValidationError } from '../../../src/application/manifest/source-error.js';
 import { workspaceItemNotFound } from '../../../src/application/workspace/guidance.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import { DevkitError } from '../../../src/domain/errors.js';
 
 describe('scoped recovery formatting', () => {
@@ -59,12 +60,18 @@ it('identifies materialized candidates without redirecting validation to the reg
   await expect(
     materializeRebindSource(
       source,
-      { fs, bundledTools: () => '', cliVersion: '1.0.0', workspace: 'alpha' },
+      {
+        fs,
+        bundledTools: () => '',
+        providers: providerCatalog(),
+        cliVersion: '1.0.0',
+        workspace: 'alpha',
+      },
       '/personal/source.rebind-fixture',
     ),
   ).rejects.toMatchObject({
     code: 'MANIFEST_INVALID',
-    message: expect.stringContaining('Inspected source: /personal/source.rebind-fixture.'),
+    message: expect.stringContaining('Inspected source: /personal/source.rebind-fixture'),
     nextSteps: [
       'fx workspace rebind alpha --from https://git.example.com/team/candidate.git --dry-run',
     ],

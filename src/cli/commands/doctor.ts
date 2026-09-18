@@ -1,9 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import { Doctor } from '../../application/doctor/index.js';
+import { DOCTOR_FINDING_COLUMNS } from '../../application/doctor/types.js';
 import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, listFlag } from '../flags.js';
+import { detailsFlag, listFlag, writeIntent } from '../flags.js';
 import { DOCTOR_CODES, reportNotice } from '../notices.js';
 
 export default class DoctorCommand extends FxCommand {
@@ -39,18 +40,10 @@ export default class DoctorCommand extends FxCommand {
       envs: flags.env,
       tools: flags.tool,
       fix: flags.fix,
-      dryRun: flags['dry-run'],
+      ...writeIntent(flags, this.posture),
       noInput: this.noInput,
-      posture: this.posture,
     });
-    if (this.format === 'human') {
-      this.renderer.list(report.findings, {
-        fullReport: report,
-        columns: ['group', 'level', 'coverage', 'id', 'message', 'fix'],
-      });
-    } else {
-      this.renderer.record(report);
-    }
+    this.renderReport(report, DOCTOR_FINDING_COLUMNS);
     for (const repair of report.repairs) {
       if (repair.status === 'failed')
         this.renderer.notice({

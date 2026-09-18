@@ -10,7 +10,7 @@ import {
 import type { HookHandler } from '../ports/hook-handler.js';
 
 import type { Container } from './container.js';
-import { createHookServices } from './hook-services.js';
+import { automaticSyncWiring } from './hook-wiring.js';
 
 interface BackgroundInput {
   readonly container: Container;
@@ -30,7 +30,7 @@ export const lifecycleHandlers: Readonly<Record<string, HandlerRegistration>> = 
       describe: (state, readOnly) => describeSessionStart({ state, readOnly }),
     },
     background: async (input) =>
-      new AutomaticSync(await createHookServices(input)).execute({
+      new AutomaticSync(automaticSyncWiring(input)).execute({
         workspace: input.request.workspace,
         root: input.request.root,
       }),

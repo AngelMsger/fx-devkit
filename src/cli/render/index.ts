@@ -20,6 +20,8 @@ export { FORMATS, type Format } from '../../domain/format.js';
 export interface ListOptions {
   readonly hasMore?: boolean;
   readonly next?: string;
+  // Column order is declared beside the row type, so adding a field is one
+  // decision in one module instead of a silent omission from the table.
   readonly columns?: readonly string[];
   readonly trailer?: Readonly<Record<string, unknown>>;
   // A human findings table may display only one part of the workflow report.
@@ -35,6 +37,10 @@ export interface RecordOptions {
 export interface Renderer extends DiagnosticReporter {
   record(value: object, options?: RecordOptions): void;
   list(items: readonly object[], options?: ListOptions): void;
+  // A document the command emits verbatim, such as a schema, a Skill file or a
+  // generated script. The caller owns its exact bytes, trailing newline
+  // included, and no format or projection option touches them.
+  text(value: string): void;
   notice(notice: Notice): void;
   progress(event: ProgressEvent): void;
   error(err: DevkitError): void;
@@ -80,6 +86,7 @@ export function createRenderer(
       );
     },
     list: (items, opts = {}) => renderList(format, io, options, items, opts, compact),
+    text: (value) => io.out.write(value),
   };
 }
 

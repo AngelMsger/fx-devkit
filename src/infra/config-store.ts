@@ -7,7 +7,7 @@ import path from 'node:path';
 import { parse, stringify } from 'yaml';
 
 import { configFileSchema } from '../domain/config/file.js';
-import { DevkitError } from '../domain/errors.js';
+import { busyError, DevkitError } from '../domain/errors.js';
 import { assertWorkspaceNames } from '../domain/workspace/name.js';
 import type { ConfigFile, ConfigStore } from '../ports/stores.js';
 
@@ -46,7 +46,7 @@ export class FileConfigStore implements ConfigStore {
   ): Promise<ConfigFile> {
     const lease = await new FileLock(this.home).acquire({ key: 'config', waitMs: 5000 });
     if (lease === null)
-      throw new DevkitError('conflict', 'CONFIG_BUSY', 'Personal configuration is being updated', {
+      throw busyError('CONFIG_BUSY', 'The personal configuration', {
         nextSteps: ['Retry the configuration change.'],
       });
     const temporary = `${this.path()}.${randomUUID()}.tmp`;

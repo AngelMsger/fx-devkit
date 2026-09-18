@@ -2,10 +2,13 @@
 // oclif loads explicitly and the docs generator reads. Keys use oclif's
 // `topic:command` form.
 
+import { REPORT_COMMANDS } from '../render/report.js';
+
 import AgentList from './agent/list.js';
 import AgentPick from './agent/pick.js';
 import AgentSkills from './agent/skills.js';
 import AgentUnpick from './agent/unpick.js';
+import { COMMAND_ALIASES, compatibilityTarget } from './aliases.js';
 import CanCommand from './can.js';
 import CompletionCommand from './completion.js';
 import ConfigExport from './config/export.js';
@@ -71,6 +74,8 @@ import WorkspaceRebind from './workspace/rebind.js';
 import WorkspaceRelocate from './workspace/relocate.js';
 import WorkspaceShow from './workspace/show.js';
 import WorkspaceUnregister from './workspace/unregister.js';
+
+export { COMMAND_ALIASES, compatibilityTarget };
 
 const CANONICAL_COMMANDS = {
   'workspace:list': WorkspaceList,
@@ -145,14 +150,6 @@ const CANONICAL_COMMANDS = {
 };
 
 // Compatibility names execute the canonical class but stay out of primary discovery.
-export const COMMAND_ALIASES = {
-  'hook:inject': 'hook:enable',
-  'hook:remove': 'hook:disable',
-  'skill:list': 'agent:skills',
-  'tool:installed': 'tool:inventory',
-  'manifest:set': 'manifest:repo-set',
-} as const satisfies Readonly<Record<string, keyof typeof CANONICAL_COMMANDS>>;
-
 const aliases = Object.fromEntries(
   Object.entries(COMMAND_ALIASES).map(([alias, canonical]) => [
     alias,
@@ -166,10 +163,7 @@ const aliases = Object.fromEntries(
 
 export const COMMANDS = { ...CANONICAL_COMMANDS, ...aliases };
 
-export function compatibilityTarget(id: string): string | undefined {
-  const mapping: Readonly<Record<string, string>> = COMMAND_ALIASES;
-  return mapping[id.replaceAll(' ', ':')];
-}
+export const REPORT_COMMAND_IDS = REPORT_COMMANDS satisfies readonly (keyof typeof COMMANDS)[];
 
 // The nine commands a person or an agent reaches for first; help and the
 // reference show them before the topics.

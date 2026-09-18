@@ -29,6 +29,7 @@ const schema = z.strictObject({
       phase: z.string(),
       code: z.string(),
       command: z.string().nullable(),
+      detail: z.string().optional(),
     }),
   ),
 });

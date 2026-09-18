@@ -1,3 +1,4 @@
+import { SKILL_MUTATION_COLUMNS } from '../../../application/skill/standalone.js';
 import { dryRunFlag } from '../../flags.js';
 import { SkillCommand, skillTargetFlags } from '../../skill-command.js';
 
@@ -13,15 +14,7 @@ export default class SkillInstallCommand extends SkillCommand {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(SkillInstallCommand);
-    const rows = await this.companionSkill().write('install', {
-      agents: flags.agent,
-      project: flags.project,
-      dir: flags.dir,
-      cwd: process.cwd(),
-      dryRun: flags['dry-run'],
-      posture: this.posture,
-      yes: this.yes,
-    });
-    this.renderer.list(rows, { columns: ['agent', 'path', 'action', 'status', 'version'] });
+    const rows = await this.skillWrite('install', flags);
+    this.renderer.list(rows, { columns: SKILL_MUTATION_COLUMNS });
   }
 }

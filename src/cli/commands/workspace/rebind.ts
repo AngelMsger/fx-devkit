@@ -1,20 +1,16 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { manifestSourceFor } from '../../../composition/manifest-sources.js';
 import { workspaceManagement } from '../../../composition/workspace-management.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 import { readStdin } from '../../stdin.js';
 
 export default class WorkspaceRebind extends FxCommand {
   static override description =
     'Replace a registered manifest source with a validated staged source, preserving identity and local selections and retaining the previous source as a backup';
   static override args = {
-    name: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'registered workspace name',
-    }),
+    name: requiredArgument('registered workspace name'),
   };
   static override flags = {
     from: Flags.string({
@@ -34,8 +30,7 @@ export default class WorkspaceRebind extends FxCommand {
         name: args.name,
         action: 'rebind',
         source,
-        dryRun: flags['dry-run'],
-        posture: this.posture,
+        ...writeIntent(flags, this.posture),
       }),
     );
   }

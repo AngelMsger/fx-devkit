@@ -82,6 +82,9 @@ applies to platform instances; workspace-only bindings do not require an
 environments document. A matching provider descriptor with no companion tools
 is explicitly represented by `tool: null`. Its preparation can be ready without
 running a tool check; the later query still verifies its actual resource.
+A capability nothing is bound to is `CAPABILITY_UNBOUND`; a bound provider whose
+companion tool no toolchain document declares is `TOOL_UNDECLARED`, and its
+recovery is that declaration, not another binding. Both are configuration errors.
 Release uses the same readiness decision.
 
 `where` additionally identifies a repository and platform. `--record` is an
@@ -196,8 +199,10 @@ uninstall operation is provided. Tool definitions and requirement merging remain
 
 ## Shared service preparation
 
-ProviderDescriptor.service compiles the allowlisted manifest service into public
-preparation and separate personal recipes. Runtime variables derive from this same
+ProviderDescriptor.settings declares which allowlisted fields and authentication
+methods a provider accepts; manifest validation reads the registered catalog, so a new
+provider needs no change to the rules. ProviderDescriptor.service compiles the
+allowlisted manifest service into public preparation and separate personal recipes. Runtime variables derive from this same
 source; environment overrides merge before planning. Service setup never exports
 or reads credential stores. Family adapters delegate merge/conflict decisions to
 native `config set-context --dry-run`; application executes trusted commands only

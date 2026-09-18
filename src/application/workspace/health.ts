@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { asDevkitError, DevkitError, toEnvelope, type ErrorEnvelope } from '../../domain/errors.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
 import { LoadManifest } from '../manifest/load.js';
 
@@ -12,6 +13,7 @@ import type { Located, ResolveInput } from './resolve.js';
 export type WorkspaceHealth = 'ready' | 'root_missing' | 'unprepared' | 'missing' | 'invalid';
 export interface HealthInput extends Pick<ResolveInput, 'fs' | 'config' | 'commandShell'> {
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
 }
 export interface WorkspaceHealthResult {
@@ -28,6 +30,7 @@ export async function workspaceReadiness(
     await new LoadManifest(input.fs, input.bundledTools).execute({
       dir: located.manifestDir,
       cliVersion: input.cliVersion,
+      providers: input.providers,
     });
     return { status: 'ready', error: null };
   } catch (error) {
@@ -68,7 +71,7 @@ export async function assertWorkspacePrepared(
   throw new DevkitError(
     'config',
     prepared ? 'MANIFEST_MISSING' : 'MANIFEST_UNPREPARED',
-    `Workspace "${located.name}" ${prepared ? 'is missing manifest/workspace.yaml' : 'manifest has not been prepared'}.`,
+    `Workspace "${located.name}" ${prepared ? 'is missing manifest/workspace.yaml' : 'manifest has not been prepared'}`,
     {
       hint: 'Recover the manifest from the registered source; existing business checkouts and personal selections are preserved.',
       nextSteps: [
@@ -110,7 +113,7 @@ export async function assertNoWorkspaceOperation(
   throw new DevkitError(
     'conflict',
     'WORKSPACE_OPERATION_PENDING',
-    `Workspace "${located.name}" has an unfinished identity operation.`,
+    `Workspace "${located.name}" has an unfinished identity operation`,
     {
       hint: `Inspect ${file}; retry the original workspace unregister, relocate or rebind command before other workspace operations.`,
       nextSteps: [shellLine(['fx', 'workspace', 'show', located.name], input.commandShell)],

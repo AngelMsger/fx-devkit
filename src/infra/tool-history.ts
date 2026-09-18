@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import * as z from 'zod';
 
-import { DevkitError } from '../domain/errors.js';
+import { busyError, DevkitError } from '../domain/errors.js';
 import type { ToolInstallation } from '../domain/toolchain/installation.js';
 import type { Lock } from '../ports/lock.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
@@ -57,8 +57,7 @@ export class FileToolHistoryStore implements ToolHistoryStore {
     await this.checkHome();
     const lease = await this.lock.acquire({ key: 'tool-history', waitMs: 2000 });
     if (!lease)
-      throw new DevkitError('conflict', 'TOOL_HISTORY_BUSY', 'Tool history is being updated.', {
-        retryable: true,
+      throw busyError('TOOL_HISTORY_BUSY', 'The tool history', {
         nextSteps: ['Retry after the other tool operation finishes.'],
       });
     try {
@@ -114,7 +113,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'TOOL_HISTORY_INVALID',
-    'The tool installation ledger is invalid or unreadable.',
+    'The tool installation ledger is invalid or unreadable',
     {
       nextSteps: [
         'Inspect and repair FX_HOME/tool-history.json, preserving the existing audit evidence, before retrying.',

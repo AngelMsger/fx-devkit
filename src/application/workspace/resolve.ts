@@ -67,7 +67,7 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
       throw new DevkitError(
         'conflict',
         'WORKSPACE_ROOT_AMBIGUOUS',
-        `This directory has multiple workspace registrations: ${aliases.map((item) => item.name).join(', ')}.`,
+        `This directory has multiple workspace registrations: ${aliases.map((item) => item.name).join(', ')}`,
         {
           hint: 'Choose one explicitly, then unregister the duplicate identity.',
           nextSteps: [
@@ -116,7 +116,7 @@ function unknownWorkspace(name: string, names: readonly string[]): DevkitError {
   return new DevkitError(
     'not_found',
     'WORKSPACE_UNKNOWN',
-    `no workspace named "${name}" is registered`,
+    `No workspace named "${name}" is registered`,
     {
       hint:
         suggestion === undefined

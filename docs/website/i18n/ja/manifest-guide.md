@@ -104,7 +104,7 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 書き込み後、init の前に、推定されたブランチ、上流、プロジェクト、未解決項目を確認してください。チームのルールと Skill は別途追加します。Git のメタデータからは復元されません。既存ディレクトリの取り込みは自動で、`--adopt` は互換性のためのフラグです。ガイドや Skill の配置を置き換える場合はレビューとバックアップが必要になることがあります。インポートは checkout を変更せず、submodule の管理情報も削除しません。[インポートの契約](manifest-guide.md#import-existing-checkouts)を参照してください。
 
-Provider の推定には根拠が必要です。検証済みのローカル bare リポジトリからは `local-git` バインディングを生成できます。不明または混在するホスティングは明示的な upstream URL と要確認の注記を保持し、provider を推測しません。認証情報、クエリ、フラグメントを含む HTTP remote は、それらを表示せずにスキップします。
+Provider の推定には根拠が必要です。検証済みのローカル bare リポジトリからは `local-git` バインディングを生成できます。不明または混在するホスティングは明示的な upstream URL と要確認の注記を保持し、provider を推測しません。code host が回答できなかったプロジェクトは「存在しない」ではなく「未回答」として報告され、該当エントリの要確認の注記またはスキップ理由が、検索が完了しなかったことを示します。認証情報、クエリ、フラグメントを含む HTTP remote は、それらを表示せずにスキップします。
 
 `origin` だけが存在し、その URL が宣言された upstream と完全一致する場合、sync は `upstream` を追加します。`origin`、現在のブランチ、ローカルファイルは保持します。プレビューの `upstream_to_add` と結果の `upstream_added` は予定と実際の効果を区別し、競合する remote は変更しません。
 
@@ -174,7 +174,7 @@ fx doctor --tool openobserve-cli --format json
 
 ## 公開サービスプリセット {#public-service-presets}
 
-fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。
+fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。`provider` を書かない platform は、その名前が示す provider の宣言で検証します（`fx manifest providers` が表示するものと同じです）。
 
 同じプリセットは同じローカル保存先を共有できますが、異なる設定を同じ保存先に宣言すると準備がブロックされます。矛盾する旧 vars は削除して設定元を一つにします。ユーザー名、メールアドレス、パスワード、PAT/API Token の値、Cookie、ブラウザーセッションは配布できません。各メンバーが自分の CLI で取得・保存します。余分な service フィールドは非 strict モードでも検証に失敗し、URL 内の認証情報は値を表示せず拒否します。
 

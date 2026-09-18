@@ -10,7 +10,8 @@ import type { LinkProjectionStore } from '../../ports/projection.js';
 import { applyHarnessChange, readHarnessState } from '../harness/apply.js';
 import { planHarness } from '../harness/plan.js';
 import type { HarnessDeps, HarnessInput } from '../harness/types.js';
-import { ReconcileHooks, type HookDeps } from '../hook/reconcile.js';
+import { ReconcileHooks } from '../hook/reconcile.js';
+import type { HookDeps } from '../hook/types.js';
 import type { WritePosture } from '../safety/posture.js';
 import { teamSkillsRoot } from '../skill/observe.js';
 
@@ -80,7 +81,13 @@ export class WorkspaceResources {
       throw new DevkitError(
         'conflict',
         'WORKSPACE_CLEANUP_BLOCKED',
-        'Hook files changed during cleanup; retry the same workspace operation.',
+        'Hook files changed during cleanup; retry the same workspace operation',
+        {
+          nextSteps: [
+            'fx hook list',
+            'Re-run the same fx workspace command once the other process finishes.',
+          ],
+        },
       );
     await this.retireFiles(input.root, files);
     return rows;
@@ -122,7 +129,7 @@ export class WorkspaceResources {
       throw new DevkitError(
         'conflict',
         'WORKSPACE_OWNERSHIP_CONFLICT',
-        'Workspace ownership belongs to a different directory.',
+        'Workspace ownership belongs to a different directory',
         { nextSteps: ['fx workspace show ' + input.name] },
       );
     const statePort = {
@@ -233,7 +240,8 @@ function changedResource(): DevkitError {
   return new DevkitError(
     'conflict',
     'WORKSPACE_CLEANUP_CHANGED',
-    'A managed resource changed during cleanup; retry the same workspace operation.',
+    'A managed resource changed during cleanup; retry the same workspace operation',
+    { nextSteps: ['fx workspace list', 'Re-run the same fx workspace command.'] },
   );
 }
 
@@ -245,7 +253,7 @@ function assertCleanup(name: string, rows: readonly ResourceCleanupRow[]): void 
     throw new DevkitError(
       'conflict',
       'WORKSPACE_CLEANUP_BLOCKED',
-      'Owned workspace resources could not be safely retired.',
+      'Owned workspace resources could not be safely retired',
       {
         hint: 'Restore the owned native entries or resolve the reported file conflicts, then retry. Registration and recovery metadata are retained.',
         nextSteps: ['fx workspace show ' + name, 'fx hook list --workspace ' + name],

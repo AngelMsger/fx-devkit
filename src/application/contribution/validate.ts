@@ -6,6 +6,7 @@ import path from 'node:path';
 import { scanBoundary } from '../../domain/boundary/scan.js';
 import type { ContributionFile } from '../../domain/contribution/snapshot.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { SetupRecipe } from '../../domain/setup/types.js';
 import type { SnapshotViews } from '../../ports/snapshot-views.js';
 import { LintManifest } from '../manifest/lint.js';
@@ -33,6 +34,7 @@ export class ValidateContribution {
   constructor(
     private readonly views: SnapshotViews,
     private readonly bundledTools: () => string,
+    private readonly providers: ProviderCatalog,
     private readonly describeProvider: (
       id: string,
     ) => { readonly recipes: readonly SetupRecipe[] } | undefined = () => undefined,
@@ -60,7 +62,7 @@ export class ValidateContribution {
     const view = this.views.open(input.files);
     if (!(await view.reader.exists(path.join(view.root, MANIFEST_FILES.workspace))))
       return { ok: false, findings: [finding(MANIFEST_FILES.workspace, 'manifest-missing')] };
-    const options = { dir: view.root, cliVersion: input.cliVersion };
+    const options = { dir: view.root, cliVersion: input.cliVersion, providers: this.providers };
     const validation = await new ValidateManifest(view.reader, this.bundledTools).execute({
       ...options,
       strict: true,

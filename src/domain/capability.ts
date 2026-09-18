@@ -44,3 +44,12 @@ export const CAPABILITY_INFO: Record<Capability, CapabilityInfo> = {
 export function capabilitiesInScope(scope: CapabilityScope): Capability[] {
   return CAPABILITIES.filter((c) => CAPABILITY_INFO[c].scope === scope);
 }
+
+// A manifest may name a responsibility this fx does not implement. The name is kept as
+// written so reports quote the document; `knownCapability` is the one place that tells
+// the two apart, and callers that only print or compare need neither.
+export type CapabilityName = Capability | (string & {});
+
+export function knownCapability(name: CapabilityName): Capability | null {
+  return (CAPABILITIES as readonly string[]).includes(name) ? (name as Capability) : null;
+}

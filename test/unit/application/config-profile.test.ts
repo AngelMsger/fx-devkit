@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigExport } from '../../../src/application/config/export.js';
 import { ConfigImport } from '../../../src/application/config/import.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import type { Lock } from '../../../src/ports/lock.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../fakes/fake-config-store.js';
@@ -50,6 +51,7 @@ function stage() {
     manifestDirFor,
     lock,
     cliVersion,
+    providers: providerCatalog(),
   };
 }
 
@@ -114,6 +116,7 @@ describe('profile export / import', () => {
       manifestDirFor,
       lock,
       cliVersion,
+      providers: providerCatalog(),
     };
     const dry = await new ConfigImport(target).execute({ ...write, text, dryRun: true });
     expect(dry).toMatchObject({
@@ -160,6 +163,7 @@ describe('profile export / import', () => {
       manifestDirFor,
       lock,
       cliVersion,
+      providers: providerCatalog(),
     };
     await expect(
       new ConfigImport(fresh).execute({

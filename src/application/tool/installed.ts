@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { loadTools, loadWorkspace } from '../../domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import {
   hasUnfinishedInstallation,
   observedInstallationOrigin,
@@ -48,6 +49,7 @@ export interface ToolInventoryDeps {
   readonly fs: FileReader;
   readonly process: Pick<Process, 'which'>;
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly manifestDirFor: (name: string) => string;
   readonly cliVersion: string;
 }
@@ -114,7 +116,10 @@ export class ToolInstalled {
         const dir = this.deps.manifestDirFor(name);
         const workspace = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.workspace));
         // A missing source is not an empty set of requirements.
-        loadWorkspace(workspace ?? '', { cliVersion: this.deps.cliVersion });
+        loadWorkspace(workspace ?? '', {
+          cliVersion: this.deps.cliVersion,
+          providers: this.deps.providers,
+        });
         const patch = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.tools));
         const loaded = loadTools(this.deps.bundledTools(), patch, {
           cliVersion: this.deps.cliVersion,

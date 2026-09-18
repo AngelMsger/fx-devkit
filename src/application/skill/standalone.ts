@@ -49,6 +49,15 @@ export interface SkillMutation extends StandaloneTarget {
   readonly failure?: Readonly<Record<string, unknown>>;
 }
 
+export const SKILL_INSTALLATION_COLUMNS = [
+  'agent',
+  'path',
+  'status',
+  'version',
+  'version_state',
+] as const;
+export const SKILL_MUTATION_COLUMNS = ['agent', 'path', 'action', 'status', 'version'] as const;
+
 export interface SkillWriteInput extends StandaloneTargetsInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;
@@ -101,7 +110,7 @@ export class StandaloneSkill {
       path.join(this.deps.skills.bundledSkillDir, 'SKILL.md'),
     );
     if (text === undefined)
-      throw new DevkitError('config', 'SKILL_MISSING', 'The bundled Skill is missing', {
+      throw new DevkitError('config', 'BUNDLED_SKILL_MISSING', 'The bundled Skill is missing', {
         nextSteps: ['Check fx self info and repair the fx installation.'],
       });
     return text;

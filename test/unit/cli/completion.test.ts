@@ -6,6 +6,8 @@ import { COMMANDS, compatibilityTarget } from '../../../src/cli/commands/index.j
 import { completionFlags, completionScript } from '../../../src/cli/completion.js';
 import { globalFlags } from '../../../src/cli/flags.js';
 
+// The command reads oclif's loaded tree instead; test/e2e/command-tree.test.ts
+// holds the two readings to the same ids, flags and compatibility targets.
 const commands = Object.entries(COMMANDS)
   .filter(([, command]) => !command.hidden)
   .map(([id, command]) => ({

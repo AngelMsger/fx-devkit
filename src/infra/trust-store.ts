@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { parse, stringify } from 'yaml';
 
-import { DevkitError } from '../domain/errors.js';
+import { busyError } from '../domain/errors.js';
 import type { Clock } from '../ports/clock.js';
 import type { Lock } from '../ports/lock.js';
 import type { TrustedEntry, TrustStore } from '../ports/stores.js';
@@ -43,12 +43,7 @@ export class FileTrustStore implements TrustStore {
 
   private async record(workspace: string, fingerprint: string, label: string): Promise<void> {
     const lease = await this.lock.acquire({ key: this.path(), waitMs: 2000 });
-    if (lease === null)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'The trust record is being updated', {
-        retryable: true,
-        hint: 'Another fx process holds the trust lease.',
-        nextSteps: ['Retry the command shortly.'],
-      });
+    if (lease === null) throw busyError('LOCK_BUSY', 'The trust record');
     try {
       await this.writeRecord(workspace, fingerprint, label);
     } finally {

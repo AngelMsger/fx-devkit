@@ -1,7 +1,6 @@
-import { Args } from '@oclif/core';
-
-import { MemberShow } from '../../../application/member/show.js';
+import { MemberShow, PERSON_COLUMNS } from '../../../application/member/show.js';
 import { FxCommand } from '../../base.js';
+import { requiredArgument } from '../../flags.js';
 
 export default class MemberShowCommand extends FxCommand {
   static override description =
@@ -11,11 +10,7 @@ export default class MemberShowCommand extends FxCommand {
     '<%= config.bin %> member show ou_alice --format json',
   ];
   static override args = {
-    query: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'email, id, account handle, name or git name',
-    }),
+    query: requiredArgument('email, id, account handle, name or git name'),
   };
   static override flags = {};
 
@@ -23,7 +18,7 @@ export default class MemberShowCommand extends FxCommand {
     const { args } = await this.parse(MemberShowCommand);
     const rows = new MemberShow(await this.workspaceDeps()).execute(args.query);
     this.renderer.list(rows, {
-      columns: ['id', 'display', 'email', 'status', 'matched_by', 'via', 'accounts'],
+      columns: PERSON_COLUMNS,
     });
   }
 }

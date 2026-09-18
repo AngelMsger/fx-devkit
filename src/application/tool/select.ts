@@ -12,7 +12,7 @@ export function assertToolSelection(names: readonly string[] | undefined, all: b
   throw new DevkitError(
     'usage',
     'BAD_FLAG',
-    named ? 'Tool names and --all are mutually exclusive.' : 'Specify tool names or --all.',
+    named ? 'Tool names and --all are mutually exclusive' : 'Specify tool names or --all',
     { nextSteps: ['fx tool install --help', 'fx tool update --help'] },
   );
 }
@@ -30,7 +30,7 @@ export function selectTools(
       name,
       tools.map((t) => t.name),
     );
-    throw new DevkitError('not_found', 'TOOL_UNKNOWN', `no tool named "${name}" in the toolchain`, {
+    throw new DevkitError('not_found', 'TOOL_UNKNOWN', `No tool named "${name}" in the toolchain`, {
       hint:
         suggestion === undefined
           ? 'fx tool list shows the known tools.'

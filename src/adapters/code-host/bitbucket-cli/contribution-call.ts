@@ -15,13 +15,13 @@ export async function callContribution({ cli, args }: ContributionCall): Promise
   try {
     const call = await cli.call(args, { timeoutMs: 15000 });
     if (call.code === EXIT.auth)
-      throw prerequisite('LOGIN_REQUIRED', 'Sign in to the code host.', `fx login ${BINARY}`);
+      throw prerequisite('LOGIN_REQUIRED', 'Sign in to the code host', `fx login ${BINARY}`);
     return call;
   } catch (error) {
     if (error instanceof DevkitError && error.code === 'TOOL_MISSING')
       throw prerequisite(
         'TOOL_MISSING',
-        'Install the code-host companion CLI.',
+        'Install the code-host companion CLI',
         `fx tool install ${BINARY}`,
       );
     throw error;

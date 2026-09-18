@@ -1,13 +1,12 @@
-import { Args } from '@oclif/core';
-
 import { RepoOpen } from '../../../application/repo/open.js';
 import { FxCommand } from '../../base.js';
+import { requiredArgument } from '../../flags.js';
 
 export default class RepoOpenCommand extends FxCommand {
   static override description =
     'Print the code-host page of a repository, and open it when on a terminal';
   static override args = {
-    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+    name: requiredArgument('repository name'),
   };
   static override flags = {};
 

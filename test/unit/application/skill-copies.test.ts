@@ -8,6 +8,7 @@ import { asDevkitError } from '../../../src/domain/errors.js';
 import type { Lock } from '../../../src/ports/lock.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
+import { FakeLock } from '../../fakes/fake-lock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 
 const source = path.resolve('/package/skills/fx-workspace');
@@ -63,7 +64,10 @@ describe('shared Skill copy service', () => {
   });
   it('refreshes explicit installs but never downgrades during maintenance', async () => {
     const fs = FakeFs.from({ ...files, [path.join(target, 'SKILL.md')]: text('2.0.0') });
-    const copies = new SkillCopies(fs, '1.0.0', { bundledSkillDir: source });
+    const copies = new SkillCopies(fs, '1.0.0', {
+      bundledSkillDir: source,
+      globalLock: new FakeLock(),
+    });
     expect(await copies.install(target)).toBe('unchanged');
     expect(fs.writes).toEqual([]);
     await copies.install(target, { refresh: true });
@@ -136,6 +140,7 @@ describe('shared Skill copy service', () => {
         hosts: ['first', 'second', 'third'].map((id) => new FakeAgentHost(id, true)),
         configured: undefined,
         bundledSkillDir: source,
+        globalLock: new FakeLock(),
       },
     });
     await expect(

@@ -2,8 +2,9 @@
 // command adds. Defined once so `--help`, the docs generator and the commands
 // cannot disagree about them.
 
-import { Flags, type Interfaces } from '@oclif/core';
+import { Args, Flags, type Interfaces } from '@oclif/core';
 
+import type { WritePosture } from '../application/safety/posture.js';
 import { COMMAND_SHELLS } from '../domain/shell.js';
 
 import { FORMATS } from './render/index.js';
@@ -90,4 +91,28 @@ export function listFlag(
     description: `${description} (repeatable or comma-separated)`,
     ...(options === undefined ? {} : { options: [...options] }),
   });
+}
+
+export interface WriteIntent {
+  readonly dryRun: boolean;
+  readonly posture: WritePosture;
+}
+
+// What every write use case is told: whether this invocation may have effects
+// at all, and whether it was asked for the plan rather than the effect.
+export function writeIntent(
+  flags: { readonly 'dry-run': boolean },
+  posture: WritePosture,
+): WriteIntent {
+  return { dryRun: flags['dry-run'], posture };
+}
+
+// A positional argument never reads stdin: piped input is a document for the
+// command, not a missing value for its argument.
+export function argument(description: string): Interfaces.Arg<string | undefined> {
+  return Args.string({ ignoreStdin: true, description });
+}
+
+export function requiredArgument(description: string): Interfaces.Arg<string> {
+  return Args.string({ ignoreStdin: true, required: true, description });
 }
