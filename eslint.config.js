@@ -39,7 +39,10 @@ export default tseslint.config(
   { ignores: ['dist/', 'node_modules/', 'docs/website/dist/', 'docs/website/node_modules/'] },
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.ts'],
+    // src's two JavaScript modules are shared with scripts that run before a
+    // build; the type-checked project covers them, so the layering and style
+    // rules reach them too.
+    files: ['**/*.ts', 'src/**/*.js'],
     languageOptions: {
       parserOptions: { project: './tsconfig.all.json', tsconfigRootDir: import.meta.dirname },
     },
@@ -71,14 +74,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.{ts,js}'],
     rules: {
-      '@typescript-eslint/explicit-module-boundary-types': 'error',
       'max-lines-per-function': ['error', { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
   {
-    files: ['src/domain/**/*.ts', 'src/application/**/*.ts', 'src/ports/**/*.ts'],
+    // JSDoc, not annotations, declares the boundary types in src's JavaScript.
+    files: ['src/**/*.ts'],
+    rules: { '@typescript-eslint/explicit-module-boundary-types': 'error' },
+  },
+  {
+    files: ['src/domain/**/*.{ts,js}', 'src/application/**/*.{ts,js}', 'src/ports/**/*.{ts,js}'],
     rules: {
       'no-restricted-imports': ['error', innerImports()],
       'no-restricted-syntax': [
