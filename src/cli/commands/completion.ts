@@ -29,7 +29,9 @@ export default class CompletionCommand extends FxCommand {
         aliasOf: compatibilityTarget(command.id)?.replaceAll(':', ' '),
         flags: completionFlags(ownFlags(command.flags)),
       }));
-    this.log(completionScript(args.shell, commands, completionFlags(globalFlags)).trimEnd());
+    this.renderer.text(
+      `${completionScript(args.shell, commands, completionFlags(globalFlags)).trimEnd()}\n`,
+    );
   }
 }
 

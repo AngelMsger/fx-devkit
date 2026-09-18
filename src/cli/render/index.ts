@@ -35,6 +35,10 @@ export interface RecordOptions {
 export interface Renderer extends DiagnosticReporter {
   record(value: object, options?: RecordOptions): void;
   list(items: readonly object[], options?: ListOptions): void;
+  // A document the command emits verbatim, such as a schema, a Skill file or a
+  // generated script. The caller owns its exact bytes, trailing newline
+  // included, and no format or projection option touches them.
+  text(value: string): void;
   notice(notice: Notice): void;
   progress(event: ProgressEvent): void;
   error(err: DevkitError): void;
@@ -80,6 +84,7 @@ export function createRenderer(
       );
     },
     list: (items, opts = {}) => renderList(format, io, options, items, opts, compact),
+    text: (value) => io.out.write(value),
   };
 }
 

@@ -41,7 +41,7 @@ export default class ManifestImportCommand extends FxCommand {
     for (const r of out.report.review)
       this.renderer.notice({ code: 'IMPORT_REVIEW', message: `${r.name}: ${r.note}` });
     if (this.format === 'human' && !out.written) {
-      this.log(out.manifest);
+      this.renderer.text(`${out.manifest}\n`);
       return;
     }
     this.renderer.record(out);

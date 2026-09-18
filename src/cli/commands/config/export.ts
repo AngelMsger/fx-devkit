@@ -43,7 +43,7 @@ export default class ConfigExportCommand extends FxCommand {
       });
       return;
     }
-    if (this.format === 'human') this.log(result.text.trimEnd());
+    if (this.format === 'human') this.renderer.text(`${result.text.trimEnd()}\n`);
     else this.renderer.record(result.profile);
   }
 }
