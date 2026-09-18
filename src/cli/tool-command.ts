@@ -1,7 +1,6 @@
 // Installation and update are one operation over the toolchain; a command only
-// chooses the direction and the words it offers for it. The parser reads a
-// command's own static members, so strict, args and flags stay on each command
-// even where they are identical.
+// chooses the direction and the words it offers for it. Its parser metadata
+// stays on each command: see the command contracts in AGENTS.md.
 
 import { TOOL_INSTALL_COLUMNS } from '../application/tool/install.js';
 import { assertToolSelection } from '../application/tool/select.js';

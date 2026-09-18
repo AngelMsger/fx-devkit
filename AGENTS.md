@@ -75,7 +75,9 @@ not provider-specific application branches.
   Unknown commands, config keys and resource selectors offer nearest matches.
 - Resolve settings as explicit flag > environment > file > default. Effective
   configuration and `--explain` must describe that same invocation. Keep parser
-  metadata, routing, completion and generated help consistent. Register compatibility
+  metadata, routing, completion and generated help consistent. The parser reads a
+  command's own static members only, so `strict`, `args` and `flags` stay declared
+  on each command even where a shared base would carry identical values. Register compatibility
   names in the alias map; primary discovery uses canonical commands, while typed
   aliases retain execution and flag completion.
 - Every write has `--dry-run`: build its plan first, then gate actual effects
