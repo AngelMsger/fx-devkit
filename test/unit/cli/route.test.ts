@@ -240,6 +240,63 @@ describe('routeArgv', () => {
     });
   });
 
+  // normalizeArgv and routeArgv read argv with one scanner; these pin the cases
+  // where "which entries does this flag own" decides which command is run.
+  it('gives a global value flag the entry after it, in both scans', () => {
+    expect(routeArgv(['config', '--workspace', 'ws', 'list'], ids)).toEqual({ kind: 'run' });
+    expect(normalizeArgv(['config', '--workspace', 'ws', 'list'], ids)).toEqual([
+      'config',
+      'list',
+      '--workspace',
+      'ws',
+    ]);
+    expect(routeArgv(['config', '--workspace=ws', 'list'], ids)).toEqual({ kind: 'run' });
+    expect(normalizeArgv(['config', '--workspace=ws', 'list'], ids)).toEqual([
+      'config',
+      'list',
+      '--workspace=ws',
+    ]);
+  });
+
+  it('never lets a flag take another flag as its value', () => {
+    expect(routeArgv(['config', '--workspace', '--quiet', 'list'], ids)).toEqual({
+      kind: 'bad-flag-value',
+      flag: '--workspace',
+    });
+    // The value was not consumed, so the words keep their original meaning.
+    expect(normalizeArgv(['--workspace', '--quiet', 'config', 'list'], ids)).toEqual([
+      '--workspace',
+      '--quiet',
+      'config',
+      'list',
+    ]);
+  });
+
+  it('keeps an empty value visible and an absent one absent', () => {
+    // A leading flag reports only a value that was actually offered; after a
+    // word, an empty inline value is the offer and is echoed back.
+    expect(routeArgv(['--format=', 'status'], ids)).toEqual({
+      kind: 'bad-flag-value',
+      flag: '--format',
+    });
+    expect(routeArgv(['self', '--format='], ids)).toEqual({
+      kind: 'bad-flag-value',
+      flag: '--format',
+      value: '',
+    });
+    expect(routeArgv(['--format'], ids)).toEqual({ kind: 'bad-flag-value', flag: '--format' });
+    expect(routeArgv(['--format', 'bogus', 'status'], ids)).toEqual({
+      kind: 'bad-flag-value',
+      flag: '--format',
+      value: 'bogus',
+    });
+    expect(normalizeArgv(['--format', 'bogus', 'status'], ids)).toEqual([
+      '--format',
+      'bogus',
+      'status',
+    ]);
+  });
+
   it('omits the suggestion when nothing is close', () => {
     expect(routeArgv(['zzzzzzzz'], ids)).toEqual({
       kind: 'unknown',
