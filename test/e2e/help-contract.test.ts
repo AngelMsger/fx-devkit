@@ -31,6 +31,13 @@ describe('public discovery contracts', () => {
     },
   );
 
+  it('completes the routed command tree and offers each global flag once', () => {
+    const script = fx(['completion', 'bash']).stdout;
+    expect(script).toContain("'tool:installed') fx_cmd='tool installed'");
+    expect(script).toContain("'sync:--only') fx_pending='--only'");
+    expect(script.match(/'sync:--format'\) fx_pending/g)).toHaveLength(1);
+  });
+
   it('does not suggest hidden lifecycle commands for misspelled public invocations', () => {
     const result = fx(['hook', 'dispacth', '--format', 'json']);
     expect(result.status).toBe(2);
