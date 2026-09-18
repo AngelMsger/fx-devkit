@@ -99,6 +99,18 @@ incomplete. Doctor's repair attempts are separate from its fresh check results.
 The [Agent command guide](../../skills/fx-workspace/references/commands.md) owns
 wire fields and recovery instructions.
 
+## Coordinate composition
+
+A coordinate is one repository in one environment on one platform. Its variables
+merge platform, then environment, then repository override, and `{svc}`, `{repo}`
+and `{env}` are substituted inside the resulting values. The command is the
+manifest's own template when it declares one — a shell line, printed verbatim —
+and the provider's default otherwise.
+
+Absence is an answer rather than a blank coordinate. An environment that does not
+declare the platform, a repository marked uncovered and an entry whose confidence
+is already `not_covered` are all `not_covered`.
+
 ## Initialization tool installation
 
 Tools may opt in with `install_on_init: true` (default false, fx ≥0.1.1). The

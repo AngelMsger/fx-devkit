@@ -1,10 +1,6 @@
-// One repository, one environment, one platform → a coordinate. Variables
-// merge platform ⊕ environment ⊕ repository override, then {svc}, {repo}
-// and {env} are substituted inside the values, and finally the manifest's
-// own command template (a shell line, printed verbatim) or the provider's
-// default is filled. Absence is an answer: an environment that does not
-// declare the platform, a repository marked uncovered, or an entry whose
-// confidence is `not_covered`, is `not_covered`.
+// One repository, one environment, one platform → a coordinate, composed in the
+// order "Coordinate composition" in docs/design/setup.md fixes. Absence is an
+// answer here, never a blank coordinate.
 
 import type { ResolvedRepo } from '../manifest/local.js';
 import type { PlatformBinding } from '../manifest/providers.js';
