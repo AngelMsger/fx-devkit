@@ -20,7 +20,7 @@ export default class ManifestRepoSet extends FxCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestRepoSet);
     const dir = await this.manifestDir();
-    const result = await new SetRepoField(this.container.fs, this.container.bundledTools).execute({
+    const result = await new SetRepoField(this.container.fs).execute({
       dir,
       cliVersion: this.config.version,
       providers: this.container.providers,

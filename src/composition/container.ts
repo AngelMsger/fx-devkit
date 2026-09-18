@@ -42,7 +42,7 @@ import type { Lock } from '../ports/lock.js';
 import type { Platform } from '../ports/platform.js';
 import type { Process } from '../ports/process.js';
 import type { Prompter } from '../ports/prompter.js';
-import type { ProviderDescriptor } from '../ports/provider.js';
+import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
 import type { Registry } from '../ports/registry.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { Cache, ConfigStore, LocalLayerStore, TrustStore } from '../ports/stores.js';
@@ -159,6 +159,11 @@ function attempt<T>(build: () => T): { readonly value: T } | { readonly error: u
   }
 }
 
+// The effects every provider is given, whatever resolves it.
+function adaptersOf(container: Container): AdapterDeps {
+  return { process: container.process, fs: container.fs, clock: container.clock };
+}
+
 // The bundle every workspace use case receives. The code host is resolved
 // lazily from the workspace's own binding, and only once.
 export function workspaceDeps(
@@ -168,7 +173,7 @@ export function workspaceDeps(
   cliVersion: string,
   user: string | undefined,
 ): WorkspaceDeps {
-  const adapters = { process: container.process, fs: container.fs, clock: container.clock };
+  const adapters = adaptersOf(container);
   return {
     ctx,
     user,
@@ -197,7 +202,7 @@ export async function codeHostFor(
   if (!path.isAbsolute(host) || !(await container.fs.exists(host))) return undefined;
   return resolveProvider<CodeHost>(
     { capability: 'code-host', provider: 'local-git', source: 'default', vars: { host } },
-    { process: container.process, fs: container.fs, clock: container.clock },
+    adaptersOf(container),
   );
 }
 

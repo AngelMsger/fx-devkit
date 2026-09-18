@@ -165,5 +165,4 @@ register(kubectlProvider);
 register(feishuProjectProvider);
 register(confluenceProvider);
 register(larkProvider);
-
 register(wecomProvider);

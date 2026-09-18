@@ -12,15 +12,20 @@ import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileHookState } from '../infra/hook-state.js';
 import { FileProjectionStore } from '../infra/projection-store.js';
 import type { AgentCleanup } from '../ports/agent-cleanup.js';
+import type { HookStateStore } from '../ports/hook-state.js';
 
 import type { Container } from './container.js';
 import { hookProtocolFor } from './registry.js';
+
+export function hookStateStore(container: Container): HookStateStore {
+  return new FileHookState(container.fxHome);
+}
 
 export function hookDeps(container: Container): HookDeps {
   return {
     hosts: container.agents,
     local: container.localStore,
-    state: new FileHookState(container.fxHome),
+    state: hookStateStore(container),
     lock: container.lock,
     files: new FileProjectionStore(container.lock),
     protocol: hookProtocolFor,

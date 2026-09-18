@@ -42,7 +42,13 @@ import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
-import { createRenderer, parseFields, processIo, type Renderer } from './render/index.js';
+import {
+  createRenderer,
+  parseFields,
+  processIo,
+  type RenderOptions,
+  type Renderer,
+} from './render/index.js';
 import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
@@ -58,10 +64,14 @@ export abstract class FxCommand extends Command {
 
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(DEFAULT_FORMAT, processIo());
+  private reportSink: SinkReporter | undefined;
   protected noInput = false;
   protected yes = false;
   protected posture: WritePosture = { readOnly: false, source: 'default' };
   protected format: Format = DEFAULT_FORMAT;
+  // What the renderer was built with: a command that decides which rows to hand
+  // it reads the same projection settings instead of parsing the flags again.
+  protected renderOptions: RenderOptions = {};
   protected commandShell: ResolvedShell = 'posix';
   private workspaceName: string | undefined;
   private configUser: string | undefined;
@@ -108,14 +118,15 @@ export abstract class FxCommand extends Command {
       });
     }
     this.format = format ?? DEFAULT_FORMAT;
-    this.renderer = createRenderer(this.format, processIo(), {
+    this.renderOptions = {
       report: reportCommand(this.id),
       details: flags['details'] === true,
       fields: parseFields(flags.fields),
       quiet: flags.quiet,
       verbose: flags.verbose,
       noHeader: flags['no-header'],
-    });
+    };
+    this.renderer = createRenderer(this.format, processIo(), this.renderOptions);
     this.container.diagnostics.connect(this.renderer);
     this.noInput = flags['no-input'] || !process.stdin.isTTY;
     this.quietOn = flags.quiet;
@@ -146,8 +157,14 @@ export abstract class FxCommand extends Command {
     return this.configUser;
   }
 
+  // One reporter for the whole command. It reads `renderer` per call, because
+  // init replaces the default renderer once the output format is known.
   protected get reporter(): SinkReporter {
-    return new SinkReporter(this.renderer);
+    this.reportSink ??= new SinkReporter({
+      notice: (notice) => this.renderer.notice(notice),
+      progress: (event) => this.renderer.progress(event),
+    });
+    return this.reportSink;
   }
 
   // A human reader wants the findings as a table; every other format keeps the

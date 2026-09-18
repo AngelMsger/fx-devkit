@@ -14,7 +14,7 @@ import type { Reporter } from '../ports/reporter.js';
 
 import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
 import { harnessSession } from './harness.js';
-import { hookDeps } from './hooks.js';
+import { hookStateStore } from './hooks.js';
 import { manifestSourceFor } from './manifest-sources.js';
 import { configuredRegistry } from './registry-location.js';
 import { updateChecks } from './update.js';
@@ -30,7 +30,7 @@ export function createHookServices(input: ServiceInput): AutomaticSyncDeps {
   const { container } = input;
   return {
     clock: container.clock,
-    state: hookDeps(container).state,
+    state: hookStateStore(container),
     lock: container.lock,
     canWrite: input.canWrite,
     ...backgroundPhases(phaseDeps(input)),

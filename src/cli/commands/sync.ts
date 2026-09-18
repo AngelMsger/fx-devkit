@@ -8,7 +8,6 @@ import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
 import { detailsFlag, dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
 import { syncNotices } from '../notices.js';
-import { parseFields } from '../render/index.js';
 
 export default class SyncCommand extends FxCommand {
   static override description =
@@ -42,8 +41,9 @@ export default class SyncCommand extends FxCommand {
       only,
       stages: this.stages(deps, run.dryRun),
     });
+    const projected = this.renderOptions;
     const visible =
-      this.format === 'human' && !flags.verbose && parseFields(flags.fields) === undefined
+      this.format === 'human' && !projected.verbose && projected.fields === undefined
         ? out.items.filter((item) => item.action !== 'skip_unpicked')
         : out.items;
     this.renderer.list(visible, {

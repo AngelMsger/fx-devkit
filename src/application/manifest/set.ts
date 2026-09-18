@@ -37,12 +37,7 @@ export interface SetRepoFieldOutput {
 }
 
 export class SetRepoField {
-  constructor(
-    private readonly fs: FileSystem,
-    // Kept for symmetry with the other manifest use cases; the edit itself
-    // only needs workspace.yaml.
-    private readonly _bundledTools: () => string,
-  ) {}
+  constructor(private readonly fs: FileSystem) {}
 
   async execute(input: SetRepoFieldInput): Promise<SetRepoFieldOutput> {
     const file = path.join(input.dir, MANIFEST_FILES.workspace);

@@ -326,7 +326,7 @@ describe('SetRepoField', () => {
       field: 'aka',
       value: '[platform, accounts]',
     };
-    const useCase = new SetRepoField(fs, bundled);
+    const useCase = new SetRepoField(fs);
     expect(await useCase.execute({ ...input, dryRun: true, posture: locked })).toMatchObject({
       before: null,
       after: '["platform","accounts"]',
@@ -346,7 +346,7 @@ describe('SetRepoField', () => {
 
   it('previews under dry-run without writing', async () => {
     const fs = workspace('v2-full');
-    const result = await new SetRepoField(fs, bundled).execute({
+    const result = await new SetRepoField(fs).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -378,12 +378,12 @@ describe('SetRepoField', () => {
       value: 'release',
       dryRun: false,
     };
-    await expect(
-      new SetRepoField(fs, bundled).execute({ ...input, posture: locked }),
-    ).rejects.toMatchObject({
-      code: 'READONLY_BLOCKED',
-    });
-    const result = await new SetRepoField(fs, bundled).execute({ ...input, posture: writable });
+    await expect(new SetRepoField(fs).execute({ ...input, posture: locked })).rejects.toMatchObject(
+      {
+        code: 'READONLY_BLOCKED',
+      },
+    );
+    const result = await new SetRepoField(fs).execute({ ...input, posture: writable });
     expect(result).toMatchObject({ before: 'main', after: 'release', written: true });
     expect(fs.writes).toEqual([path.normalize(path.resolve('/w/manifest/workspace.yaml'))]);
     expect(await fs.readText(path.resolve('/w/manifest/workspace.yaml'))).toContain(
@@ -394,7 +394,7 @@ describe('SetRepoField', () => {
   it('refuses an edit that would make the manifest invalid', async () => {
     const fs = workspace('v2-full');
     await expect(
-      new SetRepoField(fs, bundled).execute({
+      new SetRepoField(fs).execute({
         dir: path.resolve('/w'),
         cliVersion: cli,
         providers: providerCatalog(),
