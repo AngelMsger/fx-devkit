@@ -14,15 +14,7 @@ export default class SkillInstallCommand extends SkillCommand {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(SkillInstallCommand);
-    const rows = await this.companionSkill().write('install', {
-      agents: flags.agent,
-      project: flags.project,
-      dir: flags.dir,
-      cwd: process.cwd(),
-      dryRun: flags['dry-run'],
-      posture: this.posture,
-      yes: this.yes,
-    });
+    const rows = await this.skillWrite('install', flags);
     this.renderer.list(rows, { columns: SKILL_MUTATION_COLUMNS });
   }
 }

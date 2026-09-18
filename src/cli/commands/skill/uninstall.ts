@@ -8,15 +8,7 @@ export default class SkillUninstallCommand extends SkillCommand {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(SkillUninstallCommand);
-    const rows = await this.companionSkill().write('uninstall', {
-      agents: flags.agent,
-      project: flags.project,
-      dir: flags.dir,
-      cwd: process.cwd(),
-      dryRun: flags['dry-run'],
-      posture: this.posture,
-      yes: this.yes,
-    });
+    const rows = await this.skillWrite('uninstall', flags);
     this.renderer.list(rows, { columns: SKILL_MUTATION_COLUMNS });
   }
 }

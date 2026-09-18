@@ -10,12 +10,7 @@ export default class SkillStatusCommand extends SkillCommand {
     const { flags } = await this.parse(SkillStatusCommand);
     this.renderer.record(
       await this.companionSkill().status(
-        {
-          agents: flags.agent,
-          project: flags.project,
-          dir: flags.dir,
-          cwd: process.cwd(),
-        },
+        this.skillTarget(flags),
         process.env[SKILL_LOADED_ENV] === '1',
         process.env[SKILL_VERSION_ENV],
       ),
