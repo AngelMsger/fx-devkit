@@ -8,30 +8,37 @@ import path from 'node:path';
 import * as z from 'zod';
 
 import { DevkitError } from '../domain/errors.js';
-import type { HookState } from '../domain/harness/state.js';
+import type { HookObservation, HookReceipt, HookState } from '../domain/harness/state.js';
 import type { HookStateStore } from '../ports/hook-state.js';
 
-const schema = z.strictObject({
+import type { ShapeOf } from './stored-shape.js';
+
+const receipt = {
+  agent: z.string(),
+  relative: z.string(),
+  owner: z.string(),
+  created: z.boolean(),
+} satisfies ShapeOf<HookReceipt>;
+const observation = {
+  checkedAt: z.number(),
+  phase: z.string(),
+  code: z.string(),
+  command: z.string().nullable(),
+  detail: z.string().optional(),
+} satisfies ShapeOf<HookObservation>;
+const state = {
   root: z.string(),
-  receipts: z.array(
-    z.strictObject({
-      agent: z.string(),
-      relative: z.string(),
-      owner: z.string(),
-      created: z.boolean(),
-    }),
-  ),
+  receipts: z.array(z.strictObject(receipt)),
   lastAttempt: z.number().nullable(),
   lastRefresh: z.number().nullable(),
-  observations: z.array(
-    z.strictObject({
-      checkedAt: z.number(),
-      phase: z.string(),
-      code: z.string(),
-      command: z.string().nullable(),
-      detail: z.string().optional(),
-    }),
-  ),
+  observations: z.array(z.strictObject(observation)),
+} satisfies ShapeOf<HookState>;
+
+const written = z.strictObject(state);
+const read = z.object({
+  ...state,
+  receipts: z.array(z.object(receipt)),
+  observations: z.array(z.object(observation)),
 });
 
 export class FileHookState implements HookStateStore {
@@ -39,7 +46,7 @@ export class FileHookState implements HookStateStore {
 
   async read(workspace: string): Promise<HookState | null> {
     try {
-      return schema.parse(JSON.parse(await fs.readFile(this.file(workspace), 'utf8')));
+      return read.parse(JSON.parse(await fs.readFile(this.file(workspace), 'utf8')));
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw new DevkitError(
@@ -60,7 +67,7 @@ export class FileHookState implements HookStateStore {
     await fs.mkdir(path.dirname(file), { recursive: true });
     const temporary = `${file}.${randomUUID()}.tmp`;
     try {
-      await fs.writeFile(temporary, JSON.stringify(schema.parse(state)), {
+      await fs.writeFile(temporary, JSON.stringify(written.parse(state)), {
         flag: 'wx',
         mode: 0o600,
       });

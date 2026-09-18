@@ -7,10 +7,12 @@ import path from 'node:path';
 import * as z from 'zod';
 
 import { busyError, DevkitError } from '../domain/errors.js';
-import type { HarnessState } from '../domain/harness/ownership.js';
+import type { HarnessIntent, HarnessReceipt, HarnessState } from '../domain/harness/ownership.js';
 import { assertWorkspaceName } from '../domain/workspace/name.js';
 import type { HarnessStateStore } from '../ports/harness-state.js';
 import type { Lock } from '../ports/lock.js';
+
+import type { ShapeOf } from './stored-shape.js';
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().regex(/^[A-Za-z0-9_-]+$/);
@@ -21,7 +23,7 @@ const relative = z
       !/[\\\x00-\x1f:]/.test(value) &&
       value.split('/').every((part) => !!part && part !== '.' && part !== '..' && part !== '.git'),
   );
-const receipt = z.strictObject({
+const receipt = {
   key: id,
   kind: z.enum(['mcp', 'rules']),
   relative,
@@ -30,30 +32,30 @@ const receipt = z.strictObject({
   agents: z.array(id),
   digest,
   created: z.boolean(),
-});
-const intent = z
-  .strictObject({
+} satisfies ShapeOf<HarnessReceipt>;
+const consistentIntent = (value: HarnessIntent): boolean =>
+  !value.receipt || (value.receipt.key === value.key && value.receipt.relative === value.relative);
+const uniqueKeys = (value: { receipts: readonly HarnessReceipt[] }): boolean =>
+  new Set(value.receipts.map((item) => item.key)).size === value.receipts.length;
+
+const intent = (object: typeof z.strictObject) =>
+  object({
     key: id,
     relative,
     before: digest.nullable(),
     after: digest.nullable(),
-    receipt: receipt.nullable(),
-  })
-  .refine(
-    (value) =>
-      !value.receipt ||
-      (value.receipt.key === value.key && value.receipt.relative === value.relative),
-  );
-const schema = z
-  .strictObject({
+    receipt: object(receipt).nullable(),
+  } satisfies ShapeOf<HarnessIntent>).refine(consistentIntent);
+const state = (object: typeof z.strictObject) =>
+  object({
     owner: z.literal('fx:harness:v1'),
     root: z.string().min(1),
-    receipts: z.array(receipt),
-    pending: intent.nullable(),
-  })
-  .refine(
-    (value) => new Set(value.receipts.map((item) => item.key)).size === value.receipts.length,
-  );
+    receipts: z.array(object(receipt)),
+    pending: intent(object).nullable(),
+  } satisfies ShapeOf<HarnessState & { owner: 'fx:harness:v1' }>).refine(uniqueKeys);
+
+const written = state(z.strictObject);
+const read = state(z.object);
 
 export class FileHarnessState implements HarnessStateStore {
   constructor(
@@ -69,7 +71,7 @@ export class FileHarnessState implements HarnessStateStore {
     const file = this.file(workspace);
     let text: string;
     try {
-      text = JSON.stringify(schema.parse({ owner: 'fx:harness:v1', ...state }));
+      text = JSON.stringify(written.parse({ owner: 'fx:harness:v1', ...state }));
     } catch {
       throw invalid();
     }
@@ -91,7 +93,7 @@ export class FileHarnessState implements HarnessStateStore {
     try {
       const stat = await fs.lstat(file);
       if (!stat.isFile() || stat.nlink !== 1) throw invalid();
-      const { owner: _owner, ...state } = schema.parse(JSON.parse(await fs.readFile(file, 'utf8')));
+      const { owner: _owner, ...state } = read.parse(JSON.parse(await fs.readFile(file, 'utf8')));
       return state;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
