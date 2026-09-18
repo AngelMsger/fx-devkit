@@ -13,6 +13,7 @@ export const READ_ONLY_VERBS = ['get', 'describe', 'logs', 'top', 'auth', 'confi
 export const kubectlProvider: ProviderDescriptor<Cluster> = {
   id: 'kubectl',
   capability: 'cluster',
+  impliedByPlatform: ['kube'],
   tools: ['kubectl'],
   recipes: KUBECTL_RECIPES,
   vars: [],

@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
+import type { ProviderCatalog } from '../domain/manifest/providers.js';
 import { samePath, windowsPathProblem } from '../domain/path.js';
 import { changeDirectoryCommand, shellLine, type ResolvedShell } from '../domain/shell.js';
 import { assertWorkspaceName, assertWorkspaceNames } from '../domain/workspace/name.js';
@@ -40,6 +41,7 @@ export interface InitDeps {
   readonly config: ConfigStore;
   readonly localStore: LocalLayerStore;
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
   readonly reporter: Reporter;
   readonly manifestDirFor: (name: string) => string;
@@ -243,6 +245,7 @@ export class Init {
       .execute({
         dir: output.manifest_dir,
         cliVersion: this.deps.cliVersion,
+        providers: this.deps.providers,
       })
       .catch((error: unknown) => {
         throw initializationSourceError(
@@ -305,6 +308,7 @@ export class Init {
       git: this.deps.git,
       localStore: this.deps.localStore,
       bundledTools: this.deps.bundledTools,
+      providers: this.deps.providers,
       cliVersion: this.deps.cliVersion,
       reporter: this.deps.reporter,
       manifestDirFor: this.deps.manifestDirFor,

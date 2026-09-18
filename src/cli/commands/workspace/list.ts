@@ -14,6 +14,7 @@ export default class WorkspaceList extends FxCommand {
     } = await discoverWorkspaces({
       ...this.resolveInput(),
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
     });
     this.renderer.list(items, {

@@ -60,7 +60,8 @@ export class CommandServices {
   }
 
   initDeps(): InitDeps {
-    const { fs, git, config, localStore, bundledTools, manifestDirFor } = this.input.container;
+    const { fs, git, config, localStore, bundledTools, providers, manifestDirFor } =
+      this.input.container;
     const depsFor = (ctx: WorkspaceContext): WorkspaceDeps =>
       workspaceDeps(
         this.input.container,
@@ -77,6 +78,7 @@ export class CommandServices {
       config,
       localStore,
       bundledTools,
+      providers,
       manifestDirFor,
       cliVersion: this.input.cliVersion,
       reporter: this.input.reporter,

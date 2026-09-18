@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { bindProviders } from '../../../../src/domain/manifest/providers.js';
 import type { Workspace } from '../../../../src/domain/manifest/types.js';
 
@@ -10,7 +11,7 @@ describe('bindProviders', () => {
       defaults: { host: 'ssh://git@git.example.com:12345' },
       repos: [{ name: 'a' }],
     };
-    const bindings = bindProviders(ws);
+    const bindings = bindProviders(ws, providerCatalog());
     expect(bindings.find((b) => b.capability === 'code-host')).toEqual({
       capability: 'code-host',
       provider: 'bitbucket-cli',
@@ -38,7 +39,7 @@ describe('bindProviders', () => {
       defaults: {},
       repos: [{ name: 'a' }],
     };
-    const bindings = bindProviders(ws);
+    const bindings = bindProviders(ws, providerCatalog());
     expect(bindings.map((b) => b.capability)).toEqual([
       'code-host',
       'issue-tracker',
@@ -58,7 +59,7 @@ describe('bindProviders', () => {
       defaults: {},
       repos: [{ name: 'a' }],
     };
-    expect(bindProviders(ws).find((b) => b.capability === 'ci')).toMatchObject({
+    expect(bindProviders(ws, providerCatalog()).find((b) => b.capability === 'ci')).toMatchObject({
       source: 'misplaced',
     });
   });

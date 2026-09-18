@@ -7,6 +7,7 @@ import { FileSource } from '../../../src/adapters/manifest-source/file.js';
 import { Init, type InitDeps } from '../../../src/application/init.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
 import type { WorkspaceDeps } from '../../../src/application/workspace/deps.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import type { ManifestSource } from '../../../src/ports/manifest-source.js';
 import { FakeCache } from '../../fakes/fake-cache.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
@@ -57,6 +58,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     config,
     localStore: new FakeLocalStore(),
     bundledTools: bundled,
+    providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,

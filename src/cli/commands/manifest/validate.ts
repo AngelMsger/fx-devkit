@@ -24,6 +24,7 @@ export default class ManifestValidate extends FxCommand {
     ).execute({
       dir,
       cliVersion: this.config.version,
+      providers: this.container.providers,
       strict: flags.strict,
       kind: flags.kind as ValidatedKind | undefined,
     });

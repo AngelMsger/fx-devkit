@@ -32,6 +32,7 @@ export default class ConfigImportCommand extends FxCommand {
       commandShell: this.commandShell,
       lock: this.container.lock,
       cliVersion: this.config.version,
+      providers: this.container.providers,
     }).execute({
       text,
       ...writeIntent(flags, this.posture),

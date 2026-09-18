@@ -9,6 +9,7 @@ import { ProvidersManifest } from '../../../src/application/manifest/providers.j
 import { SetRepoField } from '../../../src/application/manifest/set.js';
 import { ValidateManifest } from '../../../src/application/manifest/validate.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import type { SetupRecipe } from '../../../src/domain/setup/types.js';
 import { FakeConfigStore } from '../../fakes/fake-config-store.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
@@ -92,6 +93,7 @@ describe('ValidateManifest', () => {
     const report = await new ValidateManifest(workspace('v2-full'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       strict: true,
     });
     expect(report.ok).toBe(true);
@@ -110,6 +112,7 @@ describe('ValidateManifest', () => {
       const report = await new ValidateManifest(FakeFs.from({}), bundled).execute({
         dir: path.resolve('/w'),
         cliVersion: cli,
+        providers: providerCatalog(),
         strict,
       });
       expect(report.ok).toBe(false);
@@ -130,6 +133,7 @@ describe('ValidateManifest', () => {
     const report = await new ValidateManifest(workspace('v1-minimal'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       strict: true,
     });
     expect(report.ok).toBe(true);
@@ -144,6 +148,7 @@ describe('ValidateManifest', () => {
     const report = await new ValidateManifest(workspace('broken'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       strict: false,
     });
     expect(report.ok).toBe(false);
@@ -156,6 +161,7 @@ describe('ValidateManifest', () => {
     const report = await new ValidateManifest(workspace('v2-full'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       strict: false,
       kind: 'tools',
     });
@@ -168,6 +174,7 @@ describe('ValidateManifest', () => {
     const report = await new ValidateManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       strict: false,
       kind: 'tools',
     });
@@ -219,7 +226,7 @@ describe('LintManifest', () => {
     ];
     const findings = await new LintManifest(fs, bundled, (id) =>
       id === 'file-access' ? { recipes } : undefined,
-    ).execute({ dir: path.resolve('/w'), cliVersion: cli });
+    ).execute({ dir: path.resolve('/w'), cliVersion: cli, providers: providerCatalog() });
     expect(findings.filter((f) => f.code === 'MANIFEST_INVALID')).toEqual([]);
     expect(findings.filter((f) => f.code === 'REPO_NO_OWNER')).toEqual([
       expect.objectContaining({ path: 'repos[1]' }),
@@ -240,6 +247,7 @@ describe('LintManifest', () => {
     const findings = await new LintManifest(workspace('v1-minimal'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
     });
     expect(findings.map((f) => f.code)).toEqual(['PROVIDERS_MISSING']);
   });
@@ -256,6 +264,7 @@ describe('LintManifest', () => {
     const findings = await new LintManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
     });
     expect(findings.filter((f) => f.kind === 'skills').map((f) => [f.code, f.path])).toEqual([
       ['SKILL_NAME_MISMATCH', 'skills/bad/SKILL.md'],
@@ -273,6 +282,7 @@ describe('LintManifest', () => {
     const findings = await new LintManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
     });
     expect(findings.filter((finding) => finding.kind === 'tools')).toEqual([]);
   });
@@ -283,6 +293,7 @@ describe('LintManifest', () => {
     const findings = await new LintManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
     });
     expect(findings).toContainEqual(
       expect.objectContaining({ kind: 'tools', code: 'MANIFEST_INVALID', path: 'tools' }),
@@ -295,6 +306,7 @@ describe('ProvidersManifest', () => {
     const bindings = await new ProvidersManifest(workspace('v1-minimal'), bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
     });
     expect(bindings.find((b) => b.capability === 'code-host')).toMatchObject({
       provider: 'bitbucket-cli',
@@ -309,6 +321,7 @@ describe('SetRepoField', () => {
     const input = {
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       repo: 'fx-example-auth',
       field: 'aka',
       value: '[platform, accounts]',
@@ -336,6 +349,7 @@ describe('SetRepoField', () => {
     const result = await new SetRepoField(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       repo: 'fx-example-api',
       field: 'branch',
       value: 'feature/x',
@@ -358,6 +372,7 @@ describe('SetRepoField', () => {
     const input = {
       dir: path.resolve('/w'),
       cliVersion: cli,
+      providers: providerCatalog(),
       repo: 'fx-example-auth',
       field: 'branch',
       value: 'release',
@@ -382,6 +397,7 @@ describe('SetRepoField', () => {
       new SetRepoField(fs, bundled).execute({
         dir: path.resolve('/w'),
         cliVersion: cli,
+        providers: providerCatalog(),
         repo: 'fx-example-auth',
         field: 'path',
         value: '../outside',

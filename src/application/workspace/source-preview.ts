@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
@@ -12,6 +13,7 @@ import { sourceValidationError } from '../manifest/source-error.js';
 interface RebindSourceInput {
   readonly fs: FileSystem;
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
   readonly workspace: string;
   readonly commandShell?: ResolvedShell | undefined;
@@ -50,7 +52,7 @@ export async function inspectRebindSource(
           reader.readText(path.relative(reader.root, file).split(path.sep).join('/')),
       },
       input.bundledTools,
-    ).execute({ dir: reader.root, cliVersion: input.cliVersion });
+    ).execute({ dir: reader.root, cliVersion: input.cliVersion, providers: input.providers });
     return 'validated';
   } catch (error) {
     throw rebindSourceError(error, source, input, inspection);
@@ -69,6 +71,7 @@ export async function materializeRebindSource(
     await new LoadManifest(input.fs, input.bundledTools).execute({
       dir,
       cliVersion: input.cliVersion,
+      providers: input.providers,
     });
   } catch (error) {
     throw rebindSourceError(error, source, input, materialized ? { root: dir } : undefined);

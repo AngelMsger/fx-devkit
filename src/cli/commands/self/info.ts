@@ -37,6 +37,7 @@ export default class SelfInfoCommand extends FxCommand {
       const workspace: WorkspaceInfo = await showWorkspace({
         ...this.resolveInput(),
         bundledTools: this.container.bundledTools,
+        providers: this.container.providers,
         cliVersion: this.config.version,
       });
       return { workspace, error: null };

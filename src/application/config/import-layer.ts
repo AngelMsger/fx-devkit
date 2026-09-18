@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import { loadWorkspace } from '../../domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { describeManifestRepo } from '../../domain/manifest/source-repo.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
 import type { FileReader } from '../../ports/fs.js';
@@ -16,12 +17,16 @@ export async function validateImportedLayer(input: {
   readonly entry: WorkspaceEntry;
   readonly manifestDir: string;
   readonly cliVersion: string;
+  readonly providers: ProviderCatalog;
   readonly layer: LocalLayer;
 }): Promise<void> {
   const text = await input.fs.readText(path.join(input.manifestDir, 'manifest/workspace.yaml'));
   if (text === undefined) return;
   try {
-    const shared = loadWorkspace(text, { cliVersion: input.cliVersion }).doc;
+    const shared = loadWorkspace(text, {
+      cliVersion: input.cliVersion,
+      providers: input.providers,
+    }).doc;
     const manifestRepo =
       input.entry.source !== undefined &&
       (await input.fs.exists(path.join(input.manifestDir, '.git')))

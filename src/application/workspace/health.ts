@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { asDevkitError, DevkitError, toEnvelope, type ErrorEnvelope } from '../../domain/errors.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
 import { LoadManifest } from '../manifest/load.js';
 
@@ -12,6 +13,7 @@ import type { Located, ResolveInput } from './resolve.js';
 export type WorkspaceHealth = 'ready' | 'root_missing' | 'unprepared' | 'missing' | 'invalid';
 export interface HealthInput extends Pick<ResolveInput, 'fs' | 'config' | 'commandShell'> {
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
 }
 export interface WorkspaceHealthResult {
@@ -28,6 +30,7 @@ export async function workspaceReadiness(
     await new LoadManifest(input.fs, input.bundledTools).execute({
       dir: located.manifestDir,
       cliVersion: input.cliVersion,
+      providers: input.providers,
     });
     return { status: 'ready', error: null };
   } catch (error) {

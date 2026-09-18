@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { renderAll, REGIONS } from '../../../../src/domain/docs/templates.js';
 import {
   loadEnvironments,
@@ -26,8 +27,8 @@ function render(fixture: string) {
     regions: renderAll({
       workspace,
       environments,
-      bindings: bindProviders(workspace),
-      platforms: bindPlatforms(environments),
+      bindings: bindProviders(workspace, providerCatalog()),
+      platforms: bindPlatforms(environments, providerCatalog()),
       tools: resolveTools(tools.doc, tools.provenance),
       toolsOf: (provider) => [provider],
     }),

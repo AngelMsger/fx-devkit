@@ -1,9 +1,9 @@
 // A provider is one implementation of a capability's port plus what fx needs to know to
-// wire it: the tools it drives, the variables the manifest must supply, and the setup
-// steps it brings. Every adapter directory exports one descriptor; the registry collects
-// them.
+// wire it: the facts a manifest is read against, the tools it drives, the variables the
+// manifest must supply, and the setup steps it brings. Every adapter directory exports one
+// descriptor; the registry collects them.
 
-import type { Capability } from '../domain/capability.js';
+import type { ProviderFacts } from '../domain/manifest/providers.js';
 import type { ServiceSettings } from '../domain/manifest/service.schema.js';
 import type { ServiceDefinition } from '../domain/setup/service.js';
 import type { SetupRecipe } from '../domain/setup/types.js';
@@ -26,9 +26,7 @@ export interface AdapterDeps {
 
 export type Vars = Readonly<Record<string, string>>;
 
-export interface ProviderDescriptor<P> {
-  readonly id: string;
-  readonly capability: Capability;
+export interface ProviderDescriptor<P> extends ProviderFacts {
   readonly tools: readonly string[];
   readonly recipes: readonly SetupRecipe[];
   readonly service?: (settings: ServiceSettings) => ServiceDefinition;

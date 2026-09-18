@@ -268,6 +268,7 @@ export abstract class FxCommand extends Command {
       git: this.container.git,
       localStore: this.container.localStore,
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
     });
     return this.located;
@@ -319,6 +320,7 @@ export abstract class FxCommand extends Command {
       dir,
       fs: this.container.fs,
       bundledTools: this.container.bundledTools,
+      providers: this.container.providers,
       cliVersion: this.config.version,
       reporter: this.reporter,
       diagnostics: this.container.diagnostics,

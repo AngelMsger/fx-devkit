@@ -22,7 +22,7 @@ import { DevkitError } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
-import type { Binding, PlatformBinding } from '../domain/manifest/providers.js';
+import type { Binding, PlatformBinding, ProviderCatalog } from '../domain/manifest/providers.js';
 import type { AgentHost } from '../ports/agent-host.js';
 import type { HookProtocol } from '../ports/hook-protocol.js';
 import type { McpCodec } from '../ports/mcp-codec.js';
@@ -89,6 +89,12 @@ export function providersFor(capability: Capability): ProviderDescriptor<unknown
 
 export function describeProvider(id: string): ProviderDescriptor<unknown> | undefined {
   return providers.get(id);
+}
+
+// What a manifest is read against: the same descriptors, narrowed to the facts the
+// documents are validated and bound with.
+export function providerCatalog(): ProviderCatalog {
+  return [...providers.values()];
 }
 
 export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: AdapterDeps): P {

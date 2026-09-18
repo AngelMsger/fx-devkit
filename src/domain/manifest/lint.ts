@@ -3,7 +3,7 @@
 
 import { releasePolicyOf } from '../release/policy.js';
 
-import { bindPlatforms } from './providers.js';
+import { bindPlatforms, type ProviderCatalog } from './providers.js';
 import type { Environments, Toolchain, Workspace } from './types.js';
 
 export interface LintFinding {
@@ -15,6 +15,7 @@ export interface LintFinding {
 
 export interface LintInput {
   readonly workspace: Workspace;
+  readonly providers: ProviderCatalog;
   readonly ownedRepos?: readonly string[];
   readonly providerSetupHints?: Readonly<Record<string, readonly string[]>>;
   readonly environments?: Environments;
@@ -26,8 +27,10 @@ export function lintManifest(input: LintInput): LintFinding[] {
     ...lintWorkspace(input.workspace, input.ownedRepos),
     ...(input.environments === undefined
       ? []
-      : lintEnvironments(input.environments, input.providerSetupHints ?? {})),
-    ...(input.environments === undefined ? [] : lintRelease(input.workspace, input.environments)),
+      : lintEnvironments(input.environments, input.providers, input.providerSetupHints ?? {})),
+    ...(input.environments === undefined
+      ? []
+      : lintRelease(input.workspace, input.environments, input.providers)),
     ...(input.tools === undefined ? [] : lintToolsPatch(input.tools.base, input.tools.patch)),
   ];
 }
@@ -92,13 +95,14 @@ function lintWorkspace(doc: Workspace, ownedRepos: readonly string[] | undefined
 
 function lintEnvironments(
   doc: Environments,
+  providers: ProviderCatalog,
   setupHints: Readonly<Record<string, readonly string[]>>,
 ): LintFinding[] {
   const findings: LintFinding[] = [];
   const add = (code: string, path: string, message: string): void => {
     findings.push({ kind: 'environments', code, path, message });
   };
-  for (const binding of bindPlatforms(doc)) {
+  for (const binding of bindPlatforms(doc, providers)) {
     const requiredHints = binding.provider === null ? [] : (setupHints[binding.provider] ?? []);
     for (const [env, spec] of Object.entries(doc.envs)) {
       const coordinate = spec.platforms?.[binding.platform];
@@ -135,7 +139,11 @@ function lintEnvironments(
 // The errors check needs an environment and, per repository, an error
 // tracker coordinate in it; a checklist entry without one is quietly "not
 // checked", which is worth knowing before release day.
-function lintRelease(workspace: Workspace, environments: Environments): LintFinding[] {
+function lintRelease(
+  workspace: Workspace,
+  environments: Environments,
+  providers: ProviderCatalog,
+): LintFinding[] {
   const release = workspace.release;
   if (release === undefined) return [];
   const env = release.env;
@@ -149,7 +157,9 @@ function lintRelease(workspace: Workspace, environments: Environments): LintFind
       },
     ];
   }
-  const tracker = bindPlatforms(environments).find((b) => b.capability === 'error-tracker');
+  const tracker = bindPlatforms(environments, providers).find(
+    (b) => b.capability === 'error-tracker',
+  );
   const onEnv =
     tracker === undefined ? undefined : environments.envs[env]?.platforms?.[tracker.platform];
   const declared = onEnv !== undefined && onEnv.confidence !== 'not_covered';

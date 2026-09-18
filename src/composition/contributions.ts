@@ -58,6 +58,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   const validator = new ValidateContribution(
     { open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }) },
     container.bundledTools,
+    container.providers,
     container.describeProvider,
   );
   return {
@@ -90,6 +91,7 @@ function codeHostFromBase(
   try {
     workspace = loadWorkspace(files[MANIFEST_FILES.workspace] ?? '', {
       cliVersion,
+      providers: container.providers,
       strict: true,
     }).doc;
   } catch {
@@ -105,7 +107,8 @@ function codeHostFromBase(
       },
     );
   }
-  return resolveProvider<ContributionHost>(bindingOf(bindProviders(workspace), 'code-host'), {
+  const bindings = bindProviders(workspace, container.providers);
+  return resolveProvider<ContributionHost>(bindingOf(bindings, 'code-host'), {
     process: container.process,
     fs: container.fs,
     clock: container.clock,

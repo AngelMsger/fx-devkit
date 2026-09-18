@@ -60,8 +60,9 @@ export async function inspectInitialization(
   const context = {
     dir: output.manifest_dir,
     bundle,
-    bindings: bindProviders(bundle.workspace.result.doc),
-    platforms: bindPlatforms(bundle.environments?.result.doc),
+    providers: deps.providers,
+    bindings: bindProviders(bundle.workspace.result.doc, deps.providers),
+    platforms: bindPlatforms(bundle.environments?.result.doc, deps.providers),
   };
   const ctx = await WorkspaceContext.preview(output.root, output.name, context, local, deps.fs);
   const repositories = await planRepositories(deps.workspaceDepsFor(ctx), {
@@ -114,7 +115,7 @@ async function loadInspectedSource(
     },
     deps.bundledTools,
   )
-    .execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion })
+    .execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion, providers: deps.providers })
     .catch((error: unknown) => {
       throw initializationSourceError(deps, input, output, inspection, error);
     });

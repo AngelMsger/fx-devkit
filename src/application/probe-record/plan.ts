@@ -107,7 +107,12 @@ async function readDocuments(deps: RecordProbeDeps) {
         ],
       },
     );
-  const opts = { cliVersion: deps.workspace.cliVersion, strict: true, allowInvalid: true as const };
+  const opts = {
+    cliVersion: deps.workspace.cliVersion,
+    providers: deps.workspace.ctx.providers,
+    strict: true,
+    allowInvalid: true as const,
+  };
   const workspace = loadWorkspace(workspaceSnapshot.text, opts);
   if (!workspace.valid || workspace.problems.length) throw invalid();
   const environments = loadEnvironments(environmentSnapshot.text, opts, {
@@ -168,7 +173,12 @@ export function validateEdited(
 ): Environments {
   const result = loadEnvironments(
     text,
-    { cliVersion: deps.workspace.cliVersion, strict: true, allowInvalid: true },
+    {
+      cliVersion: deps.workspace.cliVersion,
+      providers: deps.workspace.ctx.providers,
+      strict: true,
+      allowInvalid: true,
+    },
     { workspace: plan.workspace },
   );
   if (!result.valid || result.problems.length) throw invalid();

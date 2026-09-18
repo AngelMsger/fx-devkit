@@ -1,12 +1,39 @@
-// Which provider fulfils each capability, read off the two documents that bind them. A
-// schema 1 document names no providers: its git host implies the default code host and a
-// platform's name implies the family tool that serves it. Whether a provider id names a
+// Which provider fulfils each capability, read off the two documents that bind them and
+// the catalog of providers this fx ships. A schema 1 document names no providers: its git
+// host implies the default code host and a platform's name implies the family tool that
+// serves it, both of which the providers themselves declare. Whether a provider id names a
 // real adapter is the registry's business.
 
 import { capabilitiesInScope, type Capability } from '../capability.js';
 
-import { serviceVars, type ServiceSettings } from './service.schema.js';
+import {
+  serviceVars,
+  type AuthScheme,
+  type ServiceField,
+  type ServiceSettings,
+} from './service.schema.js';
 import type { Environments, Workspace } from './types.js';
+
+// The shared service settings a provider accepts in a manifest, and the authentication
+// methods it can use. A provider without one takes no service block at all.
+export interface ServiceContract {
+  readonly fields: readonly ServiceField[];
+  readonly authSchemes?: readonly AuthScheme[];
+}
+
+// What reading a manifest needs to know about a provider. `ProviderDescriptor` carries
+// these, so the adapter that implements a provider is also the one that declares them.
+export interface ProviderFacts {
+  readonly id: string;
+  readonly capability: Capability;
+  readonly settings?: ServiceContract;
+  // A schema 1 workspace writes `defaults.host` and no provider: this one stands in.
+  readonly impliedByDefaultHost?: true;
+  // Platform names a schema 1 environments document uses in place of this provider's id.
+  readonly impliedByPlatform?: readonly string[];
+}
+
+export type ProviderCatalog = readonly ProviderFacts[];
 
 export type BindingSource = 'explicit' | 'default' | 'unbound' | 'misplaced';
 
@@ -17,8 +44,6 @@ export interface Binding {
   readonly vars: Readonly<Record<string, string>>;
   readonly service?: ServiceSettings;
 }
-
-const DEFAULT_CODE_HOST = 'bitbucket-cli';
 
 // A capability that the bound set does not mention reads as an explicit absence,
 // so resolution reports it with its recovery steps instead of failing on nothing.
@@ -33,8 +58,9 @@ export function bindingOf(bindings: readonly Binding[], capability: Capability):
   );
 }
 
-export function bindProviders(workspace: Workspace): Binding[] {
+export function bindProviders(workspace: Workspace, providers: ProviderCatalog): Binding[] {
   const explicit = workspace.providers ?? {};
+  const implied = providers.find((provider) => provider.impliedByDefaultHost);
   const bindings: Binding[] = capabilitiesInScope('workspace').map((capability) => {
     const bound = explicit[capability];
     if (bound !== undefined) {
@@ -50,10 +76,10 @@ export function bindProviders(workspace: Workspace): Binding[] {
         ...(bound.service ? { service: bound.service } : {}),
       };
     }
-    if (capability === 'code-host' && workspace.defaults.host !== undefined) {
+    if (implied?.capability === capability && workspace.defaults.host !== undefined) {
       return {
         capability,
-        provider: DEFAULT_CODE_HOST,
+        provider: implied.id,
         source: 'default',
         vars: { host: workspace.defaults.host },
       };
@@ -77,33 +103,36 @@ export interface PlatformBinding extends Binding {
   readonly platform: string;
 }
 
-export const PLATFORM_DEFAULTS: Readonly<
-  Record<string, { readonly provider: string; readonly capability: Capability }>
-> = {
-  sentry: { provider: 'sentry', capability: 'error-tracker' },
-  openobserve: { provider: 'openobserve-cli', capability: 'log-store' },
-  jenkins: { provider: 'jenkins-cli', capability: 'ci' },
-  kube: { provider: 'kubectl', capability: 'cluster' },
-};
-
-export function bindPlatforms(environments: Environments | undefined): PlatformBinding[] {
+export function bindPlatforms(
+  environments: Environments | undefined,
+  providers: ProviderCatalog,
+): PlatformBinding[] {
   if (environments === undefined) return [];
+  const impliedBy = (platform: string): ProviderFacts | undefined =>
+    providers.find((provider) => provider.impliedByPlatform?.includes(platform));
   return Object.entries(environments.platforms).map(([platform, spec]) => {
     const vars = { ...spec.vars, ...serviceVars(spec.service) };
     const service = spec.service ? { service: spec.service } : {};
     if (spec.provider !== undefined) {
       return {
         platform,
-        capability: spec.capability ?? PLATFORM_DEFAULTS[platform]?.capability ?? 'unknown',
+        capability: spec.capability ?? impliedBy(platform)?.capability ?? 'unknown',
         provider: spec.provider,
         source: 'explicit',
         vars,
         ...service,
       };
     }
-    const fallback = PLATFORM_DEFAULTS[platform];
+    const fallback = impliedBy(platform);
     if (fallback !== undefined)
-      return { platform, ...fallback, source: 'default', vars, ...service };
+      return {
+        platform,
+        provider: fallback.id,
+        capability: fallback.capability,
+        source: 'default',
+        vars,
+        ...service,
+      };
     return {
       platform,
       capability: spec.capability ?? 'unknown',

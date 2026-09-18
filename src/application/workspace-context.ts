@@ -3,7 +3,7 @@
 import path from 'node:path';
 
 import type { ResolvedRepo, ResolvedWorkspace } from '../domain/manifest/local.js';
-import type { Binding, PlatformBinding } from '../domain/manifest/providers.js';
+import type { Binding, PlatformBinding, ProviderCatalog } from '../domain/manifest/providers.js';
 import { describeManifestRepo } from '../domain/manifest/source-repo.js';
 import type { LocalLayer } from '../domain/manifest/types.js';
 import type { FileReader } from '../ports/fs.js';
@@ -22,11 +22,13 @@ export interface LocateInput extends ResolveInput {
   readonly git: Pick<Git, 'remoteHead'>;
   readonly localStore: LocalLayerStore;
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
 }
 
 export class WorkspaceContext {
   readonly manifest: ManifestBundle;
+  readonly providers: ProviderCatalog;
   readonly bindings: readonly Binding[];
   readonly platforms: readonly PlatformBinding[];
 
@@ -39,6 +41,7 @@ export class WorkspaceContext {
     readonly selection: Located['selection'],
   ) {
     this.manifest = context.bundle;
+    this.providers = context.providers;
     this.bindings = context.bindings;
     this.platforms = context.platforms;
   }

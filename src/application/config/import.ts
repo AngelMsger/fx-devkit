@@ -6,6 +6,7 @@ import path from 'node:path';
 import { parseProfile } from '../../domain/config/codec.js';
 import type { Profile } from '../../domain/config/profile.js';
 import { DevkitError } from '../../domain/errors.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -26,6 +27,7 @@ export interface ConfigImportDeps {
   readonly commandShell?: ResolvedShell;
   readonly lock: Lock;
   readonly cliVersion: string;
+  readonly providers: ProviderCatalog;
 }
 
 export interface ConfigImportInput {
@@ -121,6 +123,7 @@ export class ConfigImport {
         entry: merged.workspaces![name]!,
         manifestDir: this.deps.manifestDirFor(name),
         cliVersion: this.deps.cliVersion,
+        providers: this.deps.providers,
         layer,
       });
       workspaces.push({ name, action: actionFor(await this.deps.localStore.read(name), layer) });

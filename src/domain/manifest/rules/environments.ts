@@ -4,11 +4,15 @@
 // not a suggestion.
 
 import { isSemver } from '../../semver.js';
+import type { ProviderCatalog } from '../providers.js';
 import type { Environments, Problem, Workspace } from '../types.js';
 
 import { serviceRules } from './services.js';
 
-export function environmentsRules(doc: Environments): Problem[] {
+export function environmentsRules(
+  doc: Environments,
+  providers: ProviderCatalog | undefined,
+): Problem[] {
   const problems: Problem[] = [];
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {
     problems.push({ path: 'min_cli', message: 'must be a semantic version' });
@@ -31,12 +35,15 @@ export function environmentsRules(doc: Environments): Problem[] {
       const override = env.platforms?.[platform];
       if (base?.service || override?.service)
         problems.push(
-          ...serviceRules(
-            base?.provider ?? platform,
-            { ...base?.service, ...override?.service },
-            { ...base?.vars, ...override?.vars },
-            `envs.${envName}.platforms.${platform}.service`,
-          ),
+          ...serviceRules({
+            providers,
+            // A schema 1 platform names no provider; its own name is what the
+            // document offers, and a name no provider answers to is reported as one.
+            provider: base?.provider ?? platform,
+            service: { ...base?.service, ...override?.service },
+            vars: { ...base?.vars, ...override?.vars },
+            path: `envs.${envName}.platforms.${platform}.service`,
+          }),
         );
     }
   }

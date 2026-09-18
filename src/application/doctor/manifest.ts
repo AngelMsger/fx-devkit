@@ -21,7 +21,11 @@ export async function checkManifest(
   bundledTools: () => string,
   upstream: UpstreamCheck,
 ): Promise<Finding[]> {
-  const input = { dir: deps.ctx.manifest.dir, cliVersion: deps.cliVersion };
+  const input = {
+    dir: deps.ctx.manifest.dir,
+    cliVersion: deps.cliVersion,
+    providers: deps.ctx.providers,
+  };
   const report = await new ValidateManifest(deps.fs, bundledTools).execute({
     ...input,
     strict: false,

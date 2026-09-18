@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { lintManifest } from '../../../../src/domain/manifest/lint.js';
 import { bindPlatforms } from '../../../../src/domain/manifest/providers.js';
 import type { Environments, Workspace } from '../../../../src/domain/manifest/types.js';
@@ -17,7 +18,7 @@ describe('bindPlatforms', () => {
       },
       envs: { test: {} },
     };
-    expect(bindPlatforms(env)).toEqual([
+    expect(bindPlatforms(env, providerCatalog())).toEqual([
       {
         platform: 'sentry',
         capability: 'error-tracker',
@@ -28,14 +29,17 @@ describe('bindPlatforms', () => {
       { platform: 'kube', capability: 'cluster', provider: 'kubectl', source: 'default', vars: {} },
       { platform: 'grafana', capability: 'unknown', provider: null, source: 'unbound', vars: {} },
     ]);
-    expect(lintManifest({ workspace: ws, environments: env }).map((f) => [f.code, f.path])).toEqual(
-      [
-        ['PLATFORM_PROVIDER_IMPLIED', 'platforms.sentry'],
-        ['PLATFORM_PROVIDER_IMPLIED', 'platforms.kube'],
-        ['PLATFORM_UNBOUND', 'platforms.grafana'],
-        ['ENV_NO_LABEL', 'envs.test'],
-      ],
-    );
+    expect(
+      lintManifest({ providers: providerCatalog(), workspace: ws, environments: env }).map((f) => [
+        f.code,
+        f.path,
+      ]),
+    ).toEqual([
+      ['PLATFORM_PROVIDER_IMPLIED', 'platforms.sentry'],
+      ['PLATFORM_PROVIDER_IMPLIED', 'platforms.kube'],
+      ['PLATFORM_UNBOUND', 'platforms.grafana'],
+      ['ENV_NO_LABEL', 'envs.test'],
+    ]);
   });
 
   it('prefers an explicit provider, even under a family name', () => {
@@ -44,7 +48,7 @@ describe('bindPlatforms', () => {
       platforms: { sentry: { provider: 'glitchtip-cli', capability: 'error-tracker' } },
       envs: { test: { label: 'Test' } },
     };
-    expect(bindPlatforms(env)).toEqual([
+    expect(bindPlatforms(env, providerCatalog())).toEqual([
       {
         platform: 'sentry',
         capability: 'error-tracker',
@@ -53,7 +57,9 @@ describe('bindPlatforms', () => {
         vars: {},
       },
     ]);
-    expect(lintManifest({ workspace: ws, environments: env })).toEqual([]);
-    expect(bindPlatforms(undefined)).toEqual([]);
+    expect(
+      lintManifest({ providers: providerCatalog(), workspace: ws, environments: env }),
+    ).toEqual([]);
+    expect(bindPlatforms(undefined, providerCatalog())).toEqual([]);
   });
 });

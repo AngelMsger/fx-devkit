@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import {
   loadEnvironments,
   loadLocal,
@@ -194,6 +195,17 @@ describe('loadEnvironments', () => {
     expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems.map((p) => p.path)).toEqual([
       'release.targets',
     ]);
+  });
+
+  it('checks a service block only against a catalog it was given', () => {
+    const doc =
+      'schema_version: 2\nproviders:\n  code-host: {provider: bitbucket-cli, vars: {host: "ssh://git@git.example.com"}, service: {base_url: "https://git.example.com", auth_scheme: token}}\nrepos: [{name: a, branch: main}]\n';
+    expect(
+      loadWorkspace(doc, { ...cli, providers: providerCatalog(), allowInvalid: true }).problems.map(
+        (p) => p.path,
+      ),
+    ).toEqual(['providers.code-host.service.context', 'providers.code-host.service.auth_scheme']);
+    expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems).toEqual([]);
   });
 
   it('refuses a release window it cannot read', () => {

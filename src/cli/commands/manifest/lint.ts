@@ -16,6 +16,7 @@ export default class ManifestLint extends FxCommand {
     ).execute({
       dir,
       cliVersion: this.config.version,
+      providers: this.container.providers,
     });
     this.renderer.list(findings, { columns: ['kind', 'code', 'path', 'message'] });
   }

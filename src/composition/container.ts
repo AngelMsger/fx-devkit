@@ -23,7 +23,7 @@ import type { SkillDeps } from '../application/skill/targets.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
 import { CAPABILITIES } from '../domain/capability.js';
-import { bindingOf } from '../domain/manifest/providers.js';
+import { bindingOf, type ProviderCatalog } from '../domain/manifest/providers.js';
 import { FileCache } from '../infra/cache.js';
 import { FileConfigStore } from '../infra/config-store.js';
 import { fxHome } from '../infra/home.js';
@@ -55,7 +55,13 @@ import {
   type PackageMetadata,
 } from './bundled.js';
 import { DiagnosticChannel } from './diagnostics.js';
-import { createAgentHosts, describeProvider, providersFor, resolveProvider } from './registry.js';
+import {
+  createAgentHosts,
+  describeProvider,
+  providerCatalog,
+  providersFor,
+  resolveProvider,
+} from './registry.js';
 
 export interface Container {
   readonly openUrl: (url: string) => Promise<boolean>;
@@ -78,6 +84,7 @@ export interface Container {
   readonly fxHome: string;
   readonly manifestDirFor: (name: string) => string;
   readonly describeProvider: (id: string) => ProviderDescriptor<unknown> | undefined;
+  readonly providers: ProviderCatalog;
   readonly registryAt: (url: string, timeoutMs: number) => Registry;
   readonly diagnostics: DiagnosticChannel;
 }
@@ -115,6 +122,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     fxHome: home,
     manifestDirFor: (name) => manifestSourceDir(home, name),
     describeProvider,
+    providers: providerCatalog(),
     registryAt: (registry, timeoutMs) =>
       new NpmHttpRegistry({ registry, timeoutMs, env, userHome: os.homedir() }),
     diagnostics,

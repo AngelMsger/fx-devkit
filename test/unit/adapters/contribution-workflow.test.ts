@@ -13,6 +13,7 @@ import { ContributionGitTransport } from '../../../src/adapters/git/contribution
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { PushSource } from '../../../src/application/contribution/push.js';
 import { ValidateContribution } from '../../../src/application/contribution/validate.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
@@ -102,6 +103,7 @@ describe('native contribution workflow with a durable journal', () => {
           }),
         },
         () => readFileSync('defaults/tools.yaml', 'utf8'),
+        providerCatalog(),
       ),
       clock: new SystemClock(),
       lock,

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { DevkitError } from '../../domain/errors.js';
 import { setRepoField } from '../../domain/manifest/editor.js';
 import { loadWorkspace } from '../../domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { Problem } from '../../domain/manifest/types.js';
 import type { FileSystem } from '../../ports/fs.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
@@ -17,6 +18,7 @@ import { MANIFEST_FILES } from './locate.js';
 export interface SetRepoFieldInput {
   readonly dir: string;
   readonly cliVersion: string;
+  readonly providers: ProviderCatalog;
   readonly repo: string;
   readonly field: string;
   readonly value: string;
@@ -47,7 +49,11 @@ export class SetRepoField {
     const original = (await this.fs.readText(file)) ?? '';
     const edit = setRepoField(original, input.repo, input.field, input.value);
 
-    const opts = { cliVersion: input.cliVersion, allowInvalid: true as const };
+    const opts = {
+      cliVersion: input.cliVersion,
+      providers: input.providers,
+      allowInvalid: true as const,
+    };
     const before = new Set(loadWorkspace(original, opts).problems.map(key));
     const introduced = loadWorkspace(edit.text, opts).problems.filter((p) => !before.has(key(p)));
     if (introduced.length > 0) {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SnapshotReader } from '../../../../src/adapters/fs/snapshot-reader.js';
 import { ValidateContribution } from '../../../../src/application/contribution/validate.js';
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { buildContributionCandidate } from '../../../../src/domain/contribution/candidate.js';
 
 const workspace =
@@ -22,6 +23,7 @@ const validator = new ValidateContribution(
     }),
   },
   () => readFileSync('defaults/tools.yaml', 'utf8'),
+  providerCatalog(),
 );
 const file = (path: string, content: string) => ({
   path,

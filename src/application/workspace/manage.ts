@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import { asDevkitError, busyError, DevkitError, withPartialResult } from '../../domain/errors.js';
+import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { samePath } from '../../domain/path.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -24,6 +25,7 @@ export interface ManageWorkspaceDeps {
   readonly resources: WorkspaceResources;
   readonly manifestDirFor: (name: string) => string;
   readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
   readonly cliVersion: string;
   readonly commandShell?: ResolvedShell | undefined;
 }

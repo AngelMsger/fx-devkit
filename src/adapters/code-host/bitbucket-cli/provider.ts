@@ -179,6 +179,11 @@ export class BitbucketCodeHost implements CodeHost {
 export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   id: 'bitbucket-cli',
   capability: 'code-host',
+  impliedByDefaultHost: true,
+  settings: {
+    fields: ['base_url', 'context', 'flavor', 'auth_scheme', 'credential_url'],
+    authSchemes: ['pat', 'basic'],
+  },
   tools: [BINARY],
   service: (settings) => familyService('bitbucket-cli', settings),
   recipes: BITBUCKET_RECIPES,

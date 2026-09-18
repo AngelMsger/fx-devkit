@@ -23,6 +23,7 @@ export default class ManifestRepoSet extends FxCommand {
     const result = await new SetRepoField(this.container.fs, this.container.bundledTools).execute({
       dir,
       cliVersion: this.config.version,
+      providers: this.container.providers,
       repo: args.repo,
       field: args.field,
       value: args.value,

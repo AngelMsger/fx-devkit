@@ -16,6 +16,7 @@ export default class ManifestProviders extends FxCommand {
     ).execute({
       dir,
       cliVersion: this.config.version,
+      providers: this.container.providers,
     });
     this.renderer.list(bindings, {
       columns: BINDING_COLUMNS,

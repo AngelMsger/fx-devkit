@@ -17,6 +17,7 @@ export default class WorkspaceShow extends FxCommand {
         ...resolve,
         name: args.name ?? resolve.name,
         bundledTools: this.container.bundledTools,
+        providers: this.container.providers,
         cliVersion: this.config.version,
       }),
     );

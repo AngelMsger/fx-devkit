@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { lintManifest } from '../../../../src/domain/manifest/lint.js';
 import {
   loadEnvironments,
@@ -15,27 +16,33 @@ const text = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
 const cli = { cliVersion: '1.0.0' };
 const codes = (findings: readonly { code: string }[]): string[] => findings.map((f) => f.code);
+const providers = providerCatalog();
 
 describe('lintManifest', () => {
   it('reports uncovered shared repositories only when ownership data was read', () => {
     const workspace = loadWorkspace(text('v2-full/workspace.yaml'), cli).doc;
-    expect(codes(lintManifest({ workspace }))).not.toContain('REPO_NO_OWNER');
-    const findings = lintManifest({ workspace, ownedRepos: ['fx-example-api'] }).filter(
+    expect(codes(lintManifest({ providers, workspace }))).not.toContain('REPO_NO_OWNER');
+    const findings = lintManifest({ providers, workspace, ownedRepos: ['fx-example-api'] }).filter(
       (f) => f.code === 'REPO_NO_OWNER',
     );
     expect(findings.map((f) => f.path)).toEqual(
       workspace.repos.flatMap((repo, i) => (repo.name === 'fx-example-api' ? [] : [`repos[${i}]`])),
     );
     expect(
-      lintManifest({ workspace, ownedRepos: workspace.repos.map((repo) => repo.name) }).filter(
-        (f) => f.code === 'REPO_NO_OWNER',
-      ),
+      lintManifest({
+        providers,
+        workspace,
+        ownedRepos: workspace.repos.map((repo) => repo.name),
+      }).filter((f) => f.code === 'REPO_NO_OWNER'),
     ).toEqual([]);
   });
 
   it.each(['', '  \t'])('treats a blank project contact as missing', (contact) => {
     const workspace = loadWorkspace(text('v2-full/workspace.yaml'), cli).doc;
-    const findings = lintManifest({ workspace: { ...workspace, projects: { fx: { contact } } } });
+    const findings = lintManifest({
+      providers,
+      workspace: { ...workspace, projects: { fx: { contact } } },
+    });
     expect(findings).toContainEqual(
       expect.objectContaining({ code: 'PROJECT_NO_CONTACT', path: 'projects.fx' }),
     );
@@ -47,7 +54,12 @@ describe('lintManifest', () => {
       'schema_version: 2\nplatforms:\n  remote-access: {provider: file-access, capability: cluster}\n  kube: {provider: automatic-access, capability: cluster}\nenvs:\n  dev:\n    label: Development\n    platforms:\n      remote-access: {setup: {download: " "}}\n      kube: {}\n  absent: {label: Absent}\n  off:\n    label: Disabled\n    platforms:\n      remote-access: {confidence: not_covered}\n',
       cli,
     ).doc;
-    const input = { workspace, environments, providerSetupHints: { 'file-access': ['download'] } };
+    const input = {
+      providers,
+      workspace,
+      environments,
+      providerSetupHints: { 'file-access': ['download'] },
+    };
     expect(lintManifest(input).filter((f) => f.code === 'PLATFORM_NO_SETUP')).toEqual([
       expect.objectContaining({
         path: 'envs.dev.platforms.remote-access.setup',
@@ -76,12 +88,12 @@ describe('lintManifest', () => {
   it('has nothing to say about a clean schema 2 workspace', () => {
     const workspace = loadWorkspace(text('v2-full/workspace.yaml'), cli).doc;
     const environments = loadEnvironments(text('v2-full/environments.yaml'), cli).doc;
-    expect(lintManifest({ workspace, environments })).toEqual([]);
+    expect(lintManifest({ providers, workspace, environments })).toEqual([]);
   });
 
   it('suggests providers on a schema 1 document and nothing else on a tidy one', () => {
     const workspace = loadWorkspace(text('v1-minimal/workspace.yaml'), cli).doc;
-    expect(lintManifest({ workspace })).toEqual([
+    expect(lintManifest({ providers, workspace })).toEqual([
       expect.objectContaining({ kind: 'workspace', code: 'PROVIDERS_MISSING', path: 'providers' }),
     ]);
   });
@@ -96,7 +108,7 @@ describe('lintManifest', () => {
       projects: { fx: { contact: '#fx' } },
       repos: [{ name: 'a', path: 'a', branch: 'dev', project: 'fx' }],
     };
-    const findings = lintManifest({ workspace });
+    const findings = lintManifest({ providers, workspace });
     expect(findings.map((f) => f.path)).toEqual([
       'repos[0].path',
       'repos[0].branch',
@@ -118,7 +130,7 @@ describe('lintManifest', () => {
         { name: 'b', project: 'ghost' },
       ],
     };
-    const findings = lintManifest({ workspace });
+    const findings = lintManifest({ providers, workspace });
     expect(findings.map((f) => [f.code, f.path])).toEqual([
       ['PROJECT_UNDECLARED', 'repos[1].project'],
       ['PROJECT_NO_CONTACT', 'projects.fx'],
@@ -132,7 +144,7 @@ describe('lintManifest', () => {
       cli,
     ).doc;
     const workspace = loadWorkspace(text('v2-full/workspace.yaml'), cli).doc;
-    expect(lintManifest({ workspace, environments })).toEqual([
+    expect(lintManifest({ providers, workspace, environments })).toEqual([
       expect.objectContaining({
         kind: 'environments',
         code: 'ENV_NO_LABEL',
@@ -165,7 +177,7 @@ describe('lintManifest', () => {
       cli,
     ).doc;
     const workspace = loadWorkspace(text('v2-full/workspace.yaml'), cli).doc;
-    const findings = lintManifest({ workspace, tools: { base, patch } });
+    const findings = lintManifest({ providers, workspace, tools: { base, patch } });
     expect(findings.map((f) => [f.code, f.path])).toEqual([['PATCH_NOOP', 'tools[0].desc']]);
   });
 
@@ -175,9 +187,9 @@ describe('lintManifest', () => {
       cli,
     ).doc;
     const environments = loadEnvironments(text('v2-full/environments.yaml'), cli).doc;
-    expect(lintManifest({ workspace, environments }).map((f) => [f.code, f.path])).toEqual([
-      ['RELEASE_ENV_UNSET', 'release.env'],
-    ]);
+    expect(
+      lintManifest({ providers, workspace, environments }).map((f) => [f.code, f.path]),
+    ).toEqual([['RELEASE_ENV_UNSET', 'release.env']]);
   });
 
   it('names the checklist repositories whose errors fx release cannot see', () => {
@@ -188,9 +200,9 @@ describe('lintManifest', () => {
       cli,
     ).doc;
     const environments = loadEnvironments(text('v2-full/environments.yaml'), cli).doc;
-    expect(lintManifest({ workspace, environments }).map((f) => [f.code, f.path])).toEqual([
-      ['RELEASE_COVERAGE_GAP', 'repos[0].release'],
-    ]);
+    expect(
+      lintManifest({ providers, workspace, environments }).map((f) => [f.code, f.path]),
+    ).toEqual([['RELEASE_COVERAGE_GAP', 'repos[0].release']]);
   });
 
   it('counts an environment that declares its tracker uncovered as a gap for everyone', () => {
@@ -202,7 +214,7 @@ describe('lintManifest', () => {
       ),
       cli,
     ).doc;
-    expect(new Set(codes(lintManifest({ workspace, environments })))).toEqual(
+    expect(new Set(codes(lintManifest({ providers, workspace, environments })))).toEqual(
       new Set(['RELEASE_COVERAGE_GAP']),
     );
   });
@@ -218,7 +230,7 @@ describe('lintManifest', () => {
       cli,
     ).doc;
     const environments = loadEnvironments(text('v2-full/environments.yaml'), cli).doc;
-    expect(lintManifest({ workspace, environments }).map((f) => f.code)).toEqual([
+    expect(lintManifest({ providers, workspace, environments }).map((f) => f.code)).toEqual([
       'RELEASE_COVERAGE_GAP',
     ]);
   });

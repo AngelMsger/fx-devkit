@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { checkInstallations } from '../../../src/application/doctor/installations.js';
 import { ToolInstall } from '../../../src/application/tool/install.js';
 import { ToolInstalled } from '../../../src/application/tool/installed.js';
+import { providerCatalog } from '../../../src/composition/registry.js';
 import { DevkitError } from '../../../src/domain/errors.js';
 import { loadTools, loadWorkspace } from '../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../src/domain/toolchain/resolve.js';
@@ -41,6 +42,7 @@ function fixture() {
     process,
     bundledTools: () => baseline,
     manifestDirFor: (name) => path.resolve('/', name),
+    providers: providerCatalog(),
     cliVersion: '1.0.0',
   });
   return { history, audit, process, tools, install, config, fs, inventory };

@@ -108,6 +108,7 @@ function workspaceContextFor(
         localStore: container.localStore,
         reporter,
         bundledTools: container.bundledTools,
+        providers: container.providers,
         cliVersion,
         manifestDirFor: container.manifestDirFor,
       }),

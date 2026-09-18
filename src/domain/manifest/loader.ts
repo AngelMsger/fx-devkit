@@ -10,6 +10,7 @@ import { harnessSchema, mcpSchema } from './harness.schema.js';
 import { localSchema } from './local.schema.js';
 import { membersSchema } from './members.schema.js';
 import { mergeTools, type MergePath, type Provenance } from './overlay.js';
+import type { ProviderCatalog } from './providers.js';
 import { partitionProblems } from './quarantine.js';
 import { acceptsNullAt, stripUnknown } from './reflect.js';
 import {
@@ -42,6 +43,9 @@ import { repoSchema, workspaceSchema } from './workspace.schema.js';
 export interface LoadOptions {
   readonly cliVersion: string;
   readonly strict?: boolean;
+  // The providers this fx ships, for the rules that check a provider's own service
+  // settings. Undefined means this load path has no catalog; see `serviceRules`.
+  readonly providers?: ProviderCatalog;
 }
 
 export interface InspectLoadOptions extends LoadOptions {
@@ -88,7 +92,7 @@ export function loadWorkspace(text: string, opts: AnyLoadOptions): InspectedLoad
     schema: workspaceSchema,
     supported: SUPPORTED.workspace,
     entries: { key: 'repos', schema: repoSchema },
-    rules: workspaceRules,
+    rules: (doc) => workspaceRules(doc, opts.providers),
     invalidCode: () => 'MANIFEST_INVALID',
   });
 }
@@ -113,7 +117,7 @@ export function loadEnvironments(
     schema: environmentsSchema,
     supported: SUPPORTED.environments,
     rules: (doc) => [
-      ...environmentsRules(doc),
+      ...environmentsRules(doc, opts.providers),
       ...(context.workspace === undefined
         ? []
         : [
