@@ -1,8 +1,6 @@
-// Rendering the generated regions of AGENTS.md (and the CLAUDE.md pointer)
-// inside a manifest directory — a checkout of the manifest repository, for
-// its maintainers and its CI. Prose outside the regions is never touched; a
-// draft may go to another path so it can be looked at without touching
-// anything.
+// Rendering the generated regions of AGENTS.md (and the CLAUDE.md pointer) inside a
+// checkout of the manifest repository, for its maintainers and its CI. Prose outside the
+// regions is never touched, and a draft may go to another path instead.
 
 import path from 'node:path';
 

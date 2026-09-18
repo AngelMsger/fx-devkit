@@ -1,8 +1,6 @@
 // A code host that is a directory of bare repositories: `host/PROJECT/name.git`
-// upstream, `host/~user/name.git` forks. It exists so the workspace can be
-// exercised end to end without a server, and it is the first proof that a
-// provider is one manifest line away from being swapped. Queries run git
-// against the bare repository itself, so no checkout is ever involved.
+// upstream, `host/~user/name.git` forks, so a workspace can be exercised end to end
+// without a server. Queries run git against the bare repository itself, never a checkout.
 
 import path from 'node:path';
 

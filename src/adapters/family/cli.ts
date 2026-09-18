@@ -1,8 +1,6 @@
-// The thin layer over a family CLI subprocess (bitbucket-cli, jenkins-cli):
-// one place that knows the global flags, the JSON envelopes and the family
-// exit codes, so a provider above it reads like a description of its
-// platform, not of a CLI. Raw stdout is kept because some answers are not
-// JSON at all (a file's bytes).
+// The one place that knows a family CLI's global flags, JSON envelopes and exit codes
+// (bitbucket-cli, jenkins-cli). Raw stdout is kept too, because some answers are not JSON
+// at all — a file's bytes.
 
 import { type Category, DevkitError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
