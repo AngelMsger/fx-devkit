@@ -105,6 +105,12 @@ export const toolSchema = z
       .boolean()
       .optional()
       .describe('false keeps the entry but marks the tool as no longer used by the team'),
+    opt_in: z
+      .boolean()
+      .optional()
+      .describe(
+        'baseline only: fx knows this tool but does not assume it, so a workspace activates it by naming it',
+      ),
     version_args: commandVector
       .optional()
       .describe(

@@ -27,12 +27,27 @@ providers:
     service: {base_url: 'https://git.example.com/deploy', context: team, flavor: datacenter, auth_scheme: pat}
 `;
 
-async function fixture(options: { environments?: string; readOnly?: boolean; yes?: boolean } = {}) {
+// The opt-in CLIs a case binds; a workspace has to name one before fx checks it.
+function vendorTools(names: readonly string[]): string {
+  return ['schema_version: 2', 'tools:', ...names.map((name) => `  - {name: ${name}}`)].join('\n');
+}
+
+async function fixture(
+  options: {
+    environments?: string;
+    tools?: readonly string[];
+    readOnly?: boolean;
+    yes?: boolean;
+  } = {},
+) {
   const h = await harness({
     workspace,
     files: options.environments
       ? {
           [`${MANIFEST_DIR}/manifest/environments.yaml`]: options.environments,
+          ...(options.tools === undefined
+            ? {}
+            : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: vendorTools(options.tools) }),
         }
       : {},
   });
@@ -242,6 +257,7 @@ envs:
 describe('environment and file preparation', () => {
   it('retains legacy setup for environments that have not opted into service presets', async () => {
     const { h, login } = await fixture({
+      tools: ['openobserve-cli'],
       environments: `schema_version: 2
 platforms:
   logs: {provider: openobserve-cli, capability: log-store}
@@ -278,7 +294,7 @@ envs:
     });
   });
   it('uses selected per-environment contexts and browser login', async () => {
-    const { h, login } = await fixture({ environments });
+    const { h, login } = await fixture({ environments, tools: ['openobserve-cli'] });
     const plan = buildPlan(h.deps, login, {
       tools: ['openobserve-cli'],
       envs: ['prod'],
@@ -322,6 +338,7 @@ envs:
   it('rejects conflicting declarations for the same native context before writes', async () => {
     const { plan } = await fixture({
       environments: environments.replace('context: prod', 'context: dev'),
+      tools: ['openobserve-cli'],
     });
     expect(plan.problems.some((p) => p.reason === 'step_conflict')).toBe(true);
     expect(plan.steps.some((step) => step.tool === 'openobserve-cli')).toBe(false);
@@ -333,7 +350,7 @@ platforms:
   errors: {provider: sentry, capability: error-tracker, service: {base_url: 'https://sentry.example.com', org: team}}
 envs: {dev: {platforms: {errors: {}}}}
 `;
-    const { h, operation, plan, login } = await fixture({ environments: env });
+    const { h, operation, plan, login } = await fixture({ environments: env, tools: ['sentry'] });
     const step = plan.steps.find((item) => item.tool === 'sentry' && item.preparation)!;
     const target = path.join(ROOT, '.sentryclirc');
     expect((await operation.execute(step, true)).status).toBe('planned');

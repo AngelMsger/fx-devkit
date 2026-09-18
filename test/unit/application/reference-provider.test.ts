@@ -1,6 +1,9 @@
 // Reference capabilities must prove readiness without running their business
 // entry; manifest values stay arguments and unknown bindings stay errors.
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { Can } from '../../../src/application/can.js';
@@ -8,10 +11,14 @@ import { describeProvider, resolveProvider } from '../../../src/composition/regi
 import type { Coordinate } from '../../../src/domain/obs/types.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
-import { harness } from '../../fakes/workspace.js';
+import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
+
+const tools = (): string =>
+  readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape/tools.yaml'), 'utf8');
 
 async function stage(capability: string, provider: string, vars: Record<string, string>) {
   const h = await harness({
+    files: { [`${MANIFEST_DIR}/manifest/tools.yaml`]: tools() },
     workspace: JSON.stringify({
       schema_version: 2,
       providers: { [capability]: { provider, vars } },

@@ -119,6 +119,7 @@ async function stage(options: StageOptions = {}) {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]:
         options.environments ?? fixture('environments.yaml'),
       [`${MANIFEST_DIR}/manifest/members.yaml`]: fixture('members.yaml'),
+      [`${MANIFEST_DIR}/manifest/tools.yaml`]: fixture('tools.yaml'),
     },
     codeHost,
     platforms: options.platforms ?? { 'jenkins-cli': ci, sentry: tracker },
@@ -241,7 +242,10 @@ describe('Release', () => {
     const s = await stage();
     const picked = await harness({
       workspace: fixture('workspace.yaml') + RELEASE_BLOCK,
-      files: { [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml') },
+      files: {
+        [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml'),
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]: fixture('tools.yaml'),
+      },
       local: { scope: { repos: ['fx-example-data'] } },
       codeHost: s.codeHost,
       platforms: { 'jenkins-cli': s.ci, sentry: s.tracker },

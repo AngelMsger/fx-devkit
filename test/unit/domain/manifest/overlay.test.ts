@@ -37,12 +37,36 @@ const base: Toolchain = {
       ],
     },
     { name: 'jira-cli', desc: 'Jira' },
+    {
+      name: 'jenkins-cli',
+      opt_in: true,
+      desc: 'Jenkins',
+      min_version: '0.6.2',
+      install: [{ via: 'npm', spec: '@example/jenkins-cli' }],
+    },
   ],
 };
 
 const cli = { cliVersion: '1.0.0' };
 
 describe('mergeTools', () => {
+  it('leaves an opt-in tool out of the toolchain until a patch names it', () => {
+    const { toolchain } = mergeTools(base, { schema_version: 2, tools: [] });
+    expect(toolchain.tools.map((t) => t.name)).toEqual(['bitbucket-cli', 'jira-cli']);
+  });
+
+  it('vouches for an opt-in tool a patch only names, and owns the field it changes', () => {
+    const { toolchain, provenance } = mergeTools(base, {
+      schema_version: 2,
+      tools: [{ name: 'jenkins-cli', min_version: '0.9.0' }],
+    });
+    const tool = toolchain.tools.find((t) => t.name === 'jenkins-cli');
+    expect(tool?.install).toEqual([{ via: 'npm', spec: '@example/jenkins-cli' }]);
+    expect(provenance['jenkins-cli']?.['name']).toBe('base');
+    expect(provenance['jenkins-cli']?.['install']).toBe('base');
+    expect(provenance['jenkins-cli']?.['min_version']).toBe('patch');
+  });
+
   it('overrides scalars, keeps the rest, and records where each field came from', () => {
     const { toolchain, provenance } = mergeTools(base, {
       schema_version: 2,

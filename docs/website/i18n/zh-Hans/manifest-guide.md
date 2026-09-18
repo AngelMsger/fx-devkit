@@ -22,7 +22,7 @@ team-workspace/
 
 只有 `manifest/workspace.yaml` 必填，保存仓库与工作区 provider。environments 保存环境和平台坐标，tools 覆盖内置工具定义，members 保存成员信息且必须标记 `sensitive: true`，harness 声明 MCP 和规则；这些文件均可选。
 
-AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以补充团队规则与文档。未提供环境、成员或 harness 文档时，相应能力保持未配置；未提供 tools.yaml 时仍使用内置工具目录。凭据属于工具，不应写入这些文件。
+AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以补充团队规则与文档。未提供环境、成员或 harness 文档时，相应能力保持未配置；未提供 tools.yaml 时仍使用每个工作区都有的内置工具。部分内置工具是按需选用的: 版本下限、安装方式和命令仍由 fx 维护, 但只有写出名字的工作区才会得到它们。写出名字就是全部声明, fx 的命令因此保持受信任, 无需逐条确认; 只在与内置事实不同的地方覆盖字段, 被覆盖的字段归团队所有, 执行前 fx 会再次确认。凭据属于工具，不应写入这些文件。
 
 内置工具声明最低版本要求。使用 `fx tool show <tool>` 查看实际要求，通过 `fx tool update <tool> --dry-run` 预览升级。团队可在 `manifest/tools.yaml` 中覆盖 `min_version`，以维持适合自身环境的兼容性基线。最低版本要求不会将 npm 安装锁定到该版本。
 

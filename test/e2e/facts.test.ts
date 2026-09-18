@@ -95,6 +95,17 @@ function stage(): Stage {
     ].join('\n'),
   );
   writeFileSync(
+    path.join(manifestDir, 'tools.yaml'),
+    [
+      'schema_version: 2',
+      'tools:',
+      '  - { name: sentry }',
+      '  - { name: openobserve-cli }',
+      '  - { name: jenkins-cli }',
+      '',
+    ].join('\n'),
+  );
+  writeFileSync(
     path.join(manifestDir, 'members.yaml'),
     [
       'schema_version: 1',

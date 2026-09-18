@@ -35,7 +35,10 @@ const LOOKUP = { check: false, probe: false } as const;
 async function stage(local: LocalLayer = {}) {
   const h = await harness({
     workspace: fixture('workspace.yaml'),
-    files: { [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml') },
+    files: {
+      [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml'),
+      [`${MANIFEST_DIR}/manifest/tools.yaml`]: fixture('tools.yaml'),
+    },
     local,
     platforms: { 'jenkins-cli': jenkins },
   });

@@ -16,11 +16,11 @@ export function toolchainOf(ctx: WorkspaceContext): Toolchain {
 }
 
 export function toolsOf(bundle: ManifestBundle): readonly ResolvedTool[] {
-  const { doc, provenance } = bundle.tools.result;
-  return resolveTools(doc, provenance);
+  const { doc, provenance, declared } = bundle.tools.result;
+  return resolveTools(doc, provenance, declared);
 }
 
 export function bundledToolchain(bundledText: string, cliVersion: string): Toolchain {
-  const { doc, provenance } = loadTools(bundledText, undefined, { cliVersion });
-  return { tools: resolveTools(doc, provenance), workspace: undefined };
+  const { doc, provenance, declared } = loadTools(bundledText, undefined, { cliVersion });
+  return { tools: resolveTools(doc, provenance, declared), workspace: undefined };
 }

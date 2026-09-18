@@ -255,9 +255,11 @@ enabled tools in the selected toolchain. Named operations can explicitly select
 a disabled tool. No-argument invocations fail before package operations.
 
 Doctor checks tools declared by the workspace and dependencies of providers
-active in the selected environments. Unused tools from the bundled catalog are
-available through `tool list` or an explicit `doctor --tool <name>` check; their
-absence does not make an unrelated workspace unhealthy. A disabled dependency of
+active in the selected environments. Bundled tools the workspace does not
+declare are still checked on request with `doctor --tool <name>`; their absence
+does not make an unrelated workspace unhealthy. An opt-in tool is not in the
+toolchain at all until the workspace names it, so `tool list`, `tool install`
+and a scoped `doctor --tool` do not see it. A disabled dependency of
 an active provider remains an incomplete requirement, not a passing check.
 Init and sync use the same relevant tool scope. Missing optional tools remain
 visible without blocking preparation. An enabled `install_on_init` tool must be

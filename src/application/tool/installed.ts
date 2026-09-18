@@ -4,7 +4,7 @@
 import path from 'node:path';
 
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
-import { loadTools, loadWorkspace } from '../../domain/manifest/loader.js';
+import { loadTools, loadToolsDocument, loadWorkspace } from '../../domain/manifest/loader.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import {
   hasUnfinishedInstallation,
@@ -128,7 +128,7 @@ export class ToolInstalled {
           unknown.push(name);
           continue;
         }
-        const resolved = resolveTools(loaded.doc, loaded.provenance);
+        const resolved = resolveTools(loaded.doc, loaded.provenance, loaded.declared);
         known.push(...resolved);
         tools.set(
           name,
@@ -138,10 +138,11 @@ export class ToolInstalled {
         unknown.push(name);
       }
     }
-    const baseline = loadTools(this.deps.bundledTools(), undefined, {
+    // An opt-in tool no workspace named is still not an unknown package, so read the catalog.
+    const catalog = loadToolsDocument(this.deps.bundledTools(), {
       cliVersion: this.deps.cliVersion,
     });
-    known.push(...resolveTools(baseline.doc, baseline.provenance));
+    if (catalog.valid) known.push(...resolveTools(catalog.doc, {}));
     return { tools, unknown, known };
   }
 

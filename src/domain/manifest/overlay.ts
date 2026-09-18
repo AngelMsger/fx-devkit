@@ -21,6 +21,9 @@ export interface MergeOptions {
 export interface Merged {
   readonly toolchain: Toolchain;
   readonly provenance: Provenance;
+  // Which tools the patch named: a claim that the team uses them, which provenance cannot
+  // carry, because naming a baseline tool changes no field.
+  readonly declared: readonly string[];
 }
 
 export const DEFAULTS_KEY = '(defaults)';
@@ -48,7 +51,10 @@ export function mergeTools(
     '',
   );
   const patched = new Map((patch?.tools ?? []).map((t) => [t.name, t]));
-  const tools: Tool[] = base.tools.map((tool) => {
+  // Naming an opt-in tool joins it, and the bundled entry is what the patch is then read
+  // against, so every field the patch leaves alone stays base and fx keeps vouching for it.
+  const baseline = base.tools.filter((tool) => tool.opt_in !== true || patched.has(tool.name));
+  const tools: Tool[] = baseline.map((tool) => {
     const overlay = patched.get(tool.name);
     patched.delete(tool.name);
     const merged = mergeValue(
@@ -73,7 +79,11 @@ export function mergeTools(
     ...(defaults === undefined ? {} : { defaults: defaults as Toolchain['defaults'] }),
     tools,
   };
-  return { toolchain: applyDeletions(merged, options.deletions ?? [], patch), provenance };
+  return {
+    toolchain: applyDeletions(merged, options.deletions ?? [], patch),
+    provenance,
+    declared: (patch?.tools ?? []).map((tool) => tool.name),
+  };
 }
 
 function mergeValue(

@@ -100,7 +100,7 @@ function stage(): Stage {
   const ws = path.join(base, 'ws');
   writeFileSync(
     path.join(manifestDir, 'tools.yaml'),
-    "schema_version: 2\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n",
+    "schema_version: 2\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n  - { name: openobserve-cli }\n",
   );
   const env = {
     FX_HOME: freshHome(),

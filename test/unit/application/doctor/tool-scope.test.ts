@@ -49,6 +49,18 @@ describe('doctor tool scope', () => {
     expect(mismatched.problems).toMatchObject([{ level: 'fail', coverage: 'incomplete' }]);
   });
 
+  it('checks a tool the workspace named, whether or not it changed one of its fields', async () => {
+    const h = await harness({
+      workspace,
+      files: {
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]: 'schema_version: 2\ntools: [{ name: lark-cli }]\n',
+      },
+    });
+    const scope = workspaceToolScope(h.ctx, describeProvider, {});
+    expect(scope.names).toEqual(['lark-cli']);
+    expect(scope.required.has('lark-cli')).toBe(false);
+  });
+
   it('allows explicit checks of an optional baseline tool', async () => {
     const h = await harness({ workspace });
     const scope = workspaceToolScope(h.ctx, describeProvider, { tools: ['bitbucket-cli'] });

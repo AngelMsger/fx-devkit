@@ -53,9 +53,7 @@ export function workspaceToolScope(
   const available = toolchainOf(ctx).tools;
   const names = selection.tools ?? [
     ...new Set([
-      ...available
-        .filter((tool) => tool.required || tool.patchedFields.length > 0)
-        .map((tool) => tool.name),
+      ...available.filter((tool) => tool.required || tool.declared).map((tool) => tool.name),
       ...dependencies,
     ]),
   ];

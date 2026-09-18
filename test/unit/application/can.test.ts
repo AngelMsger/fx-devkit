@@ -65,9 +65,7 @@ async function stage(options: { local?: LocalLayer; tools?: string; yes?: boolea
     workspace: fixture('workspace.yaml'),
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml'),
-      ...(options.tools === undefined
-        ? {}
-        : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: options.tools }),
+      [`${MANIFEST_DIR}/manifest/tools.yaml`]: options.tools ?? fixture('tools.yaml'),
     },
     local: options.local ?? {},
     platforms: { 'jenkins-cli': jenkins },

@@ -44,6 +44,10 @@ function stage(defaultWorkspace?: string) {
         },
       }),
     );
+    writeFileSync(
+      path.join(dir, 'manifest/tools.yaml'),
+      stringify({ schema_version: 2, tools: [{ name: 'jenkins-cli' }] }),
+    );
   }
   const config = {
     ...(defaultWorkspace === undefined ? {} : { default_workspace: defaultWorkspace }),

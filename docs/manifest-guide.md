@@ -25,8 +25,24 @@ team-workspace/
 
 Only `manifest/workspace.yaml` is required. Omitted environment, member and
 harness documents leave those capabilities unconfigured. Omitting `tools.yaml`
-uses the bundled tool catalog; it does not remove companion requirements.
-Keep credentials in the owning tools, not in these documents.
+uses the bundled tools every workspace gets; it does not remove companion
+requirements. Keep credentials in the owning tools, not in these documents.
+
+Some bundled tools are opt-in: fx maintains their version floor, install method
+and commands, but only the workspaces that name them get them. Naming one is the
+whole declaration, and it keeps fx's commands trusted, so nobody confirms them
+by hand:
+
+```yaml
+schema_version: 2
+tools:
+  - name: jenkins-cli
+```
+
+Override a field only where the team differs from the bundled facts. A field the
+patch sets belongs to the team, and fx asks a person before running what it
+carries. `fx tool list` names the tools this workspace has; a provider bound to
+a tool nobody declared is reported by `fx doctor`.
 
 Bundled tools declare minimum versions. Inspect the effective requirement with
 `fx tool show <tool>` and preview an upgrade with `fx tool update <tool> --dry-run`.
