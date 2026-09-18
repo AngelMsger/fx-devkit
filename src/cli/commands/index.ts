@@ -2,6 +2,8 @@
 // oclif loads explicitly and the docs generator reads. Keys use oclif's
 // `topic:command` form.
 
+import { REPORT_COMMANDS } from '../render/report.js';
+
 import AgentList from './agent/list.js';
 import AgentPick from './agent/pick.js';
 import AgentSkills from './agent/skills.js';
@@ -160,6 +162,8 @@ const aliases = Object.fromEntries(
 };
 
 export const COMMANDS = { ...CANONICAL_COMMANDS, ...aliases };
+
+export const REPORT_COMMAND_IDS = REPORT_COMMANDS satisfies readonly (keyof typeof COMMANDS)[];
 
 // The nine commands a person or an agent reaches for first; help and the
 // reference show them before the topics.
