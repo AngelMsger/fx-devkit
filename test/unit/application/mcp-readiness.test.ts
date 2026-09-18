@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { McpReadiness } from '../../../src/application/harness/mcp-readiness.js';
 import { mcpTrust, mcpCheckTrust } from '../../../src/application/harness/plan.js';
-import { McpReadiness } from '../../../src/application/harness/readiness.js';
 import { TrustGate } from '../../../src/application/safety/trust.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeProcess } from '../../fakes/fake-process.js';

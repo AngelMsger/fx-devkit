@@ -6,7 +6,7 @@ import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
 import type { StageResult } from '../sync/types.js';
 
-import { McpReadinessBatch } from './readiness-batch.js';
+import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';
 import { loadHarnessCommand, type HarnessSession } from './session.js';
 import type { HarnessInput, HarnessOutput } from './types.js';

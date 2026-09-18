@@ -3,9 +3,9 @@
 import type { McpResource } from '../../domain/manifest/types.js';
 import type { Process } from '../../ports/process.js';
 
+import { McpReadinessBatch } from './mcp-readiness-batch.js';
+import type { McpVerdict } from './mcp-readiness.js';
 import { findMcpResource } from './names.js';
-import { McpReadinessBatch } from './readiness-batch.js';
-import type { McpVerdict } from './readiness.js';
 import { ReconcileHarness } from './reconcile.js';
 import type { HarnessDeps, HarnessInput, HarnessRow } from './types.js';
 

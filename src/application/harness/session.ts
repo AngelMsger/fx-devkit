@@ -13,8 +13,8 @@ import type { WritePosture } from '../safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { InspectMcp, type InspectMcpOutput } from './inspect.js';
+import { McpReadiness, type McpVerdict } from './mcp-readiness.js';
 import { findMcpResource } from './names.js';
-import { McpReadiness, type McpVerdict } from './readiness.js';
 import { ReconcileHarness } from './reconcile.js';
 import type { HarnessDeps, HarnessInput } from './types.js';
 
