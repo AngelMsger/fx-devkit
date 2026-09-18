@@ -256,7 +256,9 @@ providers:
 clone coordinates separate. `context` selects a native CLI context. Bitbucket and
 Confluence also accept `flavor`; OpenObserve requires `org`; family companions
 require `auth_scheme` and optionally accept a public `credential_url` page.
-Sentry accepts only `base_url` and `org`. Identical declarations can share a local
+Sentry accepts only `base_url` and `org`. A platform that names no `provider` is
+checked against the provider its own name implies, the same one `fx manifest
+providers` reports for it. Identical declarations can share a local
 destination; incompatible settings for the same destination block preparation.
 Conflicting legacy variables must be removed rather than defining a second source.
 

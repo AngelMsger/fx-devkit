@@ -4,7 +4,7 @@
 // not a suggestion.
 
 import { isSemver } from '../../semver.js';
-import type { ProviderCatalog } from '../providers.js';
+import { providerForPlatform, type ProviderCatalog } from '../providers.js';
 import type { Environments, Problem, Workspace } from '../types.js';
 
 import { serviceRules } from './services.js';
@@ -37,9 +37,7 @@ export function environmentsRules(
         problems.push(
           ...serviceRules({
             providers,
-            // A schema 1 platform names no provider; its own name is what the
-            // document offers, and a name no provider answers to is reported as one.
-            provider: base?.provider ?? platform,
+            provider: base?.provider ?? providerForPlatform(providers, platform)?.id,
             service: { ...base?.service, ...override?.service },
             vars: { ...base?.vars, ...override?.vars },
             path: `envs.${envName}.platforms.${platform}.service`,

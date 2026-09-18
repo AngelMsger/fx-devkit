@@ -37,6 +37,13 @@ export type ProviderCatalog = readonly ProviderFacts[];
 
 // A binding names a provider by id, so the descriptor that id resolves to still has to be
 // the one registered under the capability being bound.
+export function providerForPlatform(
+  providers: ProviderCatalog | undefined,
+  platform: string,
+): ProviderFacts | undefined {
+  return providers?.find((provider) => provider.impliedByPlatform?.includes(platform));
+}
+
 export function servesCapability<P extends ProviderFacts>(
   provider: P | undefined,
   capability: CapabilityName,
@@ -123,22 +130,21 @@ export function bindPlatforms(
   providers: ProviderCatalog,
 ): PlatformBinding[] {
   if (environments === undefined) return [];
-  const impliedBy = (platform: string): ProviderFacts | undefined =>
-    providers.find((provider) => provider.impliedByPlatform?.includes(platform));
   return Object.entries(environments.platforms).map(([platform, spec]) => {
     const vars = { ...spec.vars, ...serviceVars(spec.service) };
     const service = spec.service ? { service: spec.service } : {};
     if (spec.provider !== undefined) {
       return {
         platform,
-        capability: spec.capability ?? impliedBy(platform)?.capability ?? 'unknown',
+        capability:
+          spec.capability ?? providerForPlatform(providers, platform)?.capability ?? 'unknown',
         provider: spec.provider,
         source: 'explicit',
         vars,
         ...service,
       };
     }
-    const fallback = impliedBy(platform);
+    const fallback = providerForPlatform(providers, platform);
     if (fallback !== undefined)
       return {
         platform,

@@ -174,7 +174,7 @@ fx doctor --tool openobserve-cli --format json
 
 ## 公開サービスプリセット {#public-service-presets}
 
-fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。
+fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。`provider` を書かない platform は、その名前が示す provider の宣言で検証します（`fx manifest providers` が表示するものと同じです）。
 
 同じプリセットは同じローカル保存先を共有できますが、異なる設定を同じ保存先に宣言すると準備がブロックされます。矛盾する旧 vars は削除して設定元を一つにします。ユーザー名、メールアドレス、パスワード、PAT/API Token の値、Cookie、ブラウザーセッションは配布できません。各メンバーが自分の CLI で取得・保存します。余分な service フィールドは非 strict モードでも検証に失敗し、URL 内の認証情報は値を表示せず拒否します。
 
