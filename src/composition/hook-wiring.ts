@@ -1,4 +1,4 @@
-// Automatic session services reuse the manifest, docs, Skill and verifier use
+// Automatic session work reuses the manifest, docs, Skill and verifier use
 // cases. Wiring deliberately has no repository sync or platform query service;
 // what the phases do with these ports is application policy.
 
@@ -19,14 +19,14 @@ import { manifestSourceFor } from './manifest-sources.js';
 import { configuredRegistry } from './registry-location.js';
 import { updateChecks } from './update.js';
 
-interface ServiceInput {
+interface HookWiringInput {
   readonly container: Container;
   readonly request: HookRequest;
   readonly env: NodeJS.ProcessEnv;
   readonly canWrite: () => Promise<boolean>;
 }
 
-export function createHookServices(input: ServiceInput): AutomaticSyncDeps {
+export function automaticSyncWiring(input: HookWiringInput): AutomaticSyncDeps {
   const { container } = input;
   return {
     clock: container.clock,
@@ -37,7 +37,7 @@ export function createHookServices(input: ServiceInput): AutomaticSyncDeps {
   };
 }
 
-function phaseDeps(input: ServiceInput): BackgroundDeps {
+function phaseDeps(input: HookWiringInput): BackgroundDeps {
   const { container, request, env } = input;
   const reporter: Reporter = { notice: () => {}, progress: () => {} };
   const metadata = container.packageMetadata();
@@ -90,7 +90,7 @@ function phaseDeps(input: ServiceInput): BackgroundDeps {
 }
 
 function workspaceContextFor(
-  input: ServiceInput,
+  input: HookWiringInput,
   reporter: Reporter,
   cliVersion: string,
 ): () => Promise<WorkspaceDeps> {

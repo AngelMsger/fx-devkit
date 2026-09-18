@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AutomaticSync } from '../../../src/application/hook/automatic-sync.js';
 import { createContainer } from '../../../src/composition/container.js';
-import { createHookServices } from '../../../src/composition/hook-services.js';
+import { automaticSyncWiring } from '../../../src/composition/hook-wiring.js';
 import type { HookState } from '../../../src/domain/harness/state.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 
@@ -22,7 +22,7 @@ describe('automatic workspace synchronization', () => {
   it('does not describe an unconfigured manifest source as a static or current source', async () => {
     const home = mkdtempSync(path.join(tmpdir(), 'fx-source-observation-'));
     try {
-      const services = await createHookServices({
+      const wiring = await automaticSyncWiring({
         container: createContainer({ FX_HOME: home }),
         request: {
           event: 'session-start',
@@ -35,7 +35,7 @@ describe('automatic workspace synchronization', () => {
         env: {},
         canWrite: async () => true,
       });
-      expect((await services.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
+      expect((await wiring.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
     } finally {
       rmSync(home, { recursive: true, force: true });
     }
@@ -95,7 +95,7 @@ describe('automatic workspace synchronization', () => {
     const lease = await container.lock.acquire({ key: 'workspace:test', waitMs: 0 });
     expect(lease).not.toBeNull();
     try {
-      const services = await createHookServices({
+      const wiring = await automaticSyncWiring({
         container,
         request: {
           event: 'session-start',
@@ -108,7 +108,7 @@ describe('automatic workspace synchronization', () => {
         env: { FX_UPDATE_CHECK: '0' },
         canWrite: async () => true,
       });
-      await services.docs(lease!);
+      await wiring.docs(lease!);
       expect(readFileSync(path.join(root, 'GEMINI.md'), 'utf8')).toContain('AGENTS.md');
       expect(existsSync(path.join(root, '.gemini/settings.json'))).toBe(false);
       expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);

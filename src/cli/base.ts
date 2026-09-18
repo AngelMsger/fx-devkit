@@ -23,7 +23,7 @@ import { beginWorkspaceCommand } from '../application/workspace/command-operatio
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { WorkspaceContext } from '../application/workspace-context.js';
-import { CommandServices } from '../composition/command-services.js';
+import { CommandWiring } from '../composition/command-wiring.js';
 import {
   createContainer,
   skillDeps,
@@ -85,7 +85,7 @@ export abstract class FxCommand extends Command {
   private located: WorkspaceContext | undefined;
   // One instance each per execution: a second TrustGate would ask again for
   // approval the first one already holds.
-  private commandServices: CommandServices | undefined;
+  private commandWiring: CommandWiring | undefined;
   private trust: TrustGate | undefined;
   private replaceFiles: ReplaceFiles | undefined;
   private operationLease: Lease | undefined;
@@ -215,8 +215,8 @@ export abstract class FxCommand extends Command {
     };
   }
 
-  private services(): CommandServices {
-    this.commandServices ??= new CommandServices({
+  private wiring(): CommandWiring {
+    this.commandWiring ??= new CommandWiring({
       commandShell: this.commandShell,
       ...this.harnessInput(),
       reporter: this.reporter,
@@ -225,20 +225,20 @@ export abstract class FxCommand extends Command {
       agents: this.configAgents,
       user: this.user,
     });
-    return this.commandServices;
+    return this.commandWiring;
   }
 
   protected hookDoctorChecks(): DoctorExtension[] {
-    return this.services().hookDoctorChecks();
+    return this.wiring().hookDoctorChecks();
   }
   protected loginDeps(): LoginDeps {
-    return this.services().loginDeps();
+    return this.wiring().loginDeps();
   }
   protected initDeps(): InitDeps {
-    return this.services().initDeps();
+    return this.wiring().initDeps();
   }
   protected stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
-    return this.services().stages(deps, dryRun);
+    return this.wiring().stages(deps, dryRun);
   }
 
   protected skillDeps(): SkillDeps {

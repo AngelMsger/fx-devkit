@@ -25,7 +25,7 @@ import { toolInstall } from './tool-install.js';
 import { toolInventory } from './tool-inventory.js';
 import { updateChecks } from './update.js';
 
-export interface CommandServiceInput extends HarnessCommandInput {
+export interface CommandWiringInput extends HarnessCommandInput {
   readonly commandShell?: ResolvedShell;
   readonly reporter: Reporter;
   readonly replace: ReplaceFiles;
@@ -34,8 +34,8 @@ export interface CommandServiceInput extends HarnessCommandInput {
   readonly user: string | undefined;
 }
 
-export class CommandServices {
-  constructor(private readonly input: CommandServiceInput) {}
+export class CommandWiring {
+  constructor(private readonly input: CommandWiringInput) {}
 
   hookDoctorChecks(): DoctorExtension[] {
     const harness = harnessSession(this.input);
