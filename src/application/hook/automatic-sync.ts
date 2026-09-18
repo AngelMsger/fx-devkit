@@ -26,6 +26,13 @@ export interface AutomaticSyncDeps {
   readonly checks: () => Promise<readonly HookObservation[]>;
 }
 
+interface Phase {
+  readonly name: string;
+  readonly run: () => Promise<readonly HookObservation[]>;
+  readonly code: string;
+  readonly command: string;
+}
+
 export class AutomaticSync {
   constructor(private readonly deps: AutomaticSyncDeps) {}
 
@@ -55,61 +62,85 @@ export class AutomaticSync {
       now - previous.lastAttempt < 15000
     )
       return;
-    if (!(await this.update(input, { lastAttempt: now }))) return;
     const refreshAt = previous?.lastRefresh;
-    if (
+    const refreshing =
       refreshAt === null ||
       refreshAt === undefined ||
       now - refreshAt >= MANIFEST_UPDATE_TTL_MS ||
-      now < refreshAt
-    ) {
-      if (!(await this.update(input, { lastRefresh: now }))) return;
-      await this.step(input, 'manifest', this.deps.refresh, 'MANIFEST_REFRESH_FAILED', 'fx sync');
-    }
-    await this.step(
-      input,
-      'docs',
-      () => this.deps.docs(lease),
-      'DOCS_SYNC_FAILED',
-      'fx sync --only docs',
-    );
-    await this.step(
-      input,
-      'skills',
-      this.deps.skills,
-      'SKILL_SYNC_FAILED',
-      'fx sync --only skills',
-    );
-    if (this.deps.self)
-      await this.step(input, 'self', this.deps.self, 'FX_UPDATE_UNAVAILABLE', 'fx doctor');
-    await this.step(input, 'checks', this.deps.checks, 'HOOK_CHECKS_INCOMPLETE', 'fx doctor');
+      now < refreshAt;
+    const phases = this.phases(lease, refreshing);
+    // A worker its supervisor kills mid-phase never reaches its own recovery
+    // path, so the phases this run committed to are dated before any of them
+    // starts. A phase that reported replaces its own row; one still carrying
+    // this code was planned and never answered.
+    if (!(await this.update(input, { lastAttempt: now }, undefined, phases.map(unreported(now)))))
+      return;
+    if (refreshing && !(await this.update(input, { lastRefresh: now }))) return;
+    for (const phase of phases) await this.step(input, phase);
     if (this.delayed.length) await this.update(input, {});
   }
 
-  private async step(
-    input: AutomaticSyncInput,
-    phase: string,
-    run: () => Promise<readonly HookObservation[]>,
-    code: string,
-    command: string,
-  ): Promise<void> {
+  private phases(lease: Lease, refreshing: boolean): readonly Phase[] {
+    return [
+      ...(refreshing
+        ? [
+            {
+              name: 'manifest',
+              run: this.deps.refresh,
+              code: 'MANIFEST_REFRESH_FAILED',
+              command: 'fx sync',
+            },
+          ]
+        : []),
+      {
+        name: 'docs',
+        run: () => this.deps.docs(lease),
+        code: 'DOCS_SYNC_FAILED',
+        command: 'fx sync --only docs',
+      },
+      {
+        name: 'skills',
+        run: this.deps.skills,
+        code: 'SKILL_SYNC_FAILED',
+        command: 'fx sync --only skills',
+      },
+      ...(this.deps.self
+        ? [
+            {
+              name: 'self',
+              run: this.deps.self,
+              code: 'FX_UPDATE_UNAVAILABLE',
+              command: 'fx doctor',
+            },
+          ]
+        : []),
+      {
+        name: 'checks',
+        run: this.deps.checks,
+        code: 'HOOK_CHECKS_INCOMPLETE',
+        command: 'fx doctor',
+      },
+    ];
+  }
+
+  private async step(input: AutomaticSyncInput, phase: Phase): Promise<void> {
     if (!(await this.deps.canWrite())) return;
     let observations: readonly HookObservation[];
     try {
-      observations = await run();
+      observations = await phase.run();
     } catch (error) {
       const failure = asDevkitError(error);
       observations = [
         {
-          phase,
-          code,
-          command,
+          phase: phase.name,
+          code: phase.code,
+          command: phase.command,
           checkedAt: this.deps.clock.now().getTime(),
           detail: oneLine(`${failure.code}: ${failure.message}`),
         },
       ];
     }
-    await this.update(input, {}, phase, observations);
+    await this.update(input, {}, phase.name, observations);
   }
 
   private async update(
@@ -149,6 +180,15 @@ export class AutomaticSync {
       await lease.release();
     }
   }
+}
+
+function unreported(at: number): (phase: Phase) => HookObservation {
+  return (phase) => ({
+    phase: phase.name,
+    code: 'HOOK_PHASE_UNREPORTED',
+    command: phase.command,
+    checkedAt: at,
+  });
 }
 
 function concurrent(observation: HookObservation): HookObservation {
