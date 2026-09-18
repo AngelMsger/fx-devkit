@@ -83,6 +83,7 @@ function parsePackageJson(text: string): Offender[] {
   } catch (err) {
     throw new DevkitError('parse', 'DEPENDENCY_FILE_INVALID', 'package.json is not valid JSON', {
       cause: err,
+      nextSteps: ['Fix the JSON syntax in the repository package.json, then re-run fx release.'],
     });
   }
   const root = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>) : {};

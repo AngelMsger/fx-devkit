@@ -49,7 +49,14 @@ export class SelfUpdate {
       update: true,
     });
     if (!vector)
-      throw new DevkitError('config', 'REGISTRY_UNKNOWN', 'The installer cannot plan this update.');
+      throw new DevkitError(
+        'config',
+        'REGISTRY_UNKNOWN',
+        'The installer cannot plan this update.',
+        {
+          nextSteps: ['fx self info', `Update ${input.packageName} with your package manager.`],
+        },
+      );
     if (input.dryRun) return { vector, ran: false, code: null, reason: 'dry run' };
     assertWritable(input.posture, 'self update');
     if (!(await this.installer.available()))

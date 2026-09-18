@@ -149,7 +149,11 @@ export class ManageWorkspace {
     }
     if (input.action === 'rebind') {
       if (!input.source)
-        throw new DevkitError('usage', 'INPUT_REQUIRED', 'Rebind requires --from.');
+        throw new DevkitError('usage', 'INPUT_REQUIRED', 'Rebind requires --from.', {
+          nextSteps: [
+            shellLine(['fx', 'workspace', 'rebind', input.name, '--from', '<manifest-source>']),
+          ],
+        });
       if (!(await this.deps.fs.isDirectory(root)))
         throw new DevkitError(
           'not_found',

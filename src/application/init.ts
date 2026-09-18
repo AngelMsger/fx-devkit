@@ -131,7 +131,10 @@ export class Init {
   private async plan(input: InitInput): Promise<Plan> {
     const root = path.resolve(input.dir);
     const problem = path.sep === '\\' ? windowsPathProblem(root) : undefined;
-    if (problem) throw new DevkitError('usage', 'WORKSPACE_PATH_INVALID', problem);
+    if (problem)
+      throw new DevkitError('usage', 'WORKSPACE_PATH_INVALID', problem, {
+        nextSteps: [`Choose a local workspace directory Windows can address instead of ${root}.`],
+      });
     const name = input.name ?? path.basename(root);
     assertWorkspaceName(name);
     const config = await this.deps.config.read();

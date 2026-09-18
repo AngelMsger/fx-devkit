@@ -25,12 +25,7 @@ export async function planProbeRecord(
   deps: RecordProbeDeps,
   input: RecordProbeInput,
 ): Promise<ProbeRecordPlan> {
-  if (!input.probe || !input.env || !input.platform)
-    throw new DevkitError(
-      'usage',
-      'PROBE_RECORD_INPUT_REQUIRED',
-      'Recording requires --probe, --env and --platform.',
-    );
+  if (!input.probe || !input.env || !input.platform) throw inputRequired(input.repo);
   const documents = await readDocuments(deps);
   const [row] = await new Where(deps.workspace, deps.login).execute({
     ...input,
@@ -105,6 +100,12 @@ async function readDocuments(deps: RecordProbeDeps) {
       'config',
       'PROBE_RECORD_FILE_UNSAFE',
       'Recording requires regular source manifest files.',
+      {
+        nextSteps: [
+          `Replace the symbolic links or missing files under ${root} with the regular manifest documents ${MANIFEST_FILES.workspace} and ${MANIFEST_FILES.environments}.`,
+          'fx manifest validate',
+        ],
+      },
     );
   const opts = { cliVersion: deps.workspace.cliVersion, strict: true, allowInvalid: true as const };
   const workspace = loadWorkspace(workspaceSnapshot.text, opts);
@@ -180,7 +181,23 @@ export function assertSafeNote(text: string): void {
       'config',
       'PROBE_RECORD_SENSITIVE',
       'The probe note contains protected content and cannot be recorded.',
+      {
+        nextSteps: [
+          'Remove credentials, personal names and email addresses from the probe note, then run the probe again.',
+        ],
+      },
     );
+}
+
+function inputRequired(repo: string): DevkitError {
+  return new DevkitError(
+    'usage',
+    'PROBE_RECORD_INPUT_REQUIRED',
+    'Recording requires --probe, --env and --platform.',
+    {
+      nextSteps: [`fx where ${repo} --env <env> --platform <platform> --probe --record --dry-run`],
+    },
+  );
 }
 
 export function changed(): DevkitError {
@@ -197,6 +214,7 @@ function invalid(): DevkitError {
     'config',
     'PROBE_RECORD_MANIFEST_INVALID',
     'The source manifest must pass schema validation before recording.',
+    { nextSteps: ['fx manifest validate', 'Fix the reported problems in the source, then retry.'] },
   );
 }
 
@@ -206,5 +224,11 @@ function assertShared(origin: string): void {
       'usage',
       'PROBE_RECORD_SCOPE_INVALID',
       'Only shared repository coordinates can be recorded in the manifest.',
+      {
+        nextSteps: [
+          'fx repo list',
+          'Record a repository the shared manifest owns; locally added repositories keep their coordinates in personal configuration.',
+        ],
+      },
     );
 }

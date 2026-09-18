@@ -77,6 +77,9 @@ async function publishOperation(context: OperationPublishing): Promise<Contribut
         'conflict',
         'SOURCE_TREE_MISMATCH',
         'The prepared tree differs from the validated plan.',
+        {
+          nextSteps: ['Re-run the same fx source push command with --dry-run and review the plan.'],
+        },
       );
     operation = { ...operation, commit: prepared.commit, phase: 'committed' };
     await save(operation);
@@ -133,6 +136,12 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
       'conflict',
       'SOURCE_PR_CONFIRM_REQUIRED',
       'Confirm the existing PR with --pr before resuming.',
+      {
+        nextSteps: [
+          `Find the pull request for branch ${operation.branch} on the code host.`,
+          'Re-run the same fx source push command with --pr <pr-id>.',
+        ],
+      },
     );
   let pr;
   if (operation.pullRequestId) {
@@ -142,6 +151,12 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
         'conflict',
         'SOURCE_PR_CLOSED',
         'The PR closed during contribution; review before using --new.',
+        {
+          nextSteps: [
+            `Review pull request ${operation.pullRequestId} on the code host.`,
+            'Start a separate contribution with fx source push --new.',
+          ],
+        },
       );
     assertMatchingPr(pr, operation, plan);
   } else {

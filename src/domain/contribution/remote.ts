@@ -52,6 +52,7 @@ export function verifyContributionRemote(input: RemoteVerification): VerifiedCon
       'usage',
       'SOURCE_BRANCH_INVALID',
       'Contributions require a dedicated managed branch.',
+      { nextSteps: ['fx source push --new'] },
     );
   if (
     settings.originUrls.length !== 1 ||

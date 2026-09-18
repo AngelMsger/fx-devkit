@@ -94,5 +94,9 @@ function decode(name: string, content: unknown): PayloadFile {
 }
 
 function invalid(message: string): DevkitError {
-  return new DevkitError('config', 'MANIFEST_SOURCE_INVALID', message);
+  return new DevkitError('config', 'MANIFEST_SOURCE_INVALID', message, {
+    nextSteps: [
+      'Send a JSON object mapping manifest payload paths to text or {base64, executable?}, then retry.',
+    ],
+  });
 }

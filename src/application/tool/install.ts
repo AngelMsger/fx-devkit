@@ -91,6 +91,12 @@ export class ToolInstall {
           'config',
           'VECTOR_UNTRUSTED',
           'Automatic installation requires workspace command trust.',
+          {
+            nextSteps: [
+              'Re-run the same command in a terminal and review the install vector.',
+              `fx tool install ${selected.map((tool) => tool.name).join(' ')}`,
+            ],
+          },
         );
       for (const plan of plans) {
         if (plan.output.vector === null) continue;

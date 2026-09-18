@@ -45,6 +45,11 @@ function put(root: Tree, segments: readonly string[], value: TreeBlob | null): v
       'conflict',
       'SOURCE_TREE_INVALID',
       'The source tree has an invalid path.',
+      {
+        nextSteps: [
+          'Drop the malformed path from the selection and re-run fx source push --dry-run.',
+        ],
+      },
     );
   if (rest.length === 0) {
     if (value === null) root.delete(name);
@@ -54,6 +59,7 @@ function put(root: Tree, segments: readonly string[], value: TreeBlob | null): v
           'conflict',
           'SOURCE_TREE_CONFLICT',
           'Select all descendants before replacing a directory.',
+          { nextSteps: [`Select every file under ${name} as well, then retry.`] },
         );
       root.set(name, value);
     }
@@ -65,6 +71,9 @@ function put(root: Tree, segments: readonly string[], value: TreeBlob | null): v
       'conflict',
       'SOURCE_TREE_CONFLICT',
       'A candidate file conflicts with a parent file.',
+      {
+        nextSteps: [`Drop the paths nested under the file ${name} from the selection, then retry.`],
+      },
     );
   const child = existing ?? new Map<string, TreeBlob | Tree>();
   put(child, rest, value);
@@ -104,6 +113,7 @@ export function parseContributionTree(text: string): readonly ContributionTreeEn
           'parse',
           'SOURCE_TREE_INVALID',
           'Git returned an invalid tree entry.',
+          { nextSteps: ['Check the source repository with git fsck, then re-run fx source push.'] },
         );
       return { path: entry.slice(tab + 1), mode, oid };
     });

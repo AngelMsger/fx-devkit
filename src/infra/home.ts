@@ -10,6 +10,9 @@ import { windowsPathProblem } from '../domain/path.js';
 export function fxHome(env: NodeJS.ProcessEnv): string {
   const home = env['FX_HOME'] ?? path.join(os.homedir(), '.fx');
   const problem = process.platform === 'win32' ? windowsPathProblem(path.resolve(home)) : undefined;
-  if (problem) throw new DevkitError('config', 'FX_HOME_INVALID', problem);
+  if (problem)
+    throw new DevkitError('config', 'FX_HOME_INVALID', problem, {
+      nextSteps: [`Point FX_HOME at a directory Windows can address instead of ${home}.`],
+    });
   return home;
 }

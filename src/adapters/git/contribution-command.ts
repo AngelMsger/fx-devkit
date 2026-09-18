@@ -67,5 +67,6 @@ export function assertObjectId(value: string): void {
       'conflict',
       'SOURCE_OBJECT_INVALID',
       'Expected a complete Git object identity.',
+      { nextSteps: ['Check the source repository with git fsck, then re-run fx source push.'] },
     );
 }

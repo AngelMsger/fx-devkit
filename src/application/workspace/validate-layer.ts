@@ -39,7 +39,10 @@ export async function validateWorkspaceLayer(
   for (const repo of repos) {
     const resolved = await physicalPath(fs, path.resolve(root, repo.path));
     const problem = path.sep === '\\' ? windowsPathProblem(resolved) : undefined;
-    if (problem) throw new DevkitError('config', 'LOCAL_INVALID', problem);
+    if (problem)
+      throw new DevkitError('config', 'LOCAL_INVALID', problem, {
+        nextSteps: [`Give ${repo.name} a checkout path Windows can address, then select it again.`],
+      });
     if (repo.origin !== 'manifest' && isAtOrInside(physicalRoot, resolved))
       throw invalid(`${repo.name} would make the workspace root part of its checkout: ${resolved}`);
     const owner = owners.find(

@@ -81,6 +81,12 @@ export class WorkspaceResources {
         'conflict',
         'WORKSPACE_CLEANUP_BLOCKED',
         'Hook files changed during cleanup; retry the same workspace operation.',
+        {
+          nextSteps: [
+            'fx hook list',
+            'Re-run the same fx workspace command once the other process finishes.',
+          ],
+        },
       );
     await this.retireFiles(input.root, files);
     return rows;
@@ -234,6 +240,7 @@ function changedResource(): DevkitError {
     'conflict',
     'WORKSPACE_CLEANUP_CHANGED',
     'A managed resource changed during cleanup; retry the same workspace operation.',
+    { nextSteps: ['fx workspace list', 'Re-run the same fx workspace command.'] },
   );
 }
 

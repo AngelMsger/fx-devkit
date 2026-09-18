@@ -46,5 +46,10 @@ function parseSelection(text: string): readonly string[] {
     'usage',
     'SOURCE_SELECTION_INVALID',
     'Enter source paths as a comma-separated list or JSON string array.',
+    {
+      nextSteps: [
+        'Enter manifest/workspace.yaml,manifest/environments.yaml or ["manifest/workspace.yaml"].',
+      ],
+    },
   );
 }

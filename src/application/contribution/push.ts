@@ -78,6 +78,7 @@ async function confirm(deps: PushSourceDeps, plan: SourcePlan): Promise<boolean>
         'config',
         'CONFIRM_REQUIRED',
         'Confirm the source contribution with --yes.',
+        { nextSteps: ['Re-run the same fx source push command with --yes.'] },
       );
     throw error;
   }

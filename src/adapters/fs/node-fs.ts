@@ -57,6 +57,7 @@ export class NodeFs implements FileSystem {
           'conflict',
           'PROJECTION_FOREIGN',
           'The projection is not a regular file',
+          { nextSteps: [`Remove or rename ${file}, then re-run the same command.`] },
         );
       await fs.writeFile(temporary, text, {
         flag: 'wx',
@@ -88,6 +89,7 @@ export class NodeFs implements FileSystem {
           'conflict',
           'PROJECTION_FOREIGN',
           'The projection is not a directory',
+          { nextSteps: [`Remove or rename ${to}, then re-run the same command.`] },
         );
       await replaceDirectory(from, to);
     } catch (err) {

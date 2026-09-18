@@ -97,6 +97,12 @@ function codeHostFromBase(
       'config',
       'SOURCE_BASE_MANIFEST_INVALID',
       'The committed source cannot supply valid provider configuration.',
+      {
+        nextSteps: [
+          'fx manifest validate',
+          'Fix the committed manifest on the upstream default branch before contributing.',
+        ],
+      },
     );
   }
   const binding = bindProviders(workspace).find((item) => item.capability === 'code-host')!;

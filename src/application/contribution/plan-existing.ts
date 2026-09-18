@@ -133,11 +133,7 @@ async function resume(context: OperationPlanning, head: string | null): Promise<
       commit.parents.length !== 1 ||
       commit.parents[0] !== operation.parent
     )
-      throw new DevkitError(
-        'conflict',
-        'SOURCE_OPERATION_INVALID',
-        'The recorded commit no longer matches the prepared contribution.',
-      );
+      throw operationInvalidError(deps.source.dir, operation);
     return {
       ...plan,
       output: {
@@ -155,11 +151,7 @@ async function resume(context: OperationPlanning, head: string | null): Promise<
     paths: operation.paths,
   });
   if (snapshot.fingerprint !== operation.sourceFingerprint)
-    throw new DevkitError(
-      'conflict',
-      'SOURCE_SNAPSHOT_CHANGED',
-      'Prepared source content changed; review a new contribution.',
-    );
+    throw snapshotChangedError(deps.source.dir, operation);
   const validation = await deps.validator.execute({
     files: buildContributionCandidate({ base: snapshot.baseFiles, changes: snapshot.files }),
     changes: snapshot.files,
@@ -203,6 +195,12 @@ function assertResumeSelection(input: PushSourceInput, operation: ContributionOp
       'conflict',
       'SOURCE_RECOVERY_REQUIRED',
       'Resume with the original path selection or use --new.',
+      {
+        nextSteps: [
+          `Re-run with the recorded paths: ${operation.paths.join(' ')}`,
+          'Or start a separate contribution with --new.',
+        ],
+      },
     );
 }
 
@@ -221,6 +219,34 @@ export function assertMatchingPr(
     pr.target.repo.name !== remote.target.name
   )
     throw associationInvalid();
+}
+
+function operationInvalidError(dir: string, operation: ContributionOperation): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'SOURCE_OPERATION_INVALID',
+    'The recorded commit no longer matches the prepared contribution.',
+    {
+      nextSteps: [
+        `git -C ${dir} show --stat ${operation.commit ?? operation.tree}`,
+        'Start a separate contribution with --new.',
+      ],
+    },
+  );
+}
+
+function snapshotChangedError(dir: string, operation: ContributionOperation): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'SOURCE_SNAPSHOT_CHANGED',
+    'Prepared source content changed; review a new contribution.',
+    {
+      nextSteps: [
+        `git -C ${dir} diff -- ${operation.paths.join(' ')}`,
+        'Contribute the current content with --new.',
+      ],
+    },
+  );
 }
 
 export function diverged(): DevkitError {

@@ -58,6 +58,11 @@ export async function createContributionPullRequest({
       'usage',
       'SOURCE_CONTENT_SENSITIVE',
       'The PR text contains protected content.',
+      {
+        nextSteps: [
+          'Remove credentials, personal names and email addresses from --title and --message, then retry.',
+        ],
+      },
     );
   const directory = await fs.mkdtemp(path.join(tmpdir(), 'fx-contribution-pr-'));
   const file = path.join(directory, 'description.md');

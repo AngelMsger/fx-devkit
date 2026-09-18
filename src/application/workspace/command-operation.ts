@@ -25,6 +25,12 @@ export async function beginWorkspaceCommand(
         'conflict',
         'WORKSPACE_PLAN_CHANGED',
         'The workspace identity changed while waiting. Retry to use the new registration.',
+        {
+          nextSteps: [
+            `fx workspace show ${selected.name}`,
+            'Re-run the same command against the new registration.',
+          ],
+        },
       );
     await assertNoWorkspaceOperation(input, selected);
     return { lease, located: selected };
