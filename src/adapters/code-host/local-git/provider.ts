@@ -105,7 +105,7 @@ export class LocalGitCodeHost implements CodeHost {
     return lines(refs.stdout).map((line) => {
       const [name, sha] = line.split('\0');
       if (name === undefined || sha === undefined || sha === '')
-        throw unreadable(ref, 'a branch', line);
+        throw unreadableError(ref, 'a branch', line);
       return { name, sha, default: name === defaultBranch };
     });
   }
@@ -193,7 +193,7 @@ function commitsOf(ref: RepoRef, text: string): Commit[] {
     if (!line.includes('\0')) return line.startsWith('commit ') ? [] : [unreadableRow(ref, line)];
     const [sha, author, date, parents, message] = line.split('\0');
     if (sha === undefined || sha === '' || date === undefined)
-      throw unreadable(ref, 'a commit', line);
+      throw unreadableError(ref, 'a commit', line);
     return [
       {
         sha,
@@ -207,10 +207,10 @@ function commitsOf(ref: RepoRef, text: string): Commit[] {
 }
 
 function unreadableRow(ref: RepoRef, line: string): never {
-  throw unreadable(ref, 'a commit', line);
+  throw unreadableError(ref, 'a commit', line);
 }
 
-function unreadable(ref: RepoRef, what: string, line: string): DevkitError {
+function unreadableError(ref: RepoRef, what: string, line: string): DevkitError {
   return new DevkitError(
     'server',
     'PLATFORM_QUERY_FAILED',
