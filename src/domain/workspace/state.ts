@@ -1,6 +1,7 @@
 // What a checkout looks like right now, and the parsers that read it off
 // git's machine-readable output. `dirty` means tracked changes; untracked
-// files are counted separately because they never block a fast-forward.
+// paths are counted separately from the index/worktree changes used by sync.
+// Ignored paths are not requested; Git itself refuses a conflicting fast-forward.
 
 export interface RepoState {
   readonly branch: string | undefined;
@@ -36,7 +37,7 @@ export function parsePorcelainStatus(text: string): RepoState {
 export function parseRemotes(text: string): Record<string, string> {
   const remotes: Record<string, string> = {};
   for (const line of text.split('\n')) {
-    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
+    const match = /^(\S+)\s+(.+)\s+\(fetch\)$/.exec(line.trim());
     if (match?.[1] !== undefined && match[2] !== undefined) remotes[match[1]] = match[2];
   }
   return remotes;

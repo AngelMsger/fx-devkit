@@ -111,7 +111,6 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
   };
 }
 
-// Which providers drive which tool, from the registry.
 export function toolDependants(): Record<string, string[]> {
   const byTool: Record<string, string[]> = {};
   for (const capability of CAPABILITIES) {
@@ -172,11 +171,10 @@ export function workspaceDeps(
   };
 }
 
-// A code host for a bare host URL, before any workspace binds one: what
-// `import` needs to ask which project holds a fork's parent. A host that is
-// a directory is a local-git host; anything else is the family's Bitbucket.
+// Import can resolve local Git hosts before a workspace exists; remote hosts need verified bindings.
 export function codeHostFor(container: Container, host: string): CodeHost | undefined {
-  const provider = existsSync(host) ? 'local-git' : 'bitbucket-cli';
+  if (!path.isAbsolute(host) || !existsSync(host)) return undefined;
+  const provider = 'local-git';
   try {
     return resolveProvider<CodeHost>(
       { capability: 'code-host', provider, source: 'default', vars: { host } },

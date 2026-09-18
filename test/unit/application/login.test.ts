@@ -341,7 +341,7 @@ describe('Login', () => {
     ]);
     expect(err.handoff?.userSteps[0]?.command).toEqual(['bitbucket-cli', 'auth', 'login']);
     expect(err.handoff?.userSteps[1]?.expects).toEqual({ path: '~/.kube/test' });
-    expect(err.handoff?.command).toBe('fx login bitbucket-cli kubectl --env test');
+    expect(err.handoff?.command).toBe('fx login bitbucket-cli kubectl --env test --workspace fx');
     expect(s.h.process.calls.every((c) => c.options.interactive !== true)).toBe(true);
     expect(s.h.localStore.writes).toEqual([]);
   });
@@ -411,6 +411,15 @@ describe('Login', () => {
     await quiet.setup.execute({ ...run, noInput: true, dryRun: true, tools: ['kubectl'] });
     expect(quiet.reporter().map((n) => n.code)).toContain('SCOPE_ENVS_UNSET');
     expect(quiet.prompter.questions).toEqual([]);
+  });
+
+  it('keeps dynamic all when guided environment selection is left empty', async () => {
+    const s = await stage({ local: {} });
+    s.loggedIn = true;
+    s.prompter.answers = [''];
+    await s.setup.execute({ ...run, tools: ['kubectl'], skipManual: true });
+    expect((await s.h.localStore.read('fx')).scope?.envs).toBeUndefined();
+    expect(s.h.localStore.writes).toEqual([]);
   });
 
   it('respects read-only posture after verifying', async () => {

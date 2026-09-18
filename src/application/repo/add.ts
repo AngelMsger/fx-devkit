@@ -8,6 +8,8 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer, Repo } from '../../domain/manifest/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
+import { physicalPath, validateWorkspaceLayer } from '../workspace/validate-layer.js';
 
 export interface RepoAddInput {
   readonly path: string;
@@ -29,9 +31,9 @@ export class RepoAdd {
 
   async execute(input: RepoAddInput): Promise<RepoAddOutput> {
     const { ctx, git, localStore } = this.deps;
-    const absolute = path.resolve(input.path);
+    const absolute = await physicalPath(this.deps.fs, input.path);
     const name = path.basename(absolute);
-    const relative = path.relative(ctx.root, absolute);
+    const relative = path.relative(await physicalPath(this.deps.fs, ctx.root), absolute);
     const taken = [...ctx.workspace.repos.map((r) => r.name), ...ctx.workspace.available];
     if (taken.includes(name)) {
       throw new DevkitError(
@@ -40,7 +42,7 @@ export class RepoAdd {
         `"${name}" is already a repository of this workspace`,
         {
           hint: 'A local entry cannot shadow a shared one; pick a different directory name.',
-          nextSteps: [`fx repo show ${name}`],
+          nextSteps: [workspaceCommand(this.deps, 'repo', 'show', name)],
         },
       );
     }
@@ -54,10 +56,21 @@ export class RepoAdd {
       upstream: upstream ?? null,
       written: false,
     };
+    const propose = async (current: LocalLayer): Promise<LocalLayer> => {
+      const layer: LocalLayer = { ...current, repos: [...(current.repos ?? []), entry] };
+      await validateWorkspaceLayer(
+        this.deps.fs,
+        ctx.root,
+        ctx.manifest.workspace.result.doc,
+        layer,
+        ctx.workspace.repos.find((repo) => repo.origin === 'manifest'),
+      );
+      return layer;
+    };
+    await propose(local);
     if (input.dryRun) return plan;
     assertWritable(input.posture, `repo add ${name}`);
-    const layer: LocalLayer = { ...local, repos: [...(local.repos ?? []), entry] };
-    await localStore.write(ctx.name, layer);
+    await localStore.update(ctx.name, propose);
     return { ...plan, written: true };
   }
 }

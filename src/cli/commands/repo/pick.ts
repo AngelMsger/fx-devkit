@@ -5,7 +5,8 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
 export default class RepoPickCommand extends FxCommand {
-  static override description = 'Select shared repositories to track on this machine';
+  static override description =
+    'Add shared repositories to the current selection; already-all is unchanged. Use repo select to replace it.';
   static override examples = ['<%= config.bin %> repo pick fx-example-api fx-example-auth'];
   static override strict = false;
   static override args = {

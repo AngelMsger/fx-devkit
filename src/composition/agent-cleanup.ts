@@ -12,6 +12,7 @@ export function agentResourceCleanup(command: HarnessCommandInput): AgentCleanup
     harnessDeps(command),
     command.container.config,
     command.container.fs,
+    command.container.manifestDirFor,
   );
   const run = async (ids: readonly string[], dryRun: boolean) => [
     ...(await (dryRun ? hooks.plan(ids) : hooks.apply(ids))),

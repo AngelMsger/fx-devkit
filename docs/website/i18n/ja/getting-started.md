@@ -68,11 +68,13 @@ fx login
 fx doctor
 ```
 
-`init` はまず、マニフェストで `install_on_init` を指定した未インストールのツールを、コマンドの承認後にインストールします。その後、リポジトリと選択した Agent リソースを同期します。既存のツールは保持されます。
+`init` はまず、マニフェストで `install_on_init` を指定した有効かつ未インストールのツールを、コマンドの承認後にインストールします。その後、リポジトリと選択した Agent リソースを同期します。既存のツールは保持されます。
 
 `init` はリポジトリと選択済みエージェントのリソースも同期します。登録に成功しても、すべての同期段階が成功したとは限りません。失敗した項目を調べ、権限や設定の問題を解消してから該当段階を再実行してください。
 
 既存ディレクトリは自動的に取り込まれます。`--adopt` は互換性のために残っています。不慣れなワークスペースでは、先に `--dry-run` で計画を確認します。
+
+`origin` だけが存在し、その URL が宣言された upstream と完全一致する場合、sync は `upstream` を追加します。`origin`、現在のブランチ、ローカルファイルは保持します。プレビューの `upstream_to_add` と結果の `upstream_added` は予定と実際の効果を区別し、競合する remote は変更しません。
 
 ```sh
 fx sync --dry-run
@@ -86,6 +88,53 @@ fx can <capability> --env <environment>
 `where` は座標とコマンドを表示するだけで、実行しません。`can` と `doctor` は現在の準備状態を確認します。設定、認証、アクセスが不足する場合は handoff に従ってください。レポートの生成成功だけでは準備完了を意味しません。`ok`、`complete`、個々の結果を確認します。
 
 `repo pick/unpick` と `env pick/unpick` でこのマシンの対象を絞れます。`fx config set agents claude-code,codex` でエージェントを選択し、未設定なら自動検出します。`fx sync --only docs,skills` はそのリソースだけを更新します。
+
+## ワークスペースの確認と管理 {#find-and-manage-workspaces}
+
+`fx workspace list` は任意のディレクトリで使えます。デフォルトが未設定の場合や、登録先のルートまたはマニフェストが失われた場合も利用できます。`fx workspace show <name>` は、マニフェストが正常でなくても、識別情報、ソース、状態、選択の根拠を返します。明示的な選択は `fx status --workspace <name>` を使います。省略時は現在のディレクトリを含むワークスペースが `default_workspace` より優先されます。
+
+```sh
+fx workspace list
+fx workspace show work
+fx status --workspace work
+fx config set default_workspace work
+```
+
+ディレクトリを移動済みの場合は `workspace relocate <name> <new-dir>` で登録先を更新します。この操作は checkout を移動したり再クローンしたりしません。マニフェストのソース変更には `workspace rebind <name> --from <source>` を使い、ワークスペースの識別情報と個人の選択を保持します。同じ実体のディレクトリを別名で登録する方法は移行になりません。
+
+`workspace unregister <name>` は業務 checkout を残して管理を解除します。ライフサイクル操作は `--dry-run` でプレビューし、管理対象リソースの削除計画と競合を確認してください。外部で作成されたファイルは保持されます。
+
+## ダウンロード前のリポジトリ選択 {#choose-repositories-before-downloading}
+
+初回ダウンロードを絞るには init に `--repos` を指定します。名前は検査済みマニフェストに存在する必要があります。`--no-repos` は空の選択です。既存ワークスペースに対する init で両方とも省略すると、現在の選択を保持します。
+
+```sh
+fx init ./work --from <manifest-repository> --repos example-api --dry-run
+fx init ./work --from <manifest-repository> --repos example-api
+```
+
+既存ワークスペースでは `select` が選択集合を置き換え、`pick` が名前を追加し、`unpick` が除外します。選択の変更でファイルは削除されず、checkout のダウンロードも自動では行いません。取得や更新には続けて sync を実行します。
+
+```sh
+fx repo select example-api
+fx repo pick example-web
+fx sync --dry-run
+fx sync
+fx repo select --all
+fx env select dev
+fx env select --none
+fx env select --all
+```
+
+`--all` は将来追加される項目を含むチームの全体集合に追従します。現在存在する名前をすべて列挙しても、それは固定リストです。`--none` は何も選択しません。一覧と変更結果に現在のモードが表示されるため、空の選択と未設定を区別できます。
+
+リポジトリの選択は共有エントリーだけを対象とし、ローカルで登録したリポジトリと manifest checkout は別途管理されます。`select` は空白区切りの名前、init の `--repos` はカンマ区切りのリストを受け取ります。
+
+## リポジトリ状態の読み方 {#read-repository-status}
+
+`fx status` は対象ワークスペースと未追跡ファイル数を表示します。`fx status --dirty` は追跡済みファイルの変更と新規の未追跡ファイルの両方を検索します。JSON の `dirty` は従来どおり追跡済みファイルまたはインデックスの変更を表し、追加された `uncommitted` はどちらの未コミット作業も表します。無視されたファイルは未追跡作業に含みません。空の結果では、リポジトリ未選択か、フィルターに一致する変更がないかを説明します。
+
+sync は作業ファイルとブランチを保持します。計画された動作を確認してください。追跡済みファイルの変更は `skip_dirty` となる場合があり、別ブランチの checkout では追跡対象ブランチの参照だけを更新できます。status は通常 fetch しません。リモートとの比較を更新する場合は `--fetch` を明示します。
 
 ## 基本概念 {#concepts}
 
@@ -113,6 +162,10 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 ツール定義は内蔵の基線と選択したワークスペースの `tools.yaml` を統合します。選択順は `--workspace`、`FX_WORKSPACE`、現在のディレクトリを含む登録済みルート、`default_workspace` です。解決できない場合は内蔵定義だけを使います。インストール先はパッケージ管理ツールが決め、複数のワークスペースで共有します。
 
 `tool install` と `tool update` は名前か `--all` のいずれか一方を必須とします。install の `--all` は有効で PATH にないツールを補い、update の `--all` は選択したツールチェーンの有効なツールすべてを対象にします。明示した名前では無効なツールも選べます。引数なしの呼び出しはパッケージ操作前にエラーになります。
+
+doctor はワークスペースが宣言したツールと、選択された環境で有効な provider の依存ツールを既定で確認します。未使用の組み込みツールは `tool list` または明示的な `doctor --tool <name>` で確認できます。不在でも無関係なワークスペースの異常にはしません。有効な provider の依存ツールが無効化されている場合は、検査を未完了として報告します。
+
+init/sync も同じ関連ツールを対象とします。任意ツールの不在は表示しますが、準備を妨げません。有効な `install_on_init` ツールは検証が必要です。無効な任意ツールは、このインストール指定だけで必須にはなりません。
 
 ### 共有サービス設定と個人の認証情報 {#shared-service-settings-and-personal-credentials}
 
@@ -191,7 +244,7 @@ fx skill status
 
 `--format json` を使い、stdout の結果と stderr の通知・進捗・エラーを分けて解析します。集合は `{items, has_more, next?}` です。`--no-input` は入力待ちを禁止し、`--quiet` は通知と進捗を抑えます。
 
-`init`、`sync`、`doctor`、`release` は要約を既定とし、件数、例外、復旧手順を保持します。`omitted` は省略数です。`--details` は完全な結果、明示的な `--fields` は完全な結果からの抽出で、`--verbose` は別途診断を制御します。human、NDJSON、事実照会の既定は変わりません。
+`init`、`sync`、`doctor`、`release` は要約を既定とし、件数、例外、復旧手順を保持します。`omitted` は省略数です。`--details` は完全な結果、明示的な `--fields` は完全な結果からの抽出で、`--verbose` は別途診断を制御します。明示的な `--fields` は全形式で完全なレポートから抽出します。JSON/NDJSON は1つのオブジェクト、human は選択したキーと値を出力します。ドットパスは平坦なキーを維持します。例えば `fx sync --fields operation,preparation_complete,items,summary` はステージ詳細を含みません。フィールド未指定の human/NDJSON は従来どおりです。事実照会は項目ごとに抽出し、コレクションのメタデータを保持します。
 
 | 結果             | 確認するフィールド                                                                                           |
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -222,6 +275,8 @@ fx sync --format json --details > sync-result.json
 `~/.fx` には登録、個人レイヤー、所有権状態、信頼記録、キャッシュがあります。`FX_HOME` は fx の個人ディレクトリのみを変更し、連携ツールの資格情報の場所は変えません。
 
 `config list` はキー、既定値、環境変数名、実効値の出所を示し、`config get <key> --explain` は各レイヤーを説明します。優先順位は明示的フラグ、環境変数、ファイル、組み込み既定値です。`config export/import` で個人設定を移行します。
+
+インポートはワークスペース登録を名前ごとにマージし、profile に含まれない既存登録を保持します。指定された個人レイヤーは置き換えますが、既存ワークスペースのルートやソースは変更しません。先に `workspace relocate` または `workspace rebind` を使ってください。登録解除には `workspace unregister` を明示します。計画は登録と残りの準備作業を示し、失われた manifest checkout は表示された init コマンドで復元できます。エクスポートには manifest checkout、信頼情報、認証情報を含みません。
 
 `format` は出力形式です。`command_shell` は生成されるコマンド文字列だけを変更し、実行方法は変更しません。auto は Windows で PowerShell、それ以外で POSIX を選択します。`--command-shell`、`FX_COMMAND_SHELL`、cmd 設定で変更できます。マニフェストの shell テンプレートはそのままです。
 
@@ -255,7 +310,7 @@ init は登録後に別の段階で失敗することがあります。非ゼロ
 
 | 証拠                                | 意味                                                                                            |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `registered` / `written`            | 登録やローカル書き込みの実施。完了判定は別途 `preparation_complete` を確認します。              |
+| `registered` / `written`            | 登録が存在するか／今回ローカルに書き込んだか。完了は別途 `preparation_complete` で確認します。  |
 | `failed_phase`、`phases`、`failure` | 停止した段階と復旧手順。                                                                        |
 | `sync.stages`、`sync.stage_details` | init の同期結果。sync コマンドでは `sync` 接頭辞を外します。                                    |
 | `tool_install`                      | インストール試行。`code: null` は成功ではなく、インストール後の版確認が失敗する場合もあります。 |
@@ -263,7 +318,11 @@ init は登録後に別の段階で失敗することがあります。非ゼロ
 
 `SKILL_WRITE_DENIED` では拒否されたパスを調べます。FX_HOME の変更では共有ロックは移動しません。`fx sync --only repos,docs --no-refresh-manifest` でリポジトリとガイドの作業を続けられますが、Skill の修復ではありません。条件が変わらない失敗を繰り返したり、コマンドの信頼を迂回したりしません。
 
-`INIT_PREPARED` はインストールやクローン前に計画を示します。新しいリモートソースの dry-run は manifest を取得せず、未知の内容は説明できません。stderr の進捗はハートビートであり、転送率や ETA ではありません。完全な JSON には `--details` を指定します。
+`INIT_PREPARED` はインストールやクローン前に計画を示します。init の dry-run はローカルディレクトリ、stdin、ローカル Git のコミット済み内容を検査し、リポジトリの操作を実行せずに表示します。新しいリモートソースは取得せず、`source_inspected: false` でその境界を示します。指定したリポジトリ選択も未検証です。先に内容を確認する場合は、プレビューの案内に従いローカル checkout を検査してください。計画と実際の状態は分離され、`registered` は現在の登録状態を示します。予定や今回の新規登録だけを意味しません。stderr の進捗はハートビートであり転送率や ETA ではありません。完全な JSON は `--details` を指定します。
+
+Git マニフェストの更新とプレビューは、変更済み・未追跡のファイル、および Git で無視されても fx が読むソースファイルを保持します。このソース専用の保護は業務 checkout の同期方針を変えません。
+
+通常の再試行ではリポジトリの読み取り可否を再確認します。以前は存在しなかったリポジトリを古い負のキャッシュで遮断し続けません。
 
 ツール、ログイン、更新の問題は[サポート](support.md#troubleshooting)を参照してください。`no_access` は環境が未選択という意味で、リモート ACL の拒否ではありません。Git 転送の認証情報と任意のコードホスト API 確認は独立しています。
 

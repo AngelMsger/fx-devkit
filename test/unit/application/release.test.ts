@@ -286,8 +286,13 @@ describe('Release', () => {
     const s = await stage({ tools: ['jenkins-cli', 'sentry'] });
     const report = await run(s);
     const deps = report.findings.find((f) => f.group === 'deps' && f.id === 'fx-example-api');
-    expect(deps).toMatchObject({ level: 'warn', fix: 'fx tool install bitbucket-cli' });
-    expect(deps?.handoff).toMatchObject({ command: 'fx tool install bitbucket-cli' });
+    expect(deps).toMatchObject({
+      level: 'warn',
+      fix: 'fx tool install bitbucket-cli --workspace fx',
+    });
+    expect(deps?.handoff).toMatchObject({
+      command: 'fx tool install bitbucket-cli --workspace fx',
+    });
     expect(byKey(report)).toMatchObject({
       'merge:fx-example-api': 'warn',
       'ci:fx-example-api': 'warn',

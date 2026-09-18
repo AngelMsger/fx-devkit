@@ -99,6 +99,10 @@ function stage(): Stage {
     ].join('\n'),
   );
   const ws = path.join(base, 'ws');
+  writeFileSync(
+    path.join(manifestDir, 'tools.yaml'),
+    "schema_version: 2\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n",
+  );
   const env = {
     FX_HOME: freshHome(),
     PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
@@ -188,7 +192,7 @@ describe('login and doctor', () => {
     ]);
     expect(err.handoff.user_steps[1]?.open).toBe('https://rancher.example.com/test');
     expect(err.handoff.command).toBe(
-      'fx login openobserve-cli kubectl --env test --env selfhosted',
+      'fx login openobserve-cli kubectl --env test --env selfhosted --workspace ws',
     );
 
     writeFileSync(path.join(s.kube, 'test.yaml'), 'k');
@@ -226,7 +230,11 @@ describe('login and doctor', () => {
     const finding = (broken.json() as Report).findings.find(
       (f) => f.id === 'openobserve-cli.context@test',
     );
-    expect(finding).toMatchObject({ level: 'warn', fix: 'fx login openobserve-cli --env test' });
-    expect(broken.stderr).toContain('DOCTOR_OK');
+    expect(finding).toMatchObject({
+      level: 'fail',
+      fix: 'fx login openobserve-cli --env test --workspace ws',
+    });
+    expect((broken.json() as Report).ok).toBe(false);
+    expect(broken.stderr).toContain('DOCTOR_FAILURES');
   });
 });

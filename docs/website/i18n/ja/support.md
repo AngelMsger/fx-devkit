@@ -12,6 +12,8 @@
 
 レポートの終了コード 0 は準備完了の証明ではありません。`ok`、`complete`、個々の結果、復旧情報を確認してください。
 
+ワークスペースの解決や manifest の読み込みに失敗した場合は、`fx workspace list`、`fx workspace show <name>`、`fx self info` から始めます。正常でなくても登録とインストールの既知情報を確認できます。移動後のルートは `workspace relocate` で修正し、manifest がない場合は記録されたソースから準備し直します。必須の workspace 文書がない、または無効な場合は `manifest validate --strict` が検証失敗を報告します。未宣言の任意文書はなくても構いません。
+
 ## 更新 {#updates}
 
 <!-- distribution:internal -->

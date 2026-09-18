@@ -129,6 +129,28 @@ describe('planSync', () => {
     expect(plan(checkout({}, { origin: 'x' })).action).toBe('skip_remote_mismatch');
   });
 
+  it('prepares an upstream only when an ordinary clone origin exactly matches the declaration', () => {
+    expect(plan(checkout({}, { origin: upstream }))).toMatchObject({
+      action: 'fast_forward',
+      upstream_to_add: upstream,
+    });
+    expect(plan(checkout({ dirty: true }, { origin: upstream }))).toMatchObject({
+      action: 'skip_dirty',
+      upstream_to_add: upstream,
+    });
+    expect(plan(checkout({ branch: 'task', dirty: true }, { origin: upstream }))).toMatchObject({
+      action: 'fast_forward',
+      mode: 'ref',
+      upstream_to_add: upstream,
+    });
+    expect(plan(checkout({}, { origin: 'ssh://git@elsewhere.example.com/p/a.git' }))).toMatchObject(
+      { action: 'skip_remote_mismatch', fetch: false },
+    );
+    expect(
+      plan(checkout({}, { origin: upstream, upstream: 'ssh://git@elsewhere.example.com/p/a.git' })),
+    ).not.toHaveProperty('upstream_to_add');
+  });
+
   it('leaves unpicked repositories alone and says how to pick them', () => {
     const items = planSync({
       repos: [repo('a')],
@@ -168,6 +190,7 @@ describe('deriveStatus', () => {
       tracked_branch: 'dev',
       dirty: false,
       untracked: 0,
+      uncommitted: false,
       ahead: 0,
       behind: 0,
       remotes_ok: true,

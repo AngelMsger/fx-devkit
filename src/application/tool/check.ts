@@ -34,7 +34,10 @@ export class ToolCheck {
   constructor(private readonly process: Process) {}
 
   async execute(input: ToolCheckInput): Promise<ToolStatus[]> {
-    const selected = selectTools(input.tools, input.names);
+    const selected = selectTools(input.tools, input.names, {
+      workspace: input.trust?.workspace,
+      commandShell: input.trust?.commandShell,
+    });
     const rows: ToolStatus[] = [];
     for (const tool of selected) rows.push(await this.check(tool, input.trust));
     return rows;
@@ -59,6 +62,7 @@ export class ToolCheck {
     if (trust !== undefined) {
       const probe = {
         workspace: trust.workspace,
+        commandShell: trust.commandShell,
         vector: [tool.binary, ...tool.versionArgs],
         label: `${tool.name} version probe`,
         origin: commandOrigin(tool, 'versionArgs'),

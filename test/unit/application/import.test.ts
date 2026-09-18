@@ -62,7 +62,13 @@ function stage() {
   codeHost.readability.set('fx/fx-example-scripts', 'missing');
   codeHost.readability.set('ai/fx-example-scripts', 'readable');
   const reporter = new FakeReporter();
-  const importer = new Import({ git, fs, reporter, codeHost: () => codeHost });
+  const importer = new Import({
+    git,
+    fs,
+    reporter,
+    codeHost: () => codeHost,
+    identifyProvider: async () => ({ provider: 'bitbucket-cli', host: HOST }),
+  });
   return { fs, git, codeHost, importer };
 }
 

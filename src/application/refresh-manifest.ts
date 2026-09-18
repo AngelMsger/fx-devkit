@@ -1,6 +1,4 @@
-// Pulls the manifest source before a sync, and says what happened to the
-// checkout. A registration without a source is worth a word; a directory
-// source is not.
+// Refresh eligible Git manifest sources and explain any local work retained.
 
 import type { ManifestSource, RefreshOutcome } from '../ports/manifest-source.js';
 import type { Reporter } from '../ports/reporter.js';

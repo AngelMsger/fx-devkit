@@ -252,7 +252,7 @@ describe('Can', () => {
     const can = new Can(s.h.deps, fakeLoginDeps(descriptors));
     expect(await can.execute({ target: 'ci', env: 'dev' })).toMatchObject({
       status: 'unconfigured',
-      handoff: { command: 'fx manifest providers' },
+      handoff: { command: 'fx manifest providers --workspace fx' },
     });
     expect(s.h.process.calls.some((call) => call.vector.includes('{missing_context}'))).toBe(false);
   });
@@ -264,19 +264,19 @@ describe('Can', () => {
       status: 'not_covered',
       capability: 'log-store',
       provider: 'openobserve-cli',
-      alternatives: ['no central log store', 'fx doctor'],
+      alternatives: ['no central log store', 'fx doctor --workspace fx'],
     });
 
     const locked = await stage({ local: { scope: { envs: ['prod'] } } });
     expect(await locked.can.execute({ target: 'ci', env: 'dev' })).toMatchObject({
       status: 'no_access',
-      alternatives: ['fx env pick dev', 'fx doctor'],
+      alternatives: ['fx env pick dev --workspace fx', 'fx doctor --workspace fx'],
     });
 
     expect(await s.can.execute({ target: 'ci', env: 'dev' })).toMatchObject({
       status: 'missing_tool',
       tool: 'jenkins-cli',
-      handoff: { command: 'fx tool install jenkins-cli', user_steps: [] },
+      handoff: { command: 'fx tool install jenkins-cli --workspace fx', user_steps: [] },
     });
 
     s.h.process.binaries.add('jenkins-cli');
@@ -288,7 +288,7 @@ describe('Can', () => {
     expect(await s.can.execute({ target: 'ci', env: 'dev' })).toMatchObject({
       status: 'unconfigured',
       handoff: {
-        command: 'fx login jenkins-cli',
+        command: 'fx login jenkins-cli --workspace fx',
         user_steps: [{ id: 'jenkins-cli.login', command: ['jenkins-cli', 'auth', 'login'] }],
       },
     });
@@ -304,7 +304,7 @@ describe('Can', () => {
       env: 'dev',
       status: 'ready',
       handoff: null,
-      alternatives: ['fx doctor'],
+      alternatives: ['fx doctor --workspace fx'],
     });
     expect(s.h.localStore.writes).toEqual([]);
   });
@@ -321,10 +321,10 @@ describe('Can', () => {
     expect(await s.can.execute({ target: 'ci', env: 'dev' })).toMatchObject({
       status: 'unknown',
       handoff: {
-        command: 'fx doctor --tool jenkins-cli',
+        command: 'fx doctor --tool jenkins-cli --workspace fx',
         user_steps: [expect.objectContaining({ kind: 'manual' })],
       },
-      alternatives: ['fx tool show jenkins-cli', 'fx doctor'],
+      alternatives: ['fx tool show jenkins-cli --workspace fx', 'fx doctor --workspace fx'],
     });
 
     const s2 = await stage();
@@ -333,7 +333,7 @@ describe('Can', () => {
     expect(await s2.can.execute({ target: 'jenkins-cli' })).toMatchObject({
       status: 'unknown',
       handoff: {
-        command: 'fx doctor --tool jenkins-cli',
+        command: 'fx doctor --tool jenkins-cli --workspace fx',
         user_steps: [
           {
             kind: 'manual',
@@ -341,7 +341,7 @@ describe('Can', () => {
           },
         ],
       },
-      alternatives: ['fx tool show jenkins-cli', 'fx doctor'],
+      alternatives: ['fx tool show jenkins-cli --workspace fx', 'fx doctor --workspace fx'],
     });
   });
 
@@ -361,7 +361,7 @@ describe('Can', () => {
     });
     await expect(s.can.execute({ target: 'ci' })).rejects.toMatchObject({
       code: 'ENV_REQUIRED',
-      nextSteps: ['fx env list', 'fx can ci --env <env>'],
+      nextSteps: ['fx env list --workspace fx', "fx can ci --env '<env>' --workspace fx"],
     });
     await expect(s.can.execute({ target: 'log-stor', env: 'dev' })).rejects.toMatchObject({
       code: 'CAN_UNKNOWN',

@@ -12,6 +12,8 @@
 
 报告退出码为零不证明已就绪。请阅读 `ok`、`complete`、各项结果和恢复信息。
 
+工作区解析或 manifest 加载失败时，先运行 `fx workspace list`、`fx workspace show <name>` 和 `fx self info`，保留查看注册与安装事实的能力。目录移动后使用 `workspace relocate` 修正根路径；manifest 缺失时按记录来源重新准备。必需工作区文档缺失或无效时，`manifest validate --strict` 会判定失败；可选且未声明的文档允许缺失。
+
 ## 更新 {#updates}
 
 <!-- distribution:internal -->

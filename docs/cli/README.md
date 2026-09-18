@@ -33,6 +33,7 @@ run `npm run docs:gen` after changing commands or flags.
 | `fx skill` | Bundled fx companion Skill: install, inspect and remove without a workspace |
 | `fx source` | Source contributions: validate selected files and propose a pull request |
 | `fx tool` | Companion tools: definitions, installation, inventory and history |
+| `fx workspace` | Workspace identities: discover, inspect, relocate, rebind and unregister |
 
 ## Global flags
 
@@ -75,12 +76,14 @@ Flags:
 | `--from` | git URL or checkout of the manifest repository, a directory holding manifest/, or - for workspace YAML / a source bundle (required) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
 | `--name` | name in ~/.fx/config.yaml; default: the directory name |
+| `--no-repos` | select no shared repositories; still prepares declared tools and agent resources (exclusive with: --repos) |
+| `--repos` | comma-separated shared repositories to select before the first clone; replaces existing shared selection when provided (exclusive with: --no-repos) |
 
 Examples:
 
 ```bash
 fx init ~/Workspaces/fx --from ssh://git@git.example.com/team/workspace-manifest.git
-fx init ./ws --from ./manifest --dry-run
+fx init ./ws --from ./manifest --repos api --dry-run
 cat workspace.yaml | fx init ./ws --from -
 ```
 
@@ -148,9 +151,9 @@ Flags:
 |---|---|
 | `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the fix plan instead of applying it (requires: --fix) |
-| `--env` | only these environments (login checks) (repeatable or comma-separated) (repeatable) |
+| `--env` | only these environments (provider tool and login checks) (repeatable or comma-separated) (repeatable) |
 | `--fix` | apply the fixes fx can make itself |
-| `--tool` | only these tools (tool and login checks) (repeatable or comma-separated) (repeatable) |
+| `--tool` | check these tools explicitly (default: declared tools and active providers) (repeatable or comma-separated) (repeatable) |
 
 Examples:
 
@@ -168,7 +171,7 @@ Flags:
 
 | Flag | Description |
 |---|---|
-| `--dirty` | list only repositories with uncommitted changes (default: false) |
+| `--dirty` | list repositories with tracked changes or untracked files (ignored files excluded) (default: false) |
 | `--dry-run` | print the fetch plan instead of applying it (requires: --fetch) |
 | `--fetch` | fetch upstream first (default: report local state only) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
@@ -446,7 +449,7 @@ fx config export --format json
 
 ## `fx config import`
 
-Apply a profile written by `config export`: config keys it names win, each workspace's local.yaml is replaced
+Apply a profile: named settings and personal layers win; workspace registrations merge by name, without relocating, rebinding or removing existing workspaces
 
 Arguments:
 
@@ -493,9 +496,34 @@ Examples:
 fx env show test
 ```
 
+## `fx env select`
+
+Replace the shared environment selection; --all follows current and future declarations, --none selects none. This changes selection only; it does not perform login or setup.
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | no | names to select exclusively (variadic) |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--all` | follow all shared declarations, including future additions (exclusive with: --none) |
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--none` | select no shared environments (exclusive with: --all) |
+
+Examples:
+
+```bash
+fx env select dev
+fx env select --all
+```
+
 ## `fx env pick`
 
-Select the environments this machine uses; login, doctor and can expand only these
+Add shared environments to the current selection; already-all is unchanged. Use env select to replace it.
 
 Arguments:
 
@@ -842,9 +870,34 @@ Arguments:
 |---|---|---|
 | `name` | yes | repository name |
 
+## `fx repo select`
+
+Replace the shared repository selection; --all follows current and future declarations, --none selects none. Run fx sync afterward to prepare selected repositories; existing checkouts are preserved.
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | no | names to select exclusively (variadic) |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--all` | follow all shared declarations, including future additions (exclusive with: --none) |
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--none` | select no shared repositories (exclusive with: --all) |
+
+Examples:
+
+```bash
+fx repo select api web
+fx repo select --all
+```
+
 ## `fx repo pick`
 
-Select shared repositories to track on this machine
+Add shared repositories to the current selection; already-all is unchanged. Use repo select to replace it.
 
 Arguments:
 
@@ -1168,6 +1221,70 @@ Examples:
 ```bash
 fx tool update bitbucket-cli
 ```
+
+## `fx workspace list`
+
+List registered workspaces from any directory, including unavailable roots and manifests
+
+## `fx workspace show`
+
+Show registered identity, selection provenance, source and readiness without requiring a healthy manifest
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | no | registered name; defaults to current workspace resolution |
+
+## `fx workspace unregister`
+
+Stop managing one workspace: retire owned project resources, archive personal metadata and preserve business checkouts and global tools
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | yes | registered workspace name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | print the plan instead of applying it (default: false) |
+
+## `fx workspace relocate`
+
+Point a workspace identity at its moved directory, preserving personal selections and checkout files; run sync afterwards to regenerate owned resources
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | yes | registered workspace name |
+| `dir` | yes | existing directory after moving the workspace |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | print the plan instead of applying it (default: false) |
+
+## `fx workspace rebind`
+
+Replace a registered manifest source with a validated staged source, preserving identity and local selections and retaining the previous source as a backup
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | yes | registered workspace name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--from` | new manifest Git URL, directory or - for stdin (required) |
 
 ## Compatibility aliases
 

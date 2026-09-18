@@ -64,7 +64,7 @@ export class Status {
         fetch,
       });
     }
-    return input.dirtyOnly ? rows.filter((r) => r.dirty) : rows;
+    return input.dirtyOnly ? rows.filter((r) => r.uncommitted) : rows;
   }
 }
 

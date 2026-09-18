@@ -36,7 +36,20 @@ these fields under `sync`. Registration or `written: true` does not prove readin
 The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
 results and INIT_PREPARED notices. Application values remain complete. --details
 returns those values; explicit --fields projects them before any summary filter.
-Human and NDJSON retain their defaults. Summaries expose output_mode and omitted
+Without --fields, human tables and NDJSON row/trailer streams retain their defaults.
+With --fields, every workflow report uses its complete top-level result as the
+projection source, including sync's items and trailer fields and doctor/release's
+findings and summary. JSON and NDJSON emit one projected object; human output uses
+key/value layout. --details does not change an explicit projection. Only selected
+fields reach stdout; error envelopes and notices remain independent on stderr.
+Dotted paths remain literal output keys and collect aligned values through arrays,
+using null for missing values in individual rows. Empty arrays preserve [] without
+claiming evidence that a nested field is unknown. Unknown top-level fields still
+produce one non-fatal FIELDS_UNMATCHED notice; --quiet suppresses that notice.
+Ordinary fact collections continue to project each row, keeping their collection
+metadata and default per-row NDJSON format. Human rendering may abbreviate large
+nested values; JSON/NDJSON preserve the complete projected values.
+Summaries expose output_mode and omitted
 counts, keep exception rows and exact trust/recovery data, and remove successful
 rows and large finding evidence. Error envelopes remain intact on stderr.
 
@@ -125,7 +138,7 @@ recovery; [Windows](windows.md) owns platform-specific behavior and acceptance.
 
 Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat with completed/total, active names and elapsed milliseconds. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.
 
-Optional Bitbucket repository/user probes use five-second process deadlines. Readability timeouts become uncached `unknown`; explicit refusals/missing results stay authoritative. Cancellation and unexpected exceptions propagate. Repository heartbeat records begin before planning and include `phase: preflight | apply`.
+Optional Bitbucket repository/user probes use five-second process deadlines. Readability is probed live once per absent repository during sync planning or per repository in an explicit unreadable listing. No persisted readability record, positive or negative, is used; normal retries recheck recovered access and changed hosts. Timeouts become `unknown`; explicit refusals/missing results apply only to the current operation. Cancellation and unexpected exceptions propagate. Repository heartbeat records begin before planning and include `phase: preflight | apply`.
 
 Configuration updates await asynchronous decisions while holding the lease. Init planning and registration both compare real paths, including symlink aliases; registration rechecks current state under that lease.
 

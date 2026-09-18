@@ -4,6 +4,7 @@
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import { recoveryCommand, type CommandGuidance } from '../workspace/guidance.js';
 
 export function assertToolSelection(names: readonly string[] | undefined, all: boolean): void {
   const named = (names?.length ?? 0) > 0;
@@ -19,6 +20,7 @@ export function assertToolSelection(names: readonly string[] | undefined, all: b
 export function selectTools(
   tools: readonly ResolvedTool[],
   names: readonly string[] | undefined,
+  context: CommandGuidance = {},
 ): ResolvedTool[] {
   if (names === undefined) return [...tools];
   return names.map((name) => {
@@ -33,7 +35,7 @@ export function selectTools(
         suggestion === undefined
           ? 'fx tool list shows the known tools.'
           : `Did you mean "${suggestion}"?`,
-      nextSteps: ['fx tool list'],
+      nextSteps: [recoveryCommand(context, 'tool', 'list')],
     });
   });
 }

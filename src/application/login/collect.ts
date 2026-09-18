@@ -82,7 +82,7 @@ export function buildPlan(
   setup: LoginDeps,
   selection: PlanSelection,
 ): SetupPlan {
-  validateSetupSelection(deps.ctx, selection);
+  validateSetupSelection(deps.ctx, selection, deps.commandShell);
   const providerTools = [...deps.ctx.bindings, ...deps.ctx.platforms].flatMap((binding) =>
     binding.provider === null ? [] : (setup.describeProvider(binding.provider)?.tools ?? []),
   );

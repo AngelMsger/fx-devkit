@@ -36,6 +36,7 @@ export interface ReconcileInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;
   readonly removeAgents?: readonly string[];
+  readonly ownershipRoot?: string;
 }
 
 export interface HookRow {
@@ -112,7 +113,7 @@ export class ReconcileHooks {
     const plans: Planned[] = [];
     for (const host of this.deps.hosts) {
       const receipt =
-        state !== null && samePath(state.root, input.root)
+        state !== null && samePath(state.root, input.ownershipRoot ?? input.root)
           ? state.receipts.find((r) => r.agent === host.id)
           : undefined;
       plans.push(
@@ -127,7 +128,9 @@ export class ReconcileHooks {
     plan: Awaited<ReturnType<ReconcileHooks['plan']>>,
   ): Promise<HookOutput> {
     const receipts = [
-      ...(plan.state !== null && samePath(plan.state.root, input.root) ? plan.state.receipts : []),
+      ...(plan.state !== null && samePath(plan.state.root, input.ownershipRoot ?? input.root)
+        ? plan.state.receipts
+        : []),
     ];
     const items: HookRow[] = [];
     for (const item of plan.plans) {
@@ -182,11 +185,10 @@ export class ReconcileHooks {
       (item) => !['busy', 'conflict', 'foreign', 'invalid'].includes(item.action),
     );
     if (complete && (input.action === 'inject' || input.action === 'remove')) {
-      const local = await this.deps.local.read(input.workspace);
-      await this.deps.local.write(input.workspace, {
+      await this.deps.local.update(input.workspace, (local) => ({
         ...local,
         hooks: { enabled: input.action === 'inject' },
-      });
+      }));
     }
   }
 }
@@ -223,7 +225,10 @@ async function planHost(
         ),
       },
     };
-  const owner = `fx:${fingerprint([input.workspace, input.root, host.id, 'session-start']).slice(0, 24)}`;
+  const owner =
+    remove && receipt
+      ? receipt.owner
+      : `fx:${fingerprint([input.workspace, input.root, host.id, 'session-start']).slice(0, 24)}`;
   const projected = deps.protocol(support).project({
     current: before.text,
     owner,

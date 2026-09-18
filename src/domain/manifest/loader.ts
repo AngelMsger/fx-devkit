@@ -11,7 +11,7 @@ import { localSchema } from './local.schema.js';
 import { membersSchema } from './members.schema.js';
 import { mergeTools, type MergePath, type Provenance } from './overlay.js';
 import { partitionProblems } from './quarantine.js';
-import { stripUnknown } from './reflect.js';
+import { acceptsNullAt, stripUnknown } from './reflect.js';
 import {
   environmentsRules,
   obsReferenceRules,
@@ -145,6 +145,17 @@ export function loadToolsDocument(
 ): InspectedLoadResult<Toolchain> {
   const { raw, lineOf } = parse(TOOLS, text);
   return finish(TOOLS, raw, opts, lineOf);
+}
+
+// A tools overlay has inherited requirements; lint its declared fields without standalone rules.
+export function loadToolsPatchDocument(text: string, opts: LoadOptions): LoadResult<Toolchain>;
+export function loadToolsPatchDocument(
+  text: string,
+  opts: AnyLoadOptions,
+): InspectedLoadResult<Toolchain> {
+  const { raw, lineOf } = parse(TOOLS, text);
+  const { value } = splitNulls(raw);
+  return finish({ ...TOOLS, rules: () => [] }, value, opts, lineOf);
 }
 
 // The bundled baseline is loaded in full; the team patch is only checked
@@ -431,8 +442,7 @@ function issuesToProblems(issues: readonly z.ZodIssue[], prefix: readonly PathPa
   }));
 }
 
-// A null in a patch means "delete this field". Schemas do not accept null,
-// so nulls are lifted out before validation and applied after the merge.
+// Preserve schema-defined null values; other patch nulls delete fields after merging.
 function splitNulls(raw: Raw): { value: Raw; deletions: MergePath[] } {
   const deletions: MergePath[] = [];
   const visit = (node: unknown, path: PathPart[]): unknown => {
@@ -440,7 +450,8 @@ function splitNulls(raw: Raw): { value: Raw; deletions: MergePath[] } {
     if (!isRaw(node)) return node;
     const out: Raw = {};
     for (const [key, child] of Object.entries(node)) {
-      if (child === null) deletions.push([...path, key]);
+      if (child === null && !acceptsNullAt(TOOLS.schema, [...path, key]))
+        deletions.push([...path, key]);
       else out[key] = visit(child, [...path, key]);
     }
     return out;

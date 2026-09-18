@@ -21,8 +21,11 @@ are checked; protected filenames are replaced with positional placeholders in
 failed previews. Private manifest addresses are allowed, while credentials and
 protected personnel content are rejected.
 
-Prompts run outside leases. Application holds workspace and source leases before
-re-reading the journal, routing, candidate and remote state. Changed evidence
+Prompts run outside leases. Registry identity and unfinished lifecycle journals are
+checked read-only before planning, including dry-run. After the write gate and any
+required confirmation, application acquires operation, workspace and source leases
+in that order and rechecks the captured registry/source identity. It then re-reads
+the journal, routing, candidate and remote state to validate the locked plan. Changed evidence
 rejects the old plan. Automatic lifecycle synchronization uses the same workspace
 lease, so it skips while a contribution owns the source.
 
@@ -86,3 +89,9 @@ supplied URL is never used as an arbitrary request destination.
 Probe recording is described in [its execution contract](probe-recording.md).
 The expanded contribution e2e matrix now covers recovery through the built CLI.
 Automated acceptance and native limitations are recorded in the validation guidance.
+
+The identity guard retains the registered logical source path alongside the captured
+physical source and workspace root. It re-resolves the logical source/root under the
+operation lease and reads pending lifecycle state through the current logical path.
+Retargeting a symlink ancestor therefore cannot pair Git operations on the old source
+with configuration or journals under a different personal home.

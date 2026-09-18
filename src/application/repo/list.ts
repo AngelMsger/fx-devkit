@@ -1,11 +1,10 @@
-// The workspace's repositories as one table, picked and unpicked together, so
-// "what do I track" and "what could I track" are one question. Readability costs
-// a code-host call per row and is asked for only when it is wanted.
+// List selected and available repositories; query remote readability only when requested.
 
 import { resolveSharedRepo, type ResolvedRepo } from '../../domain/manifest/local.js';
 import type { Readability } from '../../domain/workspace/plan.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { contactFor, inspectDisk, readabilityOf } from '../workspace/inspect.js';
+import { scopeMode, type ScopeMode } from '../workspace/scope.js';
 
 export interface RepoListInput {
   readonly tag?: string | undefined;
@@ -21,6 +20,7 @@ export interface RepoRow {
   readonly project: string | null;
   readonly tags: readonly string[];
   readonly picked: boolean;
+  readonly selection_mode: ScopeMode;
   readonly origin: ResolvedRepo['origin'];
   readonly exists: boolean;
   readonly readability?: Readability;
@@ -58,6 +58,7 @@ export class RepoList {
       project: repo.project ?? null,
       tags: repo.tags,
       picked,
+      selection_mode: scopeMode(this.deps.ctx.local.scope?.repos),
       origin: repo.origin,
       exists: (await inspectDisk(this.deps, repo)).kind !== 'absent',
       ...(probe ? { readability: await readabilityOf(this.deps, repo) } : {}),

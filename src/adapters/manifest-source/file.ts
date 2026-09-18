@@ -7,7 +7,7 @@ import { DevkitError } from '../../domain/errors.js';
 import { MANIFEST_DIR } from '../../domain/manifest/files.js';
 import { isAtOrInside, samePath } from '../../domain/path.js';
 import type { FileSystem } from '../../ports/fs.js';
-import type { ManifestSource } from '../../ports/manifest-source.js';
+import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 
 import { PAYLOAD_PATHS, preparePayload } from './payload.js';
@@ -23,6 +23,14 @@ export class FileSource implements ManifestSource {
 
   get description(): string {
     return path.resolve(this.dir);
+  }
+
+  async inspect(): Promise<ManifestSourceInspection> {
+    const from = await this.sourceRoot();
+    const sourcePath = (name: string): string =>
+      path.join(from.root, from.flat && name.startsWith('manifest/') ? name.slice(9) : name);
+    for (const name of PAYLOAD_PATHS) await this.validateTree(sourcePath(name));
+    return { root: from.root, readText: (name) => this.fs.readText(sourcePath(name)) };
   }
 
   async materialize(dir: string): Promise<void> {

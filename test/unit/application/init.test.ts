@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { FileSource } from '../../../src/adapters/manifest-source/file.js';
 import { Init, type InitDeps } from '../../../src/application/init.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
 import type { WorkspaceDeps } from '../../../src/application/workspace/deps.js';
@@ -51,6 +52,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
   const codeHost = new FakeCodeHost();
   const deps: InitDeps = {
     fs,
+    lock: { acquire: async () => ({ release: async () => undefined }) },
     git,
     config,
     localStore: new FakeLocalStore(),
@@ -283,7 +285,7 @@ describe('Init', () => {
       posture: writable,
       jobs: 1,
     });
-    expect(out).toMatchObject({ manifest: 'materialized', adopted: false, registered: false });
+    expect(out).toMatchObject({ manifest: 'materialized', adopted: false, registered: true });
     expect(file.source.materialized).toEqual([manifestDirFor('new')]);
 
     const repo = setup(files, registered);
@@ -305,7 +307,7 @@ describe('Init', () => {
       posture: writable,
       jobs: 1,
     });
-    expect(again).toMatchObject({ manifest: 'refreshed', registered: false });
+    expect(again).toMatchObject({ manifest: 'refreshed', registered: true });
     expect(refreshed).toEqual([manifestDirFor('new')]);
     expect(repo.source.materialized).toEqual([]);
   });
@@ -384,8 +386,8 @@ describe('Init', () => {
       jobs: 1,
     });
     expect(out).toMatchObject({
-      manifest: 'materialized',
-      registered: true,
+      manifest: 'not_written',
+      registered: false,
       sync: null,
       written: false,
     });
@@ -464,5 +466,47 @@ describe('Init', () => {
     expect(file.materialized).toEqual([manifestDirFor('new')]);
     expect(await s.config.read()).toEqual({});
     expect(s.config.writes).toBe(0);
+  });
+});
+
+describe('initialization inspection', () => {
+  it('plans from local content without commands, cache writes, registration or personal writes', async () => {
+    const s = setup({ [path.resolve('/preview/manifest/workspace.yaml')]: manifest });
+    const original = s.deps.workspaceDepsFor;
+    const queried = vi.fn();
+    const cached = vi.fn();
+    const deps: InitDeps = {
+      ...s.deps,
+      workspaceDepsFor: (ctx) => {
+        const workspace = original(ctx);
+        const host = workspace.codeHost();
+        vi.spyOn(host, 'whoami').mockImplementation(queried);
+        vi.spyOn(host, 'canRead').mockImplementation(queried);
+        return { ...workspace, cache: { get: async () => undefined, set: cached } };
+      },
+    };
+    const out = await new Init(deps).execute({
+      dir: ROOT,
+      source: new FileSource('/preview', s.fs),
+      repos: ['fx-example-api'],
+      adopt: false,
+      dryRun: true,
+      posture: locked,
+      jobs: 1,
+    });
+    expect(out.plan).toMatchObject({
+      source_inspected: true,
+      selection: { mode: 'explicit', validated: true },
+      repositories: [
+        { name: 'fx-example-api', action: 'clone' },
+        { name: 'fx-example-auth', action: 'skip_unpicked' },
+        { name: 'fx-example-docs', action: 'skip_unpicked' },
+      ],
+    });
+    expect(queried).not.toHaveBeenCalled();
+    expect(cached).not.toHaveBeenCalled();
+    expect(s.fs.writes).toEqual([]);
+    expect(s.config.writes).toBe(0);
+    expect(await s.deps.localStore.read('new')).toEqual({});
   });
 });

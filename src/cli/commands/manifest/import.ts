@@ -1,7 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 
 import { Import } from '../../../application/import.js';
-import { codeHostFor } from '../../../composition/container.js';
+import { importDeps } from '../../../composition/import.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag } from '../../flags.js';
 
@@ -30,12 +30,7 @@ export default class ManifestImportCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestImportCommand);
-    const out = await new Import({
-      git: this.container.git,
-      fs: this.container.fs,
-      reporter: this.reporter,
-      codeHost: (host) => codeHostFor(this.container, host),
-    }).execute({
+    const out = await new Import(importDeps(this.container, this.reporter)).execute({
       dir: args.dir,
       out: flags.out,
       dryRun: flags['dry-run'],

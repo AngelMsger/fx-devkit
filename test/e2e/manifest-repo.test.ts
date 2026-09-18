@@ -199,7 +199,7 @@ describe('a manifest repository', () => {
       s.env,
     );
     expect(again.status, again.stderr).toBe(0);
-    expect(again.json()).toMatchObject({ manifest: 'refreshed', registered: false });
+    expect(again.json()).toMatchObject({ manifest: 'refreshed', registered: true });
 
     const ws2 = path.join(path.dirname(s.ws), 'ws2');
     mkdirSync(ws2);

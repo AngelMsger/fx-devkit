@@ -19,6 +19,7 @@ import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync.js';
 import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
+import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { WorkspaceContext } from '../application/workspace-context.js';
@@ -37,6 +38,7 @@ import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
 import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
 import { parseBoolean, parseList } from '../domain/values.js';
+import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
@@ -45,6 +47,7 @@ import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
 import { shouldCheckUpdates, updateNotices } from './update-notices.js';
+import { workspaceWriteMode } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
@@ -66,6 +69,8 @@ export abstract class FxCommand extends Command {
   private updateCheckOn = false;
   private quietOn = false;
   private located: WorkspaceContext | undefined;
+  private operationLease: Lease | undefined;
+  private selection: ResolveInput['selection'];
 
   protected get commandName(): string {
     return `fx ${(this.id ?? '').replaceAll(':', ' ')}`.trim();
@@ -113,6 +118,19 @@ export abstract class FxCommand extends Command {
     this.workspaceName = flags.workspace;
     this.posture = resolvePosture({ allowWrites: flags['allow-writes'], env: process.env, file });
     await this.handshake();
+    const mode = workspaceWriteMode(this.id, flags);
+    if (mode !== null && !this.posture.readOnly) {
+      const operation = await beginWorkspaceCommand(
+        this.resolveInput(),
+        this.container.lock,
+        mode === 'source',
+      );
+      if (operation) {
+        this.operationLease = operation.lease;
+        this.workspaceName = operation.located.name;
+        this.selection = operation.located.selection;
+      }
+    }
   }
 
   protected get configAgents(): readonly string[] | undefined {
@@ -263,6 +281,7 @@ export abstract class FxCommand extends Command {
   }
 
   protected override async finally(err: Error | undefined): Promise<void> {
+    await this.operationLease?.release();
     const gate = { id: this.id, quiet: this.quietOn, enabled: this.updateCheckOn };
     if (shouldCheckUpdates(gate)) {
       const notices = await updateNotices(
@@ -295,6 +314,8 @@ export abstract class FxCommand extends Command {
   protected resolveInput(): ResolveInput {
     return {
       cwd: process.cwd(),
+      ...(this.selection === undefined ? {} : { selection: this.selection }),
+      commandShell: this.commandShell,
       name: this.workspaceName,
       config: this.container.config,
       fs: this.container.fs,

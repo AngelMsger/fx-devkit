@@ -33,7 +33,8 @@ covered by the [Skill reference](references/commands.md#standalone-companion-ski
 
 - `init`, `sync`, `doctor`, `release` default to JSON summaries. `omitted` counts
   normal rows/evidence; exceptions and recovery remain. Choose `--details` for all
-  rows, or `--fields` to project the full result. Set the view before a write;
+  rows, or `--fields` to project the full result in any format. JSON/NDJSON then
+  emit one object; human output shows selected key/value pairs. Set the view before a write;
   capture its output once instead of repeating the write to retrieve details.
 - For `init/sync`, inspect `operation` and `preparation_complete`. Preview uses
   `null`. Registration, a cloned repository or exit zero alone is insufficient.
@@ -50,7 +51,8 @@ See [report views](references/commands.md#workflow-report-views) and
 
 ## Execution boundaries
 
-Use `repo list`, `env list`, `agent list`, `tool list`, `config list` and
+Use `workspace list/show` to discover registered roots and their health from any
+directory, including when manifest loading fails. Use `repo list`, `env list`, `agent list`, `tool list`, `config list` and
 `member list` to discover names. `repo show` and `where` resolve exact aliases;
 use canonical names for mutations. An ambiguous match is not permission to guess.
 
@@ -108,24 +110,26 @@ stand in for `fx`; `self update` cannot repair an entry that cannot execute.
 
 ## Routing
 
-| Task                                   | Entry                                                                                    |
-| -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Initialize or adopt                    | `fx init <dir> --name <name> --from <source> --dry-run`                                  |
-| Inspect checkouts                      | `fx status`; `--fetch` refreshes remote comparisons                                      |
-| Update selected repositories/resources | `fx sync --dry-run`; use `--only` to narrow stages                                       |
-| Select repositories or environments    | `fx repo pick/unpick`; `fx env pick/unpick`                                              |
-| Inspect one repository and owners      | `fx repo show <repo>`; `fx member show <name>`                                           |
-| Find service diagnostics               | `fx where <repo> --env <env>`                                                            |
-| Check tools/access                     | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                 |
-| Inspect repository release criteria    | `fx release <repo> --only merge --details`                                               |
-| Install/update a companion             | `fx tool install <tool> --dry-run`; `fx tool update <tool> --dry-run`                    |
-| Review tool provenance                 | `fx tool history [tool]`; `fx tool inventory`                                            |
-| Inspect host resources                 | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                    |
-| Inspect declarations                   | `fx manifest validate --strict`; `fx manifest explain '<path>'`; `fx manifest providers` |
-| Edit/render shared facts               | `fx manifest repo-set`; `fx manifest record-probe`; `fx manifest render --check`         |
-| Import existing checkouts              | `fx manifest import <dir> --format json`                                                 |
-| Contribute selected source files       | `fx source push <paths...> --issue <id> --title <title> --dry-run`                       |
-| Inspect personal settings              | `fx config list`; `fx config get <key> --explain`                                        |
+| Task                                       | Entry                                                                                    |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Initialize or adopt                        | `fx init <dir> --name <name> --from <source> --dry-run`                                  |
+| Discover or repair workspace identity      | `fx workspace list/show`; `workspace relocate/rebind/unregister --dry-run`               |
+| Choose an exact repository/environment set | `fx repo select <names...>`; `fx env select <names...>`; `--all` or `--none`             |
+| Inspect checkouts                          | `fx status`; `--fetch` refreshes remote comparisons                                      |
+| Update selected repositories/resources     | `fx sync --dry-run`; use `--only` to narrow stages                                       |
+| Select repositories or environments        | `fx repo pick/unpick`; `fx env pick/unpick`                                              |
+| Inspect one repository and owners          | `fx repo show <repo>`; `fx member show <name>`                                           |
+| Find service diagnostics                   | `fx where <repo> --env <env>`                                                            |
+| Check tools/access                         | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                 |
+| Inspect repository release criteria        | `fx release <repo> --only merge --details`                                               |
+| Install/update a companion                 | `fx tool install <tool> --dry-run`; `fx tool update <tool> --dry-run`                    |
+| Review tool provenance                     | `fx tool history [tool]`; `fx tool inventory`                                            |
+| Inspect host resources                     | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                    |
+| Inspect declarations                       | `fx manifest validate --strict`; `fx manifest explain '<path>'`; `fx manifest providers` |
+| Edit/render shared facts                   | `fx manifest repo-set`; `fx manifest record-probe`; `fx manifest render --check`         |
+| Import existing checkouts                  | `fx manifest import <dir> --format json`                                                 |
+| Contribute selected source files           | `fx source push <paths...> --issue <id> --title <title> --dry-run`                       |
+| Inspect personal settings                  | `fx config list`; `fx config get <key> --explain`                                        |
 
 Match the returned row by `capability`, not by a platform name from another manifest:
 
@@ -138,6 +142,13 @@ Match the returned row by `capability`, not by a platform name from another mani
 
 For environment-wide queries use `fx can <capability> --env <env>`; for repository
 hosting use `fx can code-host`.
+
+`select` replaces a collection, `pick/unpick` add/remove names, `--all` follows
+future shared additions and `--none` selects nothing. Initial `--repos` or
+`--no-repos` applies before cloning; an init retry without them preserves selection.
+Inspect preview coverage: remote source contents may be uninspected. `status --dirty`
+includes untracked files; `dirty` itself keeps its tracked-change meaning and
+`uncommitted` combines both. Use the reported workspace and empty reason.
 
 Use `--format json` for results and `--help` for exact arguments. The table's
 `pick/unpick` notation means separate commands. Bare topics show their commands;

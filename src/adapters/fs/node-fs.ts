@@ -163,7 +163,11 @@ export class NodeFs implements FileSystem {
     try {
       return await fs.realpath(target);
     } catch {
-      return target;
+      const absolute = path.resolve(target);
+      const parent = path.dirname(absolute);
+      return parent === absolute
+        ? absolute
+        : path.join(await this.realpath(parent), path.basename(absolute));
     }
   }
 }

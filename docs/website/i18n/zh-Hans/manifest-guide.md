@@ -104,6 +104,10 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 写入后、init 前，先审阅候选中的分支、上游、项目和未确定项。团队规则与 Skill 需要单独补充，不能从 Git 元信息中恢复。已有目录自动纳入，`--adopt` 仅为兼容保留。替换已有指南或 Skill 位置可能需要审阅并备份。导入不改 checkout，不删除 submodule 元信息。见[导入契约](manifest-guide.md#import-existing-checkouts)。
 
+Provider 推断需要证据：经验证的本地 bare 仓库可生成 `local-git` 绑定。未知或混合托管保留显式 upstream URL 和待审阅说明，不猜测 provider。含凭证、查询参数或片段的 HTTP remote 会跳过且不回显这些数据。
+
+只有 `origin` 且其 URL 与声明的 upstream 完全匹配时，sync 会添加 `upstream`，保留 `origin`、当前分支和本地文件。预览的 `upstream_to_add` 与结果的 `upstream_added` 分别说明计划和实际效果；冲突的 remote 保持不变。
+
 ```sh
 fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
@@ -116,6 +120,8 @@ fx init ./existing-work --from ./team-workspace
 目录来源是快照；本地 Git 来源使用已提交内容，不包含未提交修改。持续共享应把审阅过的来源提交到权限适当的 Git 仓库，然后将 URL 提供给 `fx init`。
 
 注册后的来源位于 `~/.fx/workspaces/<name>/source`。`sync` 先刷新符合条件的 Git 来源；目录和 stdin 快照不会持续跟踪原始来源。用 `fx self info --format json` 定位当前工作区及来源。再次指定不同来源不会隐式迁移已注册工作区。
+
+用 `fx workspace rebind <name> --from <source> --dry-run` 预览显式换源，并保留工作区身份与个人选择。
 
 在来源 checkout 维护共享声明；使用 `repo pick/unpick`、`env pick/unpick` 和 `agent pick/unpick` 管理个人选择。Agent 选择影响同一 FX_HOME 的全部工作区。通过已验证个人 fork 提交变更的流程见[共享源贡献](cli/README.md#fx-source-push)。
 

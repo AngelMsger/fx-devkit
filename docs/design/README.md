@@ -37,7 +37,8 @@ produce the effective workspace; personal choices do not duplicate shared facts.
 Git sources can refresh safely, while directory and stdin sources are snapshots.
 
 Sync plans repository changes and managed resource projections, then applies
-write gates before effects. Repository updates preserve user work. Guides, Skills,
+write gates before effects. Repository updates preserve user work; [status and recovery](status-recovery.md)
+describes uncommitted-work visibility and live access checks. Guides, Skills,
 hooks, MCP entries and rules use ownership checks so unrelated content survives.
 Lifecycle dispatch reuses only the bounded background subset: it does not sync
 business repositories or make contribution writes.
@@ -58,6 +59,9 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | Contract                                            | What it owns                                                       |
 | --------------------------------------------------- | ------------------------------------------------------------------ |
 | [Runtime and commands](runtime.md)                  | Output, configuration, trust and process lifetimes                 |
+| [Workspace identity](workspace-management.md)       | Registry discovery, relocation, source rebinding and owned cleanup |
+| [Initialization and selection](init-selection.md)   | Scope modes, first-clone selection and truthful source previews    |
+| [Status and recovery](status-recovery.md)           | Uncommitted work, validation and live repository readiness         |
 | [Setup and readiness](setup.md)                     | Selector validation, stable step identities and evidence semantics |
 | [Import](import.md)                                 | Repository discovery and inference without changing checkouts      |
 | [Harness](harness.md)                               | MCP/rules declarations, projection ownership and readiness         |

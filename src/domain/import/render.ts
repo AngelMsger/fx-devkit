@@ -1,5 +1,4 @@
-// The generated workspace.yaml: schema 2 with the code host bound, and a
-// `# review:` comment travelling with every entry that carries doubt.
+// Render a schema 2 candidate with verified provider bindings and review notes for unresolved inference.
 
 import type { YAMLMap, YAMLSeq } from 'yaml';
 import { Document } from 'yaml';
@@ -9,7 +8,15 @@ import type { FoldedManifest } from './fold.js';
 export function renderManifest(folded: FoldedManifest): string {
   const doc = new Document({
     schema_version: 2,
-    providers: { 'code-host': { provider: 'bitbucket-cli', vars: { host: folded.defaults.host } } },
+    providers:
+      folded.provider === undefined
+        ? {}
+        : {
+            'code-host': {
+              provider: folded.provider.provider,
+              vars: { host: folded.provider.host },
+            },
+          },
     defaults: folded.defaults,
     projects: Object.fromEntries(folded.projects.map((p) => [p, { label: p, contact: '' }])),
     repos: [],

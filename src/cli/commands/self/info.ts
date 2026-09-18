@@ -1,6 +1,7 @@
 import { selfInfo, type WorkspaceInfo } from '../../../application/self/info.js';
+import { showWorkspace } from '../../../application/workspace/discover.js';
 import { bundledSkillDir } from '../../../composition/bundled.js';
-import { DevkitError } from '../../../domain/errors.js';
+import { asDevkitError, toEnvelope } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
 
 export default class SelfInfoCommand extends FxCommand {
@@ -11,6 +12,7 @@ export default class SelfInfoCommand extends FxCommand {
 
   async run(): Promise<void> {
     await this.parse(SelfInfoCommand);
+    const current = await this.currentWorkspace();
     const pjson = this.config.pjson as { name: string };
     this.renderer.record(
       selfInfo({
@@ -23,18 +25,22 @@ export default class SelfInfoCommand extends FxCommand {
         bundledTools: new URL('../../../../defaults/tools.yaml', import.meta.url).pathname,
         bundledSkill: bundledSkillDir(),
         registry: this.fxUpdateInput().registry,
-        workspace: await this.currentWorkspace(),
+        workspace: current.workspace,
+        workspaceError: current.error,
       }),
     );
   }
 
-  private async currentWorkspace(): Promise<WorkspaceInfo | null> {
+  private async currentWorkspace() {
     try {
-      const ctx = await this.workspace();
-      return { name: ctx.name, root: ctx.root, manifest: ctx.manifestDir };
+      const workspace: WorkspaceInfo = await showWorkspace({
+        ...this.resolveInput(),
+        bundledTools: this.container.bundledTools,
+        cliVersion: this.config.version,
+      });
+      return { workspace, error: null };
     } catch (err) {
-      if (err instanceof DevkitError && err.code === 'WORKSPACE_NOT_FOUND') return null;
-      throw err;
+      return { workspace: null, error: toEnvelope(asDevkitError(err)).error };
     }
   }
 }

@@ -29,9 +29,9 @@ export class EnvShow {
   constructor(private readonly deps: WorkspaceDeps) {}
 
   execute(name: string): EnvDetail {
-    const doc = environmentsOf(this.deps.ctx);
+    const doc = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const env = doc.envs[name];
-    if (env === undefined) throw envNotFound(name, Object.keys(doc.envs));
+    if (env === undefined) throw envNotFound(this.deps, name, Object.keys(doc.envs));
     const picked = this.deps.ctx.local.scope?.envs;
     return {
       name,

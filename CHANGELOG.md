@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Preserve explicit report fields in all output formats, workspace scope in recovery commands, and source identity through contribution locking.
+- Import verified local Git coordinates, safely add matching upstream remotes to existing clones, and align preparation with enabled/required tool declarations.
+- Accept all declared setup verification forms and preserve nullable comparison values through manifest overlays.
+
+- Add global workspace discovery, health, unregister, relocation and source rebinding while preserving business checkouts and preventing duplicate directory identities.
+- Add repo/env select with explicit, dynamic-all and empty scopes, first-init repository selection and inspected local-source previews.
+- Fix untracked work omitted from status filters, required manifests incorrectly passing validation, and stale readability caches blocking recovered repositories.
+- Scope default doctor tool checks to declared tools and active provider requirements; retain explicit tool inspection.
+- Compatibility: init registered now means actual registration state; intended effects are in plan. Profile import merges registrations by name and retains unmentioned workspaces; use workspace unregister for removal.
+
 ## 0.2.1 (2026-09-18)
 
 - Shorten the repository entry and bundled Skill; keep detailed recovery in the command reference.

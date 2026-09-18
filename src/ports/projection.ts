@@ -17,3 +17,17 @@ export interface ProjectionStore {
   read(at: ProjectionPath): Promise<ProjectionSnapshot>;
   write(input: ProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'>;
 }
+
+// Link projections share the bounded parent-path checks of managed text files.
+export interface LinkProjectionSnapshot {
+  readonly kind: 'absent' | 'link' | 'foreign' | 'unsafe';
+  readonly target: string | null;
+}
+export interface LinkProjectionWrite extends ProjectionPath {
+  readonly before: LinkProjectionSnapshot;
+  readonly target: string | null;
+}
+export interface LinkProjectionStore {
+  readLink(at: ProjectionPath): Promise<LinkProjectionSnapshot>;
+  writeLink(input: LinkProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'>;
+}

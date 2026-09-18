@@ -73,7 +73,13 @@ export class ValidateManifest {
       this.fs.readText(path.join(input.dir, MANIFEST_FILES[kind]));
 
     const workspaceText = await read('workspace');
-    const workspace = attempt(() => loadWorkspace(workspaceText ?? '', opts));
+    const workspace: Attempt<Workspace> =
+      workspaceText === undefined
+        ? {
+            result: undefined,
+            failure: { path: '(root)', message: 'Required manifest/workspace.yaml is missing.' },
+          }
+        : attempt(() => loadWorkspace(workspaceText, opts));
     const context = {
       workspace: workspace.result?.valid === true ? workspace.result.doc : undefined,
     };
@@ -94,7 +100,7 @@ export class ValidateManifest {
       documents.push(report(kind, text !== undefined || kind === 'tools', outcome));
     }
     return {
-      ok: documents.every((d) => !d.present || d.problems.length === 0),
+      ok: documents.every((d) => d.problems.length === 0),
       dir: input.dir,
       documents,
     };

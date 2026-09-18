@@ -1,7 +1,4 @@
-// Walks a zod schema as data. Everything that needs to know a document's
-// shape without hard-coding it — the description audit, unknown-key
-// detection, `manifest explain` — comes through here, so zod's internals are
-// touched in exactly one file.
+// Isolate Zod schema introspection for field descriptions, normalization and overlays.
 
 import type * as z from 'zod';
 
@@ -151,34 +148,66 @@ export interface Stripped {
 // grows); strict mode turns the report into errors.
 export function stripUnknown(schema: AnySchema, value: unknown): Stripped {
   const unknown: (string | number)[][] = [];
-  const visit = (node: AnySchema, current: unknown, path: (string | number)[]): unknown => {
-    const shape = shapeOf(node);
-    if (shape !== undefined) {
-      if (!isPlainObject(current)) return current;
-      const out: Record<string, unknown> = {};
-      for (const [key, child] of Object.entries(current)) {
-        if (key in shape) out[key] = visit(shape[key] as AnySchema, child, [...path, key]);
-        else unknown.push([...path, key]);
-      }
-      return out;
-    }
-    const element = elementOf(node);
-    if (element !== undefined) {
-      if (Array.isArray(current))
-        return current.map((item, i) => visit(element, item, [...path, i]));
-      if (isPlainObject(current) && kindOf(unwrap(node).schema) === 'record') {
-        return Object.fromEntries(
-          Object.entries(current).map(([k, v]) => [k, visit(element, v, [...path, k])]),
-        );
-      }
+  const visit = (
+    nodes: readonly AnySchema[],
+    current: unknown,
+    path: (string | number)[],
+  ): unknown => {
+    const alternatives = nodes.flatMap(structuralAlternatives);
+    if (alternatives.some((node) => ['any', 'unknown'].includes(kindOf(unwrap(node).schema))))
       return current;
+    if (Array.isArray(current)) {
+      const elements = alternatives.flatMap((node) => childrenOfKind(node, 'array'));
+      return elements.length === 0
+        ? current
+        : current.map((item, i) => visit(elements, item, [...path, i]));
     }
-    const objectOption = (optionsOf(node) ?? []).find((o) => shapeOf(o) !== undefined);
-    if (objectOption !== undefined && isPlainObject(current))
-      return visit(objectOption, current, path);
-    return current;
+    if (!isPlainObject(current)) return current;
+    const shapes = alternatives.flatMap((node) => {
+      const shape = shapeOf(node);
+      return shape === undefined ? [] : [shape];
+    });
+    const records = alternatives.flatMap((node) => childrenOfKind(node, 'record'));
+    if (shapes.length === 0 && records.length === 0) return current;
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(current)) {
+      const fields = [
+        ...records,
+        ...shapes.flatMap((shape) => (Object.hasOwn(shape, key) ? [shape[key]!] : [])),
+      ];
+      if (fields.length === 0) unknown.push([...path, key]);
+      else out[key] = visit(fields, child, [...path, key]);
+    }
+    return out;
   };
-  return { value: visit(schema, value, []), unknown };
+  return { value: visit([schema], value, []), unknown };
+}
+
+// Keep all declared alternatives intact; validation, not normalization, rejects mixed union branches.
+function structuralAlternatives(schema: AnySchema): readonly AnySchema[] {
+  const options = optionsOf(schema);
+  return options === undefined ? [schema] : options.flatMap(structuralAlternatives);
+}
+
+function childrenOfKind(schema: AnySchema, kind: 'array' | 'record'): readonly AnySchema[] {
+  if (kindOf(unwrap(schema).schema) !== kind) return [];
+  const element = elementOf(schema);
+  return element === undefined ? [] : [element];
+}
+
+// Overlay nulls are values only where the declared schema accepts them; other nulls remain deletions.
+export function acceptsNullAt(schema: AnySchema, path: readonly (string | number)[]): boolean {
+  let nodes: readonly AnySchema[] = [schema];
+  for (const part of path) {
+    nodes = nodes.flatMap(structuralAlternatives).flatMap((node) => {
+      if (typeof part === 'number') return childrenOfKind(node, 'array');
+      const shape = shapeOf(node);
+      if (shape !== undefined && Object.hasOwn(shape, part)) return [shape[part]!];
+      return childrenOfKind(node, 'record');
+    });
+    if (nodes.length === 0) return false;
+  }
+  return nodes.some((node) => node.safeParse(null).success);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

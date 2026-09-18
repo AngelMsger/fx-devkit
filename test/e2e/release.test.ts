@@ -235,8 +235,8 @@ describe('release', () => {
     const report = run.json() as Report;
     const errors = report.findings.filter((f) => f.group === 'errors');
     expect(errors.map((f) => f.level)).toEqual(['warn', 'warn']);
-    expect(errors[0]?.handoff).toMatchObject({ command: 'fx login sentry' });
-    expect(errors[0]?.fix).toBe('fx login sentry');
+    expect(errors[0]?.handoff).toMatchObject({ command: 'fx login sentry --workspace ws' });
+    expect(errors[0]?.fix).toBe('fx login sentry --workspace ws');
     expect(report.findings.filter((f) => f.group !== 'errors').map((f) => f.level)).toEqual([
       'fail',
       'ok',

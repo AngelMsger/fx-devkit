@@ -1,10 +1,10 @@
-// Unregisters a machine-local entry. The directory stays: fx registered a reference, so
-// it removes a reference.
+// Remove a personal repository reference while preserving its checkout.
 
 import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
 export interface RepoRemoveInput {
   readonly name: string;
@@ -39,7 +39,11 @@ export class RepoRemove {
           hint: shared
             ? 'It is a shared repository; deselect it instead of removing it.'
             : 'fx repo list shows local entries with origin "local".',
-          nextSteps: shared ? [`fx repo unpick ${input.name}`] : ['fx repo list'],
+          nextSteps: [
+            shared
+              ? workspaceCommand(this.deps, 'repo', 'unpick', input.name)
+              : workspaceCommand(this.deps, 'repo', 'list'),
+          ],
         },
       );
     }
@@ -52,14 +56,13 @@ export class RepoRemove {
     };
     if (input.dryRun) return plan;
     assertWritable(input.posture, `repo remove ${input.name}`);
-    const layer: LocalLayer = {
+    await localStore.update(ctx.name, (local): LocalLayer => ({
       ...local,
       repos: (local.repos ?? []).filter((r) => r.name !== input.name),
       ...(local.scope?.repos === undefined
         ? {}
         : { scope: { ...local.scope, repos: local.scope.repos.filter((n) => n !== input.name) } }),
-    };
-    await localStore.write(ctx.name, layer);
+    }));
     return { ...plan, written: true };
   }
 }

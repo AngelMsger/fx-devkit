@@ -1,9 +1,5 @@
-// The agent's question about a repository: where its errors, logs, builds
-// and pods are in an environment, one row per platform, and whether each can
-// be used right now. Coordinates come from the manifest alone; the readiness
-// column runs only a provider's read-only verify, and --probe its read-only
-// probe. This query never edits the manifest; explicit recording consumes
-// its evidence in a separate use case.
+// Resolve repository coordinates and readiness using read-only provider queries.
+// Recording probe evidence is a separate, explicit write operation.
 
 import { asDevkitError, DevkitError, type HandoffEnvelope } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
@@ -21,6 +17,7 @@ import { expandHomeIn } from './login/verify.js';
 import { pooled } from './pool.js';
 import { Readiness, type ReadyStatus } from './readiness.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
+import { workspaceCommand } from './workspace/guidance.js';
 import { findKnownRepo } from './workspace/inspect.js';
 
 export interface WhereInput {
@@ -66,7 +63,10 @@ export class Where {
     if (input.probe && input.env === undefined) {
       throw new DevkitError('usage', 'ENV_REQUIRED', 'probing asks a real platform; pass --env', {
         hint: 'Environments are listed by `fx env list`.',
-        nextSteps: ['fx env list', `fx where ${input.repo} --env <env> --probe`],
+        nextSteps: [
+          workspaceCommand(this.deps, 'env', 'list'),
+          workspaceCommand(this.deps, 'where', input.repo, '--env', '<env>', '--probe'),
+        ],
       });
     }
     return pooled(this.coordinates(input), input.jobs ?? 4, async (coordinate) => {
@@ -84,9 +84,13 @@ export class Where {
 
   private coordinates(input: WhereInput): ObsCoordinate[] {
     const repo = findKnownRepo(this.deps, input.repo);
-    const environments = environmentsOf(this.deps.ctx);
+    const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const envs = this.envs(input.env, Object.keys(environments.envs));
-    const platforms = this.platforms(input.platform, Object.keys(environments.platforms));
+    const platforms = this.platforms(
+      input.platform,
+      Object.keys(environments.platforms),
+      input.env,
+    );
     return envs.flatMap((env) =>
       platforms.map((platform) => {
         const binding = this.deps.ctx.platforms.find((b) => b.platform === platform);
@@ -115,14 +119,14 @@ export class Where {
 
   private envs(wanted: string | undefined, known: readonly string[]): string[] {
     if (wanted !== undefined) {
-      if (!known.includes(wanted)) throw envNotFound(wanted, known);
+      if (!known.includes(wanted)) throw envNotFound(this.deps, wanted, known);
       return [wanted];
     }
     const scope = this.deps.ctx.local.scope?.envs;
     return known.filter((e) => scope === undefined || scope.includes(e));
   }
 
-  private platforms(wanted: string | undefined, known: readonly string[]): string[] {
+  private platforms(wanted: string | undefined, known: readonly string[], env?: string): string[] {
     if (wanted === undefined) return [...known];
     if (known.includes(wanted)) return [wanted];
     const suggestion = nearest(wanted, known);
@@ -135,7 +139,11 @@ export class Where {
           suggestion === undefined
             ? `Known: ${known.join(', ')}.`
             : `Did you mean "${suggestion}"?`,
-        nextSteps: ['fx env show <env>'],
+        nextSteps: [
+          env === undefined
+            ? workspaceCommand(this.deps, 'env', 'list')
+            : workspaceCommand(this.deps, 'env', 'show', env),
+        ],
       },
     );
   }

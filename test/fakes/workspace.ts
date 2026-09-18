@@ -56,6 +56,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     [`${MANIFEST_DIR}/manifest/workspace.yaml`]: workspace,
     ...(options.files ?? {}),
   });
+  fs.mkdir(ROOT);
   const git = new FakeGit((dir) => fs.mkdir(dir));
   const codeHost = options.codeHost === undefined ? new FakeCodeHost() : options.codeHost;
   const localStore = FakeLocalStore.with('fx', options.local ?? {});

@@ -6,6 +6,14 @@ Start with the current result from `fx doctor --format json`. For a particular
 capability, use `fx can <capability> --env <environment> --format json`. Follow the
 reported handoff instead of repeatedly retrying a command with missing access.
 
+If workspace resolution or manifest loading fails, start with `fx workspace list`,
+`fx workspace show <name>` and `fx self info`. These discovery commands retain
+known registration and installation facts even when the workspace is unhealthy.
+A missing root needs `workspace relocate` after the directory has moved; a missing
+manifest needs preparation from its recorded source. `manifest validate --strict`
+fails validation when the required workspace document is missing or invalid.
+Optional undeclared documents may be absent.
+
 - Missing tool: inspect `fx tool show <tool>` and its installation requirements.
 - Missing authentication: use `fx login --list`, then the relevant login flow.
 - Environment outside your selection: inspect `fx env list` and select it only

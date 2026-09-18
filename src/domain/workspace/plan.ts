@@ -1,8 +1,5 @@
-// What sync would do to each repository, decided from facts alone. This is
-// the whole safety argument of sync in one table: a plan item is either a
-// clone into an empty place, a fast-forward that git itself refuses when it
-// is not one, or a skip with its reason. Nothing here can lose work. An
-// item's `origin` is the fork remote to add when the checkout has none.
+// Plan repository synchronization and additive remote preparation from current checkout facts.
+// origin adds a missing fork remote; upstream_to_add requires an exact matching origin URL.
 
 import type { ResolvedRepo } from '../manifest/local.js';
 
@@ -54,6 +51,7 @@ export interface PlanItem {
   readonly reason?: string;
   readonly upstream?: string;
   readonly origin?: string;
+  readonly upstream_to_add?: string;
   readonly contact?: string;
 }
 
@@ -149,37 +147,43 @@ function decideCheckout(
   state: RepoState,
 ): PlanItem {
   const actual = remotes['upstream'];
-  if (urls.upstream !== undefined && actual !== urls.upstream) {
+  const upstreamToAdd =
+    actual === undefined && urls.upstream !== undefined && remotes['origin'] === urls.upstream
+      ? urls.upstream
+      : undefined;
+  if (urls.upstream !== undefined && actual !== urls.upstream && upstreamToAdd === undefined) {
     const reason =
       actual === undefined
-        ? 'no upstream remote'
+        ? 'no upstream remote; origin does not exactly match the declared upstream, so remotes were preserved'
         : `upstream remote is ${actual}, expected ${urls.upstream}`;
     return { ...base, action: 'skip_remote_mismatch', fetch: false, reason };
   }
-  const origin = forkToAdd(remotes, urls);
+  const prepared = {
+    ...base,
+    ...forkToAdd(remotes, urls),
+    ...(upstreamToAdd === undefined ? {} : { upstream_to_add: upstreamToAdd }),
+  };
   if (state.branch !== repo.branch) {
     const reason =
       state.branch === undefined
         ? 'detached HEAD; only the branch ref moves'
         : `on ${state.branch}; only the ${repo.branch} ref moves`;
-    return { ...base, ...origin, action: 'fast_forward', mode: 'ref', fetch: true, reason };
+    return { ...prepared, action: 'fast_forward', mode: 'ref', fetch: true, reason };
   }
   if (state.dirty)
     return {
-      ...base,
-      ...origin,
+      ...prepared,
       action: 'skip_dirty',
       fetch: true,
       reason: 'uncommitted changes on the tracked branch',
     };
   if (state.ahead > 0 && state.behind > 0) {
     return {
-      ...base,
-      ...origin,
+      ...prepared,
       action: 'skip_diverged',
       fetch: true,
       reason: `${state.ahead} ahead and ${state.behind} behind upstream`,
     };
   }
-  return { ...base, ...origin, action: 'fast_forward', mode: 'merge', fetch: true };
+  return { ...prepared, action: 'fast_forward', mode: 'merge', fetch: true };
 }

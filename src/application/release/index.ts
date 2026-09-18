@@ -1,7 +1,4 @@
-// The release checklist as a report: for every repository on it, one finding per check —
-// dependencies, branches, builds, errors — produced side by side and in a fixed order.
-// Nothing here fails the command; what could not be asked becomes a finding like any
-// other.
+// Evaluate the release checklist in a fixed order, retaining failed or unavailable checks as findings.
 
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
@@ -69,8 +66,8 @@ export class Release {
   // every repository: the name came from the person, not from a platform.
   private checkEnv(env: string | undefined): void {
     if (env === undefined) return;
-    const envs = environmentsOf(this.deps.ctx).envs;
-    if (envs[env] === undefined) throw envNotFound(env, Object.keys(envs));
+    const envs = environmentsOf(this.deps.ctx, this.deps.commandShell).envs;
+    if (envs[env] === undefined) throw envNotFound(this.deps, env, Object.keys(envs));
   }
 
   // Readiness is judged before the pool starts and one gate at a time: a

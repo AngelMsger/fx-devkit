@@ -104,6 +104,10 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 書き込み後、init の前に、推定されたブランチ、上流、プロジェクト、未解決項目を確認してください。チームのルールと Skill は別途追加します。Git のメタデータからは復元されません。既存ディレクトリの取り込みは自動で、`--adopt` は互換性のためのフラグです。ガイドや Skill の配置を置き換える場合はレビューとバックアップが必要になることがあります。インポートは checkout を変更せず、submodule の管理情報も削除しません。[インポートの契約](manifest-guide.md#import-existing-checkouts)を参照してください。
 
+Provider の推定には根拠が必要です。検証済みのローカル bare リポジトリからは `local-git` バインディングを生成できます。不明または混在するホスティングは明示的な upstream URL と要確認の注記を保持し、provider を推測しません。認証情報、クエリ、フラグメントを含む HTTP remote は、それらを表示せずにスキップします。
+
+`origin` だけが存在し、その URL が宣言された upstream と完全一致する場合、sync は `upstream` を追加します。`origin`、現在のブランチ、ローカルファイルは保持します。プレビューの `upstream_to_add` と結果の `upstream_added` は予定と実際の効果を区別し、競合する remote は変更しません。
+
 ```sh
 fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
@@ -116,6 +120,8 @@ fx init ./existing-work --from ./team-workspace
 ディレクトリソースはスナップショットです。ローカル Git ソースはコミット済み内容を使い、未コミットの編集を含みません。継続的に共有する場合は、レビュー済みソースを適切なアクセス権を持つ Git リポジトリにコミットし、その URL を `fx init` に渡します。
 
 登録後のソースは `~/.fx/workspaces/<name>/source` にあります。`sync` は条件を満たす Git ソースを先に更新します。ディレクトリや stdin のスナップショットは元のソースの編集を追跡しません。`fx self info --format json` で現在のワークスペースとソースを確認できます。登録済みルートに別のソースを指定しても暗黙の移行は行われません。
+
+`fx workspace rebind <name> --from <source> --dry-run` で明示的なソース変更をプレビューし、ワークスペースの識別情報と個人の選択を保持します。
 
 共有宣言はソース checkout で管理し、個人の選択は `repo pick/unpick`、`env pick/unpick`、`agent pick/unpick` で管理します。エージェント選択は同じ FX_HOME の全ワークスペースに適用されます。検証済み個人フォークからの提案は[ソースへの貢献](cli/README.md#fx-source-push)を参照してください。
 

@@ -31,7 +31,7 @@ describe('explicit input boundaries', () => {
       ['init', freshHome(), '--from', '-', '--dry-run', '--format', 'json'],
       {},
       undefined,
-      'schema_version: 2\nrepos: []',
+      'schema_version: 2\ndefaults: { branch: main }\nrepos: [{name: sample, upstream: https://git.example.com/team/sample.git}]',
     );
     expect(input.status).toBe(0);
   });

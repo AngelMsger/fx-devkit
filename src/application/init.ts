@@ -4,23 +4,36 @@ import path from 'node:path';
 
 import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../domain/errors.js';
 import { samePath, windowsPathProblem } from '../domain/path.js';
-import { changeDirectoryCommand, type ResolvedShell } from '../domain/shell.js';
+import { changeDirectoryCommand, shellLine, type ResolvedShell } from '../domain/shell.js';
 import { assertWorkspaceName, assertWorkspaceNames } from '../domain/workspace/name.js';
+import type { PlanItem } from '../domain/workspace/plan.js';
 import type { FileSystem } from '../ports/fs.js';
 import type { Git } from '../ports/git.js';
+import type { Lock } from '../ports/lock.js';
 import type { ManifestSource } from '../ports/manifest-source.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { ConfigFile, ConfigStore, LocalLayerStore, WorkspaceEntry } from '../ports/stores.js';
 
-import { LoadManifest } from './manifest/load.js';
+import {
+  initialLocalLayer,
+  inspectInitialization,
+  initializationSourceError,
+  initialPlan,
+} from './init-preview.js';
+import { LoadManifest, type ManifestBundle } from './manifest/load.js';
 import { RefreshManifest } from './refresh-manifest.js';
 import { assertWritable, type WritePosture } from './safety/posture.js';
 import { Sync, type SyncOutput, type SyncStages } from './sync.js';
 import type { ToolInstallOutput } from './tool/install.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
+import { assertNoWorkspaceOperation } from './workspace/health.js';
+import { withWorkspaceOperation } from './workspace/operation.js';
+import { assertDistinctWorkspaceRoot } from './workspace/registry.js';
+import { scopeMode, type ScopeMode } from './workspace/scope.js';
 import { WorkspaceContext } from './workspace-context.js';
 
 export interface InitDeps {
+  readonly lock: Lock;
   readonly commandShell?: ResolvedShell | undefined;
   readonly fs: FileSystem;
   readonly git: Git;
@@ -41,6 +54,7 @@ export interface InitInput {
   readonly dir: string;
   readonly source: ManifestSource;
   readonly name?: string | undefined;
+  readonly repos?: readonly string[] | undefined;
   readonly adopt: boolean;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
@@ -54,7 +68,7 @@ export interface InitOutput {
   readonly name: string;
   readonly source: string;
   readonly manifest_dir: string;
-  readonly manifest: 'materialized' | 'refreshed';
+  readonly manifest: 'materialized' | 'refreshed' | 'not_written';
   readonly adopted: boolean;
   readonly registered: boolean;
   readonly default_workspace: boolean;
@@ -62,6 +76,22 @@ export interface InitOutput {
   readonly tool_install: readonly ToolInstallOutput[] | null;
   readonly next_steps: readonly string[];
   readonly written: boolean;
+  readonly prepared?: object | null;
+  readonly plan: {
+    readonly source_inspected: boolean;
+    readonly inspected_source: string | null;
+    readonly manifest_action: 'materialize' | 'refresh';
+    readonly registration: 'register' | 'keep';
+    readonly default_workspace: 'set' | 'keep';
+    readonly selection: {
+      readonly mode: ScopeMode;
+      readonly repos: readonly string[] | null;
+      readonly validated: boolean;
+    };
+    readonly repositories: readonly PlanItem[] | null;
+    readonly resources: Readonly<Record<string, unknown>>;
+    readonly unchecked: readonly string[];
+  };
 }
 
 type DirState = 'new' | 'empty' | 'registered' | 'adopted';
@@ -75,10 +105,27 @@ export class Init {
   constructor(private readonly deps: InitDeps) {}
 
   async execute(input: InitInput): Promise<InitOutput> {
-    const plan = await this.plan(input);
-    if (input.dryRun) return plan.output;
-    assertWritable(input.posture, `init ${plan.output.root}`);
-    return this.apply(plan, input);
+    const preview = await this.plan(input);
+    if (input.dryRun) {
+      const inspection = await input.source
+        .inspect?.(
+          preview.output.plan.manifest_action === 'refresh'
+            ? preview.output.manifest_dir
+            : undefined,
+        )
+        .catch((error: unknown) => {
+          throw initializationSourceError(this.deps, input, preview.output, undefined, error);
+        });
+      return {
+        ...preview.output,
+        plan: await inspectInitialization(this.deps, input, preview.output, inspection),
+      };
+    }
+    assertWritable(input.posture, `init ${preview.output.root}`);
+    return withWorkspaceOperation(this.deps.lock, preview.output.name, false, async () => {
+      const plan = await this.plan(input);
+      return this.apply(plan, input);
+    });
   }
 
   private async plan(input: InitInput): Promise<Plan> {
@@ -89,6 +136,11 @@ export class Init {
     assertWorkspaceName(name);
     const config = await this.deps.config.read();
     assertWorkspaceNames([...new Set([...Object.keys(config.workspaces ?? {}), name])]);
+    await assertNoWorkspaceOperation(this.deps, {
+      name,
+      manifestDir: this.deps.manifestDirFor(name),
+    });
+    await assertDistinctWorkspaceRoot(config, name, root, this.deps.fs);
     const existing = config.workspaces?.[name];
     if (existing !== undefined && !(await this.sameRoot(existing.root, root)))
       throw nameTaken(name, root, existing, input.source);
@@ -101,6 +153,8 @@ export class Init {
       existing !== undefined &&
       input.source.refresh !== undefined &&
       (await this.deps.fs.exists(manifestDir));
+    const local = await this.deps.localStore.read(name);
+    const manifest = refreshed ? 'refreshed' : 'materialized';
     return {
       config,
       output: {
@@ -110,22 +164,22 @@ export class Init {
         name,
         source: input.source.description,
         manifest_dir: manifestDir,
-        manifest: refreshed ? 'refreshed' : 'materialized',
+        manifest: input.dryRun ? 'not_written' : manifest,
         adopted: state === 'adopted',
-        registered: existing === undefined,
-        default_workspace: config.default_workspace === undefined,
+        registered: existing !== undefined,
+        default_workspace: config.default_workspace === name,
         sync: null,
         tool_install: null,
         next_steps: [],
         written: false,
+        plan: initialPlan(this.deps, input, { name, root, manifestDir, refreshed, config, local }),
       },
     };
   }
 
-  private async apply(plan: Plan, input: InitInput): Promise<InitOutput> {
-    const { output } = plan;
+  private async apply({ output, config }: Plan, input: InitInput): Promise<InitOutput> {
     let phase = 'manifest';
-    let registered = plan.config.workspaces?.[output.name] !== undefined;
+    let registered = config.workspaces?.[output.name] !== undefined;
     let materialized = false;
     let prepared: object | null = null;
     let toolInstall: readonly ToolInstallOutput[] | null = null;
@@ -133,15 +187,17 @@ export class Init {
       await this.materialize(output, input);
       materialized = true;
       phase = 'validation';
-      await new LoadManifest(this.deps.fs, this.deps.bundledTools).execute({
-        dir: output.manifest_dir,
-        cliVersion: this.deps.cliVersion,
-      });
+      const bundle = await this.loadSourceManifest(output, input);
+      let local = await initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos);
       if (output.manifest === 'materialized')
         await this.deps.settleManifest(output.name, output.manifest_dir);
       phase = 'registration';
       await this.register(output, input);
       registered = true;
+      if (input.repos !== undefined)
+        local = await this.deps.localStore.update(output.name, (current) =>
+          initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos, current),
+        );
       phase = 'tools';
       const ctx = await this.context(output);
       prepared = (await this.deps.preview?.(ctx)) ?? null;
@@ -160,15 +216,14 @@ export class Init {
         jobs: input.jobs,
         stages: this.deps.stagesFor(ctx),
       });
-      const done = {
-        ...output,
-        preparation_complete: sync.preparation_complete,
+      const done = completedInitialization(output, {
         sync,
-        tool_install: toolInstall,
+        toolInstall,
         prepared,
-        next_steps: nextSteps(output.root, sync, this.deps.commandShell),
-        written: true,
-      };
+        defaultWorkspace: (await this.deps.config.read()).default_workspace,
+        repos: local.scope?.repos,
+        shell: this.deps.commandShell,
+      });
       this.deps.reporter.notice({
         code: 'INIT_DONE',
         message: `workspace ${done.name} is registered at ${done.root}; inspect synchronization results and doctor readiness`,
@@ -178,6 +233,26 @@ export class Init {
     } catch (error) {
       throw initFailure(output, error, { phase, registered, materialized, prepared, toolInstall });
     }
+  }
+
+  private async loadSourceManifest(output: InitOutput, input: InitInput): Promise<ManifestBundle> {
+    return new LoadManifest(this.deps.fs, this.deps.bundledTools)
+      .execute({
+        dir: output.manifest_dir,
+        cliVersion: this.deps.cliVersion,
+      })
+      .catch((error: unknown) => {
+        throw initializationSourceError(
+          this.deps,
+          input,
+          output,
+          {
+            root: output.manifest_dir,
+            ...(output.manifest === 'refreshed' ? { contents: 'worktree' as const } : {}),
+          },
+          error,
+        );
+      });
   }
 
   private async materialize(output: InitOutput, input: InitInput): Promise<void> {
@@ -196,6 +271,7 @@ export class Init {
 
   private async register(output: InitOutput, input: InitInput): Promise<void> {
     await this.deps.config.update(async (current) => {
+      await assertDistinctWorkspaceRoot(current, output.name, output.root, this.deps.fs);
       const existing = current.workspaces?.[output.name];
       if (existing && !(await this.sameRoot(existing.root, output.root)))
         throw nameTaken(output.name, output.root, existing, input.source);
@@ -219,6 +295,7 @@ export class Init {
   private context(output: InitOutput): Promise<WorkspaceContext> {
     return WorkspaceContext.locate({
       cwd: output.root,
+      allowMissingRoot: true,
       name: output.name,
       config: this.deps.config,
       fs: this.deps.fs,
@@ -261,10 +338,10 @@ function nameTaken(
     'WORKSPACE_NAME_TAKEN',
     `workspace "${name}" is already registered at ${existing.root}`,
     {
-      hint: 'Pick another name with --name, or init into the registered directory.',
+      hint: 'If the directory moved, relocate its existing identity; otherwise initialize the registered directory.',
       nextSteps: [
-        'fx config get default_workspace',
-        `fx init ${root} --from ${source.description} --name <other>`,
+        shellLine(['fx', 'workspace', 'relocate', name, root]),
+        shellLine(['fx', 'init', existing.root, '--name', name, '--from', source.description]),
       ],
     },
   );
@@ -276,8 +353,11 @@ function sourceMismatch(name: string, recorded: string, source: ManifestSource):
     'SOURCE_MISMATCH',
     `workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
     {
-      hint: 'fx does not swap one manifest source for another; register the directory under another name or keep the recorded source.',
-      nextSteps: [`fx init <dir> --from ${recorded}`, 'fx self info'],
+      hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
+      nextSteps: [
+        shellLine(['fx', 'workspace', 'rebind', name, '--from', source.description]),
+        shellLine(['fx', 'workspace', 'show', name]),
+      ],
     },
   );
 }
@@ -316,6 +396,7 @@ function initFailure(output: InitOutput, error: unknown, progress: InitProgress)
   return withPartialResult(failure, {
     ...output,
     preparation_complete: false,
+    manifest: materialized ? output.manifest : 'not_written',
     registered,
     written: materialized,
     prepared,
@@ -334,4 +415,35 @@ function initFailure(output: InitOutput, error: unknown, progress: InitProgress)
           ...failure.nextSteps,
         ],
   });
+}
+
+interface CompletedInitialization {
+  readonly sync: SyncOutput;
+  readonly toolInstall: readonly ToolInstallOutput[];
+  readonly prepared: object | null;
+  readonly defaultWorkspace: string | undefined;
+  readonly repos: readonly string[] | undefined;
+  readonly shell: ResolvedShell | undefined;
+}
+
+function completedInitialization(output: InitOutput, result: CompletedInitialization): InitOutput {
+  return {
+    ...output,
+    registered: true,
+    default_workspace: result.defaultWorkspace === output.name,
+    plan: {
+      ...output.plan,
+      source_inspected: true,
+      inspected_source: output.manifest_dir,
+      repositories: result.sync.items,
+      unchecked: [],
+      selection: { mode: scopeMode(result.repos), repos: result.repos ?? null, validated: true },
+    },
+    preparation_complete: result.sync.preparation_complete,
+    sync: result.sync,
+    tool_install: result.toolInstall,
+    prepared: result.prepared,
+    next_steps: nextSteps(output.root, result.sync, result.shell),
+    written: true,
+  };
 }

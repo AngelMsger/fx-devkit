@@ -1,6 +1,4 @@
-// The agent's question about a capability or tool: can it be used right
-// now, and if not, what has to happen first. The answer is the readiness
-// verdict with the target it was reached for.
+// Report readiness and recovery for a resolved capability or tool.
 
 import { DevkitError } from '../domain/errors.js';
 import { shellLine } from '../domain/shell.js';
@@ -9,6 +7,7 @@ import type { LoginDeps } from './login/deps.js';
 import { Readiness, type Verdict } from './readiness.js';
 import type { Target } from './readiness.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
+import { workspaceCommand } from './workspace/guidance.js';
 
 export interface CanInput {
   readonly target: string;
@@ -63,7 +62,7 @@ export class Can {
         'PROVIDER_UNKNOWN',
         `No matching provider for ${binding.capability}: ${binding.provider}`,
         {
-          nextSteps: ['fx manifest providers'],
+          nextSteps: [workspaceCommand(this.deps, 'manifest', 'providers')],
         },
       );
     if (!descriptor.reference) return undefined;

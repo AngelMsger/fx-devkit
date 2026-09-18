@@ -10,6 +10,7 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { ToolInstalled } from '../tool/installed.js';
+import { workspaceToolScope } from '../tool/scope.js';
 import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -54,14 +55,22 @@ export class Doctor {
   ) {}
 
   async execute(input: DoctorInput): Promise<DoctorReport> {
-    validateSetupSelection(this.deps.ctx, input);
-    const repairs = input.fix ? await this.fix(input) : [];
+    validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
+    const toolScope = workspaceToolScope(
+      this.deps.ctx,
+      this.doctor.login.describeProvider,
+      input,
+      this.deps.commandShell,
+    );
+    const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
     const groups = await Promise.all([
+      toolScope.problems,
       checkRepos(this.deps),
       checkInstallations(this.doctor.inventory, input.tools),
-      checkTools(this.deps, { names: input.tools, trust: this.doctor.login.trust }),
+      checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }),
       checkLogin(this.deps, this.doctor.login, {
-        tools: input.tools,
+        tools: toolScope.configuredNames,
+        requiredTools: toolScope.required,
         envs: input.envs,
         dryRun: input.dryRun,
       }),

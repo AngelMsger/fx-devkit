@@ -34,15 +34,16 @@ describe('RepoList', () => {
     );
   });
 
-  it('probes readability through the cache when asked for unreadable ones', async () => {
+  it('rechecks readability on every request so access recovery is visible', async () => {
     const h = await harness();
     h.codeHost.readability.set('fx/fx-example-auth', 'forbidden');
     const first = await new RepoList(h.deps).execute({ unreadable: true });
     expect(first.map((r) => [r.name, r.readability, r.contact])).toEqual([
       ['fx-example-auth', 'forbidden', '#platform'],
     ]);
-    await new RepoList(h.deps).execute({ unreadable: true });
-    expect(h.codeHost.probes.filter((p) => p === 'fx/fx-example-auth')).toHaveLength(1);
+    h.codeHost.readability.set('fx/fx-example-auth', 'readable');
+    expect(await new RepoList(h.deps).execute({ unreadable: true })).toEqual([]);
+    expect(h.codeHost.probes.filter((p) => p === 'fx/fx-example-auth')).toHaveLength(2);
   });
 });
 
@@ -99,7 +100,7 @@ describe('RepoShow', () => {
     await expect(new RepoFork(h.deps).execute({ name: 'platfrm', ...write })).rejects.toMatchObject(
       {
         code: 'REPO_NOT_FOUND',
-        hint: 'fx repo list shows the known names.',
+        hint: 'Known: first, scratch, second.',
       },
     );
     expect(h.localStore.writes).toEqual([]);
@@ -117,7 +118,7 @@ describe('RepoShow', () => {
     await expect(new RepoShow(h.deps).execute({ name: 'shared' })).rejects.toMatchObject({
       category: 'conflict',
       code: 'REPO_ALIAS_AMBIGUOUS',
-      nextSteps: ['fx repo show first', 'fx repo show second'],
+      nextSteps: ['fx repo show first --workspace fx', 'fx repo show second --workspace fx'],
     });
   });
 

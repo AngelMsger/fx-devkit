@@ -25,7 +25,10 @@ The four workflow reports (`init`, `sync`, `doctor`, `release`) default to compa
 JSON. `output_mode: summary` and `omitted` describe the view; omitted counts are
 not pagination. All warning/failure rows and exact pending command vectors remain.
 `--details` returns the full application result; explicit `--fields` projects it.
-Human/NDJSON and fact-query defaults are unchanged. Error envelopes are never
+Explicit report projection applies in every format: JSON/NDJSON emit one object;
+human output emits selected key/value pairs. Dotted paths retain flat keys and
+array alignment. Without explicit fields, human/NDJSON defaults are unchanged.
+Fact-query projections still apply per item and retain collection metadata. Error envelopes are never
 projected or compacted. Large INIT_PREPARED notices follow the same report mode.
 
 For init/sync, `operation` is `preview` or `apply`. `preparation_complete` is null for preview,
@@ -48,6 +51,33 @@ use `sync --only repos,docs --no-refresh-manifest` in the affected workspace.
 This does not claim the skipped Skill stage is ready or authorize trust changes.
 
 ## Shapes of the answering commands
+
+`workspace list/show` resolves registry facts without requiring a valid manifest.
+Rows include root/source, selection and health. `self info` still reports global
+installation facts when the selected workspace is degraded. Use explicit
+`workspace relocate`, `rebind` or `unregister` plans to change identity or end
+management; these preserve business checkouts and respect owned-resource cleanup.
+
+`repo select` / `env select` replace a personal collection. `--all` removes its
+explicit scope and follows future shared entries; `--none` stores an empty set.
+`pick/unpick` retain additive/removal semantics. Selection output reports modes
+and next steps; repository selection is separate from downloading via sync.
+
+`status` keeps `{items, has_more}` and adds workspace/root/selection context.
+Items preserve `dirty` as tracked changes and add `uncommitted` for tracked or
+untracked work. Human output includes untracked counts; `--dirty` filters on all
+uncommitted work. Empty results distinguish no declarations, no selected repos
+and no matching uncommitted work.
+
+Init accepts `--repos` / `--no-repos` before cloning. Its preview distinguishes
+actual registration from planned effects and states whether source contents
+were inspected; uninspected remote contents are not a validated selection.
+`registered` means registration currently exists, including a successful retry.
+
+Profile import merges registrations by name, retains unmentioned workspaces and
+refuses root/source identity changes. Its registration plan and quoted next steps
+identify missing manifest preparation. Use workspace lifecycle commands for
+relocation, rebinding and removal rather than editing an export to remove names.
 
 `fx can <capability|tool> [--env <env>]` — one record:
 

@@ -226,7 +226,7 @@ describe('Where', () => {
       'selfhosted/jenkins:ready',
       'selfhosted/kube:not_covered',
     ]);
-    expect(rows[0]?.handoff).toMatchObject({ command: 'fx tool install sentry' });
+    expect(rows[0]?.handoff).toMatchObject({ command: 'fx tool install sentry --workspace fx' });
     expect(rows[2]?.handoff).toBeNull();
     expect(
       s.h.process.calls.map((c) => c.vector[0]),
@@ -256,7 +256,7 @@ describe('Where', () => {
       status: 'located',
       ready: 'unknown',
       handoff: {
-        command: 'fx doctor --tool jenkins-cli',
+        command: 'fx doctor --tool jenkins-cli --workspace fx',
         user_steps: [{ instructions: expect.stringContaining('jenkins-cli --version') }],
       },
     });

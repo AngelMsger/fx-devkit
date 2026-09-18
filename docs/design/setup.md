@@ -5,6 +5,19 @@ The planner is pure; application workflows decide when to ask, check or execute,
 and ports own those effects. Readiness describes prerequisites for a later query,
 not proof that every repository or remote resource is accessible.
 
+## Manifest verification alternatives
+
+Team setup checks use the same declared command/JSON, file and provider verification
+alternatives as the runtime. Unknown-key normalization retains fields known by any
+union alternative, including nested objects, arrays and maps. It does not select a
+branch or erase conflicting branch fields; normal schema validation rejects mixed
+or invalid alternatives. Genuinely unknown keys retain the existing lenient-report
+and strict-error behavior.
+
+Tool overlays preserve null where the schema accepts it as a value, such as
+`verify.json.equals: null`. Elsewhere null retains its field-deletion meaning.
+Normalization does not run checks, grant command trust or alter verification results.
+
 ## Companion Skill destinations
 
 `skill.dir_flag` installs a companion Skill once per distinct selected global
@@ -25,6 +38,19 @@ Explicit tool and environment selectors must name declared entries before login
 prompts or doctor repairs. Unknown tools use the existing `TOOL_UNKNOWN` error;
 unknown environments use `ENV_NOT_FOUND`, with spelling suggestions. A disabled
 tool or one with no setup recipe remains a valid selection.
+
+Doctor's default companion checks cover manifest-declared tools and tools used by
+workspace providers or platforms present in the selected environment scope. A
+bundled catalog entry alone does not make a tool relevant or required. `--tool`
+explicitly checks any known tool. Active provider dependencies are required unless
+the manifest explicitly sets `required: false`; explicit required tools remain
+required regardless of provider selection. Disabled tools used by active providers
+have incomplete coverage, while disabled unused tools are not applicable. The
+same effective requirement controls login findings; neither a disabled tool nor an
+unused catalog entry proves readiness. Unknown or capability-mismatched providers
+in the active scope produce failure findings with incomplete coverage; a known
+provider with no companion tools remains a distinct, valid case. Sparse tools
+overlays are validated after inheritance, including during lint and doctor.
 
 A step's stable identity is tool, recipe ID and optional environment. Identical
 expanded definitions may coalesce. Different definitions with one identity are

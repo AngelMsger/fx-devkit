@@ -257,6 +257,59 @@ describe('Sync', () => {
     expect(h.git.calls).toEqual([]);
   });
 
+  it('keeps an empty selection dry-run a preview with unknown preparation completeness', async () => {
+    const h = await harness({
+      local: { scope: { repos: [] } },
+    });
+    const result = await new Sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
+    expect(result).toMatchObject({ operation: 'preview', preparation_complete: null });
+    expect(result.items.every((item) => item.action === 'skip_unpicked')).toBe(true);
+    expect(h.git.calls).toEqual([]);
+    expect(h.codeHost.probes).toEqual([]);
+  });
+
+  it('previews and applies an origin-only upstream addition without rewriting origin', async () => {
+    const h = await harness({ local: { scope: { repos: ['fx-example-api'] } } });
+    const dir = path.join(ROOT, 'fx-example-api');
+    h.git.add(dir, { remotes: { origin: upstream('fx-example-api') } });
+    const preview = await new Sync(h.deps).execute({ ...run, dryRun: true });
+    expect(preview.items[0]).toMatchObject({
+      upstream_to_add: upstream('fx-example-api'),
+      result: 'planned',
+    });
+    expect(h.git.calls).toEqual([]);
+    await expect(new Sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
+      code: 'READONLY_BLOCKED',
+    });
+    expect(h.git.calls).toEqual([]);
+    const applied = await new Sync(h.deps).execute(run);
+    expect(applied.items[0]).toMatchObject({ upstream_added: true });
+    expect(h.git.checkouts.get(dir)?.remotes).toEqual({
+      origin: upstream('fx-example-api'),
+      upstream: upstream('fx-example-api'),
+    });
+  });
+
+  it('preserves changed remotes instead of applying stale adoption evidence', async () => {
+    const h = await harness({ local: { scope: { repos: ['fx-example-api'] } } });
+    const dir = path.join(ROOT, 'fx-example-api');
+    h.git.add(dir, { remotes: { origin: upstream('fx-example-api') } });
+    const read = h.git.remotes.bind(h.git);
+    let calls = 0;
+    h.git.remotes = async (target) => {
+      const value = await read(target);
+      return ++calls > 1
+        ? { ...value, origin: 'ssh://git@elsewhere.example.com/p/api.git' }
+        : value;
+    };
+    const out = await new Sync(h.deps).execute(run);
+    expect(out.items[0]).toMatchObject({
+      result: 'failed',
+      failure: { code: 'REPO_REMOTES_CHANGED' },
+    });
+    expect(h.git.calls).toEqual([]);
+  });
+
   it('refuses under read-only posture when there is something to do', async () => {
     const h = await harness();
     await expect(new Sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
@@ -313,6 +366,28 @@ describe('Sync', () => {
     });
     expect(out.summary.unreadable).toBe(1);
   });
+
+  it.each(['missing', 'forbidden', 'readable'] as const)(
+    'ignores legacy cached %s and probes each absent repository once per retry',
+    async (cached) => {
+      const h = await harness();
+      await h.cache.set('readability/fx/fx/fx-example-docs', cached);
+      h.codeHost.readability.set('fx/fx-example-docs', 'missing');
+      const first = await new Sync(h.deps).execute(run);
+      expect(first.items.find((item) => item.name === 'fx-example-docs')?.action).toBe(
+        'unreadable',
+      );
+      h.codeHost.readability.set('fx/fx-example-docs', 'readable');
+      const second = await new Sync(h.deps).execute(run);
+      expect(second.items.find((item) => item.name === 'fx-example-docs')).toMatchObject({
+        action: 'clone',
+        result: 'done',
+      });
+      expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-docs')).toHaveLength(2);
+      expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-api')).toHaveLength(1);
+      expect(await h.cache.get('readability/fx/fx/fx-example-docs')).toBe(cached);
+    },
+  );
 
   it('keeps going after one repository fails and reports the partial result', async () => {
     const h = await harness();

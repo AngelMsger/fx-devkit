@@ -7,7 +7,7 @@ import { dryRunFlag } from '../../flags.js';
 
 export default class ConfigImportCommand extends FxCommand {
   static override description =
-    "Apply a profile written by `config export`: config keys it names win, each workspace's local.yaml is replaced";
+    'Apply a profile: named settings and personal layers win; workspace registrations merge by name, without relocating, rebinding or removing existing workspaces';
   static override examples = [
     '<%= config.bin %> config import me.yaml --dry-run',
     '<%= config.bin %> config import me.yaml',
@@ -28,6 +28,11 @@ export default class ConfigImportCommand extends FxCommand {
     const out = await new ConfigImport({
       config: this.container.config,
       localStore: this.container.localStore,
+      fs: this.container.fs,
+      manifestDirFor: this.container.manifestDirFor,
+      commandShell: this.commandShell,
+      lock: this.container.lock,
+      cliVersion: this.config.version,
     }).execute({
       text,
       dryRun: flags['dry-run'],
@@ -36,9 +41,11 @@ export default class ConfigImportCommand extends FxCommand {
     this.renderer.record(out);
     if (out.next_steps.length > 0)
       this.renderer.notice({
-        code: 'CONFIG_IMPORTED',
-        message: 'workspaces registered; init each one, then sync',
-        nextSteps: [...out.next_steps, 'fx sync'],
+        code: flags['dry-run'] ? 'CONFIG_IMPORT_PLANNED' : 'CONFIG_IMPORTED',
+        message: flags['dry-run']
+          ? 'profile import planned; after applying, complete the listed preparation steps'
+          : 'profile applied; complete the listed preparation steps',
+        nextSteps: out.next_steps,
       });
   }
 }

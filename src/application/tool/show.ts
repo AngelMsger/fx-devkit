@@ -2,10 +2,11 @@
 // which providers depend on it.
 
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import type { CommandGuidance } from '../workspace/guidance.js';
 
 import { selectTools } from './select.js';
 
-export interface ToolShowInput {
+export interface ToolShowInput extends CommandGuidance {
   readonly tools: readonly ResolvedTool[];
   readonly name: string;
   // Provider ids by tool name, from the registry.
@@ -36,7 +37,7 @@ export interface ToolDetail {
 
 export class ToolShow {
   execute(input: ToolShowInput): ToolDetail {
-    const tool = selectTools(input.tools, [input.name])[0] as ResolvedTool;
+    const tool = selectTools(input.tools, [input.name], input)[0] as ResolvedTool;
     const fields: Record<string, 'base' | 'patch'> = {};
     for (const key of tool.baseFields) fields[key] = 'base';
     for (const key of tool.patchedFields) fields[key] = 'patch';
