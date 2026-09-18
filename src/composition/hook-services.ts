@@ -1,9 +1,6 @@
 // Automatic session services reuse the manifest, docs, Skill and verifier use
 // cases. Wiring deliberately has no repository sync or platform query service.
 
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { readSettings } from '../application/config/settings.js';
 import { DeriveDocs } from '../application/docs/derive.js';
 import { checkLogin } from '../application/doctor/login.js';
@@ -20,6 +17,7 @@ import type { HookObservation } from '../domain/harness/state.js';
 import type { Lease } from '../ports/lock.js';
 import type { Reporter } from '../ports/reporter.js';
 
+import type { PackageMetadata } from './bundled.js';
 import { skillDeps, workspaceDeps, type Container } from './container.js';
 import { manageHarness } from './harness-stages.js';
 import { hookDeps } from './hooks.js';
@@ -33,14 +31,10 @@ interface ServiceInput {
   readonly env: NodeJS.ProcessEnv;
   readonly canWrite: () => Promise<boolean>;
 }
-interface Metadata {
-  readonly version: string;
-  readonly name: string;
-}
 interface Services extends ServiceInput {
   readonly reporter: Reporter;
   readonly login: LoginDeps;
-  readonly metadata: Metadata;
+  readonly metadata: PackageMetadata;
   readonly context: () => Promise<WorkspaceDeps>;
   readonly observation: (phase: string, code: string, command?: string) => HookObservation;
 }
@@ -48,11 +42,7 @@ interface Services extends ServiceInput {
 export async function createHookServices(input: ServiceInput): Promise<AutomaticSyncDeps> {
   const { container, request } = input;
   const reporter: Reporter = { notice: () => {}, progress: () => {} };
-  const metadata = JSON.parse(
-    (await container.fs.readText(
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'),
-    )) ?? '{}',
-  ) as Metadata;
+  const metadata = container.packageMetadata();
   const login = createLogin(container);
   let loaded: WorkspaceDeps | undefined;
   const services: Services = {

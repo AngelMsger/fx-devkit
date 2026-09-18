@@ -44,7 +44,12 @@ import type { Reporter } from '../ports/reporter.js';
 import type { Cache, ConfigStore, LocalLayerStore, TrustStore } from '../ports/stores.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
 
-import { bundledSkillDir, bundledToolsText } from './bundled.js';
+import {
+  bundledPackage,
+  bundledSkillDir,
+  bundledToolsText,
+  type PackageMetadata,
+} from './bundled.js';
 import { DiagnosticChannel } from './diagnostics.js';
 import { createAgentHosts, describeProvider, providersFor, resolveProvider } from './registry.js';
 
@@ -61,6 +66,7 @@ export interface Container {
   readonly git: Git;
   readonly clock: Clock;
   readonly bundledTools: () => string;
+  readonly packageMetadata: () => PackageMetadata;
   readonly prompter: (noInput: boolean) => Prompter;
   readonly installers: readonly Installer[];
   readonly agents: readonly AgentHost[];
@@ -92,6 +98,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     git: new SystemGit(process),
     clock,
     bundledTools: bundledToolsText,
+    packageMetadata: bundledPackage,
     prompter: (noInput) => new TerminalPrompter(noInput),
     installers: [
       new NpmInstaller(process),
@@ -120,6 +127,26 @@ export function toolDependants(): Record<string, string[]> {
   return byTool;
 }
 
+// Keeps the outcome of the first attempt, a refusal included: a binding cannot
+// change inside one process, so a provider that will not build must not be
+// rebuilt, and re-reported, at every caller.
+function once<T>(build: () => T): () => T {
+  let settled: { readonly value: T } | { readonly error: unknown } | undefined;
+  return () => {
+    settled ??= attempt(build);
+    if ('error' in settled) throw settled.error;
+    return settled.value;
+  };
+}
+
+function attempt<T>(build: () => T): { readonly value: T } | { readonly error: unknown } {
+  try {
+    return { value: build() };
+  } catch (error) {
+    return { error };
+  }
+}
+
 // The bundle every workspace use case receives. The code host is resolved
 // lazily from the workspace's own binding, and only once.
 export function workspaceDeps(
@@ -129,7 +156,7 @@ export function workspaceDeps(
   cliVersion: string,
   user: string | undefined,
 ): WorkspaceDeps {
-  let codeHost: CodeHost | undefined;
+  const adapters = { process: container.process, fs: container.fs, clock: container.clock };
   return {
     ctx,
     user,
@@ -141,32 +168,20 @@ export function workspaceDeps(
     cache: container.cache,
     reporter,
     cliVersion,
-    codeHost: () => {
-      codeHost ??= resolveProvider<CodeHost>(
+    codeHost: once(() =>
+      resolveProvider<CodeHost>(
         ctx.bindings.find((b) => b.capability === 'code-host') ?? {
           capability: 'code-host',
           provider: null,
           source: 'unbound',
           vars: {},
         },
-        { process: container.process, fs: container.fs, clock: container.clock },
-      );
-      return codeHost;
-    },
+        adapters,
+      ),
+    ),
     platform: (binding) =>
-      binding.provider === null
-        ? undefined
-        : resolveProvider<Platform>(binding, {
-            process: container.process,
-            fs: container.fs,
-            clock: container.clock,
-          }),
-    reference: (binding) =>
-      resolveProvider(binding, {
-        process: container.process,
-        fs: container.fs,
-        clock: container.clock,
-      }),
+      binding.provider === null ? undefined : resolveProvider<Platform>(binding, adapters),
+    reference: (binding) => resolveProvider(binding, adapters),
   };
 }
 
@@ -192,6 +207,6 @@ export function skillDeps(
     hosts: container.agents,
     configured,
     bundledSkillDir: bundledSkillDir(),
-    globalLock: new FileLock(path.join(container.userHome, '.fx')),
+    globalLock: container.lock,
   };
 }
