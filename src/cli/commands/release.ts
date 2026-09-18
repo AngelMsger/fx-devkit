@@ -39,14 +39,7 @@ export default class ReleaseCommand extends FxCommand {
       since: flags.since,
       jobs: flags.jobs,
     });
-    if (this.format === 'human') {
-      this.renderer.list(report.findings, {
-        fullReport: report,
-        columns: ['group', 'level', 'id', 'message', 'fix'],
-      });
-    } else {
-      this.renderer.record(report);
-    }
+    this.renderReport(report, ['group', 'level', 'id', 'message', 'fix']);
     this.renderer.notice(reportNotice(report, RELEASE_CODES, ['fx release <repo> --format json']));
   }
 }

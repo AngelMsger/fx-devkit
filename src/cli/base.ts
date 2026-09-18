@@ -36,6 +36,7 @@ import { updateChecks, type UpdateChecks } from '../composition/update.js';
 import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
+import type { Report } from '../domain/report.js';
 import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
 import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
@@ -138,6 +139,14 @@ export abstract class FxCommand extends Command {
 
   protected get reporter(): SinkReporter {
     return new SinkReporter(this.renderer);
+  }
+
+  // A human reader wants the findings as a table; every other format keeps the
+  // whole report, which the renderer also needs to honour --fields and --details.
+  protected renderReport(report: Report, columns: readonly string[]): void {
+    if (this.format === 'human')
+      this.renderer.list(report.findings, { fullReport: report, columns });
+    else this.renderer.record(report);
   }
 
   protected async workspaceDeps(): Promise<WorkspaceDeps> {

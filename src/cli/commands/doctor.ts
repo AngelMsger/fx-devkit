@@ -43,14 +43,7 @@ export default class DoctorCommand extends FxCommand {
       noInput: this.noInput,
       posture: this.posture,
     });
-    if (this.format === 'human') {
-      this.renderer.list(report.findings, {
-        fullReport: report,
-        columns: ['group', 'level', 'coverage', 'id', 'message', 'fix'],
-      });
-    } else {
-      this.renderer.record(report);
-    }
+    this.renderReport(report, ['group', 'level', 'coverage', 'id', 'message', 'fix']);
     for (const repair of report.repairs) {
       if (repair.status === 'failed')
         this.renderer.notice({
