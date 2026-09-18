@@ -142,6 +142,9 @@ export class Release {
   }
 }
 
+const COVERAGE_HINT =
+  'A repository is on it unless its manifest entry says release.covered: false.';
+
 // The three ways a selection can name nothing. An empty report reads as a pass,
 // so each is an error instead; see Coverage in domain/report.ts.
 function emptyChecklist(): DevkitError {
@@ -150,7 +153,7 @@ function emptyChecklist(): DevkitError {
     'CHECKLIST_EMPTY',
     'No repository in this workspace is on the release checklist',
     {
-      hint: 'A repository is on it unless its manifest entry says release.covered: false.',
+      hint: COVERAGE_HINT,
       nextSteps: ['fx manifest lint', 'fx manifest explain repos[].release.covered'],
     },
   );
@@ -178,7 +181,7 @@ function notOnChecklist(names: readonly string[]): DevkitError {
     'REPO_NOT_COVERED',
     `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} not on the release checklist`,
     {
-      hint: 'A repository is on it unless its manifest entry says release.covered: false.',
+      hint: COVERAGE_HINT,
       nextSteps: ['fx repo show <repo>', 'fx manifest explain repos[].release.covered'],
     },
   );
