@@ -1,5 +1,7 @@
 // Feature wiring shared by commands; the CLI base only supplies invocation context.
 import type { DoctorExtension } from '../application/doctor/types.js';
+import { harnessDoctor, harnessStage } from '../application/harness/stages.js';
+import { hookDoctor, hookStage, type HookSession } from '../application/hook/session.js';
 import type { InitDeps } from '../application/init.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
@@ -17,9 +19,8 @@ import type { ReplaceFiles } from '../ports/replace-files.js';
 import type { Reporter } from '../ports/reporter.js';
 
 import { loginDeps, skillDeps, workspaceDeps } from './container.js';
-import { harnessDoctor, harnessStage } from './harness-stages.js';
-import type { HarnessCommandInput } from './harness.js';
-import { hookDoctor, hookStage } from './hooks.js';
+import { harnessSession, type HarnessCommandInput } from './harness.js';
+import { hookSession } from './hooks.js';
 import { toolInstall } from './tool-install.js';
 import { toolInventory } from './tool-inventory.js';
 import { updateChecks } from './update.js';
@@ -37,16 +38,21 @@ export class CommandServices {
   constructor(private readonly input: CommandServiceInput) {}
 
   hookDoctorChecks(): DoctorExtension[] {
+    const harness = harnessSession(this.input);
     return [
-      harnessDoctor(this.input, 'mcp'),
-      harnessDoctor(this.input, 'rules'),
-      hookDoctor({
-        container: this.input.container,
-        resolve: this.input.resolve,
-        env: this.input.env,
-        posture: this.input.posture,
-      }),
+      harnessDoctor(harness, 'mcp'),
+      harnessDoctor(harness, 'rules'),
+      hookDoctor(this.hookSessionFor(this.input.resolve.name)),
     ];
+  }
+
+  private hookSessionFor(name: string | undefined): HookSession {
+    return hookSession({
+      container: this.input.container,
+      resolve: { ...this.input.resolve, name },
+      env: this.input.env,
+      posture: this.input.posture,
+    });
   }
 
   loginDeps(): LoginDeps {
@@ -115,8 +121,10 @@ export class CommandServices {
 
   private stageWiring(deps: WorkspaceDeps, dryRun: boolean): SyncStageInput {
     const harness = {
-      ...this.input,
-      resolve: { ...this.input.resolve, name: deps.ctx.name },
+      ...harnessSession({
+        ...this.input,
+        resolve: { ...this.input.resolve, name: deps.ctx.name },
+      }),
       action: 'sync' as const,
       dryRun,
     };
@@ -124,13 +132,7 @@ export class CommandServices {
       inventory: toolInventory(this.input.container, this.input.cliVersion),
       mcp: harnessStage({ ...harness, only: 'mcp' }),
       rules: harnessStage({ ...harness, only: 'rules' }),
-      hooks: hookStage({
-        container: this.input.container,
-        resolve: { ...this.input.resolve, name: deps.ctx.name },
-        env: this.input.env,
-        posture: this.input.posture,
-        dryRun,
-      }),
+      hooks: hookStage({ ...this.hookSessionFor(deps.ctx.name), dryRun }),
       deps,
       replace: this.input.replace,
       login: this.loginDeps(),

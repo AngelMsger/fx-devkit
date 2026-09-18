@@ -1,7 +1,8 @@
 import { Flags } from '@oclif/core';
 
 import { Can } from '../../application/can.js';
-import { canMcp } from '../../composition/harness.js';
+import { canMcp } from '../../application/harness/session.js';
+import { harnessSession } from '../../composition/harness.js';
 import { FxCommand } from '../base.js';
 import { requiredArgument } from '../flags.js';
 
@@ -28,7 +29,7 @@ export default class CanCommand extends FxCommand {
     if (args.target.startsWith('mcp:')) {
       this.renderer.record(
         await canMcp({
-          ...this.harnessInput(),
+          ...harnessSession(this.harnessInput()),
           name: args.target.slice(4),
           agent: flags.agent,
           envName: flags.env,

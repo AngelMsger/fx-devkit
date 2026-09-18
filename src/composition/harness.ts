@@ -1,6 +1,7 @@
-// Assembles harness ports; source selection and MCP query policy live in application.
+// Assembles the harness ports a command needs into the session the application
+// workflows take; selection, projection and MCP query policy stay there.
 
-import * as session from '../application/harness/session.js';
+import type { HarnessSession } from '../application/harness/session.js';
 import type { HarnessDeps } from '../application/harness/types.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import { TrustGate } from '../application/safety/trust.js';
@@ -35,7 +36,7 @@ export function harnessDeps(command: HarnessCommandInput): HarnessDeps {
   };
 }
 
-export function harnessSession(command: HarnessCommandInput): session.HarnessSession {
+export function harnessSession(command: HarnessCommandInput): HarnessSession {
   return {
     resolve: command.resolve,
     env: command.env,
@@ -46,31 +47,4 @@ export function harnessSession(command: HarnessCommandInput): session.HarnessSes
     config: command.container.config,
     process: command.container.process,
   };
-}
-
-export function loadHarnessCommand(
-  command: HarnessCommandInput,
-): ReturnType<typeof session.loadHarnessCommand> {
-  return session.loadHarnessCommand(harnessSession(command));
-}
-
-export function canMcp(
-  command: HarnessCommandInput & {
-    readonly name: string;
-    readonly agent?: string | undefined;
-    readonly envName?: string | undefined;
-  },
-): ReturnType<typeof session.canMcp> {
-  return session.canMcp({
-    ...harnessSession(command),
-    name: command.name,
-    agent: command.agent,
-    envName: command.envName,
-  });
-}
-
-export function inspectMcp(
-  command: HarnessCommandInput & { readonly name?: string | undefined },
-): ReturnType<typeof session.inspectMcp> {
-  return session.inspectMcp({ ...harnessSession(command), name: command.name });
 }

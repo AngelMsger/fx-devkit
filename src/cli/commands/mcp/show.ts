@@ -1,4 +1,5 @@
-import { inspectMcp } from '../../../composition/harness.js';
+import { inspectMcp } from '../../../application/harness/session.js';
+import { harnessSession } from '../../../composition/harness.js';
 import { FxCommand } from '../../base.js';
 import { requiredArgument } from '../../flags.js';
 
@@ -10,7 +11,7 @@ export default class McpShowCommand extends FxCommand {
   };
   async run(): Promise<void> {
     const { args } = await this.parse(McpShowCommand);
-    const result = await inspectMcp({ ...this.harnessInput(), name: args.name });
+    const result = await inspectMcp({ ...harnessSession(this.harnessInput()), name: args.name });
     this.renderer.record(result.items[0]!);
   }
 }

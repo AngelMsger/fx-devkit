@@ -4,6 +4,7 @@
 import { readSettings } from '../application/config/settings.js';
 import { DeriveDocs } from '../application/docs/derive.js';
 import { checkLogin } from '../application/doctor/login.js';
+import { manageHarness } from '../application/harness/stages.js';
 import type { AutomaticSyncDeps } from '../application/hook/automatic-sync.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { RefreshManifest } from '../application/refresh-manifest.js';
@@ -19,7 +20,7 @@ import type { Reporter } from '../ports/reporter.js';
 
 import type { PackageMetadata } from './bundled.js';
 import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
-import { manageHarness } from './harness-stages.js';
+import { harnessSession } from './harness.js';
 import { hookDeps } from './hooks.js';
 import { manifestSourceFor } from './manifest-sources.js';
 import { configuredRegistry } from './registry-location.js';
@@ -130,20 +131,22 @@ async function docs(s: Services, lease: Lease): Promise<readonly HookObservation
     posture: s.login.trust.posture,
   });
   const harness = await manageHarness({
-    container: s.container,
-    resolve: {
-      cwd: s.request.root,
-      name: s.request.workspace,
-      config: s.container.config,
-      fs: s.container.fs,
-      reporter: s.reporter,
-      manifestDirFor: s.container.manifestDirFor,
-    },
-    env: s.env,
-    cliVersion: s.metadata.version,
-    noInput: true,
-    yes: false,
-    posture: s.login.trust.posture,
+    ...harnessSession({
+      container: s.container,
+      resolve: {
+        cwd: s.request.root,
+        name: s.request.workspace,
+        config: s.container.config,
+        fs: s.container.fs,
+        reporter: s.reporter,
+        manifestDirFor: s.container.manifestDirFor,
+      },
+      env: s.env,
+      cliVersion: s.metadata.version,
+      noInput: true,
+      yes: false,
+      posture: s.login.trust.posture,
+    }),
     action: 'sync',
     dryRun: false,
     only: 'rules',

@@ -4,14 +4,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { DoctorExtension } from '../application/doctor/types.js';
 import { CleanupAgentHooks } from '../application/hook/cleanup.js';
-import {
-  type HookDeps,
-  type HookOutput,
-  type ReconcileInput,
-} from '../application/hook/reconcile.js';
-import * as session from '../application/hook/session.js';
+import { type HookDeps } from '../application/hook/reconcile.js';
+import type { HookSession } from '../application/hook/session.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileHookState } from '../infra/hook-state.js';
@@ -37,17 +32,14 @@ export function hookDeps(container: Container): HookDeps {
   };
 }
 
-export interface ManageHooksInput {
+export interface HookSessionInput {
   readonly container: Container;
   readonly resolve: ResolveInput;
   readonly env: NodeJS.ProcessEnv;
-  readonly action: ReconcileInput['action'];
   readonly posture: WritePosture;
-  readonly dryRun: boolean;
 }
-function hookSession(
-  input: Omit<ManageHooksInput, 'action' | 'dryRun'>,
-): Omit<session.ManageHooksInput, 'action' | 'dryRun'> {
+
+export function hookSession(input: HookSessionInput): HookSession {
   return {
     deps: hookDeps(input.container),
     config: input.container.config,
@@ -55,17 +47,6 @@ function hookSession(
     env: input.env,
     posture: input.posture,
   };
-}
-export function manageHooks(input: ManageHooksInput): Promise<HookOutput> {
-  return session.manageHooks({ ...hookSession(input), action: input.action, dryRun: input.dryRun });
-}
-export function hookStage(
-  input: Omit<ManageHooksInput, 'action'>,
-): ReturnType<typeof session.hookStage> {
-  return session.hookStage({ ...hookSession(input), dryRun: input.dryRun });
-}
-export function hookDoctor(input: Omit<ManageHooksInput, 'action' | 'dryRun'>): DoctorExtension {
-  return session.hookDoctor(hookSession(input));
 }
 
 export function agentHookCleanup(

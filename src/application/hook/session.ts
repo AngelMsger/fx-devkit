@@ -15,13 +15,16 @@ import {
   type ReconcileInput,
 } from './reconcile.js';
 
-export interface ManageHooksInput {
+export interface HookSession {
   readonly deps: HookDeps;
   readonly config: ConfigStore;
   readonly resolve: ResolveInput;
   readonly env: Readonly<Record<string, string | undefined>>;
-  readonly action: ReconcileInput['action'];
   readonly posture: WritePosture;
+}
+
+export interface ManageHooksInput extends HookSession {
+  readonly action: ReconcileInput['action'];
   readonly dryRun: boolean;
 }
 
@@ -39,7 +42,9 @@ export async function manageHooks(input: ManageHooksInput): Promise<HookOutput> 
   });
 }
 
-export function hookStage(input: Omit<ManageHooksInput, 'action'>): () => Promise<StageResult> {
+export function hookStage(
+  input: HookSession & { readonly dryRun: boolean },
+): () => Promise<StageResult> {
   return async () => {
     const out = await manageHooks({ ...input, action: 'sync' });
     const summary: Record<string, number> = {};
@@ -48,7 +53,7 @@ export function hookStage(input: Omit<ManageHooksInput, 'action'>): () => Promis
   };
 }
 
-export function hookDoctor(input: Omit<ManageHooksInput, 'action' | 'dryRun'>): DoctorExtension {
+export function hookDoctor(input: HookSession): DoctorExtension {
   return {
     group: 'hooks',
     check: async () => {

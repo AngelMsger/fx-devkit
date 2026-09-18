@@ -3,7 +3,8 @@
 
 import { HARNESS_COLUMNS } from '../application/harness/types.js';
 import type { ReconcileInput } from '../application/hook/reconcile.js';
-import { manageHooks } from '../composition/hooks.js';
+import { manageHooks } from '../application/hook/session.js';
+import { hookSession } from '../composition/hooks.js';
 
 import { FxCommand } from './base.js';
 
@@ -16,11 +17,13 @@ export abstract class HookCommand extends FxCommand {
 
   protected async reconcile(action: ReconcileInput['action'], dryRun: boolean): Promise<void> {
     const out = await manageHooks({
-      container: this.container,
-      resolve: this.resolveInput(),
-      env: process.env,
+      ...hookSession({
+        container: this.container,
+        resolve: this.resolveInput(),
+        env: process.env,
+        posture: this.posture,
+      }),
       action,
-      posture: this.posture,
       dryRun,
     });
     this.renderer.list(out.items, {
