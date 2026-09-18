@@ -1,3 +1,4 @@
+// @ts-check
 // Environment assignment is performed here rather than through shell syntax.
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

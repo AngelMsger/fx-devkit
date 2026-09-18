@@ -1,3 +1,4 @@
+// @ts-check
 // Refuse a mismatched release tag before binding publication credentials.
 import { readFileSync } from 'node:fs';
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));

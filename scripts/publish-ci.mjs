@@ -1,7 +1,10 @@
+// @ts-check
 // Resolve the publish target from Jenkins' temporary Managed npmrc without logging it.
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
 import spawn from 'cross-spawn';
+
 import { privateRegistry } from '../src/adapters/registry/registry-policy.js';
 
 const config = process.env.NPM_CONFIG_USERCONFIG;
@@ -11,6 +14,7 @@ if (!config || !existsSync(config)) {
 }
 const root = fileURLToPath(new URL('..', import.meta.url));
 const { name } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+/** @param {string} key */
 function setting(key) {
   const result = spawn.sync('npm', ['config', 'get', key], {
     cwd: root,

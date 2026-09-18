@@ -1,3 +1,4 @@
+// @ts-check
 // Generates docs/cli/README.md from the built command registry so the
 // reference can never drift from the code; `--check` fails when the committed
 // file differs from what the registry would produce now.
@@ -21,10 +22,28 @@ const COMMANDS = Object.fromEntries(
 const { globalFlags } = await import(path.join(root, 'dist', 'cli', 'flags.js'));
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
+/**
+ * The shapes this generator reads from the built registry.
+ * @typedef {{ char?: string, allowNo?: boolean, required?: boolean, multiple?: boolean,
+ *   default?: unknown, exclusive?: string[], dependsOn?: string[], options?: string[],
+ *   env?: string, description?: string, hidden?: boolean }} FlagSpec
+ * @typedef {{ description?: string, required?: boolean, multiple?: boolean,
+ *   default?: unknown }} ArgSpec
+ * @typedef {{ description?: string, hidden?: boolean, strict?: boolean,
+ *   args?: Record<string, ArgSpec>, flags?: Record<string, FlagSpec>,
+ *   examples?: string[] }} CommandSpec
+ */
+
 const bin = pkg.oclif?.bin ?? 'fx';
+/** @param {string} id */
 const commandName = (id) => `${bin} ${id.replaceAll(':', ' ')}`;
+/** @param {string} text */
 const example = (text) => text.replaceAll('<%= config.bin %>', bin);
 
+/**
+ * @param {string} name
+ * @param {FlagSpec} flag
+ */
 function flagRow(name, flag) {
   const spelling = [
     flag.char ? `-${flag.char}` : null,
@@ -49,6 +68,7 @@ function flagRow(name, flag) {
   return `| \`${spelling}\` | ${description} |`;
 }
 
+/** @param {Record<string, FlagSpec>} flags */
 function flagTable(flags) {
   const rows = Object.entries(flags)
     .filter(([, flag]) => !flag.hidden)
@@ -57,6 +77,10 @@ function flagTable(flags) {
   return ['| Flag | Description |', '|---|---|', ...rows];
 }
 
+/**
+ * @param {string} id
+ * @param {CommandSpec} command
+ */
 function section(id, command) {
   const lines = [`## \`${commandName(id)}\``, ''];
   if (command.description) lines.push(command.description, '');
@@ -87,12 +111,20 @@ function section(id, command) {
 
 // Everyday commands first, in their own order; then each topic in alphabetical
 // order with its commands as the registry lists them.
-const topicOf = (id) => (id.includes(':') ? id.split(':')[0] : null);
-const topics = [...new Set(Object.keys(COMMANDS).map(topicOf).filter(Boolean))].sort();
+/** @param {string} id */
+const topicOf = (id) => (id.includes(':') ? (id.split(':')[0] ?? null) : null);
+const topics = [
+  ...new Set(
+    Object.keys(COMMANDS)
+      .map(topicOf)
+      .filter((topic) => topic !== null),
+  ),
+].sort();
 const ordered = [
-  ...EVERYDAY.map((id) => [id, COMMANDS[id]]),
+  .../** @type {string[]} */ (EVERYDAY).map((id) => [id, COMMANDS[id]]),
   ...topics.flatMap((topic) => Object.entries(COMMANDS).filter(([id]) => topicOf(id) === topic)),
 ];
+/** @param {CommandSpec} command */
 const summary = (command) => (command.description ?? '').split('\n')[0];
 
 const lines = [
@@ -105,7 +137,9 @@ const lines = [
   '',
   '| Command | What it answers |',
   '|---|---|',
-  ...EVERYDAY.map((id) => `| \`${commandName(id)}\` | ${summary(COMMANDS[id])} |`),
+  .../** @type {string[]} */ (EVERYDAY).map(
+    (id) => `| \`${commandName(id)}\` | ${summary(COMMANDS[id])} |`,
+  ),
   '',
   '## Topics',
   '',

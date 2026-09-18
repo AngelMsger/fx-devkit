@@ -1,3 +1,4 @@
+// @ts-check
 // The package file list owns scan coverage. Unknown/glob paths fail closed in
 // the scanner instead of silently leaving newly distributed content unchecked.
 
