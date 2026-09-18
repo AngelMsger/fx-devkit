@@ -1,4 +1,4 @@
-import { ProvidersManifest } from '../../../application/manifest/providers.js';
+import { BINDING_COLUMNS, ProvidersManifest } from '../../../application/manifest/providers.js';
 import { FxCommand } from '../../base.js';
 
 export default class ManifestProviders extends FxCommand {
@@ -18,7 +18,7 @@ export default class ManifestProviders extends FxCommand {
       cliVersion: this.config.version,
     });
     this.renderer.list(bindings, {
-      columns: ['scope', 'capability', 'platform', 'provider', 'source', 'vars'],
+      columns: BINDING_COLUMNS,
     });
   }
 }

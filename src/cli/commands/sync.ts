@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { syncStageIds } from '../../application/sync/stages.js';
-import { Sync } from '../../application/sync.js';
+import { Sync, SYNC_COLUMNS } from '../../application/sync.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
@@ -46,7 +46,7 @@ export default class SyncCommand extends FxCommand {
         ? out.items.filter((item) => item.action !== 'skip_unpicked')
         : out.items;
     this.renderer.list(visible, {
-      columns: ['name', 'action', 'result', 'outcome', 'reason'],
+      columns: SYNC_COLUMNS,
       trailer: {
         operation: out.operation,
         preparation_complete: out.preparation_complete,

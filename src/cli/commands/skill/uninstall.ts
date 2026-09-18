@@ -1,3 +1,4 @@
+import { SKILL_MUTATION_COLUMNS } from '../../../application/skill/standalone.js';
 import { dryRunFlag } from '../../flags.js';
 import { SkillCommand, skillTargetFlags } from '../../skill-command.js';
 
@@ -16,6 +17,6 @@ export default class SkillUninstallCommand extends SkillCommand {
       posture: this.posture,
       yes: this.yes,
     });
-    this.renderer.list(rows, { columns: ['agent', 'path', 'action', 'status', 'version'] });
+    this.renderer.list(rows, { columns: SKILL_MUTATION_COLUMNS });
   }
 }

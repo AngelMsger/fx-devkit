@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { MemberList } from '../../../application/member/list.js';
+import { MEMBER_COLUMNS, MemberList } from '../../../application/member/list.js';
 import { FxCommand } from '../../base.js';
 
 export default class MemberListCommand extends FxCommand {
@@ -19,6 +19,6 @@ export default class MemberListCommand extends FxCommand {
       area: flags.area,
       status: flags.status,
     });
-    this.renderer.list(rows, { columns: ['id', 'display', 'status', 'areas'] });
+    this.renderer.list(rows, { columns: MEMBER_COLUMNS });
   }
 }

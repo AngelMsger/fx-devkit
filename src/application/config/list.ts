@@ -20,6 +20,8 @@ export interface ConfigEntry {
   readonly desc: string;
 }
 
+export const CONFIG_COLUMNS = ['key', 'value', 'source', 'env', 'desc'] as const;
+
 export class ListConfig {
   constructor(private readonly store: ConfigStore) {}
 

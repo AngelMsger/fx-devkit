@@ -17,6 +17,16 @@ export interface EnvRow {
   readonly note: string | null;
 }
 
+export const ENV_COLUMNS = [
+  'name',
+  'label',
+  'picked',
+  'selection_mode',
+  'platforms',
+  'confidence',
+  'note',
+] as const;
+
 export class EnvList {
   constructor(private readonly deps: WorkspaceDeps) {}
 

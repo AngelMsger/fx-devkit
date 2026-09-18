@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { Doctor } from '../../application/doctor/index.js';
+import { DOCTOR_FINDING_COLUMNS } from '../../application/doctor/types.js';
 import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
 import { detailsFlag, listFlag } from '../flags.js';
@@ -43,7 +44,7 @@ export default class DoctorCommand extends FxCommand {
       noInput: this.noInput,
       posture: this.posture,
     });
-    this.renderReport(report, ['group', 'level', 'coverage', 'id', 'message', 'fix']);
+    this.renderReport(report, DOCTOR_FINDING_COLUMNS);
     for (const repair of report.repairs) {
       if (repair.status === 'failed')
         this.renderer.notice({

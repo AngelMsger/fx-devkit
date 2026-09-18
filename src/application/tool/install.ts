@@ -39,6 +39,16 @@ export interface ToolInstallInput {
   readonly trust?: TrustContext | undefined;
 }
 
+export const TOOL_INSTALL_COLUMNS = [
+  'name',
+  'via',
+  'vector',
+  'ran',
+  'code',
+  'version_after',
+  'error',
+] as const;
+
 export interface ToolInstallOutput {
   readonly name: string;
   readonly via: string;

@@ -1,7 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 
 import { Release } from '../../application/release/index.js';
-import { CHECKS, type Check } from '../../domain/release/types.js';
+import { CHECKS, RELEASE_FINDING_COLUMNS, type Check } from '../../domain/release/types.js';
 import { FxCommand } from '../base.js';
 import { detailsFlag, jobsFlag, listFlag } from '../flags.js';
 import { RELEASE_CODES, reportNotice } from '../notices.js';
@@ -39,7 +39,7 @@ export default class ReleaseCommand extends FxCommand {
       since: flags.since,
       jobs: flags.jobs,
     });
-    this.renderReport(report, ['group', 'level', 'id', 'message', 'fix']);
+    this.renderReport(report, RELEASE_FINDING_COLUMNS);
     this.renderer.notice(reportNotice(report, RELEASE_CODES, ['fx release <repo> --format json']));
   }
 }

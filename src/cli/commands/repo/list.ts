@@ -1,6 +1,10 @@
 import { Flags } from '@oclif/core';
 
-import { RepoList } from '../../../application/repo/list.js';
+import {
+  REPO_COLUMNS,
+  REPO_READABILITY_COLUMNS,
+  RepoList,
+} from '../../../application/repo/list.js';
 import { FxCommand } from '../../base.js';
 
 export default class RepoListCommand extends FxCommand {
@@ -34,16 +38,7 @@ export default class RepoListCommand extends FxCommand {
       unreadable: flags.unreadable,
     });
     this.renderer.list(rows, {
-      columns: [
-        'name',
-        'picked',
-        'selection_mode',
-        'exists',
-        'branch',
-        'project',
-        'tags',
-        ...(flags.unreadable ? ['readability', 'contact'] : []),
-      ],
+      columns: [...REPO_COLUMNS, ...(flags.unreadable ? REPO_READABILITY_COLUMNS : [])],
     });
   }
 }

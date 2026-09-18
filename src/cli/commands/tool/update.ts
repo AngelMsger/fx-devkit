@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 
+import { TOOL_INSTALL_COLUMNS } from '../../../application/tool/install.js';
 import { assertToolSelection } from '../../../application/tool/select.js';
 import { toolInstall } from '../../../composition/tool-install.js';
 import { FxCommand } from '../../base.js';
@@ -48,7 +49,7 @@ export default class ToolUpdateCommand extends FxCommand {
             },
     });
     this.renderer.list(results, {
-      columns: ['name', 'via', 'vector', 'ran', 'code', 'version_after', 'error'],
+      columns: TOOL_INSTALL_COLUMNS,
     });
   }
 }

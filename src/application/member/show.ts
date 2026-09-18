@@ -19,6 +19,16 @@ export interface PersonRow {
   readonly via: string | null;
 }
 
+export const PERSON_COLUMNS = [
+  'id',
+  'display',
+  'email',
+  'status',
+  'matched_by',
+  'via',
+  'accounts',
+] as const;
+
 export class MemberShow {
   constructor(private readonly deps: WorkspaceDeps) {}
 

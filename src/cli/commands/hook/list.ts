@@ -1,3 +1,4 @@
+import { HARNESS_COLUMNS } from '../../../application/harness/types.js';
 import { manageHooks } from '../../../composition/hooks.js';
 import { FxCommand } from '../../base.js';
 
@@ -17,7 +18,7 @@ export default class HookListCommand extends FxCommand {
       dryRun: true,
     });
     this.renderer.list(out.items, {
-      columns: ['agent', 'action', 'activation', 'path', 'context', 'command'],
+      columns: HARNESS_COLUMNS,
       trailer: {
         workspace: out.workspace,
         root: out.root,

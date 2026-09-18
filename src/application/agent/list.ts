@@ -14,6 +14,8 @@ export interface AgentRow {
   readonly note: string | null;
 }
 
+export const AGENT_COLUMNS = ['id', 'label', 'detected', 'enabled', 'skills_dir', 'note'] as const;
+
 export interface AgentListInput {
   readonly configured: readonly string[] | undefined;
 }

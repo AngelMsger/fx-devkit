@@ -46,6 +46,8 @@ export interface SyncItem extends PlanItem {
   readonly failure?: ErrorEnvelope['error'];
 }
 
+export const SYNC_COLUMNS = ['name', 'action', 'result', 'outcome', 'reason'] as const;
+
 export interface SyncSummary {
   readonly done: number;
   readonly skipped: number;

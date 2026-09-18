@@ -1,6 +1,6 @@
 import { Args } from '@oclif/core';
 
-import { MemberShow } from '../../../application/member/show.js';
+import { MemberShow, PERSON_COLUMNS } from '../../../application/member/show.js';
 import { FxCommand } from '../../base.js';
 
 export default class MemberShowCommand extends FxCommand {
@@ -23,7 +23,7 @@ export default class MemberShowCommand extends FxCommand {
     const { args } = await this.parse(MemberShowCommand);
     const rows = new MemberShow(await this.workspaceDeps()).execute(args.query);
     this.renderer.list(rows, {
-      columns: ['id', 'display', 'email', 'status', 'matched_by', 'via', 'accounts'],
+      columns: PERSON_COLUMNS,
     });
   }
 }

@@ -49,6 +49,15 @@ export interface SkillMutation extends StandaloneTarget {
   readonly failure?: Readonly<Record<string, unknown>>;
 }
 
+export const SKILL_INSTALLATION_COLUMNS = [
+  'agent',
+  'path',
+  'status',
+  'version',
+  'version_state',
+] as const;
+export const SKILL_MUTATION_COLUMNS = ['agent', 'path', 'action', 'status', 'version'] as const;
+
 export interface SkillWriteInput extends StandaloneTargetsInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;

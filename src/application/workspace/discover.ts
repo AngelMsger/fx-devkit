@@ -18,6 +18,17 @@ export interface WorkspaceRecord extends WorkspaceHealthResult {
   readonly selected: boolean;
   readonly selection: Located['selection'] | null;
 }
+export const WORKSPACE_COLUMNS = [
+  'name',
+  'root',
+  'source',
+  'default',
+  'cwd_match',
+  'selected',
+  'selection',
+  'status',
+] as const;
+
 export interface WorkspaceDiscovery {
   readonly items: readonly WorkspaceRecord[];
   readonly has_more: false;

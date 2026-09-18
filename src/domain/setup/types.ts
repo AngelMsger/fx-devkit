@@ -71,6 +71,8 @@ export interface PlanProblem {
   readonly detail: string;
 }
 
+export const SETUP_STEP_COLUMNS = ['id', 'kind', 'title', 'origin'] as const;
+
 export interface SetupPlan {
   readonly steps: readonly SetupStep[];
   readonly problems: readonly PlanProblem[];

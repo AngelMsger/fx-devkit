@@ -1,4 +1,4 @@
-import { SkillList } from '../../../application/skill/list.js';
+import { SKILL_COLUMNS, SkillList } from '../../../application/skill/list.js';
 import { FxCommand } from '../../base.js';
 import { listFlag } from '../../flags.js';
 
@@ -14,6 +14,6 @@ export default class AgentSkillsCommand extends FxCommand {
     const rows = await new SkillList(await this.workspaceDeps(), this.skillDeps()).execute({
       agents: flags.agent,
     });
-    this.renderer.list(rows, { columns: ['name', 'kind', 'states', 'source'] });
+    this.renderer.list(rows, { columns: SKILL_COLUMNS });
   }
 }

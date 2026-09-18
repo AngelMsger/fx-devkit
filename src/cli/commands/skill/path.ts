@@ -1,3 +1,4 @@
+import { SKILL_INSTALLATION_COLUMNS } from '../../../application/skill/standalone.js';
 import { SkillCommand, skillTargetFlags } from '../../skill-command.js';
 
 export default class SkillPathCommand extends SkillCommand {
@@ -12,6 +13,6 @@ export default class SkillPathCommand extends SkillCommand {
       dir: flags.dir,
       cwd: process.cwd(),
     });
-    this.renderer.list(rows, { columns: ['agent', 'path', 'status', 'version', 'version_state'] });
+    this.renderer.list(rows, { columns: SKILL_INSTALLATION_COLUMNS });
   }
 }

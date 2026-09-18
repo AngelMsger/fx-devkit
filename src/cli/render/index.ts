@@ -20,6 +20,8 @@ export { FORMATS, type Format } from '../../domain/format.js';
 export interface ListOptions {
   readonly hasMore?: boolean;
   readonly next?: string;
+  // Column order is declared beside the row type, so adding a field is one
+  // decision in one module instead of a silent omission from the table.
   readonly columns?: readonly string[];
   readonly trailer?: Readonly<Record<string, unknown>>;
   // A human findings table may display only one part of the workflow report.

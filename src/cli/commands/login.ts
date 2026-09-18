@@ -1,6 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 
-import { Login } from '../../application/login/run.js';
+import { Login, LOGIN_STEP_COLUMNS } from '../../application/login/run.js';
+import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
 import { dryRunFlag, listFlag } from '../flags.js';
 import { loginNotices } from '../notices.js';
@@ -44,7 +45,7 @@ export default class LoginCommand extends FxCommand {
     const login = new Login(await this.workspaceDeps(), this.loginDeps());
     if (flags.list) {
       const plan = await login.plan({ tools, envs: flags.env });
-      this.renderer.list(plan.steps, { columns: ['id', 'kind', 'title', 'origin'] });
+      this.renderer.list(plan.steps, { columns: SETUP_STEP_COLUMNS });
       for (const notice of loginNotices(plan.problems)) this.renderer.notice(notice);
       return;
     }
@@ -56,7 +57,7 @@ export default class LoginCommand extends FxCommand {
       noInput: this.noInput,
       posture: this.posture,
     });
-    this.renderer.list(out.items, { columns: ['id', 'kind', 'result', 'detail'] });
+    this.renderer.list(out.items, { columns: LOGIN_STEP_COLUMNS });
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
   }
 }

@@ -20,6 +20,15 @@ export interface DoctorReport extends Report<Group> {
   readonly repairs: readonly RepairAttempt[];
 }
 
+export const DOCTOR_FINDING_COLUMNS = [
+  'group',
+  'level',
+  'coverage',
+  'id',
+  'message',
+  'fix',
+] as const;
+
 export function finding(
   group: Group,
   id: string,

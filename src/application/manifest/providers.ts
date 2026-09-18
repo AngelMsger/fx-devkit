@@ -16,6 +16,15 @@ export interface BindingRow extends Binding {
   readonly platform: string | null;
 }
 
+export const BINDING_COLUMNS = [
+  'scope',
+  'capability',
+  'platform',
+  'provider',
+  'source',
+  'vars',
+] as const;
+
 export class ProvidersManifest {
   constructor(
     private readonly fs: FileSystem,
