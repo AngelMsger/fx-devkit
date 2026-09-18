@@ -1,9 +1,9 @@
 // Validate command routing before oclif can turn invalid invocations into topic help.
 
-import { nearest } from '../domain/fuzzy.js';
+import { nearest } from '../../domain/fuzzy.js';
 
-import { retiredCommand } from './route/retired.js';
-import { PRE_OK, readFlag } from './route/tokens.js';
+import { retiredCommand } from './retired.js';
+import { PRE_OK, readFlag } from './tokens.js';
 
 export type Route =
   | { readonly kind: 'run' }

@@ -9,7 +9,7 @@ import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 
 import { commandIds } from './commands/index.js';
 import { createRenderer, FORMATS, processIo, type Format } from './render/index.js';
-import { normalizeArgv, routeArgv, type Route } from './route.js';
+import { normalizeArgv, routeArgv, type Route } from './route/index.js';
 import { invocation } from './trace.js';
 
 export async function main(argv: string[]): Promise<void> {

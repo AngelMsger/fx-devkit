@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeArgv, routeArgv } from '../../../src/cli/route.js';
+import { normalizeArgv, routeArgv } from '../../../src/cli/route/index.js';
 
 const ids = ['status', 'self info', 'config get', 'config set', 'config list'];
 
