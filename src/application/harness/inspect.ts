@@ -25,6 +25,8 @@ export interface McpInfo {
   readonly readiness: McpVerdict;
   readonly projections: readonly HarnessRow[];
 }
+export const MCP_COLUMNS = ['name', 'transport', 'readiness.status'] as const;
+
 export interface InspectMcpOutput {
   readonly items: readonly McpInfo[];
   readonly orphaned: readonly HarnessRow[];

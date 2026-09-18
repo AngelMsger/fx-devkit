@@ -1,3 +1,4 @@
+import { MCP_COLUMNS } from '../../../application/harness/inspect.js';
 import { inspectMcp } from '../../../composition/harness.js';
 import { FxCommand } from '../../base.js';
 
@@ -7,14 +8,9 @@ export default class McpListCommand extends FxCommand {
   async run(): Promise<void> {
     await this.parse(McpListCommand);
     const result = await inspectMcp(this.harnessInput());
-    const rows =
-      this.format === 'human'
-        ? result.items.map((item) => ({
-            name: item.name,
-            transport: item.transport,
-            status: item.readiness.status,
-          }))
-        : result.items;
-    this.renderer.list(rows, { trailer: { orphaned: result.orphaned } });
+    this.renderer.list(result.items, {
+      columns: MCP_COLUMNS,
+      trailer: { orphaned: result.orphaned },
+    });
   }
 }
