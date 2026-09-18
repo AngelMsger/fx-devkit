@@ -53,7 +53,11 @@ bypass dependency boundaries. ESLint enforces imports; reviewers still verify
 responsibility and data flow.
 
 A provider is one `ProviderDescriptor` under `adapters/<capability>/<id>/` plus
-registration in composition. Application code does not name providers.
+registration in composition. The descriptor is also where a provider declares what a
+manifest may say about it: the shared service settings and authentication methods it
+accepts, and the names a schema 1 document writes in place of its id. Validation reads
+those from the catalog it is handed, never from a table of its own. Application code
+does not name providers.
 `AgentHostSpec` is the sole inventory of native agent capabilities and paths;
 protocol adapters own serialization. Platform differences belong to adapters,
 not provider-specific application branches.
