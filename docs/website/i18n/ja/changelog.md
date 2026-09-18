@@ -2,6 +2,10 @@
 
 ## 未リリース
 
+- provider が結び付いているのに tools ドキュメントがその配下のツールを宣言していない場合を `TOOL_UNDECLARED` として報告し、provider が無いという誤った説明をやめました。
+- platform の `service` を、その名前が示す provider の宣言と照合するようにしました。正しい宣言を誤って拒否せず、誤った宣言も見逃しません。
+- session-start の背景処理が実施する phase を事前に記録し、途中で終了させられた worker が到達しなかった phase を `HOOK_PHASE_UNREPORTED` として残すようにしました。
+
 - 全出力形式のレポート抽出、復旧コマンドの workspace 指定、貢献ロック内のソース同一性検証を修正。
 - 検証済みローカル Git のインポートと一致する upstream の安全な追加に対応し、有効・必須ツールの宣言に準備判定を統一。
 - 宣言された各 setup 検証形式を受け入れ、manifest のマージで null を許す比較値を保持。

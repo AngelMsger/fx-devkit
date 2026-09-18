@@ -2,6 +2,10 @@
 
 ## 未发布
 
+- 能力已绑定 provider、但工具文档未声明该 provider 所用配套工具时报告 `TOOL_UNDECLARED`，不再误称该能力没有 provider。
+- platform 的 `service` 按其名称推导出的 provider 校验：合法声明不再被误报，此前被跳过的真实问题也会报出。
+- 预先记录 session-start 后台运行承诺执行的阶段，worker 被终止时未执行到的阶段留下 `HOOK_PHASE_UNREPORTED`，不再直接消失。
+
 - 修复所有格式的报告字段投影、恢复命令的 workspace 上下文和贡献锁内的来源身份校验。
 - 支持经验证的本地 Git 导入与匹配 upstream 的安全补充，按启用和必需工具声明统一准备状态。
 - 接受各类声明的 setup 验证形式，并在 manifest 合并时保留可空比较值。
