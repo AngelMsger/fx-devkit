@@ -236,14 +236,19 @@ export class Import {
   }
 
   // The ladder is synchronous; the code host is not. Every candidate pair is
-  // asked once, up front.
+  // asked once, up front, and every host is resolved once however many
+  // checkouts point at it.
   private async prefetch(
     later: readonly RepoObservation[],
     seen: readonly string[],
   ): Promise<Map<string, ProbeOutcome>> {
     const answers = new Map<string, ProbeOutcome>();
+    const hosts = new Map<string, Promise<CodeHost | undefined>>();
     for (const obs of later) {
-      const codeHost = await this.deps.codeHost(hostOf(obs.remotes['origin'] ?? ''));
+      const host = hostOf(obs.remotes['origin'] ?? '');
+      const pending = hosts.get(host) ?? this.deps.codeHost(host);
+      hosts.set(host, pending);
+      const codeHost = await pending;
       for (const project of seen) {
         const key = `${project}/${obs.name}`;
         if (answers.has(key) || codeHost === undefined) continue;
