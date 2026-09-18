@@ -10,7 +10,8 @@ import type { LinkProjectionStore } from '../../ports/projection.js';
 import { applyHarnessChange, readHarnessState } from '../harness/apply.js';
 import { planHarness } from '../harness/plan.js';
 import type { HarnessDeps, HarnessInput } from '../harness/types.js';
-import { ReconcileHooks, type HookDeps } from '../hook/reconcile.js';
+import { ReconcileHooks } from '../hook/reconcile.js';
+import type { HookDeps } from '../hook/types.js';
 import type { WritePosture } from '../safety/posture.js';
 import { teamSkillsRoot } from '../skill/observe.js';
 

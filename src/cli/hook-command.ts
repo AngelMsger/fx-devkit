@@ -2,8 +2,8 @@
 // report about the workspace projection is one view.
 
 import { HARNESS_COLUMNS } from '../application/harness/types.js';
-import type { ReconcileInput } from '../application/hook/reconcile.js';
 import { manageHooks } from '../application/hook/session.js';
+import type { ReconcileInput } from '../application/hook/types.js';
 import { hookSession } from '../composition/hooks.js';
 
 import { FxCommand } from './base.js';

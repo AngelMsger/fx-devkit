@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CleanupAgentHooks } from '../application/hook/cleanup.js';
-import { type HookDeps } from '../application/hook/reconcile.js';
 import type { HookSession } from '../application/hook/session.js';
+import type { HookDeps } from '../application/hook/types.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileHookState } from '../infra/hook-state.js';

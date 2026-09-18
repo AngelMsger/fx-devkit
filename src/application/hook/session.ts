@@ -8,12 +8,8 @@ import type { WritePosture } from '../safety/posture.js';
 import type { StageResult } from '../sync.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
-import {
-  ReconcileHooks,
-  type HookDeps,
-  type HookOutput,
-  type ReconcileInput,
-} from './reconcile.js';
+import { ReconcileHooks } from './reconcile.js';
+import type { HookDeps, HookOutput, ReconcileInput } from './types.js';
 
 export interface HookSession {
   readonly deps: HookDeps;

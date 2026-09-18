@@ -11,7 +11,8 @@ import type { WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
-import { ReconcileHooks, type HookDeps } from './reconcile.js';
+import { ReconcileHooks } from './reconcile.js';
+import type { HookDeps } from './types.js';
 
 export class CleanupAgentHooks {
   constructor(

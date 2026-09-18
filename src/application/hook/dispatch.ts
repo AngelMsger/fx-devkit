@@ -17,7 +17,7 @@ import { readSettings } from '../config/settings.js';
 import { resolvePosture } from '../safety/posture.js';
 
 import { resolveHookHost } from './host.js';
-import type { HookDeps } from './reconcile.js';
+import type { HookDeps } from './types.js';
 
 export interface DispatchDeps extends HookDeps {
   readonly handlers: Readonly<Record<string, HookHandler>>;
