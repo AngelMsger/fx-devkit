@@ -18,6 +18,13 @@ export function scopeMode(names: readonly string[] | null | undefined): ScopeMod
 
 export type ScopeKey = 'repos' | 'envs';
 
+// What a selection command asks for, before the collection is known.
+export interface ScopeSelection {
+  readonly names: readonly string[];
+  readonly dryRun: boolean;
+  readonly posture: WritePosture;
+}
+
 export interface ScopeEdit {
   readonly key: ScopeKey;
   readonly operation: ScopeOperation;

@@ -190,7 +190,10 @@ function lines(text: string): string[] {
 // nobody can read would shorten a comparison into "the branches agree".
 function commitsOf(ref: RepoRef, text: string): Commit[] {
   return lines(text).flatMap((line) => {
-    if (!line.includes('\0')) return line.startsWith('commit ') ? [] : [unreadableRow(ref, line)];
+    if (!line.includes('\0')) {
+      if (line.startsWith('commit ')) return [];
+      throw unreadableError(ref, 'a commit', line);
+    }
     const [sha, author, date, parents, message] = line.split('\0');
     if (sha === undefined || sha === '' || date === undefined)
       throw unreadableError(ref, 'a commit', line);
@@ -204,10 +207,6 @@ function commitsOf(ref: RepoRef, text: string): Commit[] {
       },
     ];
   });
-}
-
-function unreadableRow(ref: RepoRef, line: string): never {
-  throw unreadableError(ref, 'a commit', line);
 }
 
 function unreadableError(ref: RepoRef, what: string, line: string): DevkitError {

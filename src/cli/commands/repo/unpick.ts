@@ -1,8 +1,8 @@
 import { editRepoScope } from '../../../application/repo/scope.js';
-import { FxCommand } from '../../base.js';
-import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
+import { dryRunFlag, requiredArgument } from '../../flags.js';
+import { SelectionCommand } from '../selection.js';
 
-export default class RepoUnpickCommand extends FxCommand {
+export default class RepoUnpickCommand extends SelectionCommand {
   static override description =
     'Stop tracking shared repositories on this machine; nothing on disk changes';
   static override examples = ['<%= config.bin %> repo unpick fx-example-docs'];
@@ -14,11 +14,6 @@ export default class RepoUnpickCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoUnpickCommand);
-    const result = await editRepoScope(
-      await this.workspaceDeps(),
-      { names: argv as string[], ...writeIntent(flags, this.posture) },
-      'unpick',
-    );
-    this.renderer.record(result);
+    await this.editSelection(editRepoScope, 'unpick', argv, flags);
   }
 }
