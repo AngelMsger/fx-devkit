@@ -1,12 +1,14 @@
 // Records only this invocation's definite probe evidence. Readiness prompts
 // stay outside the workspace lease; source snapshots are rechecked before writing.
 
-import { busyError, handoffEnvelope, type HandoffEnvelope } from '../domain/errors.js';
-import { MANIFEST_FILES } from '../domain/manifest/files.js';
-import { setYamlStrings } from '../domain/manifest/path-editor.js';
-import { coordinateFingerprint } from '../domain/obs/observation.js';
-import { confidenceForProbe } from '../domain/obs/probe.js';
-import { shellLine } from '../domain/shell.js';
+import { busyError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import { MANIFEST_FILES } from '../../domain/manifest/files.js';
+import { setYamlStrings } from '../../domain/manifest/path-editor.js';
+import { coordinateFingerprint } from '../../domain/obs/observation.js';
+import { confidenceForProbe } from '../../domain/obs/probe.js';
+import { shellLine } from '../../domain/shell.js';
+import { assertWritable } from '../safety/posture.js';
+import { Where, type WhereRow } from '../where.js';
 
 import {
   assertProbeSources,
@@ -15,20 +17,18 @@ import {
   planProbeRecord,
   recordValues,
   validateEdited,
-} from './probe-record/plan.js';
+} from './plan.js';
 import type {
+  ProbeRecordDeps,
+  ProbeRecordInput,
+  ProbeRecordOutput,
   ProbeRecordPlan,
-  RecordProbeDeps,
-  RecordProbeInput,
-  RecordProbeOutput,
-} from './probe-record/types.js';
-import { assertWritable } from './safety/posture.js';
-import { Where, type WhereRow } from './where.js';
+} from './types.js';
 
-export class RecordProbe {
-  constructor(private readonly deps: RecordProbeDeps) {}
+export class ProbeRecord {
+  constructor(private readonly deps: ProbeRecordDeps) {}
 
-  async execute(input: RecordProbeInput): Promise<RecordProbeOutput> {
+  async execute(input: ProbeRecordInput): Promise<ProbeRecordOutput> {
     const plan = await planProbeRecord(this.deps, input);
     if (!plan.template || !plan.output.scope)
       return { ...plan.output, handoff: recovery(plan.output.row) };
@@ -62,7 +62,7 @@ export class RecordProbe {
     }
   }
 
-  private async record(plan: ProbeRecordPlan, row: WhereRow): Promise<RecordProbeOutput> {
+  private async record(plan: ProbeRecordPlan, row: WhereRow): Promise<ProbeRecordOutput> {
     const after = confidenceForProbe(row.outcome ?? 'unknown');
     if (!after)
       return { ...plan.output, row, action: 'skipped', handoff: row.handoff ?? recovery(row) };

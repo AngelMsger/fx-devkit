@@ -16,14 +16,14 @@ import { findKnownRepo } from '../workspace/inspect.js';
 
 import type {
   ProbeRecordPlan,
-  RecordProbeDeps,
-  RecordProbeInput,
-  RecordProbeOutput,
+  ProbeRecordDeps,
+  ProbeRecordInput,
+  ProbeRecordOutput,
 } from './types.js';
 
 export async function planProbeRecord(
-  deps: RecordProbeDeps,
-  input: RecordProbeInput,
+  deps: ProbeRecordDeps,
+  input: ProbeRecordInput,
 ): Promise<ProbeRecordPlan> {
   if (!input.probe || !input.env || !input.platform) throw inputRequired(input.repo);
   const documents = await readDocuments(deps);
@@ -56,7 +56,7 @@ export async function planProbeRecord(
   const base = ['envs', row.env, 'platforms', row.platform];
   const target = scope === 'repository' ? [...base, 'observations', row.repo] : base;
   const current = scope === 'repository' ? entry?.observations?.[row.repo] : entry;
-  const output: RecordProbeOutput = {
+  const output: ProbeRecordOutput = {
     action: scope ? 'preview' : 'skipped',
     file: path.join(deps.workspace.ctx.manifestDir, MANIFEST_FILES.environments),
     scope,
@@ -73,7 +73,7 @@ export async function planProbeRecord(
   return plan;
 }
 
-function validatePreview(deps: RecordProbeDeps, plan: ProbeRecordPlan): void {
+function validatePreview(deps: ProbeRecordDeps, plan: ProbeRecordPlan): void {
   assertSafeNote(JSON.stringify(plan.output.row.vars));
   assertSafeNote(plan.previousNote + '\n' + shellLine(plan.template!));
   const preview = setYamlStrings({
@@ -83,7 +83,7 @@ function validatePreview(deps: RecordProbeDeps, plan: ProbeRecordPlan): void {
   validateEdited(deps, plan, preview);
 }
 
-async function readDocuments(deps: RecordProbeDeps) {
+async function readDocuments(deps: ProbeRecordDeps) {
   const root = deps.workspace.ctx.manifestDir;
   const workspaceSnapshot = await deps.files.read({ root, relative: MANIFEST_FILES.workspace });
   const environmentSnapshot = await deps.files.read({
@@ -135,7 +135,7 @@ async function readDocuments(deps: RecordProbeDeps) {
 }
 
 export async function assertProbeSources(
-  deps: RecordProbeDeps,
+  deps: ProbeRecordDeps,
   plan: ProbeRecordPlan,
 ): Promise<void> {
   const root = deps.workspace.ctx.manifestDir;
@@ -167,7 +167,7 @@ export function recordValues(
 }
 
 export function validateEdited(
-  deps: RecordProbeDeps,
+  deps: ProbeRecordDeps,
   plan: ProbeRecordPlan,
   text: string,
 ): Environments {
