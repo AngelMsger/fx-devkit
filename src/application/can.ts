@@ -4,8 +4,8 @@ import { DevkitError } from '../domain/errors.js';
 import { shellLine } from '../domain/shell.js';
 
 import type { LoginDeps } from './login/deps.js';
-import { Readiness, type Verdict } from './readiness.js';
-import type { Target } from './readiness.js';
+import { Readiness } from './readiness/index.js';
+import type { Target, Verdict } from './readiness/types.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { workspaceCommand } from './workspace/guidance.js';
 

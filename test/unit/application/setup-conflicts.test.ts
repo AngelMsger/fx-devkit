@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { kubectlProvider } from '../../../src/adapters/cluster/kubectl/provider.js';
 import { checkLogin } from '../../../src/application/doctor/login.js';
 import { Login } from '../../../src/application/login/run.js';
-import { Readiness } from '../../../src/application/readiness.js';
+import { Readiness } from '../../../src/application/readiness/index.js';
 import { report } from '../../../src/domain/report.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
 import { harness, MANIFEST_DIR } from '../../fakes/workspace.js';

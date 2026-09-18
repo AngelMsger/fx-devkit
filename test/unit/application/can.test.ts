@@ -7,7 +7,7 @@ import { BITBUCKET_RECIPES } from '../../../src/adapters/code-host/bitbucket-cli
 import { localGitProvider } from '../../../src/adapters/code-host/local-git/provider.js';
 import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
 import { Can } from '../../../src/application/can.js';
-import { Readiness } from '../../../src/application/readiness.js';
+import { Readiness } from '../../../src/application/readiness/index.js';
 import { Gates } from '../../../src/application/release/gates.js';
 import type { LocalLayer } from '../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../src/domain/setup/types.js';
