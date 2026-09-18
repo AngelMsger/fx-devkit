@@ -43,10 +43,7 @@ export class AgentPick {
     const file = await this.config.read();
     const before = file.agents ?? null;
     const base = before ?? (await enabledHosts(this.hosts, undefined)).map((h) => h.id);
-    const after =
-      input.action === 'pick'
-        ? [...new Set([...base, ...input.ids])]
-        : base.filter((id) => !input.ids.includes(id));
+    const after = applySelection(base, input.ids, input.action);
     const changed =
       before === null ||
       after.length !== before.length ||
@@ -68,16 +65,12 @@ export class AgentPick {
     assertWritable(input.posture, `agent ${input.action} ${input.ids.join(' ')}`);
     let appliedAfter = after;
     if (changed) {
-      const saved = await this.config.update((current) => {
-        const selected = current.agents ?? base;
-        return {
-          ...current,
-          agents:
-            input.action === 'pick'
-              ? [...new Set([...selected, ...input.ids])]
-              : selected.filter((id) => !input.ids.includes(id)),
-        };
-      });
+      // The plan's `after` was computed before the lease; the write recomputes it
+      // from the configuration it just read, so a concurrent change survives.
+      const saved = await this.config.update((current) => ({
+        ...current,
+        agents: applySelection(current.agents ?? base, input.ids, input.action),
+      }));
       appliedAfter = [...(saved.agents ?? after)];
     }
     const hooks = input.action === 'unpick' ? await this.cleanup?.apply(input.ids) : undefined;
@@ -103,6 +96,16 @@ export class AgentPick {
       nextSteps: ['fx agent list'],
     });
   }
+}
+
+function applySelection(
+  base: readonly string[],
+  ids: readonly string[],
+  action: AgentPickInput['action'],
+): string[] {
+  return action === 'pick'
+    ? [...new Set([...base, ...ids])]
+    : base.filter((id) => !ids.includes(id));
 }
 
 function cleanupOutput(

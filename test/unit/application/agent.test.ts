@@ -182,6 +182,21 @@ describe('AgentPick', () => {
     expect(picked).toMatchObject({ before: [], after: ['roo'], changed: true, written: true });
   });
 
+  it('applies the selection to the list the write actually read', async () => {
+    const config = new FakeConfigStore({ agents: ['codex'] });
+    const original = config.update.bind(config);
+    config.update = (change) =>
+      original(async (current) => change({ ...current, agents: ['roo'] }));
+    const result = await new AgentPick(config, hosts).execute({
+      ids: ['claude-code'],
+      action: 'pick',
+      dryRun: false,
+      posture: writable,
+    });
+    expect(result.after).toEqual(['roo', 'claude-code']);
+    expect((await config.read()).agents).toEqual(['roo', 'claude-code']);
+  });
+
   it('previews under dry-run, refuses under read-only, and rejects an unknown id with a suggestion', async () => {
     const config = new FakeConfigStore({});
     const preview = await new AgentPick(config, hosts).execute({
