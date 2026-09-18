@@ -148,16 +148,17 @@ function finishValid<T>(input: FinishValidInput<T>): LoadResult<T> {
       negotiation,
     };
   }
-  const { entries, document } = partitionProblems(problems, spec.entries.key);
+  const key = spec.entries.key;
+  const { entries, document } = partitionProblems(problems, key);
   const dropped: Dropped[] = [...entries.entries()].map(([index, list]) => ({
-    collection: spec.entries!.key,
-    name: entryName(value, spec.entries!.key, index),
+    collection: key,
+    name: entryName(value, key, index),
     reason: list.map((p) => `${p.path}: ${p.message}`).join('; '),
   }));
   if (document.length > 0) throw invalid(spec, problems);
-  const survivors = (input.parsed as Raw)[spec.entries.key] as unknown[];
+  const survivors = (input.parsed as Raw)[key] as unknown[];
   const remaining = survivors.filter((_, i) => !entries.has(validated.kept[i] ?? i));
-  const doc = { ...(input.parsed as Raw), [spec.entries.key]: remaining } as T;
+  const doc = { ...(input.parsed as Raw), [key]: remaining } as T;
   if (remaining.length === 0 && dropped.length > 0) {
     throw new DevkitError(
       'config',
