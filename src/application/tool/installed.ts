@@ -115,7 +115,7 @@ export class ToolInstalled {
       try {
         const dir = this.deps.manifestDirFor(name);
         const workspace = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.workspace));
-        // A missing source is not an empty set of requirements.
+        // A missing source is unread requirements, not none.
         loadWorkspace(workspace ?? '', {
           cliVersion: this.deps.cliVersion,
           providers: this.deps.providers,

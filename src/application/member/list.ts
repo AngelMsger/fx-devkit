@@ -1,5 +1,5 @@
-// People as rows, narrowed by area or status. An area nobody declares is a typo
-// worth answering, not an empty list.
+// People as rows, narrowed by area or status. An undeclared area is an error
+// rather than an empty list.
 
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';

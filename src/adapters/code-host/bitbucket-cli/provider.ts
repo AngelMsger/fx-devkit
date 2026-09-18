@@ -199,9 +199,8 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   create: (deps, vars) => new BitbucketCodeHost(deps, vars),
 };
 
-// Every page or nothing: a list fx cannot read whole would answer "no
-// branches" or "no commits between them", which is a wrong answer, not a
-// missing one.
+// Every page or nothing: a half-read list would answer "no branches" or "no
+// commits between them". See Coverage in domain/report.ts.
 function rows(data: unknown, what: string): Record<string, unknown>[] {
   const items = itemsOf(data);
   if (items === undefined) throw unreadableError(BINARY, what);

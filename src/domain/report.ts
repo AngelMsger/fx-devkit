@@ -6,7 +6,13 @@
 
 import type { HandoffEnvelope } from './errors.js';
 
-// Coverage describes whether the requested check produced evidence, independently of severity.
+// Whether the requested check produced evidence, independently of severity, and
+// the one place this codebase argues the distinction. A question that does not
+// arise is `not_applicable`, one nothing could answer is `incomplete`, and only
+// a `fail` level says a check was made and did not pass. The three are never
+// collapsed, at any layer: an absent document, an unread page, an unparsed
+// payload or an undated build reports itself, because rendering it as an empty
+// or passing answer is a wrong answer rather than a missing one.
 export type Coverage = 'checked' | 'not_applicable' | 'incomplete';
 
 export type Level = 'ok' | 'warn' | 'fail';

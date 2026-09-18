@@ -141,9 +141,8 @@ export function queryFailed(binary: string, call: CliCall, what: string): Devkit
   );
 }
 
-// A zero exit whose payload cannot be read is a failure too: dropping the
-// rows that did not parse would turn a changed schema into a confident
-// "nothing to report".
+// A zero exit whose payload cannot be read is a failure too: a changed schema
+// must not read as nothing to report. See Coverage in domain/report.ts.
 export function unreadableError(binary: string, what: string): DevkitError {
   return new DevkitError(
     'server',
@@ -159,11 +158,10 @@ export function objectOf(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-// A family list answer is `{items, has_more, next?}`; a bare array is
-// accepted for tools that answer without the envelope. undefined means the
-// answer is not a list of records, does not say whether it is complete, or
-// is short of its own last page — each of which would otherwise read as
-// "there is nothing there".
+// A family list answer is `{items, has_more, next?}`; a bare array is accepted
+// for tools that answer without the envelope. undefined means the answer is not
+// a list of records, does not say whether it is complete, or is short of its own
+// last page.
 export function itemsOf(value: unknown): Record<string, unknown>[] | undefined {
   const envelope = objectOf(value);
   const list = Array.isArray(value) ? value : envelope?.['items'];
