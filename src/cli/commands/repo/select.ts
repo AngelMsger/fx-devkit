@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { editSelection } from '../../../application/repo/selection.js';
+import { editRepoScope } from '../../../application/repo/scope.js';
 import { selectOperation } from '../../../application/workspace/scope.js';
 import { FxCommand } from '../../base.js';
 import { argument, dryRunFlag, writeIntent } from '../../flags.js';
@@ -28,7 +28,7 @@ export default class RepoSelectCommand extends FxCommand {
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoSelectCommand);
     const operation = selectOperation(flags.all, flags.none);
-    const result = await editSelection(
+    const result = await editRepoScope(
       await this.workspaceDeps(),
       {
         names: argv as string[],

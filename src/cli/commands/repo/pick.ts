@@ -1,4 +1,4 @@
-import { RepoPick } from '../../../application/repo/pick.js';
+import { editRepoScope } from '../../../application/repo/scope.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
@@ -14,10 +14,11 @@ export default class RepoPickCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoPickCommand);
-    const result = await new RepoPick(await this.workspaceDeps()).execute({
-      names: argv as string[],
-      ...writeIntent(flags, this.posture),
-    });
+    const result = await editRepoScope(
+      await this.workspaceDeps(),
+      { names: argv as string[], ...writeIntent(flags, this.posture) },
+      'pick',
+    );
     this.renderer.record(result);
   }
 }

@@ -5,10 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { RepoAdd } from '../../../src/application/repo/add.js';
 import { RepoFork } from '../../../src/application/repo/fork.js';
 import { RepoList } from '../../../src/application/repo/list.js';
-import { RepoPick } from '../../../src/application/repo/pick.js';
 import { RepoRemove } from '../../../src/application/repo/remove.js';
+import { editRepoScope } from '../../../src/application/repo/scope.js';
 import { RepoShow } from '../../../src/application/repo/show.js';
-import { RepoUnpick } from '../../../src/application/repo/unpick.js';
 import type { WritePosture } from '../../../src/application/safety/posture.js';
 import { harness, MANIFEST_DIR, ROOT } from '../../fakes/workspace.js';
 
@@ -214,10 +213,10 @@ describe('RepoShow', () => {
   });
 });
 
-describe('RepoPick / RepoUnpick', () => {
+describe('editRepoScope', () => {
   it('turns "all" into an explicit list on unpick and keeps other keys of the layer', async () => {
     const h = await harness({ local: { overrides: { 'fx-example-api': { branch: 'x' } } } });
-    const result = await new RepoUnpick(h.deps).execute({ names: ['fx-example-docs'], ...write });
+    const result = await editRepoScope(h.deps, { names: ['fx-example-docs'], ...write }, 'unpick');
     expect(result).toMatchObject({
       before: null,
       after: ['fx-example-api', 'fx-example-auth'],
@@ -231,29 +230,29 @@ describe('RepoPick / RepoUnpick', () => {
 
   it('is a no-op when picking while everything is already tracked', async () => {
     const h = await harness();
-    const result = await new RepoPick(h.deps).execute({ names: ['fx-example-api'], ...write });
+    const result = await editRepoScope(h.deps, { names: ['fx-example-api'], ...write }, 'pick');
     expect(result).toMatchObject({ changed: false, written: false });
     expect(h.localStore.writes).toEqual([]);
   });
 
   it('adds to an explicit selection, ignoring duplicates, and previews under dry-run', async () => {
     const h = await harness({ local: { scope: { repos: ['fx-example-api'] } } });
-    const preview = await new RepoPick(h.deps).execute({
-      names: ['fx-example-auth', 'fx-example-api'],
-      dryRun: true,
-      posture: locked,
-    });
+    const preview = await editRepoScope(
+      h.deps,
+      { names: ['fx-example-auth', 'fx-example-api'], dryRun: true, posture: locked },
+      'pick',
+    );
     expect(preview).toMatchObject({ after: ['fx-example-api', 'fx-example-auth'], written: false });
     expect(h.localStore.writes).toEqual([]);
     await expect(
-      new RepoPick(h.deps).execute({ names: ['fx-example-auth'], dryRun: false, posture: locked }),
+      editRepoScope(h.deps, { names: ['fx-example-auth'], dryRun: false, posture: locked }, 'pick'),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
   });
 
   it('rejects a name the manifest does not have', async () => {
     const h = await harness();
     await expect(
-      new RepoPick(h.deps).execute({ names: ['ghost'], ...write }),
+      editRepoScope(h.deps, { names: ['ghost'], ...write }, 'pick'),
     ).rejects.toMatchObject({ code: 'REPO_NOT_FOUND' });
   });
 });
