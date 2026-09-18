@@ -2,7 +2,12 @@
 // serialize preferences and receipts; each file is rechecked by its projection
 // store. Inspect and dry-run never create leases or change personal settings.
 
-import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import {
+  busyError,
+  DevkitError,
+  handoffEnvelope,
+  type HandoffEnvelope,
+} from '../../domain/errors.js';
 import { BUILTIN_HOOKS, type HookSupport } from '../../domain/harness/hooks.js';
 import type { HookReceipt, HookState } from '../../domain/harness/state.js';
 import { samePath } from '../../domain/path.js';
@@ -85,11 +90,7 @@ export class ReconcileHooks {
       return output(preview);
     assertWritable(input.posture, 'manage workspace hooks');
     const lease = await this.deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 2000 });
-    if (!lease)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'Workspace hooks are being updated', {
-        retryable: true,
-        nextSteps: ['Retry shortly.'],
-      });
+    if (!lease) throw busyError('LOCK_BUSY', 'The workspace hook configuration');
     try {
       return await this.apply(input, await this.plan(input));
     } finally {

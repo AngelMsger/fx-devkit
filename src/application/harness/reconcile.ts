@@ -1,6 +1,6 @@
 // Coordinates trust, workspace locking and recoverable harness writes.
 
-import { DevkitError } from '../../domain/errors.js';
+import { busyError } from '../../domain/errors.js';
 import { assertWritable } from '../safety/posture.js';
 
 import { applyHarnessChange, harnessConflict, readHarnessState } from './apply.js';
@@ -25,11 +25,7 @@ export class ReconcileHarness {
       key: `workspace:${input.workspace}`,
       waitMs: 2000,
     });
-    if (!lease)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'Workspace projections are busy.', {
-        retryable: true,
-        nextSteps: ['Retry shortly.'],
-      });
+    if (!lease) throw busyError('LOCK_BUSY', 'The workspace projection state');
     try {
       return await this.apply(input, preview);
     } finally {

@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import { asDevkitError, DevkitError, withPartialResult } from '../../domain/errors.js';
+import { asDevkitError, busyError, DevkitError, withPartialResult } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -93,8 +93,7 @@ export class ManageWorkspace {
     assertWritable(input.posture, `workspace ${input.action}`);
     const lease = await this.deps.lock.acquire({ key: `workspace:${input.name}`, waitMs: 2000 });
     if (!lease)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'Workspace resources are busy.', {
-        retryable: true,
+      throw busyError('LOCK_BUSY', 'The workspace', {
         nextSteps: ['Retry the same workspace command shortly.'],
       });
     const progress: ApplyProgress = { written: false, phase: null };

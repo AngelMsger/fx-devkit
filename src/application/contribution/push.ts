@@ -1,7 +1,7 @@
 // Source pushes plan before their write gate and prompt outside leases. The
 // locked plan is re-read before journal, object, ref or network writes begin.
 
-import { DevkitError } from '../../domain/errors.js';
+import { busyError, DevkitError } from '../../domain/errors.js';
 import type { Lease } from '../../ports/lock.js';
 import { assertWritable } from '../safety/posture.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
@@ -56,8 +56,7 @@ async function withLeases<T>(deps: PushSourceDeps, work: () => Promise<T>): Prom
     await assertContributionIdentity(deps);
     for (const key of [`workspace:${deps.source.workspace}`, `source:${deps.source.dir}`]) {
       const lease = await deps.lock.acquire({ key, waitMs: 2000 });
-      if (!lease)
-        throw new DevkitError('conflict', 'SOURCE_BUSY', 'Another operation holds this source.');
+      if (!lease) throw busyError('SOURCE_BUSY', 'The contribution source');
       leases.push(lease);
     }
     await assertContributionIdentity(deps);

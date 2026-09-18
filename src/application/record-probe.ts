@@ -1,7 +1,7 @@
 // Records only this invocation's definite probe evidence. Readiness prompts
 // stay outside the workspace lease; source snapshots are rechecked before writing.
 
-import { handoffEnvelope, DevkitError, type HandoffEnvelope } from '../domain/errors.js';
+import { busyError, handoffEnvelope, type HandoffEnvelope } from '../domain/errors.js';
 import { MANIFEST_FILES } from '../domain/manifest/files.js';
 import { setYamlStrings } from '../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../domain/obs/observation.js';
@@ -40,12 +40,7 @@ export class RecordProbe {
       key: `workspace:${this.deps.workspace.ctx.name}`,
       waitMs: 2000,
     });
-    if (!lease)
-      throw new DevkitError(
-        'conflict',
-        'PROBE_RECORD_BUSY',
-        'Another operation holds this workspace.',
-      );
+    if (!lease) throw busyError('PROBE_RECORD_BUSY', 'The workspace');
     try {
       await assertProbeSources(this.deps, plan);
       const [probed] = await where.execute({

@@ -2,7 +2,7 @@
 
 import path from 'node:path';
 
-import { DevkitError } from '../../domain/errors.js';
+import { busyError, DevkitError } from '../../domain/errors.js';
 import { pathKey } from '../../domain/path.js';
 import { decideCopy, type CopyAction } from '../../domain/skills/projection.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -45,8 +45,7 @@ async function lockedSkillWork<T>(
   const canonical = await canonicalSkillPath(fs, target);
   const lease = await lock?.acquire({ key: `skill:${pathKey(canonical)}`, waitMs: 2000 });
   if (lease === null)
-    throw new DevkitError('conflict', 'SKILL_BUSY', 'The Skill is being updated', {
-      retryable: true,
+    throw busyError('SKILL_BUSY', 'The Skill', {
       nextSteps: ['Retry the Skill command after the other update completes.'],
     });
   try {

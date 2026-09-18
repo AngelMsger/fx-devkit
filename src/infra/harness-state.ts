@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import * as z from 'zod';
 
-import { DevkitError } from '../domain/errors.js';
+import { busyError, DevkitError } from '../domain/errors.js';
 import type { HarnessState } from '../domain/harness/ownership.js';
 import { assertWorkspaceName } from '../domain/workspace/name.js';
 import type { HarnessStateStore } from '../ports/harness-state.js';
@@ -75,11 +75,7 @@ export class FileHarnessState implements HarnessStateStore {
     }
     await assertParents(this.home, file);
     const lease = await this.lock.acquire({ key: `harness-state:${workspace}`, waitMs: 2000 });
-    if (!lease)
-      throw new DevkitError('conflict', 'LOCK_BUSY', 'Harness metadata is busy.', {
-        retryable: true,
-        nextSteps: ['Retry shortly.'],
-      });
+    if (!lease) throw busyError('LOCK_BUSY', 'The harness metadata');
     try {
       await this.readFile(file);
       await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
