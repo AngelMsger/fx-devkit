@@ -1,8 +1,6 @@
-// What "a release" means for one repository: the workspace's release block
-// with the repository's own deviations applied, defaults filled in one
-// place. The source branch is read from the manifest entry, never from the
-// resolved repository, because a person's checkout override in local.yaml
-// must not change a team report.
+// What "a release" means for one repository, resolved from the manifest alone
+// so a personal checkout override cannot change a team report; see "Policy
+// resolution" in docs/design/release.md.
 
 import type { Repo, Workspace } from '../manifest/types.js';
 

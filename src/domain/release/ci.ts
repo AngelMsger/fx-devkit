@@ -1,12 +1,5 @@
-// A branch counts as built when its job's latest build succeeded and started
-// no earlier than the branch's head commit: a green build of an older commit
-// says nothing about what is about to ship. The build carries no revision —
-// the ci platforms fx drives do not report one — so this is an ordering of
-// times, and the message says so rather than claiming the build was of that
-// commit. Both sides of the release, the source job and the target job, must
-// pass; a side nobody can date, or whose job is not there, is a warning
-// rather than a pass, and a side the manifest has no job for says so instead
-// of disappearing.
+// Whether each side of a release is built. Builds carry no revision here, so
+// currency is an ordering of times; see "Build currency" in docs/design/release.md.
 
 import type { Build } from '../obs/types.js';
 import { type Coverage, type Level, worst } from '../report.js';
@@ -84,8 +77,7 @@ function verdictOf(side: BuildSide): { level: Level; message: string; current: b
       message: `${branch}: no ci coordinate in ${side.env}, not checked`,
       current: null,
     };
-  // The manifest named a job and the platform has none: the question went
-  // unanswered, which is not the same as passing.
+  // The manifest named a job and the platform has none: unanswered, not passed.
   if (build === undefined)
     return { level: 'warn', message: `${branch}: no job ${side.path}`, current: null };
   const { status, current } = judgeBuild(build, side.head);

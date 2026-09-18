@@ -1,6 +1,4 @@
-// A look-back window as people write it (`14d`, `48h`, `2w`), turned into
-// milliseconds. The unit list is short on purpose: a release checklist
-// counts days, not months.
+// A look-back window as people write it (`14d`, `48h`, `2w`), in milliseconds.
 
 import { DevkitError } from '../errors.js';
 

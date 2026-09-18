@@ -1,4 +1,5 @@
 // Evaluate the release checklist in a fixed order, retaining failed or unavailable checks as findings.
+// Selection and gate warming follow docs/design/release.md, "Selection and order".
 
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
@@ -62,17 +63,15 @@ export class Release {
     return report(CHECKS, findings.flat());
   }
 
-  // A misspelled environment is answered here rather than as a warning on
-  // every repository: the name came from the person, not from a platform.
+  // The name came from the person, so it is answered once, not per repository.
   private checkEnv(env: string | undefined): void {
     if (env === undefined) return;
     const envs = environmentsOf(this.deps.ctx, this.deps.commandShell).envs;
     if (envs[env] === undefined) throw envNotFound(this.deps, env, Object.keys(envs));
   }
 
-  // Readiness is judged before the pool starts and one gate at a time: a
-  // tool's version probe has a short deadline that a machine busy with
-  // thirty subprocesses would miss, turning a ready tool into "unknown".
+  // One gate at a time, before the pool: a version probe's short deadline would
+  // not survive thirty concurrent subprocesses, and a ready tool would read as unknown.
   private async warmGates(
     repos: readonly ResolvedRepo[],
     checks: readonly Check[],
@@ -95,8 +94,7 @@ export class Release {
       await this.gates.through('error-tracker', env);
   }
 
-  // The checklist is the team's, so the shared registry is read without the
-  // personal layer: what this machine picked or overrode does not change it.
+  // The checklist is the team's, so the shared registry is read without the personal layer.
   private select(input: ReleaseInput): readonly ResolvedRepo[] {
     const doc = this.deps.ctx.manifest.workspace.result.doc;
     const shared = applyLocal(doc, {}).repos;
@@ -144,8 +142,8 @@ export class Release {
   }
 }
 
-// The three ways a selection can name nothing. Each is an error rather than
-// an empty report, because an empty report reads as a pass.
+// The three ways a selection can name nothing. An empty report reads as a pass,
+// so each is an error instead; see Coverage in domain/report.ts.
 function emptyChecklist(): DevkitError {
   return new DevkitError(
     'not_found',

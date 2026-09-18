@@ -1,7 +1,6 @@
-// Pre-release dependencies are the first item of the checklist: nothing
-// shipped may pin a `-dev` or `-snapshot` build. One dependency file is read
-// per repository, chosen by the language it is written in; the parsers are
-// deliberately shallow — they find versions, they do not resolve them.
+// Pre-release pins in the one dependency file a repository's language names.
+// The parsers find versions, they do not resolve them; see "Dependencies" in
+// docs/design/release.md.
 
 import { DevkitError } from '../errors.js';
 
