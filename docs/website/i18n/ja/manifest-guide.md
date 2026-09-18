@@ -104,7 +104,7 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 書き込み後、init の前に、推定されたブランチ、上流、プロジェクト、未解決項目を確認してください。チームのルールと Skill は別途追加します。Git のメタデータからは復元されません。既存ディレクトリの取り込みは自動で、`--adopt` は互換性のためのフラグです。ガイドや Skill の配置を置き換える場合はレビューとバックアップが必要になることがあります。インポートは checkout を変更せず、submodule の管理情報も削除しません。[インポートの契約](manifest-guide.md#import-existing-checkouts)を参照してください。
 
-Provider の推定には根拠が必要です。検証済みのローカル bare リポジトリからは `local-git` バインディングを生成できます。不明または混在するホスティングは明示的な upstream URL と要確認の注記を保持し、provider を推測しません。認証情報、クエリ、フラグメントを含む HTTP remote は、それらを表示せずにスキップします。
+Provider の推定には根拠が必要です。検証済みのローカル bare リポジトリからは `local-git` バインディングを生成できます。不明または混在するホスティングは明示的な upstream URL と要確認の注記を保持し、provider を推測しません。code host が回答できなかったプロジェクトは「存在しない」ではなく「未回答」として報告され、該当エントリの要確認の注記またはスキップ理由が、検索が完了しなかったことを示します。認証情報、クエリ、フラグメントを含む HTTP remote は、それらを表示せずにスキップします。
 
 `origin` だけが存在し、その URL が宣言された upstream と完全一致する場合、sync は `upstream` を追加します。`origin`、現在のブランチ、ローカルファイルは保持します。プレビューの `upstream_to_add` と結果の `upstream_added` は予定と実際の効果を区別し、競合する remote は変更しません。
 

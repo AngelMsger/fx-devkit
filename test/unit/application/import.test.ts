@@ -180,13 +180,32 @@ describe('Import', () => {
     );
   });
 
-  it('treats a failing probe as "not there" and keeps going', async () => {
+  it('keeps going when a probe fails, and says the query was never answered', async () => {
     const s = stage();
     s.codeHost.canRead = async () => {
       throw new Error('offline');
     };
     const out = await s.importer.execute({ ...write, dir: ROOT, dryRun: true });
-    expect(out.report.skipped.map((x) => x.path)).toContain('fx-example-scripts');
     expect(out.report.repos).toBe(4);
+    expect(out.report.skipped).toContainEqual({
+      path: 'fx-example-scripts',
+      reason:
+        'origin is a personal fork; no upstream project could be verified from the available evidence; the code host did not answer for fx, ai; those projects were neither confirmed nor ruled out for this repository name.',
+    });
+  });
+
+  it('marks an inferred upstream for review when an earlier project went unanswered', async () => {
+    const s = stage();
+    const scripted = s.codeHost.canRead.bind(s.codeHost);
+    s.codeHost.canRead = async (ref) => {
+      if (ref.project === 'fx') throw new Error('offline');
+      return scripted(ref);
+    };
+    const out = await s.importer.execute({ ...write, dir: ROOT, dryRun: true });
+    expect(out.report.repos).toBe(5);
+    expect(out.report.review).toContainEqual({
+      name: 'fx-example-scripts',
+      note: 'the code host did not answer for fx; those projects were neither confirmed nor ruled out for this repository name.',
+    });
   });
 });

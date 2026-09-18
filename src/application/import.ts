@@ -15,7 +15,7 @@ import {
 } from '../domain/import/infer.js';
 import { renderManifest } from '../domain/import/render.js';
 import { isAtOrInside } from '../domain/path.js';
-import type { CodeHost } from '../ports/code-host.js';
+import type { CodeHost, Readability } from '../ports/code-host.js';
 import type { FileSystem } from '../ports/fs.js';
 import type { Git } from '../ports/git.js';
 import type { Reporter } from '../ports/reporter.js';
@@ -213,35 +213,79 @@ export class Import {
       const result = inferRepo(
         obs,
         seen,
-        (project, name) => answers.get(`${project}/${name}`) === true,
+        (project, name) => answers.get(`${project}/${name}`) === 'readable',
       );
-      if ('repo' in result) repos.push(result.repo);
-      else skipped.push({ path: obs.rel, reason: result.skipped });
+      const matched = 'repo' in result ? result.repo.project : undefined;
+      const unsettled = unsettledProjects(seen, answers, obs.name, matched);
+      if ('repo' in result)
+        repos.push(
+          unsettled.length === 0
+            ? result.repo
+            : { ...result.repo, review: [...result.repo.review, unsettledNote(unsettled)] },
+        );
+      else
+        skipped.push({
+          path: obs.rel,
+          reason:
+            unsettled.length === 0
+              ? result.skipped
+              : `${result.skipped}; ${unsettledNote(unsettled)}`,
+        });
     }
     return repos;
   }
 
-  // The ladder is synchronous; the code host is not. Every candidate pair
-  // is asked once, up front, and a probe that fails counts as "not there".
+  // The ladder is synchronous; the code host is not. Every candidate pair is
+  // asked once, up front.
   private async prefetch(
     later: readonly RepoObservation[],
     seen: readonly string[],
-  ): Promise<Map<string, boolean>> {
-    const answers = new Map<string, boolean>();
+  ): Promise<Map<string, ProbeOutcome>> {
+    const answers = new Map<string, ProbeOutcome>();
     for (const obs of later) {
       const codeHost = await this.deps.codeHost(hostOf(obs.remotes['origin'] ?? ''));
       for (const project of seen) {
         const key = `${project}/${obs.name}`;
         if (answers.has(key) || codeHost === undefined) continue;
-        try {
-          answers.set(key, (await codeHost.canRead({ project, name: obs.name })) === 'readable');
-        } catch {
-          answers.set(key, false);
-        }
+        answers.set(key, await probe(codeHost, project, obs.name));
       }
     }
     return answers;
   }
+}
+
+type ProbeOutcome = 'readable' | 'absent' | 'unknown';
+
+async function probe(codeHost: CodeHost, project: string, name: string): Promise<ProbeOutcome> {
+  try {
+    return outcomeOf(await codeHost.canRead({ project, name }));
+  } catch {
+    return 'unknown';
+  }
+}
+
+// Only `readable` names an upstream and only `missing` rules a project out. A
+// query that could not be completed, or that was refused, leaves the project
+// unsettled, and an unsettled project never counts as an absence.
+function outcomeOf(readability: Readability): ProbeOutcome {
+  if (readability === 'readable') return 'readable';
+  return readability === 'missing' ? 'absent' : 'unknown';
+}
+
+// The search stops at the first readable project, so the projects after a
+// match never entered the decision.
+function unsettledProjects(
+  seen: readonly string[],
+  answers: ReadonlyMap<string, ProbeOutcome>,
+  name: string,
+  matched: string | undefined,
+): string[] {
+  const consulted = matched === undefined ? seen : seen.slice(0, seen.indexOf(matched) + 1);
+  return consulted.filter((project) => answers.get(`${project}/${name}`) === 'unknown');
+}
+
+function unsettledNote(projects: readonly string[]): string {
+  return `the code host did not answer for ${projects.join(', ')}; those projects were neither confirmed nor ruled out for this repository name.`;
 }
 
 function projectsByFrequency(repos: readonly InferredRepo[]): string[] {

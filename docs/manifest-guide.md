@@ -131,8 +131,10 @@ report and candidate. Add team rules and Skills separately; import does not
 recover them from repository metadata. Provider inference requires evidence:
 verified local bare repositories can produce a `local-git` binding. Unrecognized
 or mixed hosting remains explicit upstream URLs with review notes, without a
-guessed provider. HTTP remotes carrying credentials or query/fragment data are
-skipped without echoing that data. Then preview adoption:
+guessed provider. A project the code host could not answer for is reported as
+unanswered rather than absent, so the entry's review note or skip reason shows
+that the search was incomplete. HTTP remotes carrying credentials or
+query/fragment data are skipped without echoing that data. Then preview adoption:
 
 ```sh
 fx init ./existing-work --from ./team-workspace --dry-run

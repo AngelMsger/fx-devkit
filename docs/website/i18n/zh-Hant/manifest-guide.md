@@ -104,7 +104,7 @@ fx manifest import ./existing-work -o ./team-workspace/manifest/workspace.yaml
 
 寫入後、init 前，先審閱候選中的分支、上游、專案和未確定項目。團隊規則與 Skill 需要另外補充，不能從 Git 中繼資料復原。既有目錄自動納入，`--adopt` 僅為相容性保留。替換既有指南或 Skill 位置可能需要審閱並備份。匯入不變更 checkout，不刪除 submodule 中繼資料。請參閱[匯入契約](manifest-guide.md#import-existing-checkouts)。
 
-Provider 推斷需要證據：經驗證的本機 bare 儲存庫可產生 `local-git` 綁定。未知或混合託管保留明確的 upstream URL 和待審閱說明，不猜測 provider。含憑證、查詢參數或片段的 HTTP remote 會略過且不回顯這些資料。
+Provider 推斷需要證據：經驗證的本機 bare 儲存庫可產生 `local-git` 綁定。未知或混合託管保留明確的 upstream URL 和待審閱說明，不猜測 provider。code host 未能作答的專案報告為未作答而非不存在，對應項目的待審閱說明或略過原因會說明這次搜尋並不完整。含憑證、查詢參數或片段的 HTTP remote 會略過且不回顯這些資料。
 
 只有 `origin` 且其 URL 與宣告的 upstream 完全相符時，sync 會新增 `upstream`，保留 `origin`、目前分支和本機檔案。預覽的 `upstream_to_add` 與結果的 `upstream_added` 分別說明計畫和實際效果；衝突的 remote 保持不變。
 
