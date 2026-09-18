@@ -27,8 +27,10 @@ JSON edits preserve unmanaged text, including its whitespace and escaped values.
 Ambiguous, invalid or foreign files stay unchanged. Bridge content carries an
 ownership marker and digest; a modified bridge becomes foreign. Ownership
 receipts and dated observations stay under the workspace's FX_HOME directory.
-They never contain prompts, transcripts, credentials or member data and are not
-included in exported profiles.
+A phase that failed keeps one bounded line naming the failure beside its
+observation code, so a fail-open background run stays diagnosable. Observations
+never contain prompts, transcripts, credentials, command output or member data
+and are not included in exported profiles.
 
 ## Deadlines and delivery
 

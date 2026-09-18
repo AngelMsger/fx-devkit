@@ -72,8 +72,8 @@ describe('automatic workspace synchronization', () => {
     expect(refreshes).toBe(1);
     expect(docs).toBe(2);
     expect(
-      (state as HookState | null)?.observations.some((o) => o.code === 'MANIFEST_REFRESH_FAILED'),
-    ).toBe(true);
+      (state as HookState | null)?.observations.find((o) => o.code === 'MANIFEST_REFRESH_FAILED'),
+    ).toMatchObject({ detail: 'INTERNAL: network' });
   });
   it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
     const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));

@@ -2,6 +2,7 @@
 // recorded before IO so interrupted workers do not hammer an unavailable
 // upstream; dated evidence never asserts current tool readiness.
 
+import { asDevkitError } from '../../domain/errors.js';
 import type { HookObservation, HookState } from '../../domain/harness/state.js';
 import { samePath } from '../../domain/path.js';
 import type { Clock } from '../../ports/clock.js';
@@ -90,8 +91,17 @@ export class AutomaticSync {
     let observations: readonly HookObservation[];
     try {
       observations = await run();
-    } catch {
-      observations = [{ phase, code, command, checkedAt: this.deps.clock.now().getTime() }];
+    } catch (error) {
+      const failure = asDevkitError(error);
+      observations = [
+        {
+          phase,
+          code,
+          command,
+          checkedAt: this.deps.clock.now().getTime(),
+          detail: oneLine(`${failure.code}: ${failure.message}`),
+        },
+      ];
     }
     await this.update(input, {}, phase, observations);
   }
@@ -123,4 +133,14 @@ export class AutomaticSync {
       await lease.release();
     }
   }
+}
+
+// Observations are dated status fields, not a log: the reason is kept as a
+// single bounded line so a background failure stays diagnosable without
+// storing companion output.
+const DETAIL_LIMIT = 200;
+
+function oneLine(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return line.length > DETAIL_LIMIT ? `${line.slice(0, DETAIL_LIMIT - 3)}...` : line;
 }
