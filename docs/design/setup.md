@@ -82,6 +82,9 @@ applies to platform instances; workspace-only bindings do not require an
 environments document. A matching provider descriptor with no companion tools
 is explicitly represented by `tool: null`. Its preparation can be ready without
 running a tool check; the later query still verifies its actual resource.
+A capability nothing is bound to is `CAPABILITY_UNBOUND`; a bound provider whose
+companion tool no toolchain document declares is `TOOL_UNDECLARED`, and its
+recovery is that declaration, not another binding. Both are configuration errors.
 Release uses the same readiness decision.
 
 `where` additionally identifies a repository and platform. `--record` is an

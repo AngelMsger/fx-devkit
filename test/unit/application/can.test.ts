@@ -151,6 +151,45 @@ describe('Can', () => {
     });
   });
 
+  it('separates an unbound capability from a provider whose tool no document declares', async () => {
+    const acme: ProviderDescriptor<unknown> = {
+      id: 'acme-host',
+      capability: 'code-host',
+      tools: ['acme-cli'],
+      recipes: [],
+      vars: [],
+      create: () => ({}),
+    };
+    const bound = async (provider: string | null, tools?: string) => {
+      const { h } = await stage(tools === undefined ? {} : { tools });
+      return new Can(
+        {
+          ...h.deps,
+          ctx: {
+            ...h.deps.ctx,
+            manifestDir: h.deps.ctx.manifestDir,
+            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+          },
+        },
+        fakeLoginDeps({ ...DESCRIPTORS, 'acme-host': acme }),
+      ).execute({ target: 'code-host' });
+    };
+    await expect(bound('acme-host')).rejects.toMatchObject({
+      category: 'config',
+      code: 'TOOL_UNDECLARED',
+      message: 'acme-cli is not declared in the toolchain',
+      nextSteps: [
+        'Declare acme-cli in the manifest tools document.',
+        'fx manifest schema --kind tools --workspace fx',
+        'fx tool list --workspace fx',
+      ],
+    });
+    await expect(bound(null)).rejects.toMatchObject({ code: 'CAPABILITY_UNBOUND' });
+    expect(
+      await bound('acme-host', 'schema_version: 2\ntools: [{ name: acme-cli }]'),
+    ).toMatchObject({ status: 'missing_tool', tool: 'acme-cli', provider: 'acme-host' });
+  });
+
   it('does not require an environment document for workspace bindings or standalone tools', async () => {
     const { h } = await stage();
     const readiness = new Readiness(

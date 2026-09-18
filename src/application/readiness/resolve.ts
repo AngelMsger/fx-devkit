@@ -31,19 +31,11 @@ export function resolveTarget(
   if (named !== null) {
     const capability = named;
     const binding = bindingFor(deps, capability, env);
-    const tool = binding === null ? undefined : toolOf(deps, login, binding);
-    if (binding === null || tool === undefined) {
-      throw new DevkitError(
-        'config',
-        'CAPABILITY_UNBOUND',
-        `No provider serves ${capability}${env === undefined ? '' : ` in ${env}`}`,
-        {
-          hint: CAPABILITY_INFO[capability].desc,
-          nextSteps: [workspaceCommand(deps, 'manifest', 'providers')],
-        },
-      );
-    }
-    return { capability, tool, binding };
+    if (binding === null) throw capabilityUnbound(deps, capability, env);
+    const served = toolOf(deps, login, binding);
+    if (served.kind === 'unbound') throw capabilityUnbound(deps, capability, env);
+    if (served.kind === 'undeclared') throw toolUndeclared(deps, capability, served);
+    return { capability, tool: served.kind === 'tool' ? served.tool : null, binding };
   }
   const tool = tools.find((t) => t.name === name);
   if (tool !== undefined)
@@ -71,22 +63,74 @@ export function targetOfBinding(
   login: LoginDeps,
   binding: PlatformBinding,
 ): Target | null {
-  const tool = toolOf(deps, login, binding);
-  if (tool === undefined) return null;
-  return { capability: knownCapability(binding.capability), tool, binding };
+  const served = toolOf(deps, login, binding);
+  if (served.kind === 'unbound' || served.kind === 'undeclared') return null;
+  return {
+    capability: knownCapability(binding.capability),
+    tool: served.kind === 'tool' ? served.tool : null,
+    binding,
+  };
 }
+
+// Which companion tool a binding reaches, or why it reaches none. A provider that
+// is bound and registered but whose tool no toolchain document declares is a
+// different answer from a capability nothing is bound to.
+type ServedTool =
+  | { readonly kind: 'tool'; readonly tool: ResolvedTool }
+  | { readonly kind: 'toolless' }
+  | { readonly kind: 'unbound' }
+  | { readonly kind: 'undeclared'; readonly provider: string; readonly name: string };
 
 // A family provider is named after its tool; the descriptor may say otherwise.
 function toolOf(
   deps: WorkspaceDeps,
   login: LoginDeps,
   binding: Binding | PlatformBinding,
-): ResolvedTool | null | undefined {
-  if (binding.provider === null) return undefined;
-  const descriptor = login.describeProvider(binding.provider);
-  if (descriptor?.capability === binding.capability && descriptor.tools.length === 0) return null;
-  const name = descriptor?.tools[0] ?? binding.provider;
-  return toolchainOf(deps.ctx).tools.find((t) => t.name === name);
+): ServedTool {
+  const provider = binding.provider;
+  if (provider === null) return { kind: 'unbound' };
+  const descriptor = login.describeProvider(provider);
+  if (descriptor?.capability === binding.capability && descriptor.tools.length === 0)
+    return { kind: 'toolless' };
+  const name = descriptor?.tools[0] ?? provider;
+  const tool = toolchainOf(deps.ctx).tools.find((t) => t.name === name);
+  return tool === undefined ? { kind: 'undeclared', provider, name } : { kind: 'tool', tool };
+}
+
+function capabilityUnbound(
+  deps: WorkspaceDeps,
+  capability: Capability,
+  env: string | undefined,
+): DevkitError {
+  return new DevkitError(
+    'config',
+    'CAPABILITY_UNBOUND',
+    `No provider serves ${capability}${env === undefined ? '' : ` in ${env}`}`,
+    {
+      hint: CAPABILITY_INFO[capability].desc,
+      nextSteps: [workspaceCommand(deps, 'manifest', 'providers')],
+    },
+  );
+}
+
+function toolUndeclared(
+  deps: WorkspaceDeps,
+  capability: Capability,
+  served: { readonly provider: string; readonly name: string },
+): DevkitError {
+  return new DevkitError(
+    'config',
+    'TOOL_UNDECLARED',
+    `${served.name} is not declared in the toolchain`,
+    {
+      hint: `The provider bound to ${capability} is ${served.provider}; fx checks a companion tool only where a tools document declares it.`,
+      nextSteps: [
+        `Declare ${served.name} in the manifest tools document.`,
+        workspaceCommand(deps, 'manifest', 'schema', '--kind', 'tools'),
+        workspaceCommand(deps, 'tool', 'list'),
+      ],
+    },
+  );
 }
 
 // An environment-scoped capability lives on a platform instance; which
