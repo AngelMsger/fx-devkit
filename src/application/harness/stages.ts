@@ -4,7 +4,7 @@ import { asDevkitError, DevkitError } from '../../domain/errors.js';
 import { finding } from '../../domain/report.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../sync.js';
+import type { StageResult } from '../sync/types.js';
 
 import { McpReadinessBatch } from './readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';

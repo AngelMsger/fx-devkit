@@ -5,7 +5,7 @@ import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
 import type { DoctorExtension } from '../doctor/types.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync.js';
+import type { StageResult } from '../sync/types.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { ReconcileHooks } from './reconcile.js';

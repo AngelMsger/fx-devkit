@@ -11,7 +11,7 @@ import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { Reporter } from '../../ports/reporter.js';
 import type { ConfigStore, LocalLayerStore } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { SyncOutput, SyncStages } from '../sync.js';
+import type { SyncOutput, SyncStages } from '../sync/types.js';
 import type { ToolInstallOutput } from '../tool/install.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import type { ScopeMode } from '../workspace/scope.js';

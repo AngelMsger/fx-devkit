@@ -9,7 +9,7 @@ import type { TrustGate } from '../application/safety/trust.js';
 import { prepareServices } from '../application/services/stage.js';
 import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
-import type { SyncStages } from '../application/sync.js';
+import type { SyncStages } from '../application/sync/types.js';
 import { ToolInitialize } from '../application/tool/initialize.js';
 import { toolchainOf } from '../application/tool/toolchain.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';

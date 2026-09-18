@@ -6,7 +6,7 @@ import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
-import type { StageSummary } from '../sync.js';
+import type { StageSummary } from '../sync/types.js';
 
 export interface SkillStageInput {
   readonly background?: boolean;

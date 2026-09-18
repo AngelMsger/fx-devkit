@@ -16,7 +16,7 @@ import { replacementFor } from '../application/safety/replace-files.js';
 import { TrustGate } from '../application/safety/trust.js';
 import { SKILL_LOADED_ENV, SKILL_VERSION_ENV, skillNotice } from '../application/skill/notice.js';
 import type { SkillDeps } from '../application/skill/targets.js';
-import type { SyncStages } from '../application/sync.js';
+import type { SyncStages } from '../application/sync/types.js';
 import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';

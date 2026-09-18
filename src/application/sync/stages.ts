@@ -14,12 +14,13 @@ import type { TrustContext } from '../safety/trust.js';
 import { prepareServices } from '../services/stage.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
-import type { StageResult, SyncStages } from '../sync.js';
 import { ToolCheck } from '../tool/check.js';
 import type { ToolInstalled } from '../tool/installed.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+
+import type { StageResult, SyncStages } from './types.js';
 
 export interface SyncStageInput {
   readonly inventory?: ToolInstalled;

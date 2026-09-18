@@ -3,7 +3,7 @@
 
 import { withPartialResult } from '../../domain/errors.js';
 import { assertWritable } from '../safety/posture.js';
-import type { StageSummary } from '../sync.js';
+import type { StageSummary } from '../sync/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { applyCopies, planCopies } from './fx-copies.js';
