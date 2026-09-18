@@ -1,35 +1,30 @@
 // Host-owned MCP processes need byte streams, not the CLI's buffered results
-// or notices. The projected vector has already passed workspace trust.
+// or notices. The projected vector has already passed workspace trust. The
+// bridge reports the status it observed; landing it on the process is the
+// entry point's job.
 
 import spawn from 'cross-spawn';
 
 import { findExecutable, mergeEnvironment } from './executable.js';
 import { terminateChild } from './terminate.js';
 
-export async function runStdioBridge(vector: readonly string[]): Promise<void> {
+// A shell reports a command it could not find as 127, and MCP hosts read that
+// status the same way.
+const COMMAND_NOT_FOUND = 127;
+
+export async function runStdioBridge(vector: readonly string[]): Promise<{ exitCode: number }> {
   const [binary, ...args] = vector;
-  if (!binary) {
-    process.exitCode = 2;
-    return;
-  }
+  if (!binary) return { exitCode: 2 };
   const env = mergeEnvironment(process.env);
   const executable = await findExecutable(binary, { env });
-  if (!executable) {
-    process.exitCode = 127;
-    return;
-  }
+  if (!executable) return { exitCode: COMMAND_NOT_FOUND };
   const child = spawn(executable, args, { env, stdio: 'inherit', windowsHide: true });
   const stop = (): void => terminateChild(child);
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.once(signal, stop);
-  await new Promise<void>((resolve) => {
-    child.once('error', () => {
-      process.exitCode = 1;
-      resolve();
-    });
-    child.once('close', (code) => {
-      process.exitCode = code ?? 1;
-      resolve();
-    });
+  const exitCode = await new Promise<number>((resolve) => {
+    child.once('error', () => resolve(1));
+    child.once('close', (code) => resolve(code ?? 1));
   });
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.off(signal, stop);
+  return { exitCode };
 }
