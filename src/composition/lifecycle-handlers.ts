@@ -30,7 +30,7 @@ export const lifecycleHandlers: Readonly<Record<string, HandlerRegistration>> = 
       describe: (state, readOnly) => describeSessionStart({ state, readOnly }),
     },
     background: async (input) =>
-      new AutomaticSync(await createHookServices(input)).execute({
+      new AutomaticSync(createHookServices(input)).execute({
         workspace: input.request.workspace,
         root: input.request.root,
       }),
