@@ -23,6 +23,7 @@ import type { SkillDeps } from '../application/skill/targets.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
 import { CAPABILITIES } from '../domain/capability.js';
+import { bindingOf } from '../domain/manifest/providers.js';
 import { FileCache } from '../infra/cache.js';
 import { FileConfigStore } from '../infra/config-store.js';
 import { fxHome } from '../infra/home.js';
@@ -171,17 +172,7 @@ export function workspaceDeps(
     cache: container.cache,
     reporter,
     cliVersion,
-    codeHost: once(() =>
-      resolveProvider<CodeHost>(
-        ctx.bindings.find((b) => b.capability === 'code-host') ?? {
-          capability: 'code-host',
-          provider: null,
-          source: 'unbound',
-          vars: {},
-        },
-        adapters,
-      ),
-    ),
+    codeHost: once(() => resolveProvider<CodeHost>(bindingOf(ctx.bindings, 'code-host'), adapters)),
     platform: (binding) =>
       binding.provider === null ? undefined : resolveProvider<Platform>(binding, adapters),
     reference: (binding) => resolveProvider(binding, adapters),

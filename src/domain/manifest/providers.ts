@@ -20,6 +20,19 @@ export interface Binding {
 
 const DEFAULT_CODE_HOST = 'bitbucket-cli';
 
+// A capability that the bound set does not mention reads as an explicit absence,
+// so resolution reports it with its recovery steps instead of failing on nothing.
+export function bindingOf(bindings: readonly Binding[], capability: Capability): Binding {
+  return (
+    bindings.find((binding) => binding.capability === capability) ?? {
+      capability,
+      provider: null,
+      source: 'unbound',
+      vars: {},
+    }
+  );
+}
+
 export function bindProviders(workspace: Workspace): Binding[] {
   const explicit = workspace.providers ?? {};
   const bindings: Binding[] = capabilitiesInScope('workspace').map((capability) => {

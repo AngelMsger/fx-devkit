@@ -21,7 +21,7 @@ import { resolveWorkspace, type ResolveInput } from '../application/workspace/re
 import { DevkitError } from '../domain/errors.js';
 import { MANIFEST_FILES } from '../domain/manifest/files.js';
 import { loadWorkspace } from '../domain/manifest/loader.js';
-import { bindProviders } from '../domain/manifest/providers.js';
+import { bindingOf, bindProviders } from '../domain/manifest/providers.js';
 import { FileContributionStore } from '../infra/contribution-store.js';
 
 import type { Container } from './container.js';
@@ -105,8 +105,7 @@ function codeHostFromBase(
       },
     );
   }
-  const binding = bindProviders(workspace).find((item) => item.capability === 'code-host')!;
-  return resolveProvider<ContributionHost>(binding, {
+  return resolveProvider<ContributionHost>(bindingOf(bindProviders(workspace), 'code-host'), {
     process: container.process,
     fs: container.fs,
     clock: container.clock,
