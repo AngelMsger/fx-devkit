@@ -79,7 +79,7 @@ export function createAgentHosts(
   return specs.map((spec) => new SpecAgentHost(spec, deps));
 }
 
-export function register(descriptor: ProviderDescriptor<unknown>): void {
+export function register<P>(descriptor: ProviderDescriptor<P>): void {
   providers.set(descriptor.id, descriptor);
 }
 
@@ -147,14 +147,17 @@ function ids(capability: string): string {
   );
 }
 
-register(bitbucketCliProvider as ProviderDescriptor<unknown>);
-register(localGitProvider as ProviderDescriptor<unknown>);
-register(sentryProvider as ProviderDescriptor<unknown>);
-register(openobserveCliProvider as ProviderDescriptor<unknown>);
-register(jenkinsCliProvider as ProviderDescriptor<unknown>);
-register(kubectlProvider as ProviderDescriptor<unknown>);
-register(feishuProjectProvider as ProviderDescriptor<unknown>);
-register(confluenceProvider as ProviderDescriptor<unknown>);
-register(larkProvider as ProviderDescriptor<unknown>);
+// Registration is a load-time effect: importing this module is what makes the
+// built-in providers exist, and insertion order is listing order, so the lines
+// below decide how `fx manifest providers` and every "Available:" hint read.
+register(bitbucketCliProvider);
+register(localGitProvider);
+register(sentryProvider);
+register(openobserveCliProvider);
+register(jenkinsCliProvider);
+register(kubectlProvider);
+register(feishuProjectProvider);
+register(confluenceProvider);
+register(larkProvider);
 
-register(wecomProvider as ProviderDescriptor<unknown>);
+register(wecomProvider);
