@@ -153,6 +153,36 @@ describe('doctor checks a tool with trust-on-first-use', () => {
   });
 });
 
+describe('tool show', () => {
+  it('shows one tool with the origin of each field, and names the nearest tool for a typo', () => {
+    const s = stage();
+    const shown = fx(['tool', 'show', 'fake-tool', '--format', 'json'], s.env, s.ws);
+    expect(shown.status, shown.stderr).toBe(0);
+    expect(shown.json()).toMatchObject({
+      name: 'fake-tool',
+      binary: 'fake-tool',
+      min_version: '1.0.0',
+      enabled: true,
+      version_args: ['--version'],
+      install: [{ via: 'manual', spec: null, registry: null }],
+      // The workspace declares this tool, so every field it carries came from the patch.
+      fields: { name: 'patch', min_version: 'patch', install: 'patch' },
+      depended_on_by: [],
+    });
+    expect(fx(['tool', 'show', 'fake-tool'], s.env, s.ws).stdout).toContain('fake-tool');
+
+    const typo = fx(['tool', 'show', 'fake-tol', '--format', 'json'], s.env, s.ws);
+    expect(typo.status).toBe(6);
+    expect(typo.error()).toMatchObject({
+      code: 'TOOL_UNKNOWN',
+      hint: 'Did you mean "fake-tool"?',
+    });
+
+    const bare = fx(['tool', 'show', '--format', 'json'], s.env, s.ws);
+    expect(bare.status).toBe(2);
+  });
+});
+
 describe('agent list', () => {
   it('knows the whole family and where each keeps its Skills', () => {
     const s = stage();
