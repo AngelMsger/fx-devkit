@@ -8,8 +8,14 @@ import type { Environments } from '../manifest/types.js';
 import { substitute, substituteAll, type Vars } from '../template.js';
 import { commandOrigin, type ResolvedTool } from '../toolchain/resolve.js';
 
-import type { ServicePreparation } from './service.js';
-import type { PlanProblem, SetupCheck, SetupPlan, SetupRecipe, SetupStep } from './types.js';
+import type {
+  PlanProblem,
+  ServicePreparation,
+  SetupCheck,
+  SetupPlan,
+  SetupRecipe,
+  SetupStep,
+} from './types.js';
 
 export interface RecipeSource {
   readonly recipe: SetupRecipe;

@@ -4,7 +4,8 @@ import type { LoginDeps } from '../login/deps.js';
 import type { StageResult } from '../sync.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
-import { ServiceOperation, type ServiceResult } from './operation.js';
+import { ServiceOperation } from './operation.js';
+import type { ServiceResult } from './types.js';
 
 export async function prepareServices(
   deps: WorkspaceDeps,

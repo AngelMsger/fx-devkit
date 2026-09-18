@@ -1,7 +1,5 @@
-// The setup vocabulary: a provider's template for one readiness step, and the concrete
-// step the planner makes of it.
-
-import type { ServicePreparation } from './service.js';
+// The setup vocabulary: a provider's template for one readiness step, the concrete
+// step the planner makes of it, and the preparation an adapter may attach.
 
 export interface JsonExpectation {
   readonly path: string;
@@ -12,6 +10,21 @@ export type SetupCheck =
   | { readonly command: readonly string[]; readonly json?: JsonExpectation | undefined }
   | { readonly file: string }
   | { readonly provider: 'whoami' };
+
+// Adapter-produced preparation contains only public settings, never credentials.
+export type ServicePreparation =
+  | {
+      readonly kind: 'command';
+      readonly resource: string;
+      readonly minVersion: string;
+      readonly command: readonly string[];
+    }
+  | {
+      readonly kind: 'file';
+      readonly relative: string;
+      readonly text: string;
+      readonly publicDefaults: Readonly<Record<string, string>>;
+    };
 
 export interface SetupRecipe {
   readonly id: string;

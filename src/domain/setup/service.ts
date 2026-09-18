@@ -1,19 +1,6 @@
-// Adapter-produced preparation contains only public settings, never credentials.
-import type { SetupRecipe } from './types.js';
-
-export type ServicePreparation =
-  | {
-      readonly kind: 'command';
-      readonly resource: string;
-      readonly minVersion: string;
-      readonly command: readonly string[];
-    }
-  | {
-      readonly kind: 'file';
-      readonly relative: string;
-      readonly text: string;
-      readonly publicDefaults: Readonly<Record<string, string>>;
-    };
+// What a provider declares to prepare one service: its preparation, the recipes
+// that verify it, and the environment its commands need.
+import type { ServicePreparation, SetupRecipe } from './types.js';
 
 export interface ServiceDefinition {
   readonly preparation: ServicePreparation;

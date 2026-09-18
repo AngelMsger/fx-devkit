@@ -2,7 +2,7 @@
 // Checks never read credential stores or perform personal authentication.
 import path from 'node:path';
 
-import { asDevkitError, DevkitError, toEnvelope, type ErrorEnvelope } from '../../domain/errors.js';
+import { asDevkitError, DevkitError, toEnvelope } from '../../domain/errors.js';
 import { atLeast } from '../../domain/semver.js';
 import { matchesPublicDefaults } from '../../domain/setup/public-defaults.js';
 import type { SetupStep } from '../../domain/setup/types.js';
@@ -14,17 +14,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
 import { prepareCommand } from './command.js';
-
-export interface ServiceResult {
-  readonly id: string;
-  readonly tool: string;
-  readonly env: string | null;
-  readonly status: 'unchanged' | 'configured' | 'planned' | 'blocked' | 'failed';
-  readonly detail: string;
-  readonly changes?: Readonly<Record<string, unknown>>;
-  readonly failure?: ErrorEnvelope['error'];
-  readonly next_steps?: readonly string[];
-}
+import type { ServiceOutcome, ServiceResult } from './types.js';
 
 export class ServiceOperation {
   constructor(
@@ -83,10 +73,7 @@ export class ServiceOperation {
     }
   }
 
-  private async file(
-    step: SetupStep,
-    dryRun: boolean,
-  ): Promise<Omit<ServiceResult, 'id' | 'tool' | 'env'>> {
+  private async file(step: SetupStep, dryRun: boolean): Promise<ServiceOutcome> {
     const prep = step.preparation;
     if (prep?.kind !== 'file')
       throw new DevkitError('internal', 'SERVICE_PREPARATION_INVALID', 'Expected file preparation');

@@ -4,8 +4,7 @@
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { Finding as ReportFinding, Report } from '../../domain/report.js';
 import { finding as anyFinding, type FindingExtra } from '../../domain/report.js';
-
-import type { DoctorInput } from './index.js';
+import type { WritePosture } from '../safety/posture.js';
 
 export const GROUPS = ['repos', 'tools', 'login', 'agents', 'manifest', 'self'] as const;
 export type Group = string;
@@ -29,6 +28,15 @@ export function finding(
   extra: FindingExtra = {},
 ): Finding {
   return anyFinding(group, id, level, message, extra);
+}
+
+export interface DoctorInput {
+  readonly envs?: readonly string[] | undefined;
+  readonly tools?: readonly string[] | undefined;
+  readonly fix: boolean;
+  readonly dryRun: boolean;
+  readonly noInput: boolean;
+  readonly posture: WritePosture;
 }
 
 export interface DoctorExtension {
