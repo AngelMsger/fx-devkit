@@ -1,6 +1,7 @@
 // Report readiness and recovery for a resolved capability or tool.
 
 import { DevkitError } from '../domain/errors.js';
+import { servesCapability } from '../domain/manifest/providers.js';
 import { shellLine } from '../domain/shell.js';
 
 import type { LoginDeps } from './login/deps.js';
@@ -56,7 +57,7 @@ export class Can {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;
     const descriptor = this.login.describeProvider(binding.provider);
-    if (descriptor === undefined || descriptor.capability !== binding.capability)
+    if (!servesCapability(descriptor, binding.capability))
       throw new DevkitError(
         'config',
         'PROVIDER_UNKNOWN',

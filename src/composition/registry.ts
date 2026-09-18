@@ -22,7 +22,12 @@ import { DevkitError } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
-import type { Binding, PlatformBinding, ProviderCatalog } from '../domain/manifest/providers.js';
+import {
+  servesCapability,
+  type Binding,
+  type PlatformBinding,
+  type ProviderCatalog,
+} from '../domain/manifest/providers.js';
 import type { AgentHost } from '../ports/agent-host.js';
 import type { HookProtocol } from '../ports/hook-protocol.js';
 import type { McpCodec } from '../ports/mcp-codec.js';
@@ -106,7 +111,7 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
     });
   }
   const descriptor = providers.get(binding.provider);
-  if (descriptor === undefined || descriptor.capability !== capability) {
+  if (!servesCapability(descriptor, capability)) {
     const suggestion = nearest(
       binding.provider,
       providersFor(capability).map((p) => p.id),

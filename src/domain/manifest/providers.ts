@@ -35,6 +35,15 @@ export interface ProviderFacts {
 
 export type ProviderCatalog = readonly ProviderFacts[];
 
+// A binding names a provider by id, so the descriptor that id resolves to still has to be
+// the one registered under the capability being bound.
+export function servesCapability<P extends ProviderFacts>(
+  provider: P | undefined,
+  capability: CapabilityName,
+): provider is P {
+  return provider?.capability === capability;
+}
+
 export type BindingSource = 'explicit' | 'default' | 'unbound' | 'misplaced';
 
 export interface Binding {
