@@ -3,19 +3,15 @@
 // command's own static members, so strict, args and flags stay on each command
 // even where they are identical.
 
-import { Args } from '@oclif/core';
-
 import { TOOL_INSTALL_COLUMNS } from '../application/tool/install.js';
 import { assertToolSelection } from '../application/tool/select.js';
 import { toolInstall } from '../composition/tool-install.js';
 
 import { FxCommand } from './base.js';
+import { argument, writeIntent } from './flags.js';
 
 export const toolNameArgs = {
-  tool: Args.string({
-    ignoreStdin: true,
-    description: 'tool name(s); required unless --all is given',
-  }),
+  tool: argument('tool name(s); required unless --all is given'),
 };
 
 interface ToolSelectionFlags {
@@ -37,8 +33,7 @@ export abstract class ToolCommand extends FxCommand {
       names: names.length === 0 ? undefined : names,
       all: flags.all,
       update: this.update,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
       trust:
         workspace === undefined
           ? undefined

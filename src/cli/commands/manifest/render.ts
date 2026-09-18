@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { RenderRegions } from '../../../application/docs/render-regions.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, writeIntent } from '../../flags.js';
 
 export default class ManifestRenderCommand extends FxCommand {
   static override description =
@@ -35,9 +35,8 @@ export default class ManifestRenderCommand extends FxCommand {
       describeProvider: this.container.describeProvider,
     }).execute({
       check: flags.check,
-      dryRun: flags['dry-run'],
+      ...writeIntent(flags, this.posture),
       out: flags.out,
-      posture: this.posture,
     });
     this.renderer.list(out.files, {
       columns: ['path', 'action', 'replaced', 'missing', 'unknown'],

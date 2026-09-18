@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { ConfigExport } from '../../../application/config/export.js';
 import { FxCommand } from '../../base.js';
+import { writeIntent } from '../../flags.js';
 
 export default class ConfigExportCommand extends FxCommand {
   static override description =
@@ -31,8 +32,7 @@ export default class ConfigExportCommand extends FxCommand {
         ? {}
         : {
             out: flags.out,
-            dryRun: flags['dry-run'],
-            posture: this.posture,
+            ...writeIntent(flags, this.posture),
           },
     );
     if (flags.out !== undefined) {

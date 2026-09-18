@@ -3,7 +3,7 @@ import { Flags } from '@oclif/core';
 import { Status, type StatusInput } from '../../application/status.js';
 import { shellLine } from '../../domain/shell.js';
 import { FxCommand } from '../base.js';
-import { jobsFlag } from '../flags.js';
+import { jobsFlag, writeIntent } from '../flags.js';
 
 export default class StatusCommand extends FxCommand {
   static override description =
@@ -34,8 +34,7 @@ export default class StatusCommand extends FxCommand {
       ? {
           fetch: true,
           dirtyOnly: flags.dirty,
-          dryRun: flags['dry-run'],
-          posture: this.posture,
+          ...writeIntent(flags, this.posture),
           jobs: flags.jobs,
         }
       : { fetch: false, dirtyOnly: flags.dirty, jobs: flags.jobs };

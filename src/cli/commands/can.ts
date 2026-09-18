@@ -1,8 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { Can } from '../../application/can.js';
 import { canMcp } from '../../composition/harness.js';
 import { FxCommand } from '../base.js';
+import { requiredArgument } from '../flags.js';
 
 export default class CanCommand extends FxCommand {
   static override description =
@@ -13,11 +14,7 @@ export default class CanCommand extends FxCommand {
     '<%= config.bin %> can bitbucket-cli',
   ];
   static override args = {
-    target: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'a capability (e.g. log-store) or a tool name',
-    }),
+    target: requiredArgument('a capability (e.g. log-store) or a tool name'),
   };
   static override flags = {
     agent: Flags.string({ description: 'the host for an mcp:<name> resource' }),

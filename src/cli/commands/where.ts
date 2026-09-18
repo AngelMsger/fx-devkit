@@ -1,9 +1,8 @@
-import { Args } from '@oclif/core';
-
 import { Where } from '../../application/where.js';
 import { recordProbe } from '../../composition/probe-record.js';
 import { DevkitError } from '../../domain/errors.js';
 import { FxCommand } from '../base.js';
+import { requiredArgument, writeIntent } from '../flags.js';
 import { selectWhereColumns, whereFlags } from '../where-flags.js';
 
 export default class WhereCommand extends FxCommand {
@@ -14,7 +13,7 @@ export default class WhereCommand extends FxCommand {
     '<%= config.bin %> where fx-example-api --env test --platform jenkins --probe --record --dry-run',
   ];
   static override args = {
-    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+    repo: requiredArgument('repository name'),
   };
   static override flags = whereFlags;
 
@@ -34,7 +33,7 @@ export default class WhereCommand extends FxCommand {
         container: this.container,
         workspace: await this.workspaceDeps(),
         login: this.loginDeps(),
-        input: { ...input, dryRun: flags['dry-run'], posture: this.posture },
+        input: { ...input, ...writeIntent(flags, this.posture) },
       });
       this.renderer.record(result);
       return;

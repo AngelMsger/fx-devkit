@@ -5,7 +5,7 @@ import { Sync, SYNC_COLUMNS } from '../../application/sync.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, dryRunFlag, jobsFlag, listFlag } from '../flags.js';
+import { detailsFlag, dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
 import { syncNotices } from '../notices.js';
 import { parseFields } from '../render/index.js';
 
@@ -31,7 +31,7 @@ export default class SyncCommand extends FxCommand {
   async run(): Promise<void> {
     const { flags } = await this.parse(SyncCommand);
     const only = selectSyncStages(flags.only?.join(','), syncStageIds());
-    const run = { dryRun: flags['dry-run'], posture: this.posture };
+    const run = { ...writeIntent(flags, this.posture) };
     if (flags['refresh-manifest'])
       await refreshManifestBeforeSync(this.container, this.resolveInput(), run);
     const deps = await this.workspaceDeps();

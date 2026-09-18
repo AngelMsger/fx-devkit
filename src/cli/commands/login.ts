@@ -1,9 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { Login, LOGIN_STEP_COLUMNS } from '../../application/login/run.js';
 import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
-import { dryRunFlag, listFlag } from '../flags.js';
+import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
 import { loginNotices } from '../notices.js';
 
 export default class LoginCommand extends FxCommand {
@@ -18,7 +18,7 @@ export default class LoginCommand extends FxCommand {
   ];
   static override strict = false;
   static override args = {
-    tool: Args.string({ ignoreStdin: true, description: 'only these tools' }),
+    tool: argument('only these tools'),
   };
   static override flags = {
     env: listFlag('only these environments'),
@@ -53,9 +53,8 @@ export default class LoginCommand extends FxCommand {
       tools,
       envs: flags.env,
       skipManual: flags['skip-manual'],
-      dryRun: flags['dry-run'],
+      ...writeIntent(flags, this.posture),
       noInput: this.noInput,
-      posture: this.posture,
     });
     this.renderer.list(out.items, { columns: LOGIN_STEP_COLUMNS });
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);

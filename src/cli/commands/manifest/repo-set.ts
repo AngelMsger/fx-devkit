@@ -1,8 +1,6 @@
-import { Args } from '@oclif/core';
-
 import { SetRepoField } from '../../../application/manifest/set.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ManifestRepoSet extends FxCommand {
   static override description =
@@ -13,17 +11,9 @@ export default class ManifestRepoSet extends FxCommand {
     '<%= config.bin %> manifest repo-set fx-example-api aka \'["backend", "app-builder"]\' --dry-run',
   ];
   static override args = {
-    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
-    field: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'path, desc, branch, project, upstream or aka',
-    }),
-    value: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'new scalar value, or a JSON/YAML string array for aka',
-    }),
+    repo: requiredArgument('repository name'),
+    field: requiredArgument('path, desc, branch, project, upstream or aka'),
+    value: requiredArgument('new scalar value, or a JSON/YAML string array for aka'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
@@ -36,8 +26,7 @@ export default class ManifestRepoSet extends FxCommand {
       repo: args.repo,
       field: args.field,
       value: args.value,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(result);
   }

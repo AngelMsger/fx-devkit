@@ -1,6 +1,7 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { FxCommand } from '../../base.js';
+import { requiredArgument } from '../../flags.js';
 import { hookMain } from '../../hook-entry.js';
 
 export default class HookDispatchCommand extends FxCommand {
@@ -8,7 +9,7 @@ export default class HookDispatchCommand extends FxCommand {
     'Dispatch a host lifecycle event; failures never fail the host session';
   static override hidden = true;
   static override args = {
-    event: Args.string({ ignoreStdin: true, required: true, description: 'lifecycle event' }),
+    event: requiredArgument('lifecycle event'),
   };
   static override flags = {
     agent: Flags.string({ required: true, description: 'host agent' }),

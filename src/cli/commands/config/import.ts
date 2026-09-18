@@ -1,9 +1,7 @@
-import { Args } from '@oclif/core';
-
 import { ConfigImport } from '../../../application/config/import.js';
 import { DevkitError } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ConfigImportCommand extends FxCommand {
   static override description =
@@ -13,7 +11,7 @@ export default class ConfigImportCommand extends FxCommand {
     '<%= config.bin %> config import me.yaml',
   ];
   static override args = {
-    file: Args.string({ ignoreStdin: true, required: true, description: 'the profile file' }),
+    file: requiredArgument('the profile file'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
@@ -35,8 +33,7 @@ export default class ConfigImportCommand extends FxCommand {
       cliVersion: this.config.version,
     }).execute({
       text,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(out);
     if (out.next_steps.length > 0)

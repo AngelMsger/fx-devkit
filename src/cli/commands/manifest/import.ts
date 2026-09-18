@@ -1,9 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { Import } from '../../../application/import.js';
 import { importDeps } from '../../../composition/import.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ManifestImportCommand extends FxCommand {
   static override description =
@@ -14,11 +14,7 @@ export default class ManifestImportCommand extends FxCommand {
     '<%= config.bin %> manifest import ~/Workspaces/fx -o fx-workspace/manifest/workspace.yaml',
   ];
   static override args = {
-    dir: Args.string({
-      ignoreStdin: true,
-      required: true,
-      description: 'the directory to describe',
-    }),
+    dir: requiredArgument('the directory to describe'),
   };
   static override flags = {
     out: Flags.string({
@@ -33,8 +29,7 @@ export default class ManifestImportCommand extends FxCommand {
     const out = await new Import(importDeps(this.container, this.reporter)).execute({
       dir: args.dir,
       out: flags.out,
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     for (const s of out.report.skipped)
       this.renderer.notice({ code: 'IMPORT_SKIPPED', message: `${s.path}: ${s.reason}` });

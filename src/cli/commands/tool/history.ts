@@ -1,6 +1,5 @@
-import { Args } from '@oclif/core';
-
 import { FxCommand } from '../../base.js';
+import { argument } from '../../flags.js';
 
 export default class ToolHistoryCommand extends FxCommand {
   static override description =
@@ -10,7 +9,7 @@ export default class ToolHistoryCommand extends FxCommand {
     '<%= config.bin %> tool history bitbucket-cli --format json',
   ];
   static override args = {
-    tool: Args.string({ ignoreStdin: true, description: 'filter by the recorded tool name' }),
+    tool: argument('filter by the recorded tool name'),
   };
   static override flags = {};
 

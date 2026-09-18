@@ -6,7 +6,7 @@ import type { StandaloneTargetsInput } from '../application/skill/standalone-tar
 import { StandaloneSkill, type SkillMutation } from '../application/skill/standalone.js';
 
 import { FxCommand } from './base.js';
-import { listFlag } from './flags.js';
+import { listFlag, writeIntent } from './flags.js';
 
 export const skillTargetFlags = {
   agent: listFlag('target agent ids'),
@@ -52,8 +52,7 @@ export abstract class SkillCommand extends FxCommand {
   ): Promise<SkillMutation[]> {
     return this.companionSkill().write(operation, {
       ...this.skillTarget(flags),
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
       yes: this.yes,
     });
   }

@@ -1,8 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { ExplainManifest } from '../../../application/manifest/explain.js';
 import { KINDS, type Kind } from '../../../domain/manifest/types.js';
 import { FxCommand } from '../../base.js';
+import { argument } from '../../flags.js';
 
 export default class ManifestExplain extends FxCommand {
   static override description =
@@ -12,10 +13,7 @@ export default class ManifestExplain extends FxCommand {
     '<%= config.bin %> manifest explain --kind tools tools[].setup',
   ];
   static override args = {
-    path: Args.string({
-      ignoreStdin: true,
-      description: 'field path, e.g. repos[].branch; omit for the document root',
-    }),
+    path: argument('field path, e.g. repos[].branch; omit for the document root'),
   };
   static override flags = {
     kind: Flags.string({

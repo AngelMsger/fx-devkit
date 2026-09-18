@@ -1,8 +1,8 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { recordProbe } from '../../../composition/probe-record.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag, jobsFlag } from '../../flags.js';
+import { dryRunFlag, jobsFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class ManifestRecordProbe extends FxCommand {
   static override description =
@@ -11,7 +11,7 @@ export default class ManifestRecordProbe extends FxCommand {
     '<%= config.bin %> manifest record-probe example-api --env test --platform jenkins --dry-run',
   ];
   static override args = {
-    repo: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+    repo: requiredArgument('repository name'),
   };
   static override flags = {
     env: Flags.string({ required: true, description: 'environment containing the coordinate' }),
@@ -35,8 +35,7 @@ export default class ManifestRecordProbe extends FxCommand {
           check: true,
           probe: true,
           jobs: flags.jobs,
-          dryRun: flags['dry-run'],
-          posture: this.posture,
+          ...writeIntent(flags, this.posture),
         },
       }),
     );

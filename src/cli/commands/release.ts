@@ -1,9 +1,9 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import { Release } from '../../application/release/index.js';
 import { CHECKS, RELEASE_FINDING_COLUMNS, type Check } from '../../domain/release/types.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, jobsFlag, listFlag } from '../flags.js';
+import { argument, detailsFlag, jobsFlag, listFlag } from '../flags.js';
 import { RELEASE_CODES, reportNotice } from '../notices.js';
 
 export default class ReleaseCommand extends FxCommand {
@@ -15,10 +15,7 @@ export default class ReleaseCommand extends FxCommand {
   ];
   static override strict = false;
   static override args = {
-    repo: Args.string({
-      ignoreStdin: true,
-      description: 'repository name(s); default: every one on the checklist',
-    }),
+    repo: argument('repository name(s); default: every one on the checklist'),
   };
   static override flags = {
     details: detailsFlag,

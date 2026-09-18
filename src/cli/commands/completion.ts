@@ -1,8 +1,8 @@
-import { Args, type Command } from '@oclif/core';
+import type { Command } from '@oclif/core';
 
 import { FxCommand } from '../base.js';
 import { completionFlags, completionScript, SHELLS } from '../completion.js';
-import { globalFlags } from '../flags.js';
+import { globalFlags, requiredArgument } from '../flags.js';
 
 import { compatibilityTarget } from './aliases.js';
 
@@ -15,7 +15,7 @@ export default class CompletionCommand extends FxCommand {
     '<%= config.bin %> completion powershell | Out-File -Encoding utf8 fx-completion.ps1',
   ];
   static override args = {
-    shell: Args.string({ ignoreStdin: true, required: true, description: SHELLS.join(', ') }),
+    shell: requiredArgument(SHELLS.join(', ')),
   };
   static override flags = {};
 

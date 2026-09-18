@@ -1,14 +1,13 @@
-import { Args } from '@oclif/core';
-
 import { RepoShow } from '../../../application/repo/show.js';
 import { FxCommand } from '../../base.js';
+import { requiredArgument } from '../../flags.js';
 import { ownerLines } from '../../render/owners.js';
 
 export default class RepoShowCommand extends FxCommand {
   static override description =
     'Show one repository: resolved entry, disk state, code-host URLs and owners';
   static override args = {
-    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name' }),
+    name: requiredArgument('repository name'),
   };
   static override flags = {};
 

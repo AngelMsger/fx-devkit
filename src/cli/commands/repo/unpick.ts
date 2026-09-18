@@ -1,8 +1,6 @@
-import { Args } from '@oclif/core';
-
 import { RepoUnpick } from '../../../application/repo/unpick.js';
 import { FxCommand } from '../../base.js';
-import { dryRunFlag } from '../../flags.js';
+import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
 export default class RepoUnpickCommand extends FxCommand {
   static override description =
@@ -10,7 +8,7 @@ export default class RepoUnpickCommand extends FxCommand {
   static override examples = ['<%= config.bin %> repo unpick fx-example-docs'];
   static override strict = false;
   static override args = {
-    name: Args.string({ ignoreStdin: true, required: true, description: 'repository name(s)' }),
+    name: requiredArgument('repository name(s)'),
   };
   static override flags = { 'dry-run': dryRunFlag };
 
@@ -18,8 +16,7 @@ export default class RepoUnpickCommand extends FxCommand {
     const { argv, flags } = await this.parse(RepoUnpickCommand);
     const result = await new RepoUnpick(await this.workspaceDeps()).execute({
       names: argv as string[],
-      dryRun: flags['dry-run'],
-      posture: this.posture,
+      ...writeIntent(flags, this.posture),
     });
     this.renderer.record(result);
   }
