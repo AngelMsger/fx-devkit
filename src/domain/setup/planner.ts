@@ -1,8 +1,8 @@
-// From recipes, the team's own steps and the environments to a concrete, ordered plan.
-// Expansion is literal about absence: an environment that does not declare a platform
-// gets no step for it, a recipe whose variables the manifest cannot supply is a problem,
-// not a half-filled step. Order is stable: required tools, then the toolchain's order,
-// then the environments' declared order, then prerequisites first.
+// From recipes, the team's own steps and the environments to a concrete plan. Expansion
+// is literal about absence: an undeclared platform gets no step, and a recipe whose
+// variables the manifest cannot supply is a problem rather than a half-filled step. Order
+// is stable: required tools, the toolchain's order, the environments' order, prerequisites
+// first.
 
 import type { Environments } from '../manifest/types.js';
 import { substitute, substituteAll, type Vars } from '../template.js';

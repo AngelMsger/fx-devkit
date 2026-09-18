@@ -1,8 +1,7 @@
 // Which provider fulfils each capability, read off the two documents that bind them and
-// the catalog of providers this fx ships. A schema 1 document names no providers: its git
-// host implies the default code host and a platform's name implies the family tool that
-// serves it, both of which the providers themselves declare. Whether a provider id names a
-// real adapter is the registry's business.
+// the catalog this fx ships. A schema 1 document names no providers, so its git host and
+// its platform names imply one through what the providers themselves declare. Whether an
+// id names a real adapter is the registry's business.
 
 import { capabilitiesInScope, type Capability, type CapabilityName } from '../capability.js';
 

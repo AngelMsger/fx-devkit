@@ -1,8 +1,6 @@
-// From the merged toolchain to what fx can act on for each tool: every
-// inheritance resolved (entry → defaults → built-in), npm specs completed
-// from the scope, and for each executable field whether it came from the
-// bundled baseline or from the team's patch — which is what decides whether
-// a vector needs trust before it runs.
+// From the merged toolchain to what fx can act on for each tool: inheritance resolved
+// (entry → defaults → built-in), npm specs completed from the scope, and each executable
+// field marked baseline or team patch, which is what decides whether it needs trust.
 
 import { DEFAULTS_KEY, type Origin, type Provenance } from '../manifest/overlay.js';
 import type { SetupStep, Tool, Toolchain } from '../manifest/types.js';

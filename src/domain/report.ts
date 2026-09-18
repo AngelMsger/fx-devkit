@@ -1,8 +1,6 @@
-// The one shape for "several things were checked, here is each verdict":
-// doctor uses it for a machine, release for repositories. A finding is one
-// checked thing with a level and, when it is not fine, what to do — a
-// command that fixes it or a handoff for a person — and optionally the
-// evidence behind it. A report is the answer; producing one never fails.
+// The one shape for "several things were checked, here is each verdict": doctor
+// uses it for a machine, release for repositories. A report is the answer, so
+// producing one never fails.
 
 import type { HandoffEnvelope } from './errors.js';
 

@@ -1,8 +1,6 @@
-// Generated regions inside a hand-written document. Between a begin and an end marker
-// the text is fx's; everything else is a person's and is never touched. A region the
-// document lacks is reported, not inserted — where it goes is the author's decision.
-// Retired generated rules blocks are removed; their durable instructions belong in
-// prose.
+// Generated regions inside a hand-written document. Between a begin and an end marker the
+// text is fx's; everything else is a person's and is never touched. A region the document
+// lacks is reported rather than inserted, because where it goes is the author's decision.
 
 export const begin = (name: string): string => `<!-- fx:begin ${name} -->`;
 export const end = (name: string): string => `<!-- fx:end ${name} -->`;
