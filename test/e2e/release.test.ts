@@ -3,15 +3,14 @@
 // jenkins-cli and sentry, and a temporary FX_HOME.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim, runtimeTools, systemPath } from '../platform.js';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -74,7 +73,7 @@ function shim(dir: string, name: string, body: string): void {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-release-e2e-'));
+  const base = tempDir('fx-release-e2e-');
   const host = path.join(base, 'host', 'fx');
   mkdirSync(host, { recursive: true });
   bare(host, base, 'a', { 'package.json': '{"dependencies":{"x":"1.0.0-dev"}}\n' }, true);

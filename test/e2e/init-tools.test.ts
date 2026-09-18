@@ -1,15 +1,6 @@
 // Init drives a fake npm and private executable directory; no real packages are installed.
 import { execFileSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -17,10 +8,10 @@ import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, tempDir, userHome } from './harness.js';
 
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-init-tools-'));
+  const root = tempDir('fx-init-tools-');
   const shims = path.join(root, 'bin');
   const template = path.join(root, 'template');
   mkdirSync(shims);

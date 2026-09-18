@@ -2,7 +2,6 @@
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -10,16 +9,15 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
-import { freshHome, fx, git, manifestDirOf, repository } from './harness.js';
+import { freshHome, fx, git, manifestDirOf, repository, tempDir } from './harness.js';
 
 function fixture() {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-selection-'));
+  const base = tempDir('fx-selection-');
   const source = path.join(base, 'source');
   const root = path.join(base, 'workspace');
   const home = freshHome();

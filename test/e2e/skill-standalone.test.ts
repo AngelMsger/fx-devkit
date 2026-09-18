@@ -2,23 +2,23 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   realpathSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { tempDir } from './harness.js';
 
 const bin = path.resolve('bin/fx.js');
 const bundled = path.resolve('skills/fx-workspace');
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 
 function stage() {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-skill-standalone-'));
+  const root = tempDir('fx-skill-standalone-');
   const home = path.join(root, 'home');
   mkdirSync(home);
   const run = (args: string[], extra: NodeJS.ProcessEnv = {}) => {

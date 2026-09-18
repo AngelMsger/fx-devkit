@@ -1,13 +1,12 @@
 // FX_TRACE: every invocation leaves one line, whether it was routed away,
 // failed inside a command, or succeeded; an unwritable file costs nothing.
 
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { fx } from './harness.js';
+import { fx, tempDir } from './harness.js';
 
 function lines(file: string): Record<string, unknown>[] {
   return readFileSync(file, 'utf8')
@@ -18,7 +17,7 @@ function lines(file: string): Record<string, unknown>[] {
 
 describe('FX_TRACE', () => {
   it('appends one record per invocation with the exit and the failure code', () => {
-    const file = path.join(mkdtempSync(path.join(tmpdir(), 'fx-trace-')), 'trace.jsonl');
+    const file = path.join(tempDir('fx-trace-'), 'trace.jsonl');
     const env = { FX_TRACE: file };
     expect(fx(['config', 'list', '--format', 'json'], env).status).toBe(0);
     expect(fx(['self', 'bogus'], env).status).toBe(2);
@@ -35,12 +34,7 @@ describe('FX_TRACE', () => {
   });
 
   it('never fails the command when the file cannot be written', () => {
-    const missing = path.join(
-      mkdtempSync(path.join(tmpdir(), 'fx-trace-')),
-      'no',
-      'dir',
-      'trace.jsonl',
-    );
+    const missing = path.join(tempDir('fx-trace-'), 'no', 'dir', 'trace.jsonl');
     const run = fx(['config', 'list', '--format', 'json'], { FX_TRACE: missing });
     expect(run.status, run.stderr).toBe(0);
     expect(run.stderr).toBe('');

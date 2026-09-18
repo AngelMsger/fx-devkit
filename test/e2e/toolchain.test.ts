@@ -7,13 +7,11 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   readlinkSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -21,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { pathKey } from '../../src/domain/path.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, tempDir, userHome } from './harness.js';
 
 const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
@@ -32,7 +30,7 @@ interface Stage {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-tool-e2e-'));
+  const base = tempDir('fx-tool-e2e-');
   const shims = path.join(base, 'shims');
   mkdirSync(shims);
   writeNodeShim(shims, 'fake-tool', 'console.log("fake-tool v1.2.3 (fixture)");');

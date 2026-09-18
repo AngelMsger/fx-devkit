@@ -3,11 +3,12 @@
 // with and without another listener owning the signal.
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { tempDir } from './harness.js';
 
 const adapter = path.resolve('dist/adapters/process/node-process.js');
 
@@ -80,7 +81,7 @@ describe.skipIf(process.platform === 'win32')(
   'a bounded child when fx itself is interrupted',
   () => {
     it('dies with its process group, and fx exits on the signal as usual', async () => {
-      const dir = mkdtempSync(path.join(tmpdir(), 'fx-proc-'));
+      const dir = tempDir('fx-proc-');
       const p = parent(dir, 'none');
       await p.saw('ready 1');
       const shell = pid(path.join(dir, 'shell1'));
@@ -94,7 +95,7 @@ describe.skipIf(process.platform === 'win32')(
     }, 15000);
 
     it('dies on each interrupt when another listener owns the signal, which is called once per signal', async () => {
-      const dir = mkdtempSync(path.join(tmpdir(), 'fx-proc-'));
+      const dir = tempDir('fx-proc-');
       const p = parent(dir, 'persistent');
       await p.saw('ready 1');
       const first = [pid(path.join(dir, 'shell1')), pid(path.join(dir, 'helper1'))];
@@ -115,7 +116,7 @@ describe.skipIf(process.platform === 'win32')(
     }, 15000);
 
     it('is dealt with before an earlier listener exits fx, and a once-listener keeps ownership', async () => {
-      const exiting = mkdtempSync(path.join(tmpdir(), 'fx-proc-'));
+      const exiting = tempDir('fx-proc-');
       const e = parent(exiting, 'exit');
       await e.saw('ready 1');
       const pair = [pid(path.join(exiting, 'shell1')), pid(path.join(exiting, 'helper1'))];
@@ -125,7 +126,7 @@ describe.skipIf(process.platform === 'win32')(
       await wait(200);
       expect(pair.map(alive)).toEqual([false, false]);
 
-      const owned = mkdtempSync(path.join(tmpdir(), 'fx-proc-'));
+      const owned = tempDir('fx-proc-');
       const o = parent(owned, 'once');
       await o.saw('ready 1');
       const owner = [pid(path.join(owned, 'shell1')), pid(path.join(owned, 'helper1'))];
@@ -138,7 +139,7 @@ describe.skipIf(process.platform === 'win32')(
     }, 15000);
 
     it('protects a child that another listener starts while the interrupt is being handled', async () => {
-      const dir = mkdtempSync(path.join(tmpdir(), 'fx-proc-'));
+      const dir = tempDir('fx-proc-');
       const p = parent(dir, 'restart');
       await p.saw('ready 1');
       const first = [pid(path.join(dir, 'shell1')), pid(path.join(dir, 'helper1'))];

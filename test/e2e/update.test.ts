@@ -2,13 +2,20 @@
 // repository moved upstream, on any command, without the command's own
 // result changing; sync settles it; the switches silence it.
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx, git, manifestDirOf, repository, type Repository } from './harness.js';
+import {
+  freshHome,
+  fx,
+  git,
+  manifestDirOf,
+  repository,
+  tempDir,
+  type Repository,
+} from './harness.js';
 
 interface Stage {
   readonly manifest: Repository;
@@ -18,7 +25,7 @@ interface Stage {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-update-e2e-'));
+  const base = tempDir('fx-update-e2e-');
   const host = path.join(base, 'host');
   mkdirSync(path.join(host, 'fx'), { recursive: true });
   repository(path.join(host, 'fx'), 'a', { README: 'a\n' });

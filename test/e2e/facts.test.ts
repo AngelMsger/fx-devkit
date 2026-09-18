@@ -4,15 +4,14 @@
 // by an environment variable, and a temporary FX_HOME.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim, runtimeTools, systemPath } from '../platform.js';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -45,7 +44,7 @@ function bareWithCommit(host: string, base: string, name: string): void {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-facts-e2e-'));
+  const base = tempDir('fx-facts-e2e-');
   const shims = path.join(base, 'shims');
   mkdirSync(shims);
   const host = path.join(base, 'host', 'fx');
