@@ -10,7 +10,7 @@ export type Provenance = Readonly<Record<string, Readonly<Record<string, Origin>
 export type MergePath = readonly (string | number)[];
 
 export interface MergeOptions {
-  // Paths in the patch document whose value was null.
+  // Non-nullable patch fields explicitly marked for deletion.
   readonly deletions?: readonly MergePath[];
 }
 

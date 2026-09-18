@@ -1,5 +1,4 @@
-// Where this fx is and what it works with: the paths a person needs when
-// something looks wrong, in one record.
+// Report CLI installation and workspace paths without requiring a healthy manifest.
 
 import path from 'node:path';
 

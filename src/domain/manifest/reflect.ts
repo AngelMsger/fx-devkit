@@ -1,7 +1,4 @@
-// Walks a zod schema as data. Everything that needs to know a document's
-// shape without hard-coding it — the description audit, unknown-key
-// detection, `manifest explain` — comes through here, so zod's internals are
-// touched in exactly one file.
+// Isolate Zod schema introspection for field descriptions, normalization and overlays.
 
 import type * as z from 'zod';
 

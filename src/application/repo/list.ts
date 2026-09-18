@@ -1,6 +1,4 @@
-// The workspace's repositories as one table, picked and unpicked together, so
-// "what do I track" and "what could I track" are one question. Readability costs
-// a code-host call per row and is asked for only when it is wanted.
+// List selected and available repositories; query remote readability only when requested.
 
 import { resolveSharedRepo, type ResolvedRepo } from '../../domain/manifest/local.js';
 import type { Readability } from '../../domain/workspace/plan.js';

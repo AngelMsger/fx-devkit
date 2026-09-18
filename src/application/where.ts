@@ -1,9 +1,5 @@
-// The agent's question about a repository: where its errors, logs, builds
-// and pods are in an environment, one row per platform, and whether each can
-// be used right now. Coordinates come from the manifest alone; the readiness
-// column runs only a provider's read-only verify, and --probe its read-only
-// probe. This query never edits the manifest; explicit recording consumes
-// its evidence in a separate use case.
+// Resolve repository coordinates and readiness using read-only provider queries.
+// Recording probe evidence is a separate, explicit write operation.
 
 import { asDevkitError, DevkitError, type HandoffEnvelope } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';

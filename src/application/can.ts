@@ -1,6 +1,4 @@
-// The agent's question about a capability or tool: can it be used right
-// now, and if not, what has to happen first. The answer is the readiness
-// verdict with the target it was reached for.
+// Report readiness and recovery for a resolved capability or tool.
 
 import { DevkitError } from '../domain/errors.js';
 import { shellLine } from '../domain/shell.js';

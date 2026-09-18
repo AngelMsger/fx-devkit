@@ -1,5 +1,4 @@
-// Unregisters a machine-local entry. The directory stays: fx registered a reference, so
-// it removes a reference.
+// Remove a personal repository reference while preserving its checkout.
 
 import { DevkitError } from '../../domain/errors.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';

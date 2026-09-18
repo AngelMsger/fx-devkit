@@ -1,7 +1,4 @@
-// The release checklist as a report: for every repository on it, one finding per check —
-// dependencies, branches, builds, errors — produced side by side and in a fixed order.
-// Nothing here fails the command; what could not be asked becomes a finding like any
-// other.
+// Evaluate the release checklist in a fixed order, retaining failed or unavailable checks as findings.
 
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
