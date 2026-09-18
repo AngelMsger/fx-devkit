@@ -2,7 +2,12 @@
 // installation and configuration. Invalid or ambiguous targets are usage/configuration
 // errors; a resolved target that is not ready is a verdict with recovery guidance.
 
-import { CAPABILITIES, CAPABILITY_INFO, type Capability } from '../domain/capability.js';
+import {
+  CAPABILITIES,
+  CAPABILITY_INFO,
+  knownCapability,
+  type Capability,
+} from '../domain/capability.js';
 import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 import type { Binding, PlatformBinding } from '../domain/manifest/providers.js';
@@ -63,8 +68,9 @@ export class Readiness {
 
   resolve(name: string, env: string | undefined): Target {
     const tools = toolchainOf(this.deps.ctx).tools;
-    if ((CAPABILITIES as readonly string[]).includes(name)) {
-      const capability = name as Capability;
+    const named = knownCapability(name);
+    if (named !== null) {
+      const capability = named;
       const binding = this.bindingFor(capability, env);
       const tool = binding === null ? undefined : this.toolOf(binding);
       if (binding === null || tool === undefined) {
@@ -101,8 +107,7 @@ export class Readiness {
   targetOf(binding: PlatformBinding): Target | null {
     const tool = this.toolOf(binding);
     if (tool === undefined) return null;
-    const known = (CAPABILITIES as readonly string[]).includes(binding.capability);
-    return { capability: known ? (binding.capability as Capability) : null, tool, binding };
+    return { capability: knownCapability(binding.capability), tool, binding };
   }
 
   async judge(target: Target, env: string | null): Promise<Verdict> {

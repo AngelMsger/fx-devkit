@@ -4,7 +4,7 @@
 // serves it, both of which the providers themselves declare. Whether a provider id names a
 // real adapter is the registry's business.
 
-import { capabilitiesInScope, type Capability } from '../capability.js';
+import { capabilitiesInScope, type Capability, type CapabilityName } from '../capability.js';
 
 import {
   serviceVars,
@@ -38,7 +38,7 @@ export type ProviderCatalog = readonly ProviderFacts[];
 export type BindingSource = 'explicit' | 'default' | 'unbound' | 'misplaced';
 
 export interface Binding {
-  readonly capability: Capability | string;
+  readonly capability: CapabilityName;
   readonly provider: string | null;
   readonly source: BindingSource;
   readonly vars: Readonly<Record<string, string>>;

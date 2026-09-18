@@ -17,7 +17,7 @@ import { wecomProvider } from '../adapters/im/wecom/provider.js';
 import { feishuProjectProvider } from '../adapters/issue-tracker/feishu-project/provider.js';
 import { confluenceProvider } from '../adapters/knowledge-base/confluence/provider.js';
 import { openobserveCliProvider } from '../adapters/log-store/openobserve-cli/provider.js';
-import type { Capability } from '../domain/capability.js';
+import type { CapabilityName } from '../domain/capability.js';
 import { DevkitError } from '../domain/errors.js';
 import { nearest } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
@@ -83,7 +83,7 @@ export function register<P>(descriptor: ProviderDescriptor<P>): void {
   providers.set(descriptor.id, descriptor);
 }
 
-export function providersFor(capability: Capability): ProviderDescriptor<unknown>[] {
+export function providersFor(capability: CapabilityName): ProviderDescriptor<unknown>[] {
   return [...providers.values()].filter((p) => p.capability === capability);
 }
 
@@ -109,7 +109,7 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
   if (descriptor === undefined || descriptor.capability !== capability) {
     const suggestion = nearest(
       binding.provider,
-      providersFor(capability as Capability).map((p) => p.id),
+      providersFor(capability).map((p) => p.id),
     );
     throw new DevkitError(
       'config',
@@ -145,9 +145,9 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
   return descriptor.create({ ...deps, process: scoped }, binding.vars) as P;
 }
 
-function ids(capability: string): string {
+function ids(capability: CapabilityName): string {
   return (
-    providersFor(capability as Capability)
+    providersFor(capability)
       .map((p) => p.id)
       .join(', ') || '(none)'
   );
