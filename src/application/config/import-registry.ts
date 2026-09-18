@@ -68,7 +68,7 @@ export function assertImportIdentitiesUnchanged(
       throw new DevkitError(
         'conflict',
         'CONFIG_IMPORT_CHANGED',
-        `Workspace "${name}" changed while the profile import was being planned.`,
+        `Workspace "${name}" changed while the profile import was being planned`,
         {
           hint: 'Inspect its current identity and preview the profile again before retrying.',
           nextSteps: [shellLine(['fx', 'workspace', 'show', name])],
@@ -86,7 +86,7 @@ function identityChange(
   return new DevkitError(
     'conflict',
     'CONFIG_IMPORT_WORKSPACE_CONFLICT',
-    `Import would change the ${field} of registered workspace "${name}".`,
+    `Import would change the ${field} of registered workspace "${name}"`,
     {
       hint: 'Use the workspace lifecycle command first so owned resources and personal selections remain consistent.',
       nextSteps: [

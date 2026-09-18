@@ -84,7 +84,7 @@ export class LocalGitCodeHost implements CodeHost {
       throw new DevkitError(
         'permission',
         'FORK_FAILED',
-        `could not fork ${ref.project}/${ref.name}: ${result.stderr.trim()}`,
+        `Could not fork ${ref.project}/${ref.name}: ${result.stderr.trim()}`,
         {
           nextSteps: [`ls ${path.dirname(url)}`],
         },
@@ -223,7 +223,7 @@ function contributionUnsupported(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_CONTRIBUTION_UNSUPPORTED',
-    'This local code host has no pull-request service.',
+    'This local code host has no pull-request service',
     { nextSteps: ['Select a code-host provider with pull-request support.'] },
   );
 }

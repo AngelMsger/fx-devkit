@@ -85,7 +85,7 @@ export class ManifestUpdateCheck {
       throw new DevkitError(
         'config',
         'MANIFEST_REF_UNKNOWN',
-        'the default branch of upstream is not known here',
+        'The default branch of upstream is not known here',
       );
     return { upstream: head.sha, fetched };
   }

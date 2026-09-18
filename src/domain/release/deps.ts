@@ -36,7 +36,7 @@ export const DEPENDENCY_FILES: readonly { readonly file: string; readonly parse:
 export function scanDependencies(file: string, text: string): DependencyScan {
   const parser = DEPENDENCY_FILES.find((d) => d.file === file)?.parse;
   if (parser === undefined) {
-    throw new DevkitError('internal', 'DEPENDENCY_FILE_UNKNOWN', `no parser for ${file}`);
+    throw new DevkitError('internal', 'DEPENDENCY_FILE_UNKNOWN', `No parser for ${file}`);
   }
   return { file, offending: parser(text) };
 }

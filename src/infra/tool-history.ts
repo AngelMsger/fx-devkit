@@ -113,7 +113,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'TOOL_HISTORY_INVALID',
-    'The tool installation ledger is invalid or unreadable.',
+    'The tool installation ledger is invalid or unreadable',
     {
       nextSteps: [
         'Inspect and repair FX_HOME/tool-history.json, preserving the existing audit evidence, before retrying.',

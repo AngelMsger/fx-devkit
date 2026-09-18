@@ -27,7 +27,7 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
   const { deps, input } = await loadHarnessCommand(command);
   const held = command.workspaceLease;
   if (held && (held.workspace !== input.workspace || held.root !== input.root))
-    throw new DevkitError('conflict', 'HARNESS_PLAN_CHANGED', 'Workspace lease scope changed.', {
+    throw new DevkitError('conflict', 'HARNESS_PLAN_CHANGED', 'Workspace lease scope changed', {
       nextSteps: ['Retry workspace synchronization.'],
     });
   const lock = held

@@ -142,7 +142,7 @@ export class SystemGit implements Git {
       throw new DevkitError(
         'conflict',
         'GIT_REMOTE_ADD_FAILED',
-        `could not add remote ${name} in ${dir}: ${lastLine(result.stderr)}`,
+        `Could not add remote ${name} in ${dir}: ${lastLine(result.stderr)}`,
         {
           nextSteps: [`git -C ${dir} remote -v`],
         },

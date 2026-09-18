@@ -51,7 +51,7 @@ export async function runContributionGit(input: ContributionCommand): Promise<st
     throw new DevkitError(
       category,
       rejected ? 'SOURCE_PUSH_REJECTED' : 'SOURCE_GIT_FAILED',
-      'Contribution Git operation failed.',
+      'Contribution Git operation failed',
       {
         hint: 'Inspect the source checkout and its Git configuration; no checkout or reset was attempted.',
         nextSteps: ['fx source push --help', 'Inspect the source Git status and retry.'],
@@ -66,7 +66,7 @@ export function assertObjectId(value: string): void {
     throw new DevkitError(
       'conflict',
       'SOURCE_OBJECT_INVALID',
-      'Expected a complete Git object identity.',
+      'Expected a complete Git object identity',
       { nextSteps: ['Check the source repository with git fsck, then re-run fx source push.'] },
     );
 }

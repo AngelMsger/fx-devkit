@@ -30,7 +30,7 @@ export class MemberShow {
       throw new DevkitError(
         'not_found',
         'PERSON_NOT_FOUND',
-        `nobody in the members document is "${query}"`,
+        `Nobody in the members document is "${query}"`,
         {
           hint:
             suggestion === undefined

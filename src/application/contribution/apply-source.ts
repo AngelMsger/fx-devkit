@@ -76,7 +76,7 @@ async function publishOperation(context: OperationPublishing): Promise<Contribut
       throw new DevkitError(
         'conflict',
         'SOURCE_TREE_MISMATCH',
-        'The prepared tree differs from the validated plan.',
+        'The prepared tree differs from the validated plan',
         {
           nextSteps: ['Re-run the same fx source push command with --dry-run and review the plan.'],
         },
@@ -135,7 +135,7 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
     throw new DevkitError(
       'conflict',
       'SOURCE_PR_CONFIRM_REQUIRED',
-      'Confirm the existing PR with --pr before resuming.',
+      'Confirm the existing PR with --pr before resuming',
       {
         nextSteps: [
           `Find the pull request for branch ${operation.branch} on the code host.`,
@@ -150,7 +150,7 @@ async function completePullRequest(context: OperationPublishing): Promise<PushSo
       throw new DevkitError(
         'conflict',
         'SOURCE_PR_CLOSED',
-        'The PR closed during contribution; review before using --new.',
+        'The PR closed during contribution; review before using --new',
         {
           nextSteps: [
             `Review pull request ${operation.pullRequestId} on the code host.`,

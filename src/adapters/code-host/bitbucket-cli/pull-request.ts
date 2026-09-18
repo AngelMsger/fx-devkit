@@ -57,7 +57,7 @@ export async function createContributionPullRequest({
     throw new DevkitError(
       'usage',
       'SOURCE_CONTENT_SENSITIVE',
-      'The PR text contains protected content.',
+      'The PR text contains protected content',
       {
         nextSteps: [
           'Remove credentials, personal names and email addresses from --title and --message, then retry.',
@@ -143,7 +143,7 @@ function invalidResponse(): DevkitError {
   return new DevkitError(
     'server',
     'SOURCE_PR_RESPONSE_INVALID',
-    'The companion did not return the expected pull request identity.',
+    'The companion did not return the expected pull request identity',
     {
       hint: 'Creation may have succeeded; inspect the remote before attempting another create.',
       nextSteps: [

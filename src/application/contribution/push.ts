@@ -77,7 +77,7 @@ async function confirm(deps: PushSourceDeps, plan: SourcePlan): Promise<boolean>
       throw new DevkitError(
         'config',
         'CONFIRM_REQUIRED',
-        'Confirm the source contribution with --yes.',
+        'Confirm the source contribution with --yes',
         { nextSteps: ['Re-run the same fx source push command with --yes.'] },
       );
     throw error;
@@ -89,14 +89,14 @@ function assertReady(plan: SourcePlan): void {
     throw new DevkitError(
       'config',
       'SOURCE_VALIDATION_FAILED',
-      'The contribution candidate has not passed validation.',
+      'The contribution candidate has not passed validation',
       { nextSteps: ['Re-run the same command with --dry-run and address its findings.'] },
     );
   if (plan.output.action === 'recover')
     throw new DevkitError(
       'conflict',
       'SOURCE_PR_CONFIRM_REQUIRED',
-      'PR creation may already have succeeded.',
+      'PR creation may already have succeeded',
       {
         nextSteps: [
           'Inspect the remote PR and resume with its ID or URL using --pr.',

@@ -141,7 +141,7 @@ export class GitRepoSource implements ManifestSource {
       throw new DevkitError(
         'network',
         'MANIFEST_CLONE_FAILED',
-        `could not clone ${this.url}: ${lastLine(result.stderr)}`,
+        `Could not clone ${this.url}: ${lastLine(result.stderr)}`,
         {
           hint: 'The manifest repository must be reachable and readable with your git credentials.',
           nextSteps: [`git clone ${this.url}`],
@@ -157,7 +157,7 @@ export class GitRepoSource implements ManifestSource {
       throw new DevkitError(
         'network',
         'MANIFEST_REFRESH_FAILED',
-        `could not fetch the manifest repository into ${dir}: ${err instanceof Error ? err.message : String(err)}`,
+        `Could not fetch the manifest repository into ${dir}: ${err instanceof Error ? err.message : String(err)}`,
         {
           hint: 'The manifest repository must be reachable with your git credentials.',
           nextSteps: [`git -C ${dir} fetch upstream`],

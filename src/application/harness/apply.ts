@@ -56,7 +56,7 @@ export function harnessConflict(): DevkitError {
   return new DevkitError(
     'conflict',
     'HARNESS_PLAN_CHANGED',
-    'Harness files or ownership changed after planning.',
+    'Harness files or ownership changed after planning',
     {
       nextSteps: ['Inspect the native configuration and retry fx sync --only mcp,docs --dry-run.'],
       hint: 'User changes are preserved; do not remove ownership metadata to bypass this check.',

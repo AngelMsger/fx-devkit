@@ -63,7 +63,7 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'config',
         'SOURCE_BASE_UNVERIFIED',
-        'The upstream did not identify its default branch.',
+        'The upstream did not identify its default branch',
         {
           nextSteps: [
             `git -C ${input.dir} ls-remote --symref upstream HEAD`,
@@ -85,7 +85,7 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'conflict',
         'SOURCE_REMOTE_CHANGED',
-        'Upstream routing changed after planning.',
+        'Upstream routing changed after planning',
         {
           nextSteps: [
             `git -C ${input.dir} remote -v`,
@@ -127,7 +127,7 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'parse',
         'SOURCE_REMOTE_HEAD_INVALID',
-        'The remote did not return one exact branch identity.',
+        'The remote did not return one exact branch identity',
         {
           nextSteps: [
             `git -C ${input.dir} ls-remote --heads origin refs/heads/${input.branch}`,
@@ -167,7 +167,7 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'usage',
         'SOURCE_BRANCH_INVALID',
-        'Use a dedicated contribution branch.',
+        'Use a dedicated contribution branch',
         { nextSteps: ['fx source push --new'] },
       );
     const settings = await this.inspect(input);
@@ -182,7 +182,7 @@ export class ContributionGitTransport implements ContributionTransport {
       throw new DevkitError(
         'conflict',
         'SOURCE_REMOTE_CHANGED',
-        'Source remote routing changed after verification.',
+        'Source remote routing changed after verification',
         {
           nextSteps: [
             `git -C ${input.dir} remote -v`,

@@ -49,7 +49,7 @@ function invalidReference(): DevkitError {
   return new DevkitError(
     'usage',
     'SOURCE_PR_REFERENCE_INVALID',
-    'Use a PR ID or a PR URL belonging to the current repository website.',
+    'Use a PR ID or a PR URL belonging to the current repository website',
     {
       nextSteps: [
         'Verify the current repository and PR, then pass its ID or canonical URL to --pr.',

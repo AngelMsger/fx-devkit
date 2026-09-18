@@ -378,7 +378,7 @@ function finishValid<T>(input: FinishValidInput<T>): LoadResult<T> {
     throw new DevkitError(
       'config',
       'MANIFEST_UNUSABLE',
-      `no entry in the ${spec.kind} manifest could be used: ${dropped.map((d) => d.name).join(', ')}`,
+      `No entry in the ${spec.kind} manifest could be used: ${dropped.map((d) => d.name).join(', ')}`,
       {
         hint: 'Every entry was rejected; the manifest and this fx release disagree about the entry format.',
         nextSteps: ['fx manifest validate', 'fx --version'],

@@ -24,7 +24,7 @@ export async function beginWorkspaceCommand(
       throw new DevkitError(
         'conflict',
         'WORKSPACE_PLAN_CHANGED',
-        'The workspace identity changed while waiting. Retry to use the new registration.',
+        'The workspace identity changed while waiting',
         {
           nextSteps: [
             `fx workspace show ${selected.name}`,

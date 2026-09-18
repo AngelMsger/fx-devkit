@@ -41,7 +41,7 @@ export async function loadHarnessCommand(
     throw new DevkitError(
       'config',
       'HARNESS_SOURCE_FOREIGN',
-      'The harness source is not a regular owned source file.',
+      'The harness source is not a regular owned source file',
       { nextSteps: ['Inspect manifest/harness.yaml and its parent directories.'] },
     );
   const loaded =
@@ -83,7 +83,7 @@ export async function canMcp(
     throw new DevkitError(
       'usage',
       'MCP_ENV_UNSUPPORTED',
-      'MCP resources are workspace-scoped; omit --env.',
+      'MCP resources are workspace-scoped; omit --env',
       { nextSteps: ['fx mcp list'] },
     );
   const { deps, input } = await loadHarnessCommand(command);
@@ -115,7 +115,7 @@ function findAgent(hosts: readonly AgentHost[], id: string): AgentHost {
     id,
     hosts.map((item) => item.id),
   );
-  throw new DevkitError('not_found', 'AGENT_UNKNOWN', 'The agent is not registered.', {
+  throw new DevkitError('not_found', 'AGENT_UNKNOWN', 'The agent is not registered', {
     hint: suggestion ? `Did you mean "${suggestion}"?` : 'Use an agent ID from fx agent list.',
     nextSteps: ['fx agent list'],
   });

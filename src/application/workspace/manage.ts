@@ -137,7 +137,7 @@ export class ManageWorkspace {
       throw new DevkitError(
         'not_found',
         'WORKSPACE_UNKNOWN',
-        `No workspace named "${input.name}" is registered.`,
+        `No workspace named "${input.name}" is registered`,
         { nextSteps: ['fx workspace list'] },
       );
     const root = await this.deps.fs.realpath(path.resolve(input.root ?? before.root));
@@ -149,7 +149,7 @@ export class ManageWorkspace {
     }
     if (input.action === 'rebind') {
       if (!input.source)
-        throw new DevkitError('usage', 'INPUT_REQUIRED', 'Rebind requires --from.', {
+        throw new DevkitError('usage', 'INPUT_REQUIRED', 'Rebind requires --from', {
           nextSteps: [
             shellLine(['fx', 'workspace', 'rebind', input.name, '--from', '<manifest-source>']),
           ],
@@ -158,7 +158,7 @@ export class ManageWorkspace {
         throw new DevkitError(
           'not_found',
           'WORKSPACE_ROOT_MISSING',
-          'Restore or relocate the workspace root before rebinding its source.',
+          'Restore or relocate the workspace root before rebinding its source',
           {
             nextSteps: [
               shellLine(['fx', 'workspace', 'relocate', input.name, '<existing-directory>']),
@@ -190,7 +190,7 @@ export class ManageWorkspace {
       throw new DevkitError(
         'conflict',
         'WORKSPACE_OPERATION_PENDING',
-        'A different workspace operation requires recovery first.',
+        'A different workspace operation requires recovery first',
         {
           nextSteps: [
             `Retry workspace ${pending.action} for ${input.name} with its original arguments.`,
@@ -209,7 +209,7 @@ export class ManageWorkspace {
       throw new DevkitError(
         'not_found',
         'WORKSPACE_ROOT_MISSING',
-        'Relocate requires an existing destination directory.',
+        'Relocate requires an existing destination directory',
         {
           hint: 'Move the workspace directory with your file manager, then relocate its registration.',
           nextSteps: ['fx workspace relocate --help'],
@@ -222,8 +222,13 @@ export class ManageWorkspace {
       throw new DevkitError(
         'conflict',
         'WORKSPACE_ROOT_EXISTS',
-        'The registered root still exists. Move it before relocating its identity.',
-        { nextSteps: [shellLine(['fx', 'workspace', 'show', input.name])] },
+        'The registered root still exists',
+        {
+          nextSteps: [
+            shellLine(['fx', 'workspace', 'show', input.name]),
+            `Move ${before.root} to the destination before relocating the identity.`,
+          ],
+        },
       );
   }
 
@@ -413,8 +418,8 @@ function changedRegistry(): DevkitError {
   return new DevkitError(
     'conflict',
     'WORKSPACE_PLAN_CHANGED',
-    'Workspace registration or recovery state changed. Inspect it and retry.',
-    { nextSteps: ['fx workspace list'] },
+    'Workspace registration or recovery state changed',
+    { nextSteps: ['fx workspace list', 'Re-run the same command against the current state.'] },
   );
 }
 

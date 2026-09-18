@@ -68,7 +68,7 @@ export async function assertWorkspacePrepared(
   throw new DevkitError(
     'config',
     prepared ? 'MANIFEST_MISSING' : 'MANIFEST_UNPREPARED',
-    `Workspace "${located.name}" ${prepared ? 'is missing manifest/workspace.yaml' : 'manifest has not been prepared'}.`,
+    `Workspace "${located.name}" ${prepared ? 'is missing manifest/workspace.yaml' : 'manifest has not been prepared'}`,
     {
       hint: 'Recover the manifest from the registered source; existing business checkouts and personal selections are preserved.',
       nextSteps: [
@@ -110,7 +110,7 @@ export async function assertNoWorkspaceOperation(
   throw new DevkitError(
     'conflict',
     'WORKSPACE_OPERATION_PENDING',
-    `Workspace "${located.name}" has an unfinished identity operation.`,
+    `Workspace "${located.name}" has an unfinished identity operation`,
     {
       hint: `Inspect ${file}; retry the original workspace unregister, relocate or rebind command before other workspace operations.`,
       nextSteps: [shellLine(['fx', 'workspace', 'show', located.name], input.commandShell)],

@@ -94,7 +94,7 @@ export function describeProvider(id: string): ProviderDescriptor<unknown> | unde
 export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: AdapterDeps): P {
   const capability = binding.capability;
   if (binding.provider === null) {
-    throw new DevkitError('config', 'PROVIDER_UNBOUND', `no provider is bound for ${capability}`, {
+    throw new DevkitError('config', 'PROVIDER_UNBOUND', `No provider is bound for ${capability}`, {
       hint: `Add \`providers.${capability}\` to manifest/workspace.yaml. Available: ${ids(capability)}.`,
       nextSteps: ['fx manifest providers', `fx manifest explain providers`],
     });

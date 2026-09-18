@@ -71,7 +71,7 @@ export class Readiness {
         throw new DevkitError(
           'config',
           'CAPABILITY_UNBOUND',
-          `no provider serves ${capability}${env === undefined ? '' : ` in ${env}`}`,
+          `No provider serves ${capability}${env === undefined ? '' : ` in ${env}`}`,
           {
             hint: CAPABILITY_INFO[capability].desc,
             nextSteps: [this.command('manifest', 'providers')],

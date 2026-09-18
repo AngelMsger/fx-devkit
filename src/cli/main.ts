@@ -82,7 +82,7 @@ function routeError(route: Route): DevkitError | undefined {
         return new DevkitError(
           'usage',
           'UNKNOWN_COMMAND',
-          `unknown command "fx ${route.attempted}"`,
+          `Unknown command "fx ${route.attempted}"`,
           {
             hint: `\`fx ${route.attempted}\` was retired; run \`fx ${route.replacement[0]}\`.`,
             nextSteps: [...route.replacement.map((r) => `fx ${r}`), `fx ${route.help}`],
@@ -93,7 +93,7 @@ function routeError(route: Route): DevkitError | undefined {
       return new DevkitError(
         'usage',
         'UNKNOWN_COMMAND',
-        `unknown command "fx ${route.attempted}"`,
+        `Unknown command "fx ${route.attempted}"`,
         {
           hint: `\`fx ${route.attempted}\` is not a command.${suggestion}`,
           nextSteps: [`fx ${route.help}`],

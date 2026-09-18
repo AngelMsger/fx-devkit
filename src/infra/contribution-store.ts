@@ -177,7 +177,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_JOURNAL_INVALID',
-    'Contribution metadata is invalid or foreign.',
+    'Contribution metadata is invalid or foreign',
     { nextSteps: ['Inspect and repair the workspace contribution journal before retrying.'] },
   );
 }

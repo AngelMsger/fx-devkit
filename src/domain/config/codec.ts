@@ -31,7 +31,7 @@ export function parseProfile(text: string): Profile {
 }
 
 function invalid(detail: string): DevkitError {
-  return new DevkitError('parse', 'CONFIG_IMPORT_INVALID', `not an fx profile: ${detail}`, {
+  return new DevkitError('parse', 'CONFIG_IMPORT_INVALID', `Not an fx profile: ${detail}`, {
     hint: 'A profile is what `fx config export` writes.',
     nextSteps: ['fx config export -o profile.yaml'],
   });

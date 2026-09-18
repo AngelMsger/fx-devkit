@@ -54,7 +54,7 @@ export class SetRepoField {
       throw new DevkitError(
         'config',
         'MANIFEST_INVALID',
-        `the change would make the manifest invalid: ${introduced.map((p) => `${p.path}: ${p.message}`).join('; ')}`,
+        `The change would make the manifest invalid: ${introduced.map((p) => `${p.path}: ${p.message}`).join('; ')}`,
         { hint: 'Nothing was written.', nextSteps: [`fx manifest explain repos[].${input.field}`] },
       );
     }

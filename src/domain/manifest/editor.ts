@@ -73,7 +73,7 @@ function assertSettable(field: string): SettableRepoField {
     );
   }
   const suggestion = nearest(field, [...SETTABLE_REPO_FIELDS]);
-  throw new DevkitError('usage', 'UNKNOWN_MANIFEST_FIELD', `a repository has no field "${field}"`, {
+  throw new DevkitError('usage', 'UNKNOWN_MANIFEST_FIELD', `A repository has no field "${field}"`, {
     hint:
       suggestion === undefined
         ? `Settable fields: ${SETTABLE_REPO_FIELDS.join(', ')}.`
@@ -94,7 +94,7 @@ function findRepo(text: string, repo: string): YAMLMap {
   throw new DevkitError(
     'not_found',
     'REPO_NOT_FOUND',
-    `no repository named "${repo}" in the manifest`,
+    `No repository named "${repo}" in the manifest`,
     {
       hint:
         suggestion === undefined
@@ -111,7 +111,7 @@ function replace(text: string, pair: Pair, value: string): EditResult {
     throw new DevkitError(
       'usage',
       'MANIFEST_SET_UNSUPPORTED',
-      'the field is not a scalar in this manifest; edit it by hand',
+      'The field is not a scalar in this manifest; edit it by hand',
       {
         nextSteps: ['Edit manifest/workspace.yaml directly, then run fx manifest validate.'],
       },
@@ -186,7 +186,7 @@ function add(
     throw new DevkitError(
       'usage',
       'MANIFEST_SET_UNSUPPORTED',
-      'cannot add a field to a flow-style entry; edit it by hand',
+      'Cannot add a field to a flow-style entry; edit it by hand',
       {
         nextSteps: ['Edit manifest/workspace.yaml directly, then run fx manifest validate.'],
       },
@@ -241,7 +241,7 @@ function verify(
     throw new DevkitError(
       'internal',
       'EDIT_PRODUCED_INVALID_YAML',
-      `editing ${repo}.${field} did not read back as written; nothing was changed`,
+      `Editing ${repo}.${field} did not read back as written; nothing was changed`,
       {
         nextSteps: ['Edit manifest/workspace.yaml by hand and report this.'],
       },

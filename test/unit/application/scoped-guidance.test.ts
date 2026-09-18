@@ -64,7 +64,7 @@ it('identifies materialized candidates without redirecting validation to the reg
     ),
   ).rejects.toMatchObject({
     code: 'MANIFEST_INVALID',
-    message: expect.stringContaining('Inspected source: /personal/source.rebind-fixture.'),
+    message: expect.stringContaining('Inspected source: /personal/source.rebind-fixture'),
     nextSteps: [
       'fx workspace rebind alpha --from https://git.example.com/team/candidate.git --dry-run',
     ],

@@ -194,7 +194,7 @@ function assertResumeSelection(input: PushSourceInput, operation: ContributionOp
     throw new DevkitError(
       'conflict',
       'SOURCE_RECOVERY_REQUIRED',
-      'Resume with the original path selection or use --new.',
+      'Resume with the original path selection or use --new',
       {
         nextSteps: [
           `Re-run with the recorded paths: ${operation.paths.join(' ')}`,
@@ -225,7 +225,7 @@ function operationInvalidError(dir: string, operation: ContributionOperation): D
   return new DevkitError(
     'conflict',
     'SOURCE_OPERATION_INVALID',
-    'The recorded commit no longer matches the prepared contribution.',
+    'The recorded commit no longer matches the prepared contribution',
     {
       nextSteps: [
         `git -C ${dir} show --stat ${operation.commit ?? operation.tree}`,
@@ -239,7 +239,7 @@ function snapshotChangedError(dir: string, operation: ContributionOperation): De
   return new DevkitError(
     'conflict',
     'SOURCE_SNAPSHOT_CHANGED',
-    'Prepared source content changed; review a new contribution.',
+    'Prepared source content changed; review a new contribution',
     {
       nextSteps: [
         `git -C ${dir} diff -- ${operation.paths.join(' ')}`,
@@ -253,7 +253,7 @@ export function diverged(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_REMOTE_DIVERGED',
-    'The contribution branch advanced outside this operation.',
+    'The contribution branch advanced outside this operation',
     { nextSteps: ['Review the remote branch and use --new for a separate contribution.'] },
   );
 }
@@ -262,7 +262,7 @@ function associationInvalid(): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_PR_ASSOCIATION_INVALID',
-    'The known PR does not match this recorded contribution.',
+    'The known PR does not match this recorded contribution',
     { nextSteps: ['Verify the PR repository, source branch and target before using --pr.'] },
   );
 }

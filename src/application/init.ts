@@ -339,7 +339,7 @@ function nameTaken(
   return new DevkitError(
     'conflict',
     'WORKSPACE_NAME_TAKEN',
-    `workspace "${name}" is already registered at ${existing.root}`,
+    `Workspace "${name}" is already registered at ${existing.root}`,
     {
       hint: 'If the directory moved, relocate its existing identity; otherwise initialize the registered directory.',
       nextSteps: [
@@ -354,7 +354,7 @@ function sourceMismatch(name: string, recorded: string, source: ManifestSource):
   return new DevkitError(
     'conflict',
     'SOURCE_MISMATCH',
-    `workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
+    `Workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
     {
       hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
       nextSteps: [

@@ -64,7 +64,7 @@ function invalidIdentity(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_IDENTITY_UNVERIFIED',
-    'The companion did not return a complete matching repository identity.',
+    'The companion did not return a complete matching repository identity',
     { nextSteps: ['fx doctor', 'Update the code-host companion and verify repository access.'] },
   );
 }

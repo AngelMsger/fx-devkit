@@ -40,7 +40,7 @@ export function findKey(name: string): Key {
     suggestion === undefined
       ? `Known keys: ${KEYS.map((k) => k.name).join(', ')}.`
       : `Did you mean "${suggestion}"?`;
-  throw new DevkitError('usage', 'CONFIG_KEY_UNKNOWN', `unknown config key "${name}"`, {
+  throw new DevkitError('usage', 'CONFIG_KEY_UNKNOWN', `Unknown config key "${name}"`, {
     hint,
     nextSteps: ['fx config list'],
   });

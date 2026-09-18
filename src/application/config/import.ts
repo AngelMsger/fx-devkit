@@ -104,7 +104,7 @@ export class ConfigImport {
         throw new DevkitError(
           'config',
           'CONFIG_IMPORT_WORKSPACE_UNKNOWN',
-          `The profile contains a personal layer for unregistered workspace "${name}".`,
+          `The profile contains a personal layer for unregistered workspace "${name}"`,
           {
             nextSteps: [
               'fx workspace list',

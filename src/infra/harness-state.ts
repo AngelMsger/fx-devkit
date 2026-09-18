@@ -141,7 +141,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'HARNESS_STATE_INVALID',
-    'Harness ownership metadata is invalid or foreign.',
+    'Harness ownership metadata is invalid or foreign',
     {
       nextSteps: ['Inspect the workspace harness metadata before retrying.', 'fx doctor'],
       hint: 'Do not delete ownership evidence to force replacement of existing native configuration.',

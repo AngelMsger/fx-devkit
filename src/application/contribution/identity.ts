@@ -25,7 +25,7 @@ export async function assertContributionIdentity(
     throw new DevkitError(
       'conflict',
       'WORKSPACE_PLAN_CHANGED',
-      'The registered source identity changed after contribution planning.',
+      'The registered source identity changed after contribution planning',
       {
         hint: 'Inspect the current workspace and preview the contribution again before retrying.',
         nextSteps: [shellLine(['fx', 'workspace', 'show', deps.source.workspace])],

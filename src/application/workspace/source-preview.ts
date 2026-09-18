@@ -31,7 +31,7 @@ export async function inspectRebindSource(
         throw new DevkitError(
           'not_found',
           'MANIFEST_SOURCE_INVALID',
-          'The local source contains no workspace.yaml.',
+          'The local source contains no workspace.yaml',
           { nextSteps: ['fx workspace rebind --help'] },
         );
       inspection = {

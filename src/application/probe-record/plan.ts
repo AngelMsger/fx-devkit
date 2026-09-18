@@ -99,7 +99,7 @@ async function readDocuments(deps: RecordProbeDeps) {
     throw new DevkitError(
       'config',
       'PROBE_RECORD_FILE_UNSAFE',
-      'Recording requires regular source manifest files.',
+      'Recording requires regular source manifest files',
       {
         nextSteps: [
           `Replace the symbolic links or missing files under ${root} with the regular manifest documents ${MANIFEST_FILES.workspace} and ${MANIFEST_FILES.environments}.`,
@@ -180,7 +180,7 @@ export function assertSafeNote(text: string): void {
     throw new DevkitError(
       'config',
       'PROBE_RECORD_SENSITIVE',
-      'The probe note contains protected content and cannot be recorded.',
+      'The probe note contains protected content and cannot be recorded',
       {
         nextSteps: [
           'Remove credentials, personal names and email addresses from the probe note, then run the probe again.',
@@ -193,7 +193,7 @@ function inputRequired(repo: string): DevkitError {
   return new DevkitError(
     'usage',
     'PROBE_RECORD_INPUT_REQUIRED',
-    'Recording requires --probe, --env and --platform.',
+    'Recording requires --probe, --env and --platform',
     {
       nextSteps: [`fx where ${repo} --env <env> --platform <platform> --probe --record --dry-run`],
     },
@@ -204,7 +204,7 @@ export function changed(): DevkitError {
   return new DevkitError(
     'conflict',
     'PROBE_RECORD_CHANGED',
-    'Source documents or probe inputs changed; the result was not recorded.',
+    'Source documents or probe inputs changed; the result was not recorded',
     { nextSteps: ['Review the current source and run the probe again.'] },
   );
 }
@@ -213,7 +213,7 @@ function invalid(): DevkitError {
   return new DevkitError(
     'config',
     'PROBE_RECORD_MANIFEST_INVALID',
-    'The source manifest must pass schema validation before recording.',
+    'The source manifest must pass schema validation before recording',
     { nextSteps: ['fx manifest validate', 'Fix the reported problems in the source, then retry.'] },
   );
 }
@@ -223,7 +223,7 @@ function assertShared(origin: string): void {
     throw new DevkitError(
       'usage',
       'PROBE_RECORD_SCOPE_INVALID',
-      'Only shared repository coordinates can be recorded in the manifest.',
+      'Only shared repository coordinates can be recorded in the manifest',
       {
         nextSteps: [
           'fx repo list',

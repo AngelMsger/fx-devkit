@@ -61,7 +61,7 @@ export class Where {
 
   async execute(input: WhereInput): Promise<WhereRow[]> {
     if (input.probe && input.env === undefined) {
-      throw new DevkitError('usage', 'ENV_REQUIRED', 'probing asks a real platform; pass --env', {
+      throw new DevkitError('usage', 'ENV_REQUIRED', 'Probing asks a real platform; pass --env', {
         hint: 'Environments are listed by `fx env list`.',
         nextSteps: [
           workspaceCommand(this.deps, 'env', 'list'),

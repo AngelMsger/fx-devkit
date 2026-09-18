@@ -41,7 +41,7 @@ describe('member who / list / owners', () => {
     ]);
     expect(h.cache.entries.size).toBe(0);
     expect(h.reporter.notices.map((n) => n.code)).not.toContain('PERSON');
-    expect(() => new MemberShow(h.deps).execute('carol')).toThrow(/nobody/);
+    expect(() => new MemberShow(h.deps).execute('carol')).toThrow(/Nobody/);
   });
 
   it('lists people with their areas, filtered by area or status', async () => {

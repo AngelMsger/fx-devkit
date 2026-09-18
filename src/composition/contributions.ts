@@ -96,7 +96,7 @@ function codeHostFromBase(
     throw new DevkitError(
       'config',
       'SOURCE_BASE_MANIFEST_INVALID',
-      'The committed source cannot supply valid provider configuration.',
+      'The committed source cannot supply valid provider configuration',
       {
         nextSteps: [
           'fx manifest validate',
@@ -117,7 +117,7 @@ function notGit(): DevkitError {
   return new DevkitError(
     'config',
     'SOURCE_NOT_GIT',
-    'The registered source must be its own Git checkout, not a directory source or foreign link.',
+    'The registered source must be its own Git checkout, not a directory source or foreign link',
     { nextSteps: ['Register the workspace from its manifest repository URL.'] },
   );
 }

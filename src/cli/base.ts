@@ -97,7 +97,7 @@ export abstract class FxCommand extends Command {
       parseBoolean(resolveKey('update_check', { env: process.env, file }).value) !== false;
     const format = resolveKey('format', { flag: flags.format, env: process.env, file }).value;
     if (format !== undefined && !isFormat(format)) {
-      throw new DevkitError('config', 'CONFIG_INVALID', `unknown output format "${format}"`, {
+      throw new DevkitError('config', 'CONFIG_INVALID', `Unknown output format "${format}"`, {
         hint: `Choose one of: human, json, ndjson.`,
         nextSteps: ['fx config set format human', 'Unset FX_FORMAT if it supplies this value.'],
       });

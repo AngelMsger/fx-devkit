@@ -36,7 +36,7 @@ export class SelfUpdate {
       throw new DevkitError(
         'config',
         'REGISTRY_UNKNOWN',
-        'No private update registry is configured.',
+        'No private update registry is configured',
         {
           hint: 'Check the installed distribution and FX_REGISTRY override; follow the registry setup handoff.',
           nextSteps: ['fx self info'],
@@ -49,18 +49,13 @@ export class SelfUpdate {
       update: true,
     });
     if (!vector)
-      throw new DevkitError(
-        'config',
-        'REGISTRY_UNKNOWN',
-        'The installer cannot plan this update.',
-        {
-          nextSteps: ['fx self info', `Update ${input.packageName} with your package manager.`],
-        },
-      );
+      throw new DevkitError('config', 'REGISTRY_UNKNOWN', 'The installer cannot plan this update', {
+        nextSteps: ['fx self info', `Update ${input.packageName} with your package manager.`],
+      });
     if (input.dryRun) return { vector, ran: false, code: null, reason: 'dry run' };
     assertWritable(input.posture, 'self update');
     if (!(await this.installer.available()))
-      throw new DevkitError('config', 'TOOL_MISSING', 'The self-update installer is unavailable.', {
+      throw new DevkitError('config', 'TOOL_MISSING', 'The self-update installer is unavailable', {
         nextSteps: ['Install npm or add it to PATH, then retry.'],
         handoff: {
           summary: 'The package installer is missing.',

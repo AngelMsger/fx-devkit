@@ -22,7 +22,7 @@ export function sourceValidationError(error: unknown, context: SourceErrorContex
   return new DevkitError(
     failure.category,
     failure.code,
-    `${failure.message}\nCandidate source: ${context.source.description}.${context.inspected === undefined ? '' : ` Inspected source: ${location}.`}`,
+    `${failure.message}\nCandidate source: ${context.source.description}${context.inspected === undefined ? '' : `\nInspected source: ${location}`}`,
     {
       hint: `${correction(context, location)}${preserved} ${failure.hint}`,
       nextSteps: [shellLine(context.retry, context.commandShell)],

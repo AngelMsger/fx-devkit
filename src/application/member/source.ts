@@ -12,7 +12,7 @@ export function membersOf(ctx: WorkspaceContext): Members {
     throw new DevkitError(
       'not_found',
       'MEMBERS_MISSING',
-      'this workspace has no manifest/members.yaml',
+      'This workspace has no manifest/members.yaml',
       {
         hint: 'The members document is private to the team and lives only in the workspace manifest.',
         nextSteps: ['fx manifest explain people --kind members'],

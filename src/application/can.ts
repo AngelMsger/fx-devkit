@@ -35,7 +35,7 @@ export class Can {
 
   async execute(input: CanInput): Promise<CanResult> {
     if (input.agent)
-      throw new DevkitError('usage', 'BAD_FLAG', '--agent is only valid for mcp:<name>.', {
+      throw new DevkitError('usage', 'BAD_FLAG', '--agent is only valid for mcp:<name>', {
         nextSteps: ['fx can --help'],
       });
     const readiness = new Readiness(this.deps, this.login);

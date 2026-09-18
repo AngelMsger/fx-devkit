@@ -116,7 +116,7 @@ function refuseCollisions(repos: readonly ResolvedRepo[]): void {
   throw new DevkitError(
     'config',
     'LOCAL_INVALID',
-    `the personal layer collides with the shared registry: ${collisions.join('; ')}`,
+    `The personal layer collides with the shared registry: ${collisions.join('; ')}`,
     {
       hint: 'local.yaml may only add repositories the manifest does not have, at paths nothing else uses.',
       nextSteps: ['fx repo list', 'fx self info'],

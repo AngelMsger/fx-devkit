@@ -43,7 +43,7 @@ export default class WhereCommand extends FxCommand {
       throw new DevkitError(
         'usage',
         'PROBE_RECORD_INPUT_REQUIRED',
-        '--dry-run on where requires --record; use --no-check for a query without live checks.',
+        '--dry-run on where requires --record; use --no-check for a query without live checks',
         {
           nextSteps: [
             `fx where ${args.repo} --env <env> --platform <platform> --probe --record --dry-run`,
