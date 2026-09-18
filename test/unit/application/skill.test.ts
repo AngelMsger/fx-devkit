@@ -13,6 +13,7 @@ import { loadTools } from '../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../src/domain/toolchain/resolve.js';
 import { FakeAgentHost } from '../../fakes/fake-agent-host.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { FakeLock } from '../../fakes/fake-lock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR, ROOT } from '../../fakes/workspace.js';
@@ -44,7 +45,12 @@ async function setup(extra: Record<string, string> = {}) {
       ...extra,
     },
   });
-  const skills = { hosts: agents, configured: undefined, bundledSkillDir: bundledSkill.dir };
+  const skills = {
+    hosts: agents,
+    configured: undefined,
+    bundledSkillDir: bundledSkill.dir,
+    globalLock: new FakeLock(),
+  };
   return { h, skills };
 }
 
@@ -247,7 +253,12 @@ describe('SkillStage: the team link', () => {
 
   it('prunes an fx link whose source is gone and leaves foreign entries alone with a notice', async () => {
     const h = await harness({ files: bundledSkill.files });
-    const skills = { hosts: agents, configured: undefined, bundledSkillDir: bundledSkill.dir };
+    const skills = {
+      hosts: agents,
+      configured: undefined,
+      bundledSkillDir: bundledSkill.dir,
+      globalLock: new FakeLock(),
+    };
     await h.fs.link(teamSkills, claudeLink);
     // A per-Skill link is from before team Skills became one link: not fx's.
     await h.fs.link(teamSkill, codexLink);
@@ -301,6 +312,7 @@ describe('SkillStage: the team link', () => {
       hosts: [shared, copilot],
       configured: undefined,
       bundledSkillDir: bundledSkill.dir,
+      globalLock: new FakeLock(),
     }).execute({ dryRun: false, posture: writable });
     expect(out.links).toEqual([
       expect.objectContaining({
@@ -317,6 +329,7 @@ describe('SkillStage: the team link', () => {
       hosts: agents,
       configured: undefined,
       bundledSkillDir: bundledSkill.dir,
+      globalLock: new FakeLock(),
     }).execute({ dryRun: false, posture: writable });
     expect(out.links.map((i) => i.action)).toEqual(['skip', 'skip']);
     expect(h.fs.links.size).toBe(0);

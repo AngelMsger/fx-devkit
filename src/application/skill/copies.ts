@@ -25,7 +25,7 @@ export async function canonicalSkillPath(fs: FileSystem, target: string): Promis
 
 export async function withSkillLock<T>(
   fs: FileSystem,
-  lock: Lock | undefined,
+  lock: Lock,
   target: string,
   work: (canonical: string) => Promise<T>,
 ): Promise<T> {
@@ -38,12 +38,12 @@ export async function withSkillLock<T>(
 
 async function lockedSkillWork<T>(
   fs: FileSystem,
-  lock: Lock | undefined,
+  lock: Lock,
   target: string,
   work: (canonical: string) => Promise<T>,
 ): Promise<T> {
   const canonical = await canonicalSkillPath(fs, target);
-  const lease = await lock?.acquire({ key: `skill:${pathKey(canonical)}`, waitMs: 2000 });
+  const lease = await lock.acquire({ key: `skill:${pathKey(canonical)}`, waitMs: 2000 });
   if (lease === null)
     throw busyError('SKILL_BUSY', 'The Skill', {
       nextSteps: ['Retry the Skill command after the other update completes.'],
