@@ -1,4 +1,5 @@
-// Evaluate the release checklist in a fixed order, retaining failed or unavailable checks as findings.
+// Evaluate the release checklist, retaining failed or unavailable checks as findings.
+// Checks run concurrently; the fixed order is the report's, not the execution's.
 // Selection and gate warming follow docs/design/release.md, "Selection and order".
 
 import { DevkitError } from '../../domain/errors.js';
