@@ -184,8 +184,12 @@ source or package metadata. Use Apache-2.0 consistently in both distributions.
 
 Private registry coordinates come from `FX_REGISTRY` or Jenkins Managed npmrc,
 not package metadata; the public package defaults to npmjs. Keep the
-shared registry policy as the checked JavaScript implementation used by scripts
-and compiled adapters. Publishing uses `scripts/publish.mjs`; the lifecycle guard
+shared registry policy and version grammar as the checked JavaScript
+implementations used by scripts and compiled adapters, so a release gate that
+runs before the build decides the same way fx does. Delivery scripts belong to
+the type-checked project and the full rule set; JavaScript opts in per file
+with `// @ts-check`, because generated output is in the same program.
+Publishing uses `scripts/publish.mjs`; the lifecycle guard
 rejects direct publication. Package file lists own scanner coverage. Remotes,
 tags and publication remain separate task effects; see the
 [registry contract](docs/design/registry-configuration.md).

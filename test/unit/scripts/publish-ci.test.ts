@@ -34,6 +34,7 @@ function fixture() {
     'scripts/check-release.mjs',
     'src/adapters/registry/registry-policy.js',
     'src/domain/distribution.js',
+    'src/domain/semver.js',
   ])
     writeFileSync(path.join(root, file), readFileSync(file));
   const output = path.join(root, 'publish.json');
@@ -101,6 +102,8 @@ describe('Jenkins Managed npmrc publication', () => {
     const f = fixture();
     expect(f.run({ TAG_NAME: 'v0.1.0' }, 'check-release.mjs').status).toBe(0);
     expect(f.run({ TAG_NAME: 'v0.2.0' }, 'check-release.mjs').status).toBe(1);
+    expect(f.run({ TAG_NAME: 'release-1' }, 'check-release.mjs').status).toBe(1);
+    expect(f.run({ TAG_NAME: 'v0.1.0-rc.1' }, 'check-release.mjs').status).toBe(1);
     expect(f.run({ TAG_NAME: '', BRANCH_NAME: 'main' }, 'check-release.mjs').status).toBe(0);
     expect(f.run({ TAG_NAME: '', BRANCH_NAME: 'feature/test' }, 'check-release.mjs').status).toBe(
       1,
