@@ -1,6 +1,5 @@
 // Proposed selections must remain valid when aliases and not-yet-created checkout leaves are resolved.
-import { mkdirSync, mkdtempSync, symlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -8,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { validateWorkspaceLayer } from '../../../../src/application/workspace/validate-layer.js';
 import type { Workspace } from '../../../../src/domain/manifest/types.js';
+import { tempDir } from '../../../temp.js';
 
 const shared: Workspace = {
   schema_version: 2,
@@ -17,7 +17,7 @@ const shared: Workspace = {
 
 describe('physical layer validation', () => {
   it('detects overlapping missing leaves reached through a symlink parent', async () => {
-    const base = mkdtempSync(path.join(tmpdir(), 'fx-layer-'));
+    const base = tempDir('fx-layer-');
     const root = path.join(base, 'root');
     const external = path.join(base, 'external');
     mkdirSync(root);
@@ -40,7 +40,7 @@ describe('physical layer validation', () => {
   });
 
   it('rejects a physical ancestor of the workspace reached through another path', async () => {
-    const base = mkdtempSync(path.join(tmpdir(), 'fx-layer-'));
+    const base = tempDir('fx-layer-');
     const root = path.join(base, 'root');
     const alias = path.join(base, 'alias');
     mkdirSync(root);

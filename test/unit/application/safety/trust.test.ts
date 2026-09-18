@@ -1,5 +1,3 @@
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -11,6 +9,7 @@ import { FileTrustStore } from '../../../../src/infra/trust-store.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
+import { tempDir } from '../../../temp.js';
 
 const vector = ['bitbucket-cli', 'auth', 'status'];
 const writable = { readOnly: false, source: 'default' } as const;
@@ -195,7 +194,7 @@ describe('TrustGate', () => {
 
 describe('FileTrustStore', () => {
   it('retains every concurrently approved vector after reopening the store', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-trust-concurrent-'));
+    const home = tempDir('fx-trust-concurrent-');
     const store = new FileTrustStore(home, new FakeClock(), new FileLock(home));
     const vectors = Array.from({ length: 20 }, (_, i) => fingerprint(['tool', String(i)]));
     await Promise.all(vectors.map((key, i) => store.trust('fx', key, `tool ${i}`)));
@@ -206,7 +205,7 @@ describe('FileTrustStore', () => {
   });
 
   it('round-trips fingerprints per workspace in trust.yaml', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-home-'));
+    const home = tempDir('fx-home-');
     const store = new FileTrustStore(home, new FakeClock(), new FileLock(home));
     expect(await store.isTrusted('fx', 'abc')).toBe(false);
     await store.trust('fx', 'abc', 'bitbucket-cli auth');

@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -14,6 +13,7 @@ import { TerminalPrompter } from '../../../src/adapters/prompter/terminal.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeGit } from '../../fakes/fake-git.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { tempDir } from '../../temp.js';
 
 const git = (args: string[], cwd: string): string =>
   execFileSync('git', args, {
@@ -147,7 +147,7 @@ describe('stdin bundle validation', () => {
 
 describe('GitRepoSource against real git', () => {
   it('clones with upstream as the remote, fast-forwards a clean default branch, and keeps a branch the person is on', async () => {
-    const base = mkdtempSync(path.join(tmpdir(), 'fx-src-'));
+    const base = tempDir('fx-src-');
     const bare = path.join(base, 'workspace.git');
     const author = path.join(base, 'author');
     git(['init', '--quiet', '--bare', '-b', 'main', bare], base);
@@ -196,7 +196,7 @@ describe('GitRepoSource against real git', () => {
   });
 
   it('reports an unreachable repository as a network error', async () => {
-    const root = path.join(mkdtempSync(path.join(tmpdir(), 'fx-src-')), 'ws');
+    const root = path.join(tempDir('fx-src-'), 'ws');
     const process = new NodeProcess();
     await expect(
       new GitRepoSource('/nonexistent/x.git', process, new SystemGit(process)).materialize(root),

@@ -2,23 +2,22 @@
 import {
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FileCache } from '../../../src/infra/cache.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { tempDir } from '../../temp.js';
 
 describe('FileCache', () => {
   it('round-trips within the ttl and forgets past it', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-cache-'));
+    const home = tempDir('fx-cache-');
     const clock = new FakeClock();
     const cache = new FileCache(home, clock);
     await cache.set('update/fx', { a: 1 }, 1000);
@@ -28,12 +27,12 @@ describe('FileCache', () => {
   });
 
   it('is a miss, not an error, when the cache is not a directory or the entry is not a regular file', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-cache-'));
+    const home = tempDir('fx-cache-');
     writeFileSync(path.join(home, 'cache'), 'not a directory');
     const blocked = new FileCache(home, new FakeClock());
     await expect(blocked.set('k', 1, 1000)).resolves.toBeUndefined();
     expect(await blocked.get('k')).toBeUndefined();
-    const other = mkdtempSync(path.join(tmpdir(), 'fx-cache-'));
+    const other = tempDir('fx-cache-');
     mkdirSync(path.join(other, 'cache', 'k.json'), { recursive: true });
     const dirEntry = new FileCache(other, new FakeClock());
     expect(await dirEntry.get('k')).toBeUndefined();
@@ -43,7 +42,7 @@ describe('FileCache', () => {
   it.skipIf(process.platform === 'win32')(
     'never follows a symlink: a linked entry is replaced, not written through, and a linked directory is left alone',
     async () => {
-      const home = mkdtempSync(path.join(tmpdir(), 'fx-cache-'));
+      const home = tempDir('fx-cache-');
       const outside = path.join(home, 'outside.txt');
       writeFileSync(outside, 'precious');
       mkdirSync(path.join(home, 'cache'));
@@ -55,8 +54,8 @@ describe('FileCache', () => {
       expect(lstatSync(path.join(home, 'cache', 'k.json')).isSymbolicLink()).toBe(false);
       expect(await cache.get('k')).toBe(1);
 
-      const linked = mkdtempSync(path.join(tmpdir(), 'fx-cache-'));
-      const elsewhere = mkdtempSync(path.join(tmpdir(), 'fx-elsewhere-'));
+      const linked = tempDir('fx-cache-');
+      const elsewhere = tempDir('fx-elsewhere-');
       symlinkSync(elsewhere, path.join(linked, 'cache'));
       const throughLink = new FileCache(linked, new FakeClock());
       await throughLink.set('k', 1, 1000);

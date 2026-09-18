@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { SystemGit } from '../../../src/adapters/git/system-git.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { tempDir } from '../../temp.js';
 
 const git = (args: string[], cwd: string): string =>
   execFileSync('git', args, {
@@ -24,7 +25,7 @@ const git = (args: string[], cwd: string): string =>
 
 // A bare upstream with one commit on `dev`, plus a scratch clone to push from.
 function upstream(): { bare: string; work: string } {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-git-'));
+  const root = tempDir('fx-git-');
   const bare = path.join(root, 'a.git');
   const work = path.join(root, 'work');
   git(['init', '--bare', '-b', 'dev', bare], root);
@@ -141,7 +142,7 @@ describe('SystemGit against real git', () => {
 
   it('clones with both remotes and reports a clean tracked checkout', async () => {
     const { bare } = upstream();
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, origin: `${bare}-fork`, branch: 'dev' });
     expect(await sut.remotes(dir)).toEqual({ upstream: bare, origin: `${bare}-fork` });
     expect(await sut.status(dir, 'upstream/dev')).toEqual({
@@ -157,7 +158,7 @@ describe('SystemGit against real git', () => {
 
   it('distinguishes dirty tracked changes from untracked files', async () => {
     const { bare } = upstream();
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, branch: 'dev' });
     writeFileSync(path.join(dir, 'new.txt'), 'x');
     expect(await sut.status(dir)).toMatchObject({ dirty: false, untracked: 1 });
@@ -167,7 +168,7 @@ describe('SystemGit against real git', () => {
 
   it('fast-forwards a clean checkout on the tracked branch', async () => {
     const { bare, work } = upstream();
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, branch: 'dev' });
     expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('up_to_date');
     advance(work, 'two');
@@ -179,7 +180,7 @@ describe('SystemGit against real git', () => {
 
   it('moves only the branch ref when the checkout sits on another branch', async () => {
     const { bare, work } = upstream();
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, branch: 'dev' });
     git(['checkout', '-q', '-b', 'feature/x'], dir);
     writeFileSync(path.join(dir, 'wip'), 'wip');
@@ -193,7 +194,7 @@ describe('SystemGit against real git', () => {
 
   it('reports a diverged branch and changes nothing', async () => {
     const { bare, work } = upstream();
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, branch: 'dev' });
     writeFileSync(path.join(dir, 'local'), 'local');
     git(['add', '.'], dir);
@@ -207,7 +208,7 @@ describe('SystemGit against real git', () => {
   });
 
   it('classifies an absent local clone source as not found', async () => {
-    const dir = path.join(mkdtempSync(path.join(tmpdir(), 'fx-ws-')), 'a');
+    const dir = path.join(tempDir('fx-ws-'), 'a');
     await expect(
       sut.clone({ dir, upstream: '/nonexistent/repo.git', branch: 'dev' }),
     ).rejects.toMatchObject({

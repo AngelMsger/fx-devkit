@@ -3,31 +3,20 @@
 // non-interactive.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll } from 'vitest';
-
 import { mergeEnvironment } from '../../src/adapters/process/executable.js';
 import { manifestSourceDir } from '../../src/infra/workspace-home.js';
+import { tempDir } from '../temp.js';
+
+export { tempDir };
 
 const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../bin/fx.js');
 export const packageName: string = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 ).name;
-
-// Every directory a test file creates lives under one root that the file
-// removes when it finishes, so a run leaves nothing in the system temporary
-// directory. Vitest isolates modules per file, so each file gets its own.
-const sessionRoot = mkdtempSync(path.join(tmpdir(), 'fx-e2e-'));
-afterAll(() => rmSync(sessionRoot, { recursive: true, force: true }));
-
-// The prefix carries its own separator: mkdtemp appends six random characters.
-export function tempDir(prefix: string): string {
-  return mkdtempSync(path.join(sessionRoot, prefix));
-}
 
 // One home per test file: agent detection and Skill links never reach the person's own.
 export const userHome = tempDir('fx-user-home-');

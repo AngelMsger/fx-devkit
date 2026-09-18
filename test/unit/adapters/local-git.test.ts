@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -9,10 +8,11 @@ import { LocalGitCodeHost } from '../../../src/adapters/code-host/local-git/prov
 import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { tempDir } from '../../temp.js';
 
 describe('LocalGitCodeHost', () => {
   it('reads, forks idempotently and derives URLs inside its directory', async () => {
-    const host = mkdtempSync(path.join(tmpdir(), 'fx-host-'));
+    const host = tempDir('fx-host-');
     mkdirSync(path.join(host, 'fx'));
     execFileSync('git', ['init', '--quiet', '--bare', path.join(host, 'fx', 'a.git')]);
     const sut = new LocalGitCodeHost(

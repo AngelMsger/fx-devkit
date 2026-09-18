@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -10,6 +9,7 @@ import { createContainer } from '../../../../src/composition/container.js';
 import { workspaceManagement } from '../../../../src/composition/workspace-management.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { tempDir } from '../../../temp.js';
 
 const writable = { readOnly: false, source: 'default' } as const;
 const manifest = readFileSync(
@@ -17,7 +17,7 @@ const manifest = readFileSync(
   'utf8',
 );
 async function setup() {
-  const home = mkdtempSync(path.join(tmpdir(), 'fx-identity-'));
+  const home = tempDir('fx-identity-');
   const base = createContainer({ FX_HOME: home });
   const root = path.join(home, 'root');
   await base.fs.writeText(path.join(root, 'business.txt'), 'keep');

@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -9,6 +8,7 @@ import { LocalGitCodeHost } from '../../../src/adapters/code-host/local-git/prov
 import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { tempDir } from '../../temp.js';
 
 const ref = { project: 'fx', name: 'a' };
 const identity = {
@@ -23,7 +23,7 @@ const git = (args: string[], cwd: string): string =>
 
 // A bare repository whose `main` has one commit and whose `dev` has one more.
 function seed(): { sut: LocalGitCodeHost; devHead: string; mainHead: string } {
-  const host = mkdtempSync(path.join(tmpdir(), 'fx-host-'));
+  const host = tempDir('fx-host-');
   mkdirSync(path.join(host, 'fx'));
   const bare = path.join(host, 'fx', 'a.git');
   git(['init', '--quiet', '--bare', '-b', 'main', bare], host);
