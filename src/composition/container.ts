@@ -16,6 +16,9 @@ import { NodeProcess } from '../adapters/process/node-process.js';
 import { SystemUrlOpener } from '../adapters/process/url-opener.js';
 import { TerminalPrompter } from '../adapters/prompter/terminal.js';
 import { NpmHttpRegistry } from '../adapters/registry/npm-http.js';
+import type { LoginDeps } from '../application/login/deps.js';
+import type { WritePosture } from '../application/safety/posture.js';
+import type { TrustGate } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
@@ -197,6 +200,27 @@ export async function codeHostFor(
     { capability: 'code-host', provider: 'local-git', source: 'default', vars: { host } },
     { process: container.process, fs: container.fs, clock: container.clock },
   );
+}
+
+export interface LoginDepsInput {
+  readonly container: Container;
+  // The caller owns the gate: a second one would ask the same question again.
+  readonly gate: TrustGate;
+  readonly noInput: boolean;
+  readonly yes: boolean;
+  readonly posture: WritePosture;
+}
+
+// The bundle every login-aware use case receives, whether a person or a
+// background hook started it.
+export function loginDeps(input: LoginDepsInput): LoginDeps {
+  return {
+    describeProvider: input.container.describeProvider,
+    prompter: input.container.prompter(input.noInput),
+    clock: input.container.clock,
+    home: input.container.userHome,
+    trust: { gate: input.gate, yes: input.yes, posture: input.posture },
+  };
 }
 
 export function skillDeps(

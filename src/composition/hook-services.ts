@@ -18,7 +18,7 @@ import type { Lease } from '../ports/lock.js';
 import type { Reporter } from '../ports/reporter.js';
 
 import type { PackageMetadata } from './bundled.js';
-import { skillDeps, workspaceDeps, type Container } from './container.js';
+import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
 import { manageHarness } from './harness-stages.js';
 import { hookDeps } from './hooks.js';
 import { manifestSourceFor } from './manifest-sources.js';
@@ -214,15 +214,11 @@ async function checks(s: Services): Promise<readonly HookObservation[]> {
 }
 
 function createLogin(container: Container): LoginDeps {
-  return {
-    describeProvider: container.describeProvider,
-    prompter: container.prompter(true),
-    clock: container.clock,
-    home: container.userHome,
-    trust: {
-      gate: new TrustGate(container.trust, container.prompter(true), container.clock),
-      yes: false,
-      posture: { readOnly: false, source: 'default' },
-    },
-  };
+  return loginDeps({
+    container,
+    gate: new TrustGate(container.trust, container.prompter(true), container.clock),
+    noInput: true,
+    yes: false,
+    posture: { readOnly: false, source: 'default' },
+  });
 }

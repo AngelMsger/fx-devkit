@@ -16,7 +16,7 @@ import type { ResolvedShell } from '../domain/shell.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 import type { Reporter } from '../ports/reporter.js';
 
-import { skillDeps, workspaceDeps } from './container.js';
+import { loginDeps, skillDeps, workspaceDeps } from './container.js';
 import { harnessDoctor, harnessStage } from './harness-stages.js';
 import type { HarnessCommandInput } from './harness.js';
 import { hookDoctor, hookStage } from './hooks.js';
@@ -50,13 +50,7 @@ export class CommandServices {
   }
 
   loginDeps(): LoginDeps {
-    return {
-      describeProvider: this.input.container.describeProvider,
-      prompter: this.input.container.prompter(this.input.noInput),
-      clock: this.input.container.clock,
-      home: this.input.container.userHome,
-      trust: { gate: this.input.trust, yes: this.input.yes, posture: this.input.posture },
-    };
+    return loginDeps({ ...this.input, gate: this.input.trust });
   }
 
   initDeps(): InitDeps {
