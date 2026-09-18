@@ -5,7 +5,7 @@
 
 import { Command, Errors } from '@oclif/core';
 
-import { resolveKey } from '../application/config/resolve.js';
+import { readSettings } from '../application/config/settings.js';
 import type { DoctorExtension } from '../application/doctor/types.js';
 import type { InitDeps } from '../application/init.js';
 import type { LoginDeps } from '../application/login/deps.js';
@@ -37,7 +37,6 @@ import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
 import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
-import { parseBoolean, parseList } from '../domain/values.js';
 import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
@@ -81,21 +80,17 @@ export abstract class FxCommand extends Command {
     const spec = this.constructor as typeof FxCommand & { flags?: object; args?: object };
     const { flags } = await this.parse({ ...spec, baseFlags: globalFlags, strict: false });
     const file = await this.container.config.read();
-    this.commandShell = resolveCommandShell(
-      resolveKey('command_shell', {
-        flag: flags['command-shell'],
-        env: process.env,
-        file,
-      }).value,
-      process.platform === 'win32',
-    );
-    this.configUser = resolveKey('user', { env: process.env, file }).value;
-    this.configAgentList = parseList(resolveKey('agents', { env: process.env, file }).value);
-    this.skillNoticeOn =
-      parseBoolean(resolveKey('skill_notice', { env: process.env, file }).value) !== false;
-    this.updateCheckOn =
-      parseBoolean(resolveKey('update_check', { env: process.env, file }).value) !== false;
-    const format = resolveKey('format', { flag: flags.format, env: process.env, file }).value;
+    const settings = readSettings({
+      env: process.env,
+      file,
+      flags: { command_shell: flags['command-shell'], format: flags.format },
+    });
+    this.commandShell = resolveCommandShell(settings.commandShell, process.platform === 'win32');
+    this.configUser = settings.user;
+    this.configAgentList = settings.agents;
+    this.skillNoticeOn = settings.skillNotice;
+    this.updateCheckOn = settings.updateCheck;
+    const format = settings.format;
     if (format !== undefined && !isFormat(format)) {
       throw new DevkitError('config', 'CONFIG_INVALID', `Unknown output format "${format}"`, {
         hint: `Choose one of: human, json, ndjson.`,

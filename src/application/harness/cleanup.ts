@@ -1,13 +1,12 @@
 // Removes unpicked agents from ownership records while preserving shared resources.
 
 import { asDevkitError } from '../../domain/errors.js';
-import { parseList } from '../../domain/values.js';
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { enabledHosts } from '../agent/list.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
@@ -90,10 +89,7 @@ export class CleanupAgentHarness {
     config: Awaited<ReturnType<ConfigStore['read']>>,
   ) {
     return (
-      await enabledHosts(
-        this.deps.hosts,
-        parseList(resolveKey('agents', { env: input.env, file: config }).value),
-      )
+      await enabledHosts(this.deps.hosts, readSettings({ env: input.env, file: config }).agents)
     )
       .map((host) => host.id)
       .filter((id) => !input.ids.includes(id));

@@ -7,14 +7,13 @@ import path from 'node:path';
 import type { HookRequest } from '../../domain/harness/request.js';
 import { isAtOrInside, samePath } from '../../domain/path.js';
 import { fingerprint } from '../../domain/toolchain/trust.js';
-import { parseBoolean, parseList } from '../../domain/values.js';
 import type { Clock } from '../../ports/clock.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { HookHandler } from '../../ports/hook-handler.js';
 import type { HookTasks } from '../../ports/hook-tasks.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { isEnabled } from '../agent/list.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import { resolvePosture } from '../safety/posture.js';
 
 import { resolveHookHost } from './host.js';
@@ -82,8 +81,8 @@ export async function acceptHook(input: {
     `fx:${fingerprint([request.workspace, root, host.id, request.event]).slice(0, 24)}`
   )
     return false;
-  const configured = parseList(resolveKey('agents', { env, file }).value);
-  if (!isEnabled(host.id, await host.detect(), configured)) return false;
-  if (parseBoolean(resolveKey('hooks', { env, file }).value) === false) return false;
+  const settings = readSettings({ env, file });
+  if (!isEnabled(host.id, await host.detect(), settings.agents)) return false;
+  if (!settings.hooks) return false;
   return (await deps.local.read(request.workspace)).hooks?.enabled !== false;
 }

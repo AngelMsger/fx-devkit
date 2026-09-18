@@ -2,12 +2,11 @@
 // A missing or inaccessible workspace remains a row so cleanup can be retried.
 
 import { asDevkitError } from '../../domain/errors.js';
-import { parseBoolean, parseList } from '../../domain/values.js';
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
@@ -29,6 +28,7 @@ export class CleanupAgentHooks {
     readonly env: NodeJS.ProcessEnv;
   }): Promise<readonly AgentCleanupRow[]> {
     const file = await this.config.read();
+    const settings = readSettings({ env: input.env, file });
     const rows: AgentCleanupRow[] = [];
     for (const [workspace] of Object.entries(file.workspaces ?? {})) {
       let lease: Lease | undefined;
@@ -52,9 +52,8 @@ export class CleanupAgentHooks {
           removeAgents: input.ids,
           dryRun: input.dryRun,
           posture: input.posture,
-          configured: parseList(resolveKey('agents', { env: input.env, file }).value),
-          globalEnabled:
-            parseBoolean(resolveKey('hooks', { env: input.env, file }).value) !== false,
+          configured: settings.agents,
+          globalEnabled: settings.hooks,
         });
         rows.push(
           ...result.items

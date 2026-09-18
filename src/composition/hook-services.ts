@@ -4,7 +4,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveKey } from '../application/config/resolve.js';
+import { readSettings } from '../application/config/settings.js';
 import { DeriveDocs } from '../application/docs/derive.js';
 import { checkLogin } from '../application/doctor/login.js';
 import type { AutomaticSyncDeps } from '../application/hook/automatic-sync.js';
@@ -17,7 +17,6 @@ import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import { WorkspaceContext } from '../application/workspace-context.js';
 import type { HookRequest } from '../domain/harness/request.js';
 import type { HookObservation } from '../domain/harness/state.js';
-import { parseBoolean, parseList } from '../domain/values.js';
 import type { Lease } from '../ports/lock.js';
 import type { Reporter } from '../ports/reporter.js';
 
@@ -103,11 +102,7 @@ export async function createHookServices(input: ServiceInput): Promise<Automatic
 }
 
 async function updatesEnabled(s: Services): Promise<boolean> {
-  return (
-    parseBoolean(
-      resolveKey('update_check', { env: s.env, file: await s.container.config.read() }).value,
-    ) !== false
-  );
+  return readSettings({ env: s.env, file: await s.container.config.read() }).updateCheck;
 }
 
 async function refresh(s: Services): Promise<readonly HookObservation[]> {
@@ -181,7 +176,7 @@ async function skills(s: Services): Promise<readonly HookObservation[]> {
   const file = await s.container.config.read();
   const result = await new SkillStage(
     deps,
-    skillDeps(s.container, parseList(resolveKey('agents', { env: s.env, file }).value)),
+    skillDeps(s.container, readSettings({ env: s.env, file }).agents),
   ).execute({
     dryRun: false,
     posture: s.login.trust.posture,

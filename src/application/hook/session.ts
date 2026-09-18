@@ -1,9 +1,8 @@
 // Resolves workspace hook settings and owns sync and doctor workflow policy.
 import { asDevkitError, handoffEnvelope } from '../../domain/errors.js';
 import { finding } from '../../domain/report.js';
-import { parseBoolean, parseList } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { DoctorExtension } from '../doctor/types.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { StageResult } from '../sync.js';
@@ -28,15 +27,15 @@ export interface ManageHooksInput {
 
 export async function manageHooks(input: ManageHooksInput): Promise<HookOutput> {
   const located = await resolveWorkspace(input.resolve);
-  const file = await input.config.read();
+  const settings = readSettings({ env: input.env, file: await input.config.read() });
   return new ReconcileHooks(input.deps).execute({
     workspace: located.name,
     root: located.root,
     action: input.action,
     posture: input.posture,
     dryRun: input.dryRun,
-    globalEnabled: parseBoolean(resolveKey('hooks', { env: input.env, file }).value) !== false,
-    configured: parseList(resolveKey('agents', { env: input.env, file }).value),
+    globalEnabled: settings.hooks,
+    configured: settings.agents,
   });
 }
 

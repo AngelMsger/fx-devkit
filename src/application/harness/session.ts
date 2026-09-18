@@ -4,12 +4,11 @@ import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { loadHarness } from '../../domain/manifest/loader.js';
-import { parseList } from '../../domain/values.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { Process } from '../../ports/process.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { enabledHosts } from '../agent/list.js';
-import { resolveKey } from '../config/resolve.js';
+import { readSettings } from '../config/settings.js';
 import type { WritePosture } from '../safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
@@ -55,7 +54,7 @@ export async function loadHarnessCommand(
   const config = await command.config.read();
   const selected = await enabledHosts(
     deps.hosts,
-    parseList(resolveKey('agents', { env: command.env, file: config }).value),
+    readSettings({ env: command.env, file: config }).agents,
   );
   return {
     deps,
