@@ -7,6 +7,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import type { LifecycleRun, LifecycleRunner } from '../../ports/lifecycle-runner.js';
 
 import { mergeEnvironment } from './executable.js';
+import { supervisedBy } from './supervision.js';
 import { terminateChild } from './terminate.js';
 
 export class NodeLifecycleRunner implements LifecycleRunner {
@@ -60,7 +61,7 @@ function startWorker(input: LifecycleRun): ChildProcess | undefined {
     stdio: ['pipe', 'pipe', 'ignore', 'ipc'],
     detached: process.platform !== 'win32',
     windowsHide: true,
-    env: mergeEnvironment(process.env, { ...input.env, FX_LIFECYCLE_WORKER: '1' }),
+    env: mergeEnvironment(process.env, { ...input.env, ...supervisedBy(input.role) }),
   });
 }
 

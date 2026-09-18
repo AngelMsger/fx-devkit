@@ -10,6 +10,7 @@ import { DevkitError } from '../../domain/errors.js';
 import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
 
 import { findExecutable, mergeEnvironment } from './executable.js';
+import { supervisedRole } from './supervision.js';
 import { terminateChild } from './terminate.js';
 
 const ABORTED = 'PROCESS_ABORTED';
@@ -80,7 +81,7 @@ export class NodeProcess implements Process {
     return new Promise((resolve, reject) => {
       // The lifecycle supervisor owns the group when this is one of its workers.
       const bounded = options.timeoutMs !== undefined || options.signal !== undefined;
-      const ownGroup = bounded && process.platform !== 'win32' && !isSupervised();
+      const ownGroup = bounded && process.platform !== 'win32' && supervisedRole() === undefined;
       const child = spawn(binary, args, {
         cwd: options.cwd,
         env: options.env,
@@ -173,9 +174,11 @@ function hung(vector: readonly string[], code: string, message: string): DevkitE
   });
 }
 
-// A supervised worker delegates cleanup to its independently timed supervisor.
+// Only a run a host waits on has nothing left to do once a companion command
+// is given up on. A background run keeps its later phases, and whatever the
+// killed child left in the worker's own group is reaped with that group.
 function killTree(child: ChildProcess, ownGroup: boolean): void {
-  if (isSupervised() && process.connected) process.send?.({ kind: 'abort' });
+  if (supervisedRole() === 'foreground' && process.connected) process.send?.({ kind: 'abort' });
   terminateChild(child, ownGroup);
 }
 
@@ -193,8 +196,4 @@ function resultOf(code: number | null, out: Buffer[], err: Buffer[]): ProcessRes
     stdout: Buffer.concat(out).toString('utf8'),
     stderr: Buffer.concat(err).toString('utf8'),
   };
-}
-
-function isSupervised(): boolean {
-  return process.env['FX_LIFECYCLE_WORKER'] === '1' && process.send !== undefined;
 }

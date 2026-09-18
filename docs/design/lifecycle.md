@@ -31,7 +31,9 @@ A phase that failed keeps one bounded line naming the failure beside its
 observation code, so a fail-open background run stays diagnosable. A run dates
 the phases it commits to before the first of them starts, so a worker its
 supervisor terminates mid-phase leaves `HOOK_PHASE_UNREPORTED` rather than an
-absence that reads like a phase with nothing to report. Observations
+absence that reads like a phase with nothing to report. A detached supervisor
+writes to no stream a person reads, so how its run ended is kept as the `run`
+observation of a workspace whose hook metadata names the same root. Observations
 never contain prompts, transcripts, credentials, command output or member data
 and are not included in exported profiles.
 
@@ -52,9 +54,10 @@ cleanup, not a stop-event handler or transcript processing.
 
 The detached background worker has a 30-second total deadline; companion
 commands get at most 15 seconds and update probes retain the 2-second limit.
-A companion command that exhausts its own budget ends the whole run: the worker
-cannot own that child's process group, so it asks its supervisor to reap the
-group, and the phases after it stay unreported.
+A companion command that exhausts its own budget fails only its own phase: the
+run keeps the phases after it, and whatever that child left in the worker's
+group is reaped with that group when the run ends. A foreground run, which a
+host is waiting on, still ends where a companion command was given up on.
 The supervisor kills the worker process group on POSIX; Windows uses bounded
 PID-scoped `taskkill /T /F` with direct-child fallback. Windows cleanup is
 best-effort when a root has already exited. The supervisor owns

@@ -19,6 +19,7 @@ describe('independent lifecycle supervision', () => {
           "process.send({kind:'failure', secret:'private-value'});setInterval(()=>{},1000)",
         ],
         input: Promise.resolve('{}'),
+        role: 'foreground',
         timeoutMs: 2000,
       }),
     ).toBe('');
@@ -26,6 +27,7 @@ describe('independent lifecycle supervision', () => {
       await diagnosed.run({
         vector: [process.execPath, '-e', 'while(true) {}'],
         input: Promise.resolve('{}'),
+        role: 'foreground',
         timeoutMs: 100,
       }),
     ).toBe('');
@@ -43,6 +45,7 @@ describe('independent lifecycle supervision', () => {
         await runner.run({
           vector: [process.execPath, '-e', worker],
           input: Promise.resolve('{}'),
+          role: 'foreground',
           timeoutMs: 1000,
         }),
       ).toBe('');
@@ -62,6 +65,7 @@ describe('independent lifecycle supervision', () => {
           'process.stdout.write(Buffer.from([0xe4]));setTimeout(()=>process.stdout.write(Buffer.from([0xb8,0xad])),20)',
         ],
         input: Promise.resolve('{}'),
+        role: 'foreground',
         timeoutMs: 2000,
       }),
     ).toBe('中');
@@ -70,6 +74,7 @@ describe('independent lifecycle supervision', () => {
     const result = await runner.run({
       vector: [process.execPath, '-e', "process.stdout.write('partial'); while(true) {}"],
       input: Promise.resolve('{}'),
+      role: 'foreground',
       timeoutMs: 120,
     });
     expect(result).toEqual('');
@@ -79,6 +84,7 @@ describe('independent lifecycle supervision', () => {
       await runner.run({
         vector: [process.execPath, '-e', 'process.stdin.resume()'],
         input: new Promise(() => {}),
+        role: 'foreground',
         timeoutMs: 100,
       }),
     ).toBe('');
@@ -86,6 +92,7 @@ describe('independent lifecycle supervision', () => {
       await runner.run({
         vector: [process.execPath, '-e', "process.stdout.write('done')"],
         input: Promise.resolve('{}'),
+        role: 'foreground',
         timeoutMs: 2000,
       }),
     ).toBe('done');

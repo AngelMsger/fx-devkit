@@ -1,9 +1,18 @@
 // The lifecycle entry wires only the supervisor. Workspace loading and all
-// filesystem work happen inside its separately bounded child process.
+// filesystem work happen inside its separately bounded child process, except
+// for recording how a background run ended.
 
 import { fileURLToPath } from 'node:url';
 
 import { NodeLifecycleRunner } from '../adapters/process/lifecycle-runner.js';
+
+export async function recordBackgroundFailure(
+  argv: readonly string[],
+  reason: string,
+): Promise<void> {
+  const { reportBackgroundFailure } = await import('./hook-report.js');
+  await reportBackgroundFailure(argv, reason);
+}
 
 export async function runHookEntry(
   argv: readonly string[],
@@ -20,5 +29,6 @@ export async function runHookEntry(
     ],
     input,
     timeoutMs: background ? 30000 : 2000,
+    role: background ? 'background' : 'foreground',
   });
 }

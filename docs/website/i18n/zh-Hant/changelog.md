@@ -5,6 +5,8 @@
 - 能力已繫結 provider，但工具文件未宣告該 provider 所用配套工具時回報 `TOOL_UNDECLARED`，不再誤稱該能力沒有 provider。
 - platform 的 `service` 依其名稱推導出的 provider 驗證：合法宣告不再被誤報，先前被略過的真實問題也會回報。
 - 預先記錄 session-start 背景執行承諾進行的階段，worker 被終止時未執行到的階段會留下 `HOOK_PHASE_UNREPORTED`，不再直接消失。
+- session-start 背景執行中某條伴隨命令用盡預算時不再終止整個執行，其後的每個階段照常給出結論；宿主正在等待的前景執行仍在該處結束。
+- 分離的背景執行如何結束，記錄為 workspace 的 `run` 觀測，先前其 supervisor 只能寫進無人讀取的串流。
 
 - 修復所有格式的報告欄位投影、復原命令的 workspace 上下文與貢獻鎖內的來源身分驗證。
 - 支援經驗證的本機 Git 匯入與相符 upstream 的安全補充，按啟用及必要工具宣告統一準備狀態。
