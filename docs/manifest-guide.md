@@ -132,6 +132,12 @@ it is not a live demo service. Use `fx tool show bitbucket-cli` to inspect setup
 The other implemented code-host provider, `local-git`, works with a directory of
 bare repositories; it is not an adapter for an arbitrary hosted Git service.
 
+`fx manifest providers` lists every capability and what is bound to it. A
+capability may have more than one implementation — `issue-tracker` accepts
+`feishu-project` or `jira-cli`, `knowledge-base` accepts `confluence` or
+`lark-wiki` — and one companion CLI may serve several capabilities, as lark-cli
+does for `im` and `knowledge-base`. It is still installed and checked once.
+
 From the directory containing `team-workspace/`, preview and initialize:
 
 ```sh

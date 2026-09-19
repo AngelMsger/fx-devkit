@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a Jira issue tracker and a Lark wiki knowledge base, so those capabilities each have a second implementation; one companion CLI serving several capabilities is installed and checked once.
 - Derive a workspace's toolchain from the providers it binds, so a bundled tool no longer has to be named twice; `tool list` says whether a binding or the manifest put each tool there, and `--catalog` shows the rest.
 - Let a capability bind a provider fx does not implement when the manifest declares a tool of that name, and correct an id that only resembles a bundled tool's name instead of obeying it.
 - Accept `install_on_init` in a tools document's `defaults` block, which an entry can still override.

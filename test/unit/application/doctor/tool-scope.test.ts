@@ -44,6 +44,18 @@ describe('doctor tool scope', () => {
     ]);
   });
 
+  it('checks a tool two bindings reach exactly once', async () => {
+    const h = await harness({
+      workspace: workspace.replace(
+        'providers: {code-host: {provider: local-git, vars: {host: /host}}}',
+        'providers: {code-host: {provider: local-git, vars: {host: /host}}, im: {provider: lark}, knowledge-base: {provider: lark-wiki, vars: {space: TEAM}}}',
+      ),
+    });
+    const scope = workspaceToolScope(h.ctx, {});
+    expect(scope.names).toEqual(['lark-cli']);
+    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([{ id: 'lark-cli' }]);
+  });
+
   it('checks a tool the workspace named, whether or not it changed one of its fields', async () => {
     const h = await harness({
       workspace,

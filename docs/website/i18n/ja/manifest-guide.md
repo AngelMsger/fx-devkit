@@ -88,6 +88,8 @@ repos:
 
 架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。もう一つの実装済み code-host provider、`local-git` はローカルの bare リポジトリ用であり、任意の Git ホスティングサービスのアダプターではありません。
 
+`fx manifest providers` は各能力と、その結び付けを一覧します。1 つの能力に複数の実装があり得ます。`issue-tracker` は `feishu-project` か `jira-cli`、`knowledge-base` は `confluence` か `lark-wiki` を選べます。1 つの連携 CLI が複数の能力を担うこともでき、lark-cli は `im` と `knowledge-base` の両方を担いますが、インストールも確認も 1 回だけです。
+
 team-workspace/ を含むディレクトリから実行します。
 
 ```sh

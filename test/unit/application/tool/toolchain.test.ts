@@ -102,3 +102,19 @@ describe('toolchainOf', () => {
     expect(toolchainOf(typo.ctx).sources.get('meegle')?.kind).toBe('catalog');
   });
 });
+
+describe('a tool several providers drive', () => {
+  it('appears once, and names every binding that reached for it', async () => {
+    const h = await harness({
+      workspace: workspace(
+        `${local}, im: {provider: lark}, knowledge-base: {provider: lark-wiki, vars: {space: TEAM}}`,
+      ),
+    });
+    const toolchain = toolchainOf(h.ctx);
+    expect(toolchain.tools.map((tool) => tool.name)).toEqual(['lark-cli']);
+    expect(toolchain.sources.get('lark-cli')).toEqual({
+      kind: 'binding',
+      boundBy: ['knowledge-base', 'im'],
+    });
+  });
+});

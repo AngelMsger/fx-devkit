@@ -2,6 +2,7 @@
 
 ## 尚未發佈
 
+- 新增 Jira 工作項 provider 與飛書知識庫 provider，這兩個能力各有了第二種實作；一個配套 CLI 服務多個能力時仍只安裝與檢查一次。
 - workspace 的工具鏈改為從其繫結的 provider 推導，內建工具不必再宣告一次；`tool list` 說明每個工具是被繫結帶進來的還是 manifest 宣告的，`--catalog` 列出其餘的。
 - manifest 宣告了同名工具時，能力可以繫結 fx 未實作的 provider；僅與內建工具同名的 provider id 會被指出更正，而不是照單全收。
 - tools 文件的 `defaults` 區塊支援 `install_on_init`，個別條目仍可覆寫。
