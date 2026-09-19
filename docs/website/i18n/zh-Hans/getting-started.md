@@ -157,6 +157,8 @@ fx manifest schema --kind tools
 
 capability 表示代码托管、CI、日志、错误追踪等意图，provider 通过配套 CLI 实现它。manifest 绑定能力、提供者和环境坐标。`can` 查询就绪，`where` 查询坐标，`release` 查询声明的发布检查项。
 
+工作区级能力一次绑定：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`task`、`worklog`；环境级能力按平台实例绑定：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。`fx manifest providers` 列出已绑定的内容和每个能力可选的 provider。fx 命名但尚无实现的能力（例如 `metrics`）可以被描述和查询，绑定它需要 provider，在此之前它保持未绑定。
+
 `tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
 工具定义由内置目录与所选工作区的 `tools.yaml` 合并；工作区的工具链则是其中它真正使用的部分：被绑定 provider 驱动的工具，加上 tools.yaml 声明的工具。`fx tool list` 说明每个工具因何在此，`--catalog` 会再列出 fx 知道但没有被选用的工具。工作区优先级为 `--workspace`、`FX_WORKSPACE`、当前目录所属的已注册工作区、`default_workspace`；无法确定工作区时没有绑定可推导，因此列出内置目录。包管理器决定安装位置，工具由多个工作区共享。

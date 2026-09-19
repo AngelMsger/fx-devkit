@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { larkCalendarProvider } from '../../../src/adapters/calendar/lark-calendar/provider.js';
+import { wecomCalendarProvider } from '../../../src/adapters/calendar/wecom-calendar/provider.js';
 import { JenkinsCi } from '../../../src/adapters/ci/jenkins-cli/ci.js';
 import { BitbucketCodeHost } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import { LocalGitCodeHost } from '../../../src/adapters/code-host/local-git/provider.js';
@@ -9,6 +11,9 @@ import { feishuProjectProvider } from '../../../src/adapters/issue-tracker/feish
 import { jiraCliProvider } from '../../../src/adapters/issue-tracker/jira-cli/provider.js';
 import { confluenceProvider } from '../../../src/adapters/knowledge-base/confluence/provider.js';
 import { larkWikiProvider } from '../../../src/adapters/knowledge-base/lark-wiki/provider.js';
+import { larkTaskProvider } from '../../../src/adapters/task/lark-task/provider.js';
+import { wecomTodoProvider } from '../../../src/adapters/task/wecom-todo/provider.js';
+import { jiraWorklogProvider } from '../../../src/adapters/worklog/jira-worklog/provider.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
@@ -43,9 +48,14 @@ describe('the read-only surface towards platforms', () => {
   it.each([
     feishuProjectProvider,
     jiraCliProvider,
+    jiraWorklogProvider,
     confluenceProvider,
     larkWikiProvider,
     larkProvider,
+    larkCalendarProvider,
+    wecomCalendarProvider,
+    larkTaskProvider,
+    wecomTodoProvider,
   ])('$id creates data and offers no business methods', (provider) => {
     const process = new FakeProcess();
     const entry = provider.create(

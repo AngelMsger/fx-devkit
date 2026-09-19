@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add the `calendar`, `task`, `worklog` and `metrics` capabilities, with Lark and WeCom providers for the first two and a Jira provider for worklogs; `metrics` is named but unimplemented, so a manifest can describe it and binding it awaits a provider. `im` now means messaging alone.
 - Add a Jira issue tracker and a Lark wiki knowledge base, so those capabilities each have a second implementation; one companion CLI serving several capabilities is installed and checked once.
 - Derive a workspace's toolchain from the providers it binds, so a bundled tool no longer has to be named twice; `tool list` says whether a binding or the manifest put each tool there, and `--catalog` shows the rest.
 - Let a capability bind a provider fx does not implement when the manifest declares a tool of that name, and correct an id that only resembles a bundled tool's name instead of obeying it.

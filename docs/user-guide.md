@@ -236,6 +236,13 @@ A provider implements it through its companion CLI. The manifest binds capabilit
 to providers and environment-specific coordinates. Use `can` for readiness,
 `where` for service coordinates, and `release` for the declared release checklist.
 
+A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
+`calendar`, `task` and `worklog` once; an environment binds `error-tracker`,
+`log-store`, `metrics`, `ci` and `cluster` per platform instance. `fx manifest
+providers` lists what is bound and what each capability accepts. A capability
+fx names but implements for nobody, such as `metrics`, can still be described
+and read: binding it needs a provider, and until one exists it is unbound.
+
 ### Companion tools and trust
 
 `tool list/show` explains requirements; `tool install/update` uses available

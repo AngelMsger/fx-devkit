@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 新增 `calendar`、`task`、`worklog`、`metrics` 四个能力：前两个有飞书与企业微信 provider，工时有 Jira provider；`metrics` 只命名未实现，manifest 可以描述它，绑定则要等 provider。`im` 的含义收窄为纯消息。
 - 新增 Jira 工作项 provider 与飞书知识库 provider，这两个能力各有了第二种实现；一个配套 CLI 服务多个能力时仍只安装和检查一次。
 - workspace 的工具链改为从其绑定的 provider 推导，内置工具不必再声明一遍；`tool list` 说明每个工具是被绑定带进来的还是 manifest 声明的，`--catalog` 列出其余的。
 - manifest 声明了同名工具时，能力可以绑定 fx 未实现的 provider；仅与内置工具重名的 provider id 会被指出更正，而不是照单全收。

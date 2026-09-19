@@ -157,6 +157,8 @@ fx manifest schema --kind tools
 
 capability はコードホスト、CI、ログ、エラー追跡などの目的を表し、provider は連携 CLI を通じて実装します。マニフェストが能力、プロバイダー、環境の座標を結び付けます。`can` は準備状態、`where` は座標、`release` は宣言されたリリースチェックを返します。
 
+ワークスペース単位で結び付ける能力は `code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`task`、`worklog` です。環境単位で platform ごとに結び付ける能力は `error-tracker`、`log-store`、`metrics`、`ci`、`cluster` です。`fx manifest providers` は結び付けの内容と、各能力が受け付ける provider を一覧します。`metrics` のように fx が名前を与えていても実装がない能力は、説明も参照もできますが、結び付けには provider が必要で、それまでは未結合のままです。
+
 `tool list/show` は要件を表示し、`tool install/update` は宣言されたインストーラーを使い、`login` は設定を案内します。認証は各ツールの責任です。マニフェストの実行ベクトルには信頼が必要で、変更後は再確認します。手動手順の完了を申告するだけでは検証成功の代わりになりません。
 
 ツール定義は内蔵の目録と選択したワークスペースの `tools.yaml` を統合します。ワークスペースのツールチェーンはそのうち実際に使う部分、つまり結び付けた provider が動かすツールと tools.yaml が宣言したツールです。`fx tool list` は各ツールがなぜそこにあるかを示し、`--catalog` は fx が知っていて選ばれていないツールも表示します。選択順は `--workspace`、`FX_WORKSPACE`、現在のディレクトリを含む登録済みルート、`default_workspace` です。解決できない場合は読み取る結び付けがないため、内蔵の目録を表示します。インストール先はパッケージ管理ツールが決め、複数のワークスペースで共有します。

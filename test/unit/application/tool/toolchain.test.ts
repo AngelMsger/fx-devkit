@@ -82,6 +82,20 @@ describe('toolchainOf', () => {
     });
   });
 
+  it('binds a capability fx names to a provider only the team has', async () => {
+    const h = await harness({
+      workspace: workspace(`${local}, worklog: {provider: fx-worklog-cli}`),
+      files: {
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]:
+          'schema_version: 2\ntools: [{ name: fx-worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]\n',
+      },
+    });
+    expect(toolchainOf(h.ctx).sources.get('fx-worklog-cli')).toEqual({
+      kind: 'binding',
+      boundBy: ['worklog'],
+    });
+  });
+
   it('derives a provider only the manifest defines from the tool it declares', async () => {
     const files = {
       [`${MANIFEST_DIR}/manifest/tools.yaml`]:

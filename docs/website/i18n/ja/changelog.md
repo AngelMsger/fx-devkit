@@ -2,6 +2,7 @@
 
 ## 未リリース
 
+- `calendar`、`task`、`worklog`、`metrics` の能力を追加しました。前 2 つには Lark と WeCom の provider、worklog には Jira の provider があります。`metrics` は名前だけで実装はなく、マニフェストで記述はできますが結び付けには provider が必要です。`im` は「メッセージ」だけを指すようになりました。
 - Jira の issue tracker と Lark wiki の knowledge base を追加し、それぞれの能力に 2 つ目の実装ができました。1 つの連携 CLI が複数の能力を担っても、インストールと確認は 1 回だけです。
 - workspace のツールチェーンを、結び付けた provider から導出するようにしました。同梱ツールを二度宣言する必要はなくなり、`tool list` は各ツールが結び付けによるものか manifest の宣言によるものかを示し、`--catalog` は残りを表示します。
 - manifest が同名のツールを宣言している場合、fx が実装していない provider も能力に結び付けられるようにしました。同梱ツールの名前に似ているだけの id は、そのまま受け入れず訂正を促します。
