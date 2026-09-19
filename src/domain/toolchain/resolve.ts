@@ -83,7 +83,7 @@ function resolveTool(
     required: tool.required ?? false,
     enabled: tool.enabled ?? true,
     declared: declared.has(tool.name),
-    installOnInit: tool.install_on_init ?? false,
+    installOnInit: tool.install_on_init ?? defaults.install_on_init ?? false,
     ...(tool.min_version === undefined ? {} : { minVersion: tool.min_version }),
     versionArgs: tool.version_args ?? defaults.version_args ?? ['--version'],
     install: (tool.install ?? defaults.install ?? []).map((m) =>

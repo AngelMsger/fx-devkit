@@ -2,6 +2,9 @@
 
 ## 未リリース
 
+- workspace のツールチェーンを、結び付けた provider から導出するようにしました。同梱ツールを二度宣言する必要はなくなり、`tool list` は各ツールが結び付けによるものか manifest の宣言によるものかを示し、`--catalog` は残りを表示します。
+- manifest が同名のツールを宣言している場合、fx が実装していない provider も能力に結び付けられるようにしました。同梱ツールの名前に似ているだけの id は、そのまま受け入れず訂正を促します。
+- tools ドキュメントの `defaults` ブロックで `install_on_init` を指定できるようにしました。個々のエントリでの上書きは従来どおりです。
 - provider が結び付いているのに tools ドキュメントがその配下のツールを宣言していない場合を `TOOL_UNDECLARED` として報告し、provider が無いという誤った説明をやめました。
 - platform の `service` を、その名前が示す provider の宣言と照合するようにしました。正しい宣言を誤って拒否せず、誤った宣言も見逃しません。
 - session-start の背景処理が実施する phase を事前に記録し、途中で終了させられた worker が到達しなかった phase を `HOOK_PHASE_UNREPORTED` として残すようにしました。

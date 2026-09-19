@@ -292,23 +292,21 @@ describe('loadLocal', () => {
   });
 });
 
-describe('loadTools opt-in selection', () => {
+describe('loadTools', () => {
   const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
-  const names = (patch: string | undefined): string[] => {
-    const result = loadTools(bundled(), patch, cli);
-    if (!result.valid) throw new Error(result.problems.map((p) => p.message).join('; '));
-    return result.doc.tools.map((tool) => tool.name);
-  };
 
-  it('keeps an opt-in tool out of a workspace that never names it', () => {
-    const baseline = names(undefined);
-    expect(baseline).not.toContain('jenkins-cli');
-    expect(baseline).toContain('bitbucket-cli');
-    // An unrelated declaration must not decide anything about the others.
-    expect(names('schema_version: 2\ntools: [{ name: bitbucket-cli }]\n')).toEqual(baseline);
+  it('keeps every catalog entry, whatever the workspace names', () => {
+    const result = loadTools(
+      bundled(),
+      'schema_version: 2\ntools: [{ name: bitbucket-cli }]\n',
+      cli,
+    );
+    if (!result.valid) throw new Error('patch rejected');
+    expect(result.doc.tools.map((tool) => tool.name)).toContain('jenkins-cli');
+    expect(result.declared).toEqual(['bitbucket-cli']);
   });
 
-  it('joins an opt-in tool a workspace names, vouching for what it did not change', () => {
+  it('vouches for a catalog tool a workspace only names', () => {
     const result = loadTools(bundled(), 'schema_version: 2\ntools: [{ name: jenkins-cli }]\n', cli);
     if (!result.valid) throw new Error('patch rejected');
     const [tool] = resolveTools(result.doc, result.provenance, result.declared).filter(
@@ -320,12 +318,15 @@ describe('loadTools opt-in selection', () => {
     expect(tool?.patchedFields).toEqual([]);
   });
 
-  it('refuses a workspace that decides what the baseline ships', () => {
+  it('lets the defaults block decide installation at init, and an entry opt out', () => {
     const result = loadTools(
       bundled(),
-      'schema_version: 2\ntools: [{ name: jenkins-cli, opt_in: false }]\n',
-      { ...cli, allowInvalid: true },
+      'schema_version: 2\ndefaults: { install_on_init: true }\ntools: [{ name: kubectl, install_on_init: false }]\n',
+      cli,
     );
-    expect(result.problems).toContainEqual(expect.objectContaining({ path: 'tools[0].opt_in' }));
+    if (!result.valid) throw new Error('patch rejected');
+    const resolved = resolveTools(result.doc, result.provenance, result.declared);
+    expect(resolved.find((tool) => tool.name === 'bitbucket-cli')?.installOnInit).toBe(true);
+    expect(resolved.find((tool) => tool.name === 'kubectl')?.installOnInit).toBe(false);
   });
 });

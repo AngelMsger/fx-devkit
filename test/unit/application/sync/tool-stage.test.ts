@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
+import { describeProvider } from '../../../../src/composition/registry.js';
 import { hasPreparationIssue } from '../../../../src/domain/preparation.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
@@ -11,11 +12,32 @@ import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
 
-async function stage(
-  options: { active?: boolean; patch?: string; unknown?: boolean; undeclared?: boolean } = {},
-) {
+interface StageOptions {
+  readonly active?: boolean;
+  readonly patch?: string;
+  readonly unknown?: boolean;
+  readonly undeclared?: boolean;
+}
+
+// The toolchain follows the binding, so each case picks the provider that produces the
+// requirement it is about: none, one fx drives, one fx does not know, or one whose tool no
+// document describes.
+function providerOf(options: StageOptions): string {
+  if (options.unknown) return 'nonesuch';
+  if (options.undeclared) return 'unconfigured-host';
+  return options.active ? 'bitbucket-cli' : 'local-git';
+}
+
+// A provider whose tool no document describes can only come from fx itself, so the case
+// supplies the catalog rather than pretending a manifest could produce it.
+const UNDECLARED_CATALOG = [
+  { id: 'unconfigured-host', capability: 'code-host' as const, tools: ['unconfigured-cli'] },
+];
+
+async function stage(options: StageOptions = {}) {
   const h = await harness({
-    workspace: `schema_version: 2\nproviders: {code-host: {provider: ${options.active ? 'hosted' : 'local'}, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n`,
+    ...(options.undeclared ? { providers: UNDECLARED_CATALOG } : {}),
+    workspace: `schema_version: 2\nproviders: {code-host: {provider: ${providerOf(options)}, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n`,
     files:
       options.patch === undefined
         ? {}
@@ -32,8 +54,6 @@ async function stage(
     posture,
     workspace: h.ctx.name,
   };
-  let providerTools = options.active ? ['bitbucket-cli'] : [];
-  if (options.undeclared) providerTools = ['unconfigured-cli'];
   const stages = syncStages({
     deps: h.deps,
     process: h.process,
@@ -41,17 +61,7 @@ async function stage(
     trust,
     dryRun: false,
     login: {
-      describeProvider: (id) =>
-        options.unknown
-          ? undefined
-          : {
-              id,
-              capability: 'code-host',
-              tools: providerTools,
-              recipes: [],
-              vars: [],
-              create: () => ({}),
-            },
+      describeProvider: (id) => describeProvider(id),
       prompter,
       clock,
       home: '/home',

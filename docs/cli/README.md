@@ -1126,10 +1126,17 @@ fx source push manifest/environments.yaml --issue TASK-123 --title "Update verif
 
 List the companion tools the workspace expects, and where each entry comes from
 
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--catalog` | include the tools fx knows that no binding or declaration selects |
+
 Examples:
 
 ```bash
 fx tool list
+fx tool list --catalog   # also the tools fx knows but nothing here selects
 ```
 
 ## `fx tool history`

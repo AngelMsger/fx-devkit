@@ -1,7 +1,8 @@
-// One tool in full: the resolved entry, where each field came from, and
-// which providers depend on it.
+// One tool in full: the resolved entry, why the workspace has it, where each field came
+// from, and which providers depend on it.
 
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import type { ToolSource, ToolSourceKind } from '../../domain/toolchain/select.js';
 import type { CommandGuidance } from '../workspace/guidance.js';
 
 import { selectTools } from './select.js';
@@ -9,6 +10,7 @@ import { selectTools } from './select.js';
 export interface ToolShowInput extends CommandGuidance {
   readonly tools: readonly ResolvedTool[];
   readonly name: string;
+  readonly sources: ReadonlyMap<string, ToolSource>;
   // Provider ids by tool name, from the registry.
   readonly dependants: Readonly<Record<string, readonly string[]>>;
 }
@@ -32,6 +34,8 @@ export interface ToolDetail {
   readonly auth: { command: readonly string[]; docs: string | null } | null;
   readonly setup_steps: readonly { id: string; kind: string; title: string }[];
   readonly fields: Readonly<Record<string, 'base' | 'patch'>>;
+  readonly source: ToolSourceKind;
+  readonly bound_by: readonly string[];
   readonly depended_on_by: readonly string[];
 }
 
@@ -70,6 +74,8 @@ export class ToolShow {
           : { command: tool.auth.command, docs: tool.auth.docs ?? null },
       setup_steps: tool.setup.map((s) => ({ id: s.id, kind: s.kind, title: s.title })),
       fields,
+      source: input.sources.get(tool.name)?.kind ?? 'catalog',
+      bound_by: input.sources.get(tool.name)?.boundBy ?? [],
       depended_on_by: input.dependants[tool.name] ?? [],
     };
   }

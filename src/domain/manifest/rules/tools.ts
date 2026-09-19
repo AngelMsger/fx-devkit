@@ -8,15 +8,6 @@ import type { Problem, Tool, Toolchain } from '../types.js';
 
 import { argumentProblem, binaryProblem } from './vectors.js';
 
-// A patch inherits the baseline's requirements, so only one thing is its own to get wrong.
-export function toolsPatchRules(doc: Toolchain): Problem[] {
-  return doc.tools.flatMap((tool, i) =>
-    tool.opt_in === undefined
-      ? []
-      : [{ path: `tools[${i}].opt_in`, message: 'is decided by the bundled baseline; remove it' }],
-  );
-}
-
 export function toolsRules(doc: Toolchain): Problem[] {
   const problems: Problem[] = [];
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {

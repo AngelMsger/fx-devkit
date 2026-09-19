@@ -34,10 +34,23 @@ command invocations, so directory targeting may report several for one tool.
 
 ## Selection and identity
 
-Explicit tool and environment selectors must name declared entries before login
-prompts or doctor repairs. Unknown tools use the existing `TOOL_UNKNOWN` error;
-unknown environments use `ENV_NOT_FOUND`, with spelling suggestions. A disabled
-tool or one with no setup recipe remains a valid selection.
+A workspace's toolchain is derived, not declared twice: it holds the tools the
+providers it binds drive, together with the tools its own overlay names. The
+bundled document is a catalog of what fx knows how to drive and carries no
+requirement of its own; entries nothing selects stay in it and are reported as
+such. Derivation spans every environment the manifest declares, because
+installation is machine-wide, while checks still narrow to the environments in
+scope. A binding may name a provider fx does not implement when the overlay
+declares a tool of that name; that provider yields no coordinate, and readiness
+is the tool's. Catalog names are tools, not provider ids, so one used as a
+provider is a mistake to correct rather than a definition to accept.
+
+Explicit tool and environment selectors must name a tool fx knows and an
+environment the manifest declares before login prompts or doctor repairs.
+Selecting a catalog entry the workspace does not use is inspection, not
+adoption, and remains valid. Unknown tools use the existing `TOOL_UNKNOWN`
+error; unknown environments use `ENV_NOT_FOUND`, with spelling suggestions. A
+disabled tool or one with no setup recipe remains a valid selection.
 
 Doctor's default companion checks cover manifest-declared tools and tools used by
 workspace providers or platforms present in the selected environment scope. A
@@ -82,9 +95,12 @@ applies to platform instances; workspace-only bindings do not require an
 environments document. A matching provider descriptor with no companion tools
 is explicitly represented by `tool: null`. Its preparation can be ready without
 running a tool check; the later query still verifies its actual resource.
-A capability nothing is bound to is `CAPABILITY_UNBOUND`; a bound provider whose
-companion tool no toolchain document declares is `TOOL_UNDECLARED`, and its
-recovery is that declaration, not another binding. Both are configuration errors.
+A capability nothing is bound to is `CAPABILITY_UNBOUND`. A binding naming a
+provider fx neither implements for that capability nor finds declared as a tool
+of the workspace's own is `PROVIDER_UNKNOWN`, and its recovery is a provider that
+exists. A bound provider whose companion tool neither the bundled catalog nor the
+manifest describes is `TOOL_UNDECLARED`, and its recovery is that description,
+not another binding. All three are configuration errors.
 Release uses the same readiness decision.
 
 `where` additionally identifies a repository and platform. `--record` is an

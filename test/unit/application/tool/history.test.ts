@@ -34,7 +34,11 @@ function fixture() {
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const install = new ToolInstall(FakeInstaller.family(['npm']), process, audit);
   const config = new FakeConfigStore({ workspaces: { first: { root: '/first' } } });
-  const fs = FakeFs.from({ '/first/manifest/workspace.yaml': workspace });
+  const fs = FakeFs.from({
+    '/first/manifest/workspace.yaml': workspace,
+    // No registered provider drives this fixture's tool, so the workspace names it outright.
+    '/first/manifest/tools.yaml': 'schema_version: 2\ntools: [{name: sample}]',
+  });
   const inventory = new ToolInstalled({
     history,
     config,

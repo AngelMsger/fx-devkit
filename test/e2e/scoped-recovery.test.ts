@@ -44,10 +44,6 @@ function stage(defaultWorkspace?: string) {
         },
       }),
     );
-    writeFileSync(
-      path.join(dir, 'manifest/tools.yaml'),
-      stringify({ schema_version: 2, tools: [{ name: 'jenkins-cli' }] }),
-    );
   }
   const config = {
     ...(defaultWorkspace === undefined ? {} : { default_workspace: defaultWorkspace }),
@@ -316,7 +312,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
       );
       expect(unknown.error()).toMatchObject({
         code: 'TOOL_UNKNOWN',
-        next_steps: ['fx tool list --workspace alpha'],
+        next_steps: ['fx tool list --catalog --workspace alpha'],
       });
       const listed = follow(unknown.error().next_steps[0]!, s, env);
       expect(listed.status, listed.stderr).toBe(0);

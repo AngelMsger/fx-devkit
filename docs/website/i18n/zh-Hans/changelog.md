@@ -2,6 +2,9 @@
 
 ## 未发布
 
+- workspace 的工具链改为从其绑定的 provider 推导，内置工具不必再声明一遍；`tool list` 说明每个工具是被绑定带进来的还是 manifest 声明的，`--catalog` 列出其余的。
+- manifest 声明了同名工具时，能力可以绑定 fx 未实现的 provider；仅与内置工具重名的 provider id 会被指出更正，而不是照单全收。
+- tools 文档的 `defaults` 块支持 `install_on_init`，单个条目仍可覆盖。
 - 能力已绑定 provider、但工具文档未声明该 provider 所用配套工具时报告 `TOOL_UNDECLARED`，不再误称该能力没有 provider。
 - platform 的 `service` 按其名称推导出的 provider 校验：合法声明不再被误报，此前被跳过的真实问题也会报出。
 - 预先记录 session-start 后台运行承诺执行的阶段，worker 被终止时未执行到的阶段留下 `HOOK_PHASE_UNREPORTED`，不再直接消失。

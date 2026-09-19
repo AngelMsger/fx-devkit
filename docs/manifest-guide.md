@@ -24,25 +24,38 @@ team-workspace/
 ```
 
 Only `manifest/workspace.yaml` is required. Omitted environment, member and
-harness documents leave those capabilities unconfigured. Omitting `tools.yaml`
-uses the bundled tools every workspace gets; it does not remove companion
-requirements. Keep credentials in the owning tools, not in these documents.
+harness documents leave those capabilities unconfigured. Keep credentials in the
+owning tools, not in these documents.
 
-Some bundled tools are opt-in: fx maintains their version floor, install method
-and commands, but only the workspaces that name them get them. Naming one is the
-whole declaration, and it keeps fx's commands trusted, so nobody confirms them
-by hand:
+fx assumes no tool. The CLIs it bundles are a catalog of what it knows how to
+drive, and a workspace's toolchain is read off the providers it binds: binding
+`ci` to `jenkins-cli` is what puts the Jenkins companion in the toolchain, with
+its version floor, install method and commands maintained by fx. Most teams
+therefore need no `tools.yaml` at all.
+
+Declare a tool there when no binding brings it — a tool the team runs on its own,
+or one fx does not know:
 
 ```yaml
 schema_version: 2
 tools:
-  - name: jenkins-cli
+  - name: example-team-tool
+    install: [{ via: npm, spec: '@example/team-tool' }]
 ```
 
-Override a field only where the team differs from the bundled facts. A field the
-patch sets belongs to the team, and fx asks a person before running what it
-carries. `fx tool list` names the tools this workspace has; a provider bound to
-a tool nobody declared is reported by `fx doctor`.
+Naming a bundled tool is also the whole declaration, and it keeps fx's commands
+trusted, so nobody confirms them by hand. Override a field only where the team
+differs from the bundled facts: a field the patch sets belongs to the team, and
+fx asks a person before running what it carries.
+
+`fx tool list` names the tools this workspace has and why each one is there —
+`binding` for a tool a bound provider drives, `manifest` for one this document
+names. `fx tool list --catalog` adds the tools fx knows that nothing here
+selects, which is how to find what binding a capability would bring.
+
+A capability may also name a provider fx does not implement, as long as this
+document declares a tool of that name. fx then offers no entry coordinate for it
+and answers readiness from that tool alone.
 
 Bundled tools declare minimum versions. Inspect the effective requirement with
 `fx tool show <tool>` and preview an upgrade with `fx tool update <tool> --dry-run`.
@@ -60,6 +73,18 @@ tools:
   - name: example-team-tool
     install_on_init: true
     install: [{ via: npm, spec: '@example/team-tool' }]
+```
+
+A team that installs everything on a new machine sets the flag once under
+`defaults`, and an entry opts out of it:
+
+```yaml
+schema_version: 2
+defaults:
+  install_on_init: true
+tools:
+  - name: example-optional-tool
+    install_on_init: false
 ```
 
 The package and executable above are fictional. npm uses the user's Registry and

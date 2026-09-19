@@ -79,16 +79,21 @@ describe('ToolList', () => {
   it('summarises each entry with where its fields came from', () => {
     const rows = new ToolList().execute({
       tools: tools('schema_version: 2\ntools: [{ name: beta, min_version: 3.0.0 }]'),
+      sources: new Map([['beta', { kind: 'binding' as const, boundBy: ['ci:build'] }]]),
     });
     expect(rows.find((r) => r.name === 'beta')).toMatchObject({
       min_version: '3.0.0',
       origin: 'mixed',
       install_via: 'npm',
+      source: 'binding',
+      bound_by: ['ci:build'],
     });
     expect(rows.find((r) => r.name === 'alpha')).toMatchObject({
       origin: 'base',
       required: true,
       enabled: true,
+      source: 'catalog',
+      bound_by: [],
     });
     expect(rows.find((r) => r.name === 'retired')).toMatchObject({ enabled: false });
   });

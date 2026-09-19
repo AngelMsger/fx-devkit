@@ -243,10 +243,14 @@ installers; `login` guides setup. Companions own authentication. Manifest-suppli
 execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
-Tool definitions combine the bundled baseline with the selected workspace's
-`tools.yaml` patch. Workspace selection is `--workspace`, `FX_WORKSPACE`, the
-registered root containing the current directory, then `default_workspace`.
-Without a resolved workspace, tool commands use the bundled baseline. The package
+Tool definitions combine the bundled catalog with the selected workspace's
+`tools.yaml` patch, and the workspace's toolchain is the part of that the
+workspace actually uses: the tools its bound providers drive, plus the tools its
+patch names. `fx tool list` reports which of the two put each tool there, and
+`--catalog` also lists the tools fx knows that nothing selects. Workspace
+selection is `--workspace`, `FX_WORKSPACE`, the registered root containing the
+current directory, then `default_workspace`. Without a resolved workspace there
+are no bindings to read, so tool commands list the bundled catalog. The package
 manager owns installation locations; tools are shared across workspaces.
 
 `tool install` and `tool update` require names or `--all`, never both. Install's
@@ -255,12 +259,12 @@ enabled tools in the selected toolchain. Named operations can explicitly select
 a disabled tool. No-argument invocations fail before package operations.
 
 Doctor checks tools declared by the workspace and dependencies of providers
-active in the selected environments. Bundled tools the workspace does not
-declare are still checked on request with `doctor --tool <name>`; their absence
-does not make an unrelated workspace unhealthy. An opt-in tool is not in the
-toolchain at all until the workspace names it, so `tool list`, `tool install`
-and a scoped `doctor --tool` do not see it. A disabled dependency of
-an active provider remains an incomplete requirement, not a passing check.
+active in the selected environments. Bundled tools the workspace does not use
+are still checked on request with `doctor --tool <name>`; their absence does not
+make an unrelated workspace unhealthy. The toolchain itself spans every
+environment the manifest declares, because installation is machine-wide, while
+`doctor` narrows its checks to the environments in scope. A disabled dependency
+of an active provider remains an incomplete requirement, not a passing check.
 Init and sync use the same relevant tool scope. Missing optional tools remain
 visible without blocking preparation. An enabled `install_on_init` tool must be
 verified; a disabled optional tool does not become required merely because that

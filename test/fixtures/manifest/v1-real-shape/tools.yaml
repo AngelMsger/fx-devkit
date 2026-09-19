@@ -1,9 +1,0 @@
-# The opt-in CLIs this example team runs on; naming one is what joins it.
-schema_version: 2
-tools:
-  - name: jenkins-cli
-  - name: openobserve-cli
-  - name: sentry
-  - name: lark-cli
-  - name: meegle
-  - name: wecom-cli

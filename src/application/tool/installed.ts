@@ -4,14 +4,30 @@
 import path from 'node:path';
 
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
-import { loadTools, loadToolsDocument, loadWorkspace } from '../../domain/manifest/loader.js';
-import type { ProviderCatalog } from '../../domain/manifest/providers.js';
+import {
+  loadEnvironments,
+  loadTools,
+  loadToolsDocument,
+  loadWorkspace,
+} from '../../domain/manifest/loader.js';
+import {
+  bindPlatforms,
+  bindProviders,
+  type ProviderCatalog,
+} from '../../domain/manifest/providers.js';
+import type { Workspace } from '../../domain/manifest/types.js';
 import {
   hasUnfinishedInstallation,
   observedInstallationOrigin,
 } from '../../domain/toolchain/installation-origin.js';
 import type { InstallationOrigin, ToolInstallation } from '../../domain/toolchain/installation.js';
 import { resolveTools, type ResolvedTool } from '../../domain/toolchain/resolve.js';
+import {
+  keyedBinding,
+  keyedPlatform,
+  providerTools,
+  selectToolchain,
+} from '../../domain/toolchain/select.js';
 import type { FileReader } from '../../ports/fs.js';
 import type { Process } from '../../ports/process.js';
 import type { ConfigStore } from '../../ports/stores.js';
@@ -116,10 +132,8 @@ export class ToolInstalled {
         const dir = this.deps.manifestDirFor(name);
         const workspace = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.workspace));
         // A missing source is unread requirements, not none.
-        loadWorkspace(workspace ?? '', {
-          cliVersion: this.deps.cliVersion,
-          providers: this.deps.providers,
-        });
+        const opts = { cliVersion: this.deps.cliVersion, providers: this.deps.providers };
+        const declarations = loadWorkspace(workspace ?? '', opts);
         const patch = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.tools));
         const loaded = loadTools(this.deps.bundledTools(), patch, {
           cliVersion: this.deps.cliVersion,
@@ -130,20 +144,42 @@ export class ToolInstalled {
         }
         const resolved = resolveTools(loaded.doc, loaded.provenance, loaded.declared);
         known.push(...resolved);
+        const selected = await this.selected(dir, declarations.doc, resolved, opts);
         tools.set(
           name,
-          resolved.filter((tool) => tool.enabled),
+          selected.filter((tool) => tool.enabled),
         );
       } catch {
         unknown.push(name);
       }
     }
-    // An opt-in tool no workspace named is still not an unknown package, so read the catalog.
+    // A catalog tool no workspace selected is still not an unknown package, so read the catalog.
     const catalog = loadToolsDocument(this.deps.bundledTools(), {
       cliVersion: this.deps.cliVersion,
     });
     if (catalog.valid) known.push(...resolveTools(catalog.doc, {}));
     return { tools, unknown, known };
+  }
+
+  // A workspace needs the tools its own bindings reach, which is why the inventory reads its
+  // documents rather than assuming every registered workspace wants the whole catalog.
+  private async selected(
+    dir: string,
+    workspace: Workspace,
+    resolved: readonly ResolvedTool[],
+    opts: { readonly cliVersion: string; readonly providers: ProviderCatalog },
+  ): Promise<readonly ResolvedTool[]> {
+    const text = await this.deps.fs.readText(path.join(dir, MANIFEST_FILES.environments));
+    const environments =
+      text === undefined ? undefined : loadEnvironments(text, opts, { workspace }).doc;
+    const bindings = [
+      ...bindProviders(workspace, opts.providers).map(keyedBinding),
+      ...bindPlatforms(environments, opts.providers).map(keyedPlatform),
+    ];
+    const needed = providerTools(bindings, opts.providers, (tool) =>
+      resolved.some((entry) => entry.name === tool && entry.declared),
+    );
+    return selectToolchain(resolved, needed).tools;
   }
 
   private async describe(

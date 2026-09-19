@@ -51,10 +51,7 @@ export function mergeTools(
     '',
   );
   const patched = new Map((patch?.tools ?? []).map((t) => [t.name, t]));
-  // Naming an opt-in tool joins it, and the bundled entry is what the patch is then read
-  // against, so every field the patch leaves alone stays base and fx keeps vouching for it.
-  const baseline = base.tools.filter((tool) => tool.opt_in !== true || patched.has(tool.name));
-  const tools: Tool[] = baseline.map((tool) => {
+  const tools: Tool[] = base.tools.map((tool) => {
     const overlay = patched.get(tool.name);
     patched.delete(tool.name);
     const merged = mergeValue(

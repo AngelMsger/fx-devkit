@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Derive a workspace's toolchain from the providers it binds, so a bundled tool no longer has to be named twice; `tool list` says whether a binding or the manifest put each tool there, and `--catalog` shows the rest.
+- Let a capability bind a provider fx does not implement when the manifest declares a tool of that name, and correct an id that only resembles a bundled tool's name instead of obeying it.
+- Accept `install_on_init` in a tools document's `defaults` block, which an entry can still override.
 - Report a bound provider whose companion tool no tools document declares as `TOOL_UNDECLARED`, instead of claiming the capability has no provider.
 - Check a platform's `service` block against the provider its name implies, so a valid declaration is no longer rejected and an invalid one is no longer skipped.
 - Record the background phases a session-start run commits to, so phases a terminated worker never reached read as `HOOK_PHASE_UNREPORTED` instead of disappearing.

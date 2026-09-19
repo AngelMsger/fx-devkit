@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
 import { Where } from '../../../src/application/where.js';
+import { describeProvider } from '../../../src/composition/registry.js';
 import type { LocalLayer } from '../../../src/domain/manifest/types.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
@@ -20,7 +21,12 @@ const jenkins = new TemplatePlatform({
   command: ['jenkins-cli', 'build', 'list', '{path}'],
   probe: { label: 'job {path}', command: ['jenkins-cli', 'job', 'get', '{path}'] },
 });
+// The fixture's environments bind the bundled platform providers; only the CI one is
+// replaced, so its coordinates stay a template this test controls.
 const DESCRIPTORS: Record<string, ProviderDescriptor<unknown>> = {
+  ...Object.fromEntries(
+    ['sentry', 'openobserve-cli', 'kubectl'].map((id) => [id, describeProvider(id)!]),
+  ),
   'jenkins-cli': {
     id: 'jenkins-cli',
     capability: 'ci',
@@ -37,7 +43,6 @@ async function stage(local: LocalLayer = {}) {
     workspace: fixture('workspace.yaml'),
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml'),
-      [`${MANIFEST_DIR}/manifest/tools.yaml`]: fixture('tools.yaml'),
     },
     local,
     platforms: { 'jenkins-cli': jenkins },

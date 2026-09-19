@@ -33,9 +33,9 @@ export function selectTools(
     throw new DevkitError('not_found', 'TOOL_UNKNOWN', `No tool named "${name}" in the toolchain`, {
       hint:
         suggestion === undefined
-          ? 'fx tool list shows the known tools.'
+          ? 'A tool joins the toolchain by being driven by a bound provider, or by being named in manifest/tools.yaml.'
           : `Did you mean "${suggestion}"?`,
-      nextSteps: [recoveryCommand(context, 'tool', 'list')],
+      nextSteps: [recoveryCommand(context, 'tool', 'list', '--catalog')],
     });
   });
 }

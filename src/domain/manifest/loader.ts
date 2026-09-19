@@ -24,7 +24,7 @@ import {
 } from './rules/environments.js';
 import { harnessRules } from './rules/harness.js';
 import { membersRules } from './rules/members.js';
-import { toolsPatchRules, toolsRules } from './rules/tools.js';
+import { toolsRules } from './rules/tools.js';
 import { workspaceRules } from './rules/workspace.js';
 import { toolSchema, toolsSchema } from './tools.schema.js';
 import type {
@@ -128,7 +128,7 @@ export function loadToolsPatchDocument(
 ): InspectedLoadResult<Toolchain> {
   const { raw, lineOf } = parse(TOOLS, text);
   const { value } = splitNulls(TOOLS.schema, raw);
-  return finish({ ...TOOLS, rules: toolsPatchRules }, value, opts, lineOf);
+  return finish({ ...TOOLS, rules: () => [] }, value, opts, lineOf);
 }
 
 // The bundled baseline is loaded in full; the team patch is only checked
@@ -158,7 +158,7 @@ export function loadTools(
   }
   const { raw, lineOf } = parse(TOOLS, patchText);
   const { value, deletions } = splitNulls(TOOLS.schema, raw);
-  const patch = finish({ ...TOOLS, rules: toolsPatchRules }, value, opts, lineOf);
+  const patch = finish({ ...TOOLS, rules: () => [] }, value, opts, lineOf);
   if (!patch.valid) return { ...patch, ...selection(mergeTools(base.doc, undefined)) };
   const merged = mergeTools(base.doc, patch.doc, { deletions });
   const result = finish(TOOLS, merged.toolchain as unknown as Raw, opts, NO_LINES);

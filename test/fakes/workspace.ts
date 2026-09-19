@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { WorkspaceDeps } from '../../src/application/workspace/deps.js';
 import { WorkspaceContext } from '../../src/application/workspace-context.js';
 import { providerCatalog } from '../../src/composition/registry.js';
+import type { ProviderCatalog } from '../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';
 import type { Platform } from '../../src/ports/platform.js';
 
@@ -45,6 +46,8 @@ export interface HarnessOptions {
   readonly user?: string | undefined;
   readonly platforms?: Record<string, Platform>;
   readonly source?: string;
+  // The providers the manifest is read against; the registry unless a case needs otherwise.
+  readonly providers?: ProviderCatalog;
 }
 
 const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
@@ -76,7 +79,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     git,
     localStore,
     bundledTools: bundled,
-    providers: providerCatalog(),
+    providers: options.providers ?? providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,

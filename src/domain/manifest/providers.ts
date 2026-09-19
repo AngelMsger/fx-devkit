@@ -25,6 +25,9 @@ export interface ServiceContract {
 export interface ProviderFacts {
   readonly id: string;
   readonly capability: Capability;
+  // The companion CLIs this provider drives. A workspace's toolchain is read off its
+  // bindings, so which tools a provider needs is part of reading its manifest.
+  readonly tools: readonly string[];
   readonly settings?: ServiceContract;
   // A schema 1 workspace writes `defaults.host` and no provider: this one stands in.
   readonly impliedByDefaultHost?: true;

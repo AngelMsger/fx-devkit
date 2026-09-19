@@ -344,6 +344,7 @@ describe('ToolShow', () => {
     const explained = new ToolShow().execute({
       tools: s.tools,
       name: 'alpha',
+      sources: new Map([['alpha', { kind: 'manifest', boundBy: [] }]]),
       dependants: { alpha: ['bitbucket-cli'] },
     });
     expect(explained).toMatchObject({
@@ -355,11 +356,17 @@ describe('ToolShow', () => {
       ],
       fields: expect.objectContaining({ min_version: 'patch', install: 'base', setup: 'patch' }),
       depended_on_by: ['bitbucket-cli'],
+      source: 'manifest',
       setup_steps: [{ id: 'token', kind: 'manual', title: 't' }],
     });
-    expect(() => new ToolShow().execute({ tools: s.tools, name: 'alfa', dependants: {} })).toThrow(
-      expect.objectContaining({ code: 'TOOL_UNKNOWN' }),
-    );
+    expect(() =>
+      new ToolShow().execute({
+        tools: s.tools,
+        name: 'alfa',
+        sources: new Map(),
+        dependants: {},
+      }),
+    ).toThrow(expect.objectContaining({ code: 'TOOL_UNKNOWN' }));
   });
 });
 

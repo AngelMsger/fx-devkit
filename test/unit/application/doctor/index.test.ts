@@ -10,7 +10,9 @@ import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { CachedProbe } from '../../../../src/application/update/check.js';
 import { FxUpdateCheck } from '../../../../src/application/update/fx.js';
 import { ManifestUpdateCheck } from '../../../../src/application/update/manifest.js';
+import { providerCatalog } from '../../../../src/composition/registry.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
+import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import { finding } from '../../../../src/domain/report.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
@@ -96,9 +98,13 @@ async function stage(
     updates?: boolean;
     extensions?: readonly DoctorExtension[];
     describeProvider?: LoginDeps['describeProvider'];
+    providers?: ProviderCatalog;
+    workspace?: string;
   } = {},
 ): Promise<Stage> {
   const h = await harness({
+    ...(options.providers === undefined ? {} : { providers: options.providers }),
+    ...(options.workspace === undefined ? {} : { workspace: options.workspace }),
     local: options.local ?? { scope: { envs: ['dev'] } },
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: environments,
@@ -235,7 +241,10 @@ describe('Doctor', () => {
   });
 
   it('retains unknown provider coverage failures in the overall diagnostic result', async () => {
-    const s = await stage({ describeProvider: () => undefined });
+    const s = await stage({
+      describeProvider: () => undefined,
+      workspace: `schema_version: 2\nproviders: {code-host: {provider: nonesuch, vars: {host: /host}}}\ndefaults: {branch: dev, upstream_project: fx}\nprojects: {fx: {label: Platform, contact: '#platform'}}\nrepos: [{name: fx-example-api}]\n`,
+    });
     const report = await s.doctor.execute(check);
     expect(report).toMatchObject({ ok: false, complete: false });
     expect(report.findings).toContainEqual(
@@ -256,6 +265,8 @@ describe('Doctor', () => {
           ? undefined
           : { ...descriptor, tools: ['unknown-companion'] };
       },
+      // fx's own catalog is what names a provider's tools, so the mismatch starts there.
+      providers: providerCatalog().map((facts) => ({ ...facts, tools: ['unknown-companion'] })),
     });
     const report = await s.doctor.execute(check);
     expect(report).toMatchObject({ ok: false, complete: false });

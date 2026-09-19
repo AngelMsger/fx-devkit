@@ -6,7 +6,6 @@ import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
 import type { WorkspaceToolScope } from '../tool/scope.js';
-import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
@@ -21,8 +20,7 @@ export async function checkTools(
   options: ToolCheckOptions,
 ): Promise<Finding[]> {
   const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
-  const available = toolchainOf(deps.ctx).tools;
-  const tools = available.filter((tool) => options.names.includes(tool.name));
+  const tools = options.covered;
   const findings: Finding[] = [];
   const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
   for (const tool of tools) {

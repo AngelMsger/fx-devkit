@@ -113,13 +113,8 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
 }
 
 async function toolsStage(input: SyncStageInput): Promise<StageResult> {
-  const scope = workspaceToolScope(
-    input.deps.ctx,
-    input.login.describeProvider,
-    {},
-    input.deps.commandShell,
-  );
-  const tools = toolchainOf(input.deps.ctx).tools.filter((tool) => scope.names.includes(tool.name));
+  const scope = workspaceToolScope(input.deps.ctx, {}, input.deps.commandShell);
+  const tools = scope.covered;
   const problems = scope.problems;
   const requiresPreparation = (name: string): boolean =>
     scope.required.has(name) ||

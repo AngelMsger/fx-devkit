@@ -105,12 +105,6 @@ export const toolSchema = z
       .boolean()
       .optional()
       .describe('false keeps the entry but marks the tool as no longer used by the team'),
-    opt_in: z
-      .boolean()
-      .optional()
-      .describe(
-        'baseline only: fx knows this tool but does not assume it, so a workspace activates it by naming it',
-      ),
     version_args: commandVector
       .optional()
       .describe(
@@ -151,6 +145,10 @@ export const toolsSchema = z
           .describe('how to install a tool, in order of preference'),
         skill: skillCommand.optional(),
         auth: authCommand.optional(),
+        install_on_init: z
+          .boolean()
+          .optional()
+          .describe('install every tool of this workspace during fx init unless it opts out'),
       })
       .optional()
       .describe('conventions every tool inherits unless it overrides them'),

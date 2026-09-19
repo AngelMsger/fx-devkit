@@ -65,7 +65,10 @@ async function stage(options: { local?: LocalLayer; tools?: string; yes?: boolea
     workspace: fixture('workspace.yaml'),
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml'),
-      [`${MANIFEST_DIR}/manifest/tools.yaml`]: options.tools ?? fixture('tools.yaml'),
+      // The bindings carry the toolchain; a patch only appears where a case is about one.
+      ...(options.tools === undefined
+        ? {}
+        : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: options.tools }),
     },
     local: options.local ?? {},
     platforms: { 'jenkins-cli': jenkins },
@@ -177,9 +180,9 @@ describe('Can', () => {
       code: 'TOOL_UNDECLARED',
       message: 'acme-cli is not declared in the toolchain',
       nextSteps: [
-        'Declare acme-cli in the manifest tools document.',
+        'Describe acme-cli in the manifest tools document.',
         'fx manifest schema --kind tools --workspace fx',
-        'fx tool list --workspace fx',
+        'fx tool list --catalog --workspace fx',
       ],
     });
     await expect(bound(null)).rejects.toMatchObject({ code: 'CAPABILITY_UNBOUND' });
@@ -188,8 +191,39 @@ describe('Can', () => {
     ).toMatchObject({ status: 'missing_tool', tool: 'acme-cli', provider: 'acme-host' });
   });
 
+  it('serves a capability through a provider only the manifest defines', async () => {
+    const bound = async (provider: string, tools?: string) => {
+      const { h } = await stage(tools === undefined ? {} : { tools });
+      return new Can(
+        {
+          ...h.deps,
+          ctx: {
+            ...h.deps.ctx,
+            manifestDir: h.deps.ctx.manifestDir,
+            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+          },
+        },
+        fakeLoginDeps(DESCRIPTORS),
+      ).execute({ target: 'code-host' });
+    };
+    // The team's own CLI: fx knows no provider by that name, but the manifest describes the
+    // tool it names, so readiness is the tool's own and no entry coordinate is claimed.
+    const result = await bound(
+      'worklog-cli',
+      'schema_version: 2\ntools: [{ name: worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]',
+    );
+    expect(result).toMatchObject({ status: 'missing_tool', tool: 'worklog-cli' });
+    expect(result.entry).toBeUndefined();
+    // Without such a tool the id names nothing, and the correction is worth offering.
+    await expect(bound('worklog-cli')).rejects.toMatchObject({
+      code: 'PROVIDER_UNKNOWN',
+      hint: expect.stringContaining('bitbucket-cli'),
+    });
+  });
+
   it('does not require an environment document for workspace bindings or standalone tools', async () => {
-    const { h } = await stage();
+    // Declared rather than derived: without the environments document nothing binds it.
+    const { h } = await stage({ tools: 'schema_version: 2\ntools: [{ name: jenkins-cli }]' });
     const readiness = new Readiness(
       {
         ...h.deps,

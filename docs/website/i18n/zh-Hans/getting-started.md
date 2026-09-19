@@ -159,11 +159,11 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 `tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
-工具定义由内置基线与所选工作区的 `tools.yaml` 合并。工作区优先级为 `--workspace`、`FX_WORKSPACE`、当前目录所属的已注册工作区、`default_workspace`；无法确定工作区时仅使用内置基线。包管理器决定安装位置，工具由多个工作区共享。
+工具定义由内置目录与所选工作区的 `tools.yaml` 合并；工作区的工具链则是其中它真正使用的部分：被绑定 provider 驱动的工具，加上 tools.yaml 声明的工具。`fx tool list` 说明每个工具因何在此，`--catalog` 会再列出 fx 知道但没有被选用的工具。工作区优先级为 `--workspace`、`FX_WORKSPACE`、当前目录所属的已注册工作区、`default_workspace`；无法确定工作区时没有绑定可推导，因此列出内置目录。包管理器决定安装位置，工具由多个工作区共享。
 
 `tool install` 和 `tool update` 必须指定名称或 `--all`，两者互斥。安装的 `--all` 补齐已启用且 PATH 缺失的工具；更新的 `--all` 选择当前工具表中全部已启用工具。显式名称可以选择被禁用的工具。无参数调用会在执行包操作前报错。
 
-doctor 默认检查工作区声明的工具及所选环境中实际启用的 provider 依赖。未使用的内置工具仍可通过 `tool list` 或显式 `doctor --tool <name>` 查询；缺少它们不会导致无关工作区不健康。活跃 provider 的依赖若被禁用，仍会报告检查不完整。
+doctor 默认检查工作区声明的工具及所选环境中实际启用的 provider 依赖。未使用的内置工具仍可通过 `tool list --catalog` 或显式 `doctor --tool <name>` 查询；缺少它们不会导致无关工作区不健康。工具链本身覆盖 manifest 声明的全部环境（安装是整机的），而 doctor 的检查仍按所选环境收窄。活跃 provider 的依赖若被禁用，仍会报告检查不完整。
 
 init/sync 使用相同的相关工具范围。缺少可选工具仍会显示，但不阻断准备。启用的 `install_on_init` 工具需要验证；已禁用的可选工具不会仅因这个安装标记而变成必需工具。
 

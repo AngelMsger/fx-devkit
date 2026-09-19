@@ -1,12 +1,14 @@
-# The toolchain baseline bundled with fx. A team's manifest/tools.yaml is a
-# patch over this file: entries match by name, objects merge, a null deletes
-# a field, `enabled: false` retires a tool. Nothing here is team-specific;
-# internal registries, hosts and team-only tools belong in the patch.
+# The catalog of companion CLIs fx knows how to drive: version floor, install
+# method and commands, and nothing team-specific. A team's manifest/tools.yaml
+# is a patch over it: entries match by name, objects merge, a null deletes a
+# field, `enabled: false` retires a tool.
 #
-# fx needs none of these to run. An entry without `opt_in` is in every
-# workspace's toolchain; an `opt_in` entry joins only the workspaces that name
-# it. Either way the commands below are fx's own, so no one confirms them by
-# hand — a field a patch overrides becomes the team's and is confirmed again.
+# Nothing here is a requirement. A workspace's toolchain is read off its
+# provider bindings — binding `ci` to jenkins-cli is what puts jenkins-cli in
+# the toolchain — together with whatever its patch names outright. Everything
+# else stays in the catalog, unselected. The commands below are fx's own, so
+# no one confirms them by hand; a field a patch overrides becomes the team's
+# and is confirmed again.
 schema_version: 2
 defaults:
   version_args: [--version]
@@ -25,13 +27,11 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/confluence-cli' }]
     docs: https://github.com/AngelMsger/confluence-cli
   - name: jenkins-cli
-    opt_in: true
     min_version: '0.6.2'
     desc: Jobs, builds and console output in Jenkins
     install: [{ via: npm, spec: '@angelmsger/jenkins-cli' }]
     docs: https://github.com/AngelMsger/jenkins-cli
   - name: openobserve-cli
-    opt_in: true
     min_version: '0.11.2'
     desc: Logs, metrics and traces in OpenObserve
     install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
@@ -42,7 +42,6 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli
   - name: sentry
-    opt_in: true
     min_version: '0.44.1'
     desc: Issues, events and releases in Sentry
     install: [{ via: manual }]
@@ -60,21 +59,18 @@ tools:
     auth: { command: [] }
     docs: https://kubernetes.io/docs/reference/kubectl/
   - name: lark-cli
-    opt_in: true
     min_version: '1.0.94'
     desc: Feishu / Lark messaging, documents, calendar and more
     install: [{ via: npm, spec: '@larksuite/cli' }]
     skill: { command: [] }
     auth: { command: [auth, status] }
   - name: meegle
-    opt_in: true
     min_version: '1.0.23'
     desc: Feishu Project (Meegle) work items
     install: [{ via: npm, spec: '@lark-project/meegle' }]
     skill: { command: [] }
     auth: { command: [] }
   - name: wecom-cli
-    opt_in: true
     min_version: '1.2.1'
     desc: WeCom messaging, documents and calendar
     install: [{ via: npm, spec: '@wecom/cli' }]
