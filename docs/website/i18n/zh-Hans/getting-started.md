@@ -2,6 +2,15 @@
 
 安装 fx，连接团队 manifest，并管理仓库、工具与编码 Agent。
 
+[未发布变更](../CHANGELOG.md#未发布)描述当前源码，安装包可能尚未包含这些功能。请查看当前可执行文件的 `fx <command> --help` 和 bundled Skill；版本标签相同不等于源码改动已经发布。
+
+按任务选择阅读入口：
+
+- 新建工作区：[安装](#install)，然后[快速上手](#quick-start)。
+- 仓库较多：[下载前选择仓库](#choose-repositories-before-downloading)。
+- 设置中断：[判读结果并恢复](#reading-initialization-and-recovery-results)。
+- 编码 Agent：[结构化结果与 bundled Skill](#for-coding-agents)。
+
 ## 环境要求 {#requirements}
 
 - Node.js ≥22；开发版本以 package.json 为准。Bun 也可以作为运行时。
@@ -58,6 +67,8 @@ PowerShell 执行策略阻止 `.ps1` shim 时，可使用 `npm.cmd` 和 `fx.cmd`
 ## 快速上手 {#quick-start}
 
 先将占位符替换为团队提供的实际来源：
+
+新工作区默认选择全部共享仓库。如需限定首次下载范围，先[选择仓库名称](#choose-repositories-before-downloading)，再给两条 init 命令都加上 `--repos <name,...>`。
 
 ```sh
 fx init ./work --name work --from <manifest-repository> --dry-run
@@ -248,6 +259,8 @@ fx skill status
 
 `init`、`sync`、`doctor`、`release` 默认输出摘要，保留计数、异常和恢复动作，`omitted` 统计省略项。`--details` 返回完整结果，显式 `--fields` 从完整结果投影；`--verbose` 独立控制诊断。显式 `--fields` 在所有格式中均投影完整报告：JSON/NDJSON 输出一个对象，human 输出选中的键值。点路径保留为扁平键。例如 `fx sync --fields operation,preparation_complete,items,summary` 不包含阶段明细。未指定字段时，human/NDJSON 默认行为不变；事实查询仍按条目投影并保留集合元数据。
 
+init/sync 的末尾提示也会说明所选范围是否准备完成。`preparation_complete` 为 false 时，即使克隆成功，仍应报告准备未完成并列出阻塞项。文档失败时，sync 查看 `stage_details.docs.files`，init 查看 `sync.stage_details.docs.files`：`action` 是计划，`result` 区分已完成、失败和未开始。解决冲突后重试会跳过未变化文档；替换外来内容需要批准，并将原对象保存在唯一的同级备份中。
+
 | 结果             | 判读字段                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | `init/sync`      | `operation` 与 `preparation_complete`。预览为 `null`；执行只判断本次选择且请求的准备工作。 |
@@ -327,6 +340,12 @@ Git manifest 的刷新与预览会保留已修改、未跟踪，以及虽被 Git
 正常重试会重新探测仓库可读性；之前缺失的仓库不会被旧的负缓存持续阻断。
 
 工具、登录与更新问题见[支持](support.md#troubleshooting)。`no_access` 表示环境未被选中，不是远端 ACL 拒绝。Git 传输凭证与可选代码托管 API 检查相互独立。
+
+### 人工接手后恢复登录 {#resume-login-after-a-handoff}
+
+`login` 需要人工输入时，先完成已授权的 handoff，再重跑同一命令。fx 会先检查当前状态，再决定是否重复操作；随后重新执行原先的 `can` 或 `doctor` 检查，继续原任务。
+
+机器调用方在非零退出时也要同时读取部分 stdout 与 stderr 错误。已完成步骤仍保留；`handoff`、`blocked`、`failed`、`not_started` 区分后续工作。汇总、计划问题和步骤恢复字段见[登录响应契约](../skills/fx-workspace/references/commands.md#readiness-and-recovery)。
 
 ### Skill 所有权与宿主激活 {#skill-ownership-and-host-activation}
 

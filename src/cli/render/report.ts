@@ -65,7 +65,7 @@ function compactObject(
       )
         return [[key, item]];
       if (Array.isArray(item) && COLLECTIONS.has(key)) {
-        const visible = item.filter(exceptional);
+        const visible = key === 'files' && 'failure' in value ? item : item.filter(exceptional);
         omitted[at] = (omitted[at] ?? 0) + item.length - visible.length;
         return [[key, visible.map((row: unknown) => compactValue(row, omitted, at))]];
       }

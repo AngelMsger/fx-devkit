@@ -11,6 +11,7 @@ import type { FileSystem } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
 import type { Platform } from '../../ports/platform.js';
 import type { Process } from '../../ports/process.js';
+import type { ProjectionStore } from '../../ports/projection.js';
 import type { Reporter } from '../../ports/reporter.js';
 import type { Cache, LocalLayerStore } from '../../ports/stores.js';
 import type { WorkspaceContext } from '../workspace-context.js';
@@ -20,6 +21,7 @@ export interface WorkspaceDeps {
   readonly ctx: WorkspaceContext;
   readonly git: Git;
   readonly fs: FileSystem;
+  readonly projections: ProjectionStore;
   readonly localStore: LocalLayerStore;
   readonly cache: Cache;
   readonly reporter: Reporter;

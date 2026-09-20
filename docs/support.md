@@ -61,6 +61,10 @@ private proxy. `FX_REGISTRY` still selects fx's internal metadata/self-update so
 The public package uses npmjs for update checks by default. `FX_REGISTRY` can select an explicit mirror. Inspect `fx self update --dry-run` before applying an update. For source installations, update Git and rebuild. Updating fx is separate from `fx sync`, which updates eligible manifest sources.
 <!-- /distribution -->
 
+`self update --format json` captures installer output so stdout stays parseable.
+Inspect the returned installer `code` and any failure `reason`; receiving JSON
+does not establish that the update succeeded.
+
 ## Platform support
 
 Node.js 22 or newer and Git are required. Bun is an alternative runtime; npm is

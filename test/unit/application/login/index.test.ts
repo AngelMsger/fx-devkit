@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login, type LoginInput } from '../../../../src/application/login/run.js';
@@ -353,9 +353,55 @@ describe('Login', () => {
       .catch((e: unknown) => e);
     const login = s.h.process.calls.find((c) => c.vector[2] === 'login');
     expect(login?.options.interactive).toBe(false);
+    expect((failure as DevkitError).partialResult).toMatchObject({
+      has_more: false,
+      items: [
+        { id: 'bitbucket-cli.login', result: 'done' },
+        { id: 'kubectl.kubeconfig@test', result: 'handoff' },
+        { id: 'kubectl.access@test', result: 'blocked' },
+      ],
+      summary: { done: 1, handoff: 1, blocked: 1 },
+      problems: [],
+    });
     expect((failure as DevkitError).handoff?.userSteps.map((u) => u.id)).toEqual([
       'kubectl.kubeconfig@test',
     ]);
+  });
+
+  it('reports completed setup when a later permission probe times out', async () => {
+    const s = await stage({ unavailable: true, yes: true });
+    await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
+    const original = s.h.process.run.bind(s.h.process);
+    const probe = vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
+      if (vector[0] === 'kubectl')
+        throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'Permission probe timed out');
+      return original(vector, options);
+    });
+    try {
+      const failure: unknown = await s.setup
+        .execute({
+          ...run,
+          noInput: true,
+          envs: ['test'],
+          tools: ['bitbucket-cli', 'kubectl', 'worklog'],
+        })
+        .catch((error: unknown) => error);
+      expect(s.loggedIn).toBe(true);
+      expect(failure).toMatchObject({
+        code: 'PROCESS_TIMEOUT',
+        partialResult: {
+          items: [
+            { id: 'bitbucket-cli.login', result: 'done' },
+            { id: 'kubectl.kubeconfig@test', result: 'verified' },
+            { id: 'kubectl.access@test', result: 'failed', failure: { code: 'PROCESS_TIMEOUT' } },
+            { id: 'worklog.token', result: 'not_started' },
+          ],
+          summary: { done: 1, verified: 1, failed: 1, not_started: 1 },
+        },
+      });
+    } finally {
+      probe.mockRestore();
+    }
   });
 
   it('resumes after human completion without rerunning already-valid setup', async () => {

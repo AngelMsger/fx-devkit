@@ -78,6 +78,17 @@ with conflicting step definitions fails with `SETUP_PLAN_CONFLICT` before prompt
 or setup effects. Doctor represents unresolved planning as incomplete coverage;
 readiness returns unconfigured rather than inheriting another platform's checks.
 
+`login --format json` includes `items`, `has_more`, `summary` and `problems`;
+`--list` includes plan problems even with `--quiet`. If a step needs human input
+or a later step throws, read the partial result on stdout as well as the error
+on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
+completed steps remain visible. Handoff rows include the required action, and
+service preparation rows retain available `failure` and `next_steps` fields.
+After resolving the blocker, repeat the same invocation: setup verifies current
+state before rerunning actions. Consumers that previously discarded stdout on
+nonzero exit must now parse it when present. `self update` also captures installer
+output so its stdout remains parseable; inspect the returned installer `code`.
+
 ## Readiness and reports
 
 Version detection requires a successful exit and recognizable version output.

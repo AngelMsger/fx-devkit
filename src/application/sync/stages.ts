@@ -2,6 +2,7 @@
 // their outcomes. Composition supplies dependencies and host-specific callbacks;
 // it does not decide stage policy or interpret execution results.
 
+import { asDevkitError, withPartialResult } from '../../domain/errors.js';
 import type { Process } from '../../ports/process.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
@@ -98,7 +99,12 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
     summary[file.action] = (summary[file.action] ?? 0) + 1;
     summary['missing_regions'] = (summary['missing_regions'] ?? 0) + file.missing.length;
   }
-  const rules = await harnessResource(input, 'rules');
+  const rules = await harnessResource(input, 'rules')?.catch((error: unknown) => {
+    throw withPartialResult(error, {
+      files: out.files,
+      rules: asDevkitError(error).partialResult ?? {},
+    });
+  });
   if (rules) {
     for (const [action, count] of Object.entries(rules.summary))
       if (typeof count === 'number') summary[`rules_${action}`] = count;

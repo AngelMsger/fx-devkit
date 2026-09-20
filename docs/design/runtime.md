@@ -23,7 +23,10 @@ hint, next_steps and retryable. Handoffs describe the user's missing action.
 `--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
 structured error. `--fields` projects result data; top-level error envelopes on stderr remain
 intact. Include nested recovery fields in the projection when they are needed. Successfully generated doctor/release reports exit zero; their `ok`,
-`complete`, findings and coverage describe the actual outcome. Init/sync also
+`complete`, findings and coverage describe the actual outcome. Login preserves completed and pending step rows on stdout even when a later
+check fails or requires human input. Read stdout alongside the stderr error;
+see [setup](setup.md) for statuses and recovery fields. Self-update captures
+installer output rather than inheriting stdout. Init/sync also
 preserve partial outcomes: inspect synchronization summary, stage counts and
 item failures. Additive `stage_details` retain document, Skill, tool, hook and MCP rows;
 the existing `stages` field remains summary counts. A companion Skill error keeps
@@ -58,6 +61,9 @@ preview, otherwise accounts for selected repositories and requested stages.
 Protected or unavailable work and unverified activation are incomplete. Excluded
 and explicitly inapplicable resources do not reduce completion. Doctor/release
 ok and coverage complete keep their existing independent meanings.
+Preparation reads outcome fields and stage summaries, not descriptive names or
+command arguments. The legacy `not_implemented` sentinel only applies to a
+requested stage; a repository or label with that text is ordinary metadata.
 
 Explicit empty agent lists survive scalar conversion in every entrypoint,
 including hooks and harness cleanup; an unset value alone selects detection.
@@ -86,6 +92,12 @@ and sets preferences, including agent selection across registered workspaces;
 local layers select repositories and environments and carry repository overrides.
 Profiles carry settings/local layers but no credentials, trust,
 cache or manifest checkout. Their paths may need adjustment on another machine.
+
+`manifest repo-set` rechecks the captured document under a file lease before
+replacing it. If another writer changed it, the path is not a regular file, or
+its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
+content. Inspect the real source path and retry with `--dry-run`; do not remove
+locks or overwrite another edit. An identical edit reports `written: false`.
 
 ## Personal stores
 
@@ -164,6 +176,24 @@ Optional Bitbucket repository/user probes use five-second process deadlines. Rea
 Configuration updates await asynchronous decisions while holding the lease. Init planning and registration both compare real paths, including symlink aliases; registration rechecks current state under that lease.
 
 The executing Skill/package stage owns per-item `status` and partial results. Exceptions stop subsequent execution and retain prior rows. Skill recovery includes separate disk `observed` values because a failed operation may have written already; failed observations remain `unknown`. Package rows preserve the installer exit code even if a later version probe throws (`phase: version`). Sync nests a failing stage's partial result under `stage_details[stage]` without replacing its contents. These additions retain the original error category, code, guidance and exit status.
+
+Document rendering and derivation share `ProjectionStore` snapshots and locked
+compare-and-replace writes. `action` describes the plan; per-file `result` records
+`planned`, `done`, `skipped`, `failed` or `not_started`. `DOCS_WRITE_CONFLICT`
+preserves current content. Partial errors retain prior file results, including
+when the subsequent native rules projection fails. Summary rendering keeps all
+file rows in a failed docs stage. It does not infer completion from a planned action.
+
+Approved foreign replacement uses `FileSystem.moveToBackup`: a same-directory
+rename under projection leases, preserving the original object and existing
+backup paths. Callers must still compare the vacated destination with absence
+before creating a document. This replaces copy-then-remove, which could lose a
+save made between those effects. These leases coordinate fx processes, not an
+adversarial writer outside fx; native Windows evidence remains a separate gate.
+
+Init and sync notices state the canonical preparation verdict and distinguish
+repository counts from overall stage completion. A missing required tool can
+leave preparation incomplete even when every selected checkout synchronized.
 
 ## Command selection and compatibility
 

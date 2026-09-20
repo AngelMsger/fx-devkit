@@ -2,6 +2,11 @@
 
 ## 尚未發佈
 
+- 保留登入人工接手與例外後的部分結果、彙總及結構化復原資訊；非零結束也可能回傳有效 stdout。
+- 保護 manifest 與指南寫入期間的並行編輯；獲准取代時將原物件原子移動至備份，文件失敗保留逐檔案結果。
+- 明確顯示初始化與同步的整體準備結論，修復名稱或說明被誤判為階段失敗的問題。
+- 避免自我更新安裝器輸出污染 JSON，補充復原流程及原始碼與已發佈功能的區別。
+
 - 新增 `calendar`、`task`、`worklog`、`metrics` 四個能力：前兩個有飛書與企業微信 provider，工時有 Jira provider；`metrics` 只命名未實作，manifest 可以描述它，繫結則要等 provider。`im` 的含義收窄為純訊息。
 - 新增 Jira 工作項 provider 與飛書知識庫 provider，這兩個能力各有了第二種實作；一個配套 CLI 服務多個能力時仍只安裝與檢查一次。
 - workspace 的工具鏈改為從其繫結的 provider 推導，內建工具不必再宣告一次；`tool list` 說明每個工具是被繫結帶進來的還是 manifest 宣告的，`--catalog` 列出其餘的。
@@ -22,6 +27,8 @@
 - 修復未追蹤檔案在狀態篩選中被遺漏、必需 manifest 遺失卻驗證通過，以及舊可讀性快取阻擋正常恢復。
 - doctor 預設按實際宣告與活躍 provider 檢查工具，保留明確指定工具的檢查。
 - 相容性說明：init 的 registered 現在表示實際註冊狀態；預覽動作另列於 plan。config import 按名稱合併並保留未提到的註冊，不再以省略名稱來解除管理。
+
+- 相容性說明：`fx skill show` 在 bundled Skill 遺失時回傳 `BUNDLED_SKILL_MISSING`；`SKILL_MISSING` 僅表示面向 Agent 的通知。
 
 ## 0.2.1 (2026-09-18)
 

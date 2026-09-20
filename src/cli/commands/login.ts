@@ -46,7 +46,10 @@ export default class LoginCommand extends FxCommand {
     const login = new Login(await this.workspaceDeps(), this.loginDeps());
     if (flags.list) {
       const plan = await login.plan({ tools, envs: flags.env });
-      this.renderer.list(plan.steps, { columns: SETUP_STEP_COLUMNS });
+      this.renderer.list(plan.steps, {
+        columns: SETUP_STEP_COLUMNS,
+        trailer: { problems: plan.problems },
+      });
       for (const notice of loginNotices(plan.problems)) this.renderer.notice(notice);
       return;
     }
@@ -57,7 +60,10 @@ export default class LoginCommand extends FxCommand {
       ...writeIntent(flags, this.posture),
       noInput: this.noInput,
     });
-    this.renderer.list(out.items, { columns: LOGIN_STEP_COLUMNS });
+    this.renderer.list(out.items, {
+      columns: LOGIN_STEP_COLUMNS,
+      trailer: { summary: out.summary, problems: out.problems },
+    });
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
   }
 }

@@ -30,6 +30,7 @@ export default class ManifestRenderCommand extends FxCommand {
     const dir = await this.manifestDir();
     const out = await new RenderRegions({
       fs: this.container.fs,
+      projections: this.container.projections,
       reporter: this.reporter,
       context: await this.manifestContext(dir),
       describeProvider: this.container.describeProvider,
@@ -39,7 +40,7 @@ export default class ManifestRenderCommand extends FxCommand {
       out: flags.out,
     });
     this.renderer.list(out.files, {
-      columns: ['path', 'action', 'replaced', 'missing', 'unknown'],
+      columns: ['path', 'action', 'result', 'replaced', 'missing', 'unknown'],
     });
   }
 }

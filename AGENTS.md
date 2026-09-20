@@ -312,7 +312,12 @@ node scripts/check-package.mjs
 ```
 
 Regenerate CLI docs after command changes. Test observable decisions, ownership
-and failure recovery rather than snapshots of implementation mechanics. POSIX
+and failure recovery rather than snapshots of implementation mechanics. Before
+adding a regression test, identify its recurring user scenario, consequence and
+existing coverage owner; a historical bug alone does not justify another case.
+Remove obsolete or duplicate cases instead of preserving implementation milestones.
+Use the [test-value guidance](docs/validation.md#test-value-and-ownership) to choose
+the narrowest layer that proves the behavior. POSIX
 or injected-input checks do not establish Windows support: native acceptance
 uses `npm run check:windows` and separate host/cross-volume checks described in
 [Windows](docs/design/windows.md). Keep unavailable native evidence explicit.

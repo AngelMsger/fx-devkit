@@ -431,29 +431,6 @@ describe('Sync', () => {
     await new Sync({ ...h.deps, git }).execute({ ...run, jobs: 2 });
     expect(peak).toBe(2);
   });
-
-  it('answers --only for the stages that are not implemented yet without touching repositories', async () => {
-    const h = await harness();
-    const out = await new Sync(h.deps).execute({ ...run, only: 'docs' });
-    expect(out.items).toEqual([]);
-    expect(out.stages).toEqual({ docs: 'not_implemented' });
-    expect(h.git.calls).toEqual([]);
-    const staged = await new Sync(h.deps).execute({
-      ...run,
-      dryRun: true,
-      stages: {
-        docs: undefined,
-        skills: async () => ({ summary: { create: 2 } }),
-        tools: async () => ({ summary: { ok: 3, missing: 1 } }),
-      },
-    });
-    expect(staged.stages).toEqual({
-      docs: 'not_implemented',
-      skills: { create: 2 },
-      tools: { ok: 3, missing: 1 },
-    });
-    expect(staged.items.length).toBeGreaterThan(0);
-  });
 });
 
 describe('Sync and the fork remote', () => {

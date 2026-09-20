@@ -2,6 +2,18 @@
 
 Install fx, connect your team’s manifest, and work with repositories and coding agents.
 
+[Unreleased changes](../CHANGELOG.md#unreleased) describe the current source and may
+not be available in an installed package yet. Check `fx <command> --help` and the
+Skill bundled with that executable; a matching version label alone does not
+establish that a source change has been published.
+
+Choose the section for your task:
+
+- New workspace: [install](#install), then [quick start](#quick-start).
+- Large workspace: [choose repositories before downloading](#choose-repositories-before-downloading).
+- Interrupted setup: [read the result and recover](#reading-initialization-and-recovery-results).
+- Coding agent: [use structured results and the bundled Skill](#for-coding-agents).
+
 ## Requirements
 
 - Node.js ≥22 (development uses Node 24), or Bun as an alternative runtime.
@@ -86,7 +98,9 @@ and configured package registry. See the
 
 Create a workspace from the source your team supplies. If you do not have one,
 start with the [manifest guide](manifest-guide.md). Replace angle-bracket
-placeholders before running commands:
+placeholders before running commands. By default, a new workspace selects all
+shared repositories. To download a subset, [choose names first](#choose-repositories-before-downloading)
+and add `--repos` to both init commands:
 
 ```sh
 fx init ./work --name work --from <manifest-repository> --dry-run
@@ -468,6 +482,16 @@ success, and errors may follow partial stdout. A protected dirty/diverged checko
 blocked or failed stage, or unverified activation prevents preparation from being
 complete. Excluded resources do not. Preparation does not establish remote health.
 
+The final init/sync notice also states whether preparation is complete for the
+requested scope. If `preparation_complete` is false, keep that incomplete verdict
+even when cloning succeeded; name the remaining blocker separately.
+
+For document failures, inspect `stage_details.docs.files` in sync or
+`sync.stage_details.docs.files` in init: `action` is the plan,
+while `result` distinguishes completed, failed and unstarted writes. Resolve the
+reported conflict and retry; unchanged documents are skipped. Foreign replacements
+require approval and preserve the original object in a unique sibling backup.
+
 Choose the output view before executing a write. For an authorized sync, capture
 the full result once and inspect the same file afterward:
 
@@ -580,6 +604,18 @@ personal selection, not a remote ACL denial. Git transport uses its own credenti
 optional code-host API probes are separate.
 Repository readability is probed again on normal retries, so an earlier missing
 repository does not remain blocked by an old negative cache.
+
+### Resume login after a handoff
+
+When `login` needs human input, complete the authorized handoff and repeat the
+same invocation. fx checks current state before rerunning actions; then recheck
+the original `can` or `doctor` query and continue your task.
+
+Machine callers must read partial stdout even after a nonzero exit, alongside
+the error on stderr. Completed steps remain visible; `handoff`, `blocked`,
+`failed` and `not_started` distinguish the remaining work. See the
+[login response contract](../skills/fx-workspace/references/commands.md#readiness-and-recovery)
+for summaries, plan problems and per-step recovery fields.
 
 ### Skill ownership and host activation
 

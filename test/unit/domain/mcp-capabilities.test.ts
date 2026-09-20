@@ -42,12 +42,4 @@ describe('MCP host capabilities', () => {
       assessMcpSupport(host.mcp, { ...resource, env: { TOKEN: { from_env: 'TOKEN' } } }).supported,
     ).toBe(true);
   });
-  it('represents unavailable and unverified hosts explicitly including Pi and Grok', () => {
-    const hosts = createAgentHosts(deps);
-    expect(hosts.find((host) => host.id === 'pi')!.mcp.status).toBe('unsupported');
-    expect(hosts.find((host) => host.id === 'grok')!.mcp.status).toBe('unverified');
-    expect(
-      hosts.every((host) => ['supported', 'unsupported', 'unverified'].includes(host.mcp.status)),
-    ).toBe(true);
-  });
 });

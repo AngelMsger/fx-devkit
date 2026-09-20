@@ -204,6 +204,15 @@ counter shape; details supplement those counts rather than replacing them.
 `fx init` nests this result under `sync`; its `written` field confirms local
 registration work, not complete synchronization or readiness.
 
+Document writes use a captured file snapshot. `DOCS_WRITE_CONFLICT` preserves a
+concurrent edit or unsafe path; inspect the path and retry from its current content.
+Each document row has `action` (the plan) and `result` (`planned`, `done`, `skipped`,
+`failed`, `not_started`). On failure, read `files` from partial stdout, or
+`stage_details.docs.files` inside sync and `sync.stage_details.docs.files` inside init. Completed file rows remain in the
+failure summary. Retry the same document operation after resolving the blocker;
+unchanged files are skipped. Approved foreign replacements move the original
+object to a unique sibling `.fx-backup[-N]` before a guarded write.
+
 `fx manifest render --check` — exit 11 (`DOCS_STALE`) when the manifest repository's AGENTS.md regions differ from the manifest.
 
 `fx hook list` — `items[]` with agent, action, activation, path, context and handoff,
@@ -322,6 +331,18 @@ Changed setup vectors require new exact-command trust.
 ## Readiness and recovery
 
 `LOGIN_REQUIRED` and non-ready `can`/`where` answers enter this flow.
+
+`login --format json` includes `items`, `has_more`, `summary` and `problems`;
+`--list` includes plan problems even with `--quiet`. If a step needs human input
+or a later step throws, read the partial result on stdout as well as the error
+on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
+completed steps remain visible. Handoff rows include the required action, and
+service preparation rows retain available `failure` and `next_steps` fields.
+After resolving the blocker, repeat the same invocation: setup verifies current
+state before rerunning actions. Consumers that previously discarded stdout on
+nonzero exit must now parse it when present. `self update` also captures installer
+output so its stdout remains parseable; inspect the returned installer `code`.
+
 Retain the original task, repository/environment and readiness query while
 repairing prerequisites. Authorization already given in this session persists;
 perform covered local work without asking again. Readiness and a printed
@@ -379,3 +400,11 @@ recover an executable that cannot start.
 | `not_covered`, `CAPABILITY_UNBOUND`, unresolved recipe/coordinate | Inspect manifest providers/validation and maintain confirmed shared facts within scope. Do not substitute another environment or repeatedly ask for login.                                                         |
 | `TOOL_UNDECLARED`                                                 | The capability is bound and its provider is known; the tools document does not declare the companion the provider runs. Propose that declaration; do not rebind the capability or install the tool first.          |
 | `unknown`, parse error or unexpected failure                      | Inspect focused diagnostics and the companion Skill; preserve uncertainty, redact sensitive output, and report an actionable blocker if evidence cannot resolve it.                                                |
+
+## Concurrent manifest edits
+
+`manifest repo-set` rechecks the captured document under a file lease before
+replacing it. If another writer changed it, the path is not a regular file, or
+its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
+content. Inspect the real source path and retry with `--dry-run`; do not remove
+locks or overwrite another edit. An identical edit reports `written: false`.

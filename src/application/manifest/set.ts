@@ -1,7 +1,5 @@
-// `manifest repo-set`: one scalar or alias array of one repository. The edited text is validated
-// before anything is written, and an edit that introduces a problem the
-// file did not already have is refused — the manifest never gets worse by
-// going through fx.
+// Validate a repository field edit, then compare the captured document under
+// the projection lease before replacing it. Concurrent edits are preserved.
 
 import path from 'node:path';
 
@@ -10,7 +8,7 @@ import { setRepoField } from '../../domain/manifest/editor.js';
 import { loadWorkspace } from '../../domain/manifest/loader.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { Problem } from '../../domain/manifest/types.js';
-import type { FileSystem } from '../../ports/fs.js';
+import type { ProjectionStore } from '../../ports/projection.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import { MANIFEST_FILES } from './locate.js';
@@ -37,11 +35,14 @@ export interface SetRepoFieldOutput {
 }
 
 export class SetRepoField {
-  constructor(private readonly fs: FileSystem) {}
+  constructor(private readonly files: ProjectionStore) {}
 
   async execute(input: SetRepoFieldInput): Promise<SetRepoFieldOutput> {
     const file = path.join(input.dir, MANIFEST_FILES.workspace);
-    const original = (await this.fs.readText(file)) ?? '';
+    const target = { root: input.dir, relative: MANIFEST_FILES.workspace };
+    const snapshot = await this.files.read(target);
+    if (snapshot.kind === 'foreign') throw changedManifest();
+    const original = snapshot.text ?? '';
     const edit = setRepoField(original, input.repo, input.field, input.value);
 
     const opts = {
@@ -71,8 +72,9 @@ export class SetRepoField {
     };
     if (input.dryRun) return plan;
     assertWritable(input.posture, `manifest repo-set ${input.repo} ${input.field}`);
-    await this.fs.writeText(file, edit.text);
-    return { ...plan, written: true };
+    const result = await this.files.write({ ...target, before: snapshot, text: edit.text });
+    if (result === 'busy' || result === 'conflict') throw changedManifest();
+    return { ...plan, written: result === 'written' };
   }
 }
 
@@ -93,4 +95,16 @@ function previewOf(original: string, edited: string): string[] {
     endB -= 1;
   }
   return [...a.slice(start, endA).map((l) => `-${l}`), ...b.slice(start, endB).map((l) => `+${l}`)];
+}
+
+function changedManifest(): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'MANIFEST_EDIT_CONFLICT',
+    'The manifest changed or cannot be safely replaced',
+    {
+      hint: 'Concurrent edits and non-regular paths are preserved.',
+      nextSteps: ['Inspect manifest/workspace.yaml and retry the same edit with --dry-run.'],
+    },
+  );
 }

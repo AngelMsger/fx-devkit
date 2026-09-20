@@ -34,7 +34,7 @@ export function assertPublicContent(text, file) {
     /[a-z0-9-]+\.chatgpt\.site/i,
     /npm-token|FX_PUBLISH_WRAPPED|scripts\/publish\.mjs/,
     /(?:\/Users\/|\/home\/)[A-Za-z][^\s<"/]+\//,
-    /npm\s+(?:--prefix\s+docs\/website|run\s+(?:site:|test:contract|check:windows))/,
+    /npm\s+(?:--prefix\s+docs\/website|run\s+(?:site:|docs:(?:gen|check)|test:contract|check:windows))/,
   ];
   if (forbidden.some((pattern) => pattern.test(text)))
     throw new Error(`Maintainer material in public output: ${file}`);

@@ -29,6 +29,10 @@ Use Node.js 22 or newer, Git and npm. Bun is also supported as an alternative
 runtime. macOS and Linux are supported; native Windows execution and agent host
 activation remain unverified. See [platform support](docs/support.md#platform-support).
 
+The documentation follows current source. [Unreleased changes](CHANGELOG.md#unreleased)
+may not be available in an installed package; its help and bundled Skill describe
+that executable.
+
 You also need a team manifest. Use an existing source or
 [create one from your checkouts](docs/manifest-guide.md).
 
@@ -68,7 +72,9 @@ PowerShell commands and Registry routing. For updates, use
 
 ## Quick start
 
-Replace `<manifest-repository>` with the source your team supplies:
+Replace `<manifest-repository>` with the source your team supplies. New workspaces
+select all shared repositories by default; add `--repos <name,...>` to both init
+commands to limit the first download:
 
 ```sh
 fx init ./work --name work --from <manifest-repository> --dry-run
@@ -117,6 +123,14 @@ Run `fx self info --format json`, then read `SKILL.md` in its `bundled_skill`
 directory, or run `fx skill show`. After reading, set `FX_SKILL_LOADED=1` and
 `FX_SKILL_VERSION` to the returned `bundled_skill_version`. Global Skill installation
 is optional. Start sessions at the registered workspace root to use team guidance.
+
+Document updates recheck their planning snapshots and return `DOCS_WRITE_CONFLICT`
+when they detect an intervening change. Partial docs results distinguish completed and
+pending writes; inspect them before retrying.
+
+`login` preserves partial results on stdout when it needs human input or a later
+step fails. Read those results alongside stderr errors before retrying; the
+[user guide](docs/user-guide.md) describes the result and recovery fields.
 
 `init`, `sync`, `doctor` and `release` summarize JSON by default. Use `--details`
 for full results or `--fields` to select fields from those results in any output

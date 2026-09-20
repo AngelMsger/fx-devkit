@@ -29,6 +29,7 @@ import { FileConfigStore } from '../infra/config-store.js';
 import { fxHome } from '../infra/home.js';
 import { FileLocalLayerStore } from '../infra/local-store.js';
 import { FileLock } from '../infra/lock.js';
+import { FileProjectionStore } from '../infra/projection-store.js';
 import { FileToolHistoryStore } from '../infra/tool-history.js';
 import { FileTrustStore } from '../infra/trust-store.js';
 import { manifestSourceDir } from '../infra/workspace-home.js';
@@ -41,6 +42,7 @@ import type { Installer } from '../ports/installer.js';
 import type { Lock } from '../ports/lock.js';
 import type { Platform } from '../ports/platform.js';
 import type { Process } from '../ports/process.js';
+import type { ProjectionStore } from '../ports/projection.js';
 import type { Prompter } from '../ports/prompter.js';
 import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
 import type { Registry } from '../ports/registry.js';
@@ -72,6 +74,7 @@ export interface Container {
   readonly toolHistory: ToolHistoryStore;
   readonly lock: Lock;
   readonly fs: FileSystem;
+  readonly projections: ProjectionStore;
   readonly process: Process;
   readonly git: Git;
   readonly clock: Clock;
@@ -105,6 +108,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     toolHistory: new FileToolHistoryStore(home, lock),
     lock,
     fs,
+    projections: new FileProjectionStore(lock),
     process,
     git: new SystemGit(process),
     clock,
@@ -181,6 +185,7 @@ export function workspaceDeps(
     processWhich: (binary) => container.process.which(binary),
     git: container.git,
     fs: container.fs,
+    projections: container.projections,
     localStore: container.localStore,
     cache: container.cache,
     reporter,

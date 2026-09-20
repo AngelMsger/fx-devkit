@@ -18,6 +18,10 @@ fx-managed workspace, use the relevant platform tool unless the user asks about 
 
 1. Run `fx self info --format json`. Read `SKILL.md` in the returned
    `bundled_skill` directory, or run `fx skill show`. A global copy can be older.
+   Keep the exact executable prefix that returned this result for every later command.
+   The examples use `fx` as shorthand: if discovery used an absolute path or
+   `node <checkout>/bin/fx.js`, keep using that prefix. Bare `fx` can resolve to
+   a different installation after shell startup.
 2. After reading this bundled Skill, use `FX_SKILL_LOADED=1` and
    `FX_SKILL_VERSION=0.2.1` with `--format json`. Rediscover the bundled version
    when the executable changes. The declaration acknowledges a version; it does
@@ -32,14 +36,18 @@ covered by the [Skill reference](references/commands.md#standalone-companion-ski
 ## Read a result before continuing
 
 - `init`, `sync`, `doctor`, `release` default to JSON summaries. `omitted` counts
-  normal rows/evidence; exceptions and recovery remain. Choose `--details` for all
-  rows, or `--fields` to project the full result in any format. JSON/NDJSON then
-  emit one object; human output shows selected key/value pairs. Set the view before a write;
+  normal rows/evidence; exceptions and recovery remain. Start with the summary;
+  use `--fields` for needed evidence or `--details` when all rows are necessary.
+  Explicit `--fields` projects the full result in any format: JSON/NDJSON emit one
+  object; human output shows selected key/value pairs. Set the view before a write;
   capture its output once instead of repeating the write to retrieve details.
 - For `init/sync`, inspect `operation` and `preparation_complete`. Preview uses
-  `null`. Registration, a cloned repository or exit zero alone is insufficient.
+  `null`. When `preparation_complete` is false, report preparation as incomplete
+  and name the remaining blockers. Registration, a clone or exit zero is insufficient.
 - For `doctor/release`, inspect `ok`, coverage `complete` and warning/failure
   findings. They can exit zero with failures; preparation does not prove remote health.
+- For `login`, retain `summary`, `problems` and step recovery fields. `handoff`
+  needs input; `blocked` has an unfinished prerequisite; `not_started` was not attempted.
 - Read partial stdout after a nonzero exit. It preserves completed effects and
   the failed phase. Keep stderr separate and parse JSON rather than truncating it.
 - For `SKILL_WRITE_DENIED`, inspect the denied path and preserve completed work.

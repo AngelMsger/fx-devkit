@@ -126,9 +126,13 @@ describe('ordinary clone import and adoption', () => {
       const initialized = s.run(initialArgs(s));
       expect(initialized.status, initialized.stderr).toBe(0);
       expect(initialized.json()).toMatchObject({ preparation_complete: !required });
+      expect(initialized.stderr).toContain(
+        required ? 'preparation incomplete' : 'preparation complete',
+      );
       const sync = s.run(['sync', '--only', 'tools', '--details']);
       expect(sync.status, sync.stderr).toBe(0);
       expect(sync.json()).toMatchObject({ preparation_complete: !required });
+      expect(sync.stderr).toContain(required ? 'Preparation incomplete' : 'Preparation complete');
       const doctor = s.run(['doctor', '--details']);
       expect(doctor.status, doctor.stderr).toBe(0);
       expect(doctor.json()).toMatchObject({

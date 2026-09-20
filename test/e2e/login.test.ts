@@ -155,6 +155,7 @@ describe('login and doctor', () => {
 
     const listed = fx(['login', '--list', '--format', 'json'], s.env, s.ws);
     expect(listed.status, listed.stderr).toBe(0);
+    expect(listed.json()).toMatchObject({ has_more: false, problems: [] });
     expect(ids(listed)).toEqual([
       'openobserve-cli.context@test',
       'kubectl.kubeconfig@test',
@@ -169,7 +170,11 @@ describe('login and doctor', () => {
       s.ws,
     );
     expect(handoff.status).toBe(3);
-    expect(handoff.stdout).toBe('');
+    expect(handoff.json()).toMatchObject({
+      has_more: false,
+      summary: { handoff: 3, blocked: 2 },
+      problems: [],
+    });
     const err = handoff.error() as ReturnType<typeof handoff.error> & {
       handoff: {
         user_steps: { id: string; kind: string; open?: string; command?: string[] }[];

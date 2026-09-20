@@ -37,6 +37,7 @@ async function stage(files: Record<string, string> = {}) {
     h,
     regions: new RenderRegions({
       fs: h.fs,
+      projections: h.deps.projections,
       reporter: h.reporter,
       context: h.ctx.context,
       describeProvider,

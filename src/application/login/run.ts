@@ -1,9 +1,14 @@
-// Guided setup. Every step is verified before it is offered, so a run is always
-// resumable; a person only sees what is not done. Without a person, the undone human
-// steps become one LOGIN_REQUIRED error whose handoff is the to-do list — nothing waits,
-// nothing half-happens.
+// Verify setup before acting and retain completed effects when a later step fails
+// or needs human input. A retry checks current state before repeating an action.
 
-import { DevkitError } from '../../domain/errors.js';
+import {
+  asDevkitError,
+  DevkitError,
+  toEnvelope,
+  withPartialResult,
+  type ErrorEnvelope,
+  type HandoffStep,
+} from '../../domain/errors.js';
 import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { ServiceOperation } from '../services/operation.js';
@@ -26,7 +31,15 @@ export interface LoginInput {
 }
 
 export type StepResult =
-  'verified' | 'done' | 'failed' | 'skipped' | 'blocked' | 'would_run' | 'would_ask';
+  | 'verified'
+  | 'done'
+  | 'failed'
+  | 'skipped'
+  | 'blocked'
+  | 'would_run'
+  | 'would_ask'
+  | 'handoff'
+  | 'not_started';
 
 export interface StepRow {
   readonly id: string;
@@ -36,11 +49,17 @@ export interface StepRow {
   readonly title: string;
   readonly result: StepResult;
   readonly detail: string | null;
+  readonly failure?: ErrorEnvelope['error'];
+  readonly next_steps?: readonly string[];
+  readonly handoff?: HandoffStep;
 }
+
+type StepOutcome = Pick<StepRow, 'result' | 'detail' | 'failure' | 'next_steps' | 'handoff'>;
 
 export const LOGIN_STEP_COLUMNS = ['id', 'kind', 'result', 'detail'] as const;
 
 export interface LoginOutput {
+  readonly has_more: false;
   readonly items: readonly StepRow[];
   readonly summary: Readonly<Record<StepResult, number>>;
   readonly problems: SetupPlan['problems'];
@@ -64,8 +83,7 @@ export class Login {
   }
 
   async execute(input: LoginInput): Promise<LoginOutput> {
-    const preview = await this.plan(input);
-    const conflicts = preview.problems.filter((problem) => problem.reason === 'step_conflict');
+    const conflicts = (await this.plan(input)).problems.filter((p) => p.reason === 'step_conflict');
     if (conflicts.length > 0)
       throw new DevkitError(
         'config',
@@ -84,22 +102,52 @@ export class Login {
     const rows: StepRow[] = [];
     const pending: SetupStep[] = [];
     const undone = new Set<string>();
-    for (const step of plan.steps) {
-      const outcome = await this.attempt(step, input, undone);
-      if (outcome === 'handoff') pending.push(step);
-      else rows.push(row(step, outcome.result, outcome.detail));
-      if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
-        undone.add(step.id);
+    const output = (): LoginOutput => ({
+      items: rows,
+      has_more: false,
+      summary: summarize(rows),
+      problems: plan.problems,
+    });
+    for (const [index, step] of plan.steps.entries()) {
+      try {
+        const outcome = await this.attempt(step, input, undone);
+        if (outcome === 'handoff') {
+          pending.push(step);
+          rows.push(
+            row(step, {
+              result: 'handoff',
+              detail: 'Human input or authorization required',
+              handoff: handoffStep(step),
+            }),
+          );
+        } else rows.push(row(step, outcome));
+        if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
+          undone.add(step.id);
+      } catch (error) {
+        const failure = toEnvelope(asDevkitError(error)).error;
+        rows.push(
+          row(step, {
+            result: 'failed',
+            detail: failure.message,
+            failure,
+            next_steps: failure.next_steps,
+          }),
+        );
+        for (const remaining of plan.steps.slice(index + 1))
+          rows.push(row(remaining, { result: 'not_started', detail: `Stopped after ${step.id}` }));
+        throw withPartialResult(error, output());
+      }
     }
-    if (pending.length > 0) throw setupRequired(pending, input, this.deps);
-    return { items: rows, summary: summarize(rows), problems: plan.problems };
+    if (pending.length > 0)
+      throw withPartialResult(setupRequired(pending, input, this.deps), output());
+    return output();
   }
 
   private async attempt(
     step: SetupStep,
     input: LoginInput,
     undone: ReadonlySet<string>,
-  ): Promise<{ result: StepResult; detail: string | null } | 'handoff'> {
+  ): Promise<StepOutcome | 'handoff'> {
     const blocker = step.requires.find((dep) => undone.has(dep));
     if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
     if (step.preparation) {
@@ -114,7 +162,12 @@ export class Login {
         blocked: 'blocked',
         failed: 'failed',
       } as const;
-      return { result: results[prepared.status], detail: prepared.detail };
+      return {
+        result: results[prepared.status],
+        detail: prepared.detail,
+        ...(prepared.failure === undefined ? {} : { failure: prepared.failure }),
+        ...(prepared.next_steps === undefined ? {} : { next_steps: prepared.next_steps }),
+      };
     }
     const before = await this.verifier.verify(step, { dryRun: input.dryRun });
     if (before.ok) return { result: 'verified', detail: before.detail };
@@ -129,7 +182,7 @@ export class Login {
     step: SetupStep,
     input: LoginInput,
     why: string,
-  ): Promise<{ result: StepResult; detail: string | null } | 'handoff'> {
+  ): Promise<StepOutcome | 'handoff'> {
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
     if (input.noInput && !this.setup.trust.yes) return 'handoff';
@@ -245,15 +298,14 @@ function setupRequired(
   );
 }
 
-function row(step: SetupStep, result: StepResult, detail: string | null): StepRow {
+function row(step: SetupStep, outcome: StepOutcome): StepRow {
   return {
     id: step.id,
     tool: step.tool,
     env: step.env ?? null,
     kind: step.kind,
     title: step.title,
-    result,
-    detail,
+    ...outcome,
   };
 }
 
@@ -266,6 +318,8 @@ function summarize(rows: readonly StepRow[]): Record<StepResult, number> {
     blocked: 0,
     would_run: 0,
     would_ask: 0,
+    handoff: 0,
+    not_started: 0,
   };
   for (const r of rows) summary[r.result] += 1;
   return summary;

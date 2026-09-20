@@ -41,6 +41,8 @@ npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry=
 公開套件預設從 npmjs 檢查更新，可透過 `FX_REGISTRY` 指定鏡像。執行前先查看 `fx self update --dry-run`。原始碼安裝透過 Git 更新後重新建置。fx 本體更新與重新整理 manifest 的 `fx sync` 是不同操作。
 <!-- /distribution -->
 
+`self update --format json` 會擷取安裝器輸出，保持 stdout 可解析。請檢查安裝器的 `code` 與失敗時的 `reason`；收到 JSON 不代表更新成功。
+
 ## 平台支援 {#platform-support}
 
 需要 Node.js 22 或更新版本和 Git。Bun 可作為執行環境；npm 安裝和自我更新仍需要 npm。

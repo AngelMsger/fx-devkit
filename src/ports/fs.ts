@@ -19,6 +19,8 @@ export interface FileSystem extends FileReader {
   writeText(path: string, text: string): Promise<void>;
   link(target: string, at: string): Promise<void>;
   copyDir(from: string, to: string): Promise<void>;
+  // Atomically move an approved path to an unused sibling, preserving the object itself.
+  moveToBackup(path: string): Promise<string>;
   replaceDir(from: string, to: string): Promise<void>;
   // Removes only files, links or directories fx created.
   remove(path: string): Promise<void>;

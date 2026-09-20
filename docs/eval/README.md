@@ -24,7 +24,9 @@ The temporary initialization home does not inherit SSH configuration or companio
 caches; a failure there is not evidence that native authentication is broken.
 
 The script preserves initialization stdout/stderr and reports failed or incomplete
-stages instead of treating exit zero as readiness. Read doctor coverage before
+stages instead of treating exit zero as readiness. Its preparation gate requires
+`operation: apply` and `preparation_complete: true`; compact stage summaries are
+not a substitute for that verdict. Read doctor coverage before
 choosing a task. `sandbox.sh smoke` checks child-process discovery and tracing
 without requiring a manifest; `sandbox.sh env` prints the trial environment.
 
@@ -45,7 +47,10 @@ with `fx sync --only docs --no-refresh-manifest` using the temporary FX_HOME.
 ## Run independent trials
 
 Start the agent from the workspace root. Provide only the task and its authorized
-scope, not hints naming fx commands. The templates in `prompts/` describe review,
+scope, not hints naming fx commands. Provide the evaluated executable path and
+isolated environment coordinates explicitly when the host has not demonstrated
+that it loads the root guide. This supplies the environment, not command choices;
+a guide file on disk alone is insufficient evidence of native loading. The templates in `prompts/` describe review,
 feature and observability tasks; fill placeholders in a private copy outside this
 repository. Keep prompts fixed when comparing guidance changes.
 
@@ -61,7 +66,16 @@ EVAL=/tmp/fx-evaluation EVAL_PROMPT_FILE=/path/to/private/task.md \
 ```
 
 For another launcher, preserve its exact arguments, working directory, runtime,
-model, prompt, terminal output, exit reason and FX_TRACE. A turn cap counts model
+model, prompt, terminal output, exit reason and FX_TRACE. Verify the executable identity inside the host: login shells can reset PATH and
+select a global fx even when the launcher supplied a checkout wrapper. Compare
+the `bundled_skill` path from `fx self info` with the checkout under evaluation;
+a matching package version alone is insufficient. Preserve launcher PATH through
+the host's supported shell settings, and exclude mismatched runs from acceptance.
+Check later tool calls as well as initial discovery: a host may revert to bare
+`fx` after correctly inspecting an absolute entry. Exclude mixed-entry calls from
+revision acceptance and retain them as discovery failures.
+Use the host's own sandbox profile names; a rejected profile is not permission to
+disable its sandbox. A turn cap counts model
 turns, not necessarily tool calls. If a run ends at that cap, retain its session
 identifier and resume the same session; do not call an incomplete report a pass.
 A timeout while observing a live process is not evidence that it terminated.

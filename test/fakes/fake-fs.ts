@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { DevkitError } from '../../src/domain/errors.js';
 import type { FileSystem } from '../../src/ports/fs.js';
 
 export class FakeFs implements FileSystem {
@@ -95,6 +96,33 @@ export class FakeFs implements FileSystem {
   async replaceDir(from: string, to: string): Promise<void> {
     await this.remove(to);
     await this.copyDir(from, to);
+  }
+
+  async moveToBackup(target: string): Promise<string> {
+    const source = path.resolve(target);
+    if (!(await this.exists(source)))
+      throw new DevkitError('conflict', 'PROJECTION_CHANGED', 'The replacement path changed');
+    let backup = `${source}.fx-backup`;
+    let suffix = 1;
+    while ((await this.exists(backup)) || (await this.readLink(backup)) !== undefined)
+      backup = `${source}.fx-backup-${suffix++}`;
+    const destination = (entry: string): string => backup + entry.slice(source.length);
+    const selected = (entry: string): boolean =>
+      entry === source || entry.startsWith(`${source}${path.sep}`);
+    for (const entries of [this.files, this.links]) {
+      for (const [entry, value] of [...entries]) {
+        if (!selected(entry)) continue;
+        entries.set(destination(entry), value);
+        entries.delete(entry);
+      }
+    }
+    for (const entry of [...this.dirs]) {
+      if (!selected(entry)) continue;
+      this.dirs.add(destination(entry));
+      this.dirs.delete(entry);
+    }
+    this.writes.push(backup, `rm ${source}`);
+    return backup;
   }
 
   async remove(file: string): Promise<void> {

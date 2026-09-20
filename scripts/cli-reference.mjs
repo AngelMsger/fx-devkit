@@ -124,8 +124,9 @@ export function renderCliReference(registry) {
   const lines = [
     '# fx-devkit command reference',
     '',
-    `Generated from the command registry of version ${registry.version}. Do not edit by hand;`,
-    'run `npm run docs:gen` after changing commands or flags.',
+    `Command syntax for the current source (package version ${registry.version}).`,
+    'An installed package may not include [unreleased changes](../../CHANGELOG.md) yet.',
+    'Use `fx <command> --help` for the exact syntax supported by your executable.',
     '',
     '## Everyday',
     '',

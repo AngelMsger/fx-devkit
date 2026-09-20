@@ -3,11 +3,11 @@
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b6dec92057e3a36141f91a4ddbbf98ddaa27dc8250f2e093f60e079c1bc37034"
+      "source_sha256": "52836590d1dc58861818a98dd2325eb8e0f899cd5553c34c91ed0f0f5cb443a0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "edd4ac330037aa0e5876bdc6059ac2c5f18af9bc9cd45ee320a9a4195adff90e"
+      "source_sha256": "732915ff86438a1a05a877ac3544120c4f8c0d756af2cc580e79b789eadf813e"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -15,22 +15,22 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "ac43702bef71219d3a1c688b994a4d15ca83b3018a122c8de8b5d9d46c9751d2"
+      "source_sha256": "5661f3cd5c5039af5c631d6c24d9bf0a17849d8f64229f267400af4b3dea2f58"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "d3b788a8a952f70c5ba464805b84718de571ab41a437f808011a7a168a78c040"
+      "source_sha256": "d7c0f2e4c1b6aad9cf619541e848a94d0b21e2a1c4f20bdfa45f3345b86f5045"
     }
   },
   "zh-Hans": {
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b6dec92057e3a36141f91a4ddbbf98ddaa27dc8250f2e093f60e079c1bc37034"
+      "source_sha256": "52836590d1dc58861818a98dd2325eb8e0f899cd5553c34c91ed0f0f5cb443a0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "edd4ac330037aa0e5876bdc6059ac2c5f18af9bc9cd45ee320a9a4195adff90e"
+      "source_sha256": "732915ff86438a1a05a877ac3544120c4f8c0d756af2cc580e79b789eadf813e"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -38,22 +38,22 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "ac43702bef71219d3a1c688b994a4d15ca83b3018a122c8de8b5d9d46c9751d2"
+      "source_sha256": "5661f3cd5c5039af5c631d6c24d9bf0a17849d8f64229f267400af4b3dea2f58"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "d3b788a8a952f70c5ba464805b84718de571ab41a437f808011a7a168a78c040"
+      "source_sha256": "d7c0f2e4c1b6aad9cf619541e848a94d0b21e2a1c4f20bdfa45f3345b86f5045"
     }
   },
   "zh-Hant": {
     "_catalog_sha256": "14255970a7b1b18879e2545a9c732882221b721330293339920562ac5e1c28bd",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "b6dec92057e3a36141f91a4ddbbf98ddaa27dc8250f2e093f60e079c1bc37034"
+      "source_sha256": "52836590d1dc58861818a98dd2325eb8e0f899cd5553c34c91ed0f0f5cb443a0"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "edd4ac330037aa0e5876bdc6059ac2c5f18af9bc9cd45ee320a9a4195adff90e"
+      "source_sha256": "732915ff86438a1a05a877ac3544120c4f8c0d756af2cc580e79b789eadf813e"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -61,11 +61,11 @@
     },
     "docs/support.md": {
       "file": "support.md",
-      "source_sha256": "ac43702bef71219d3a1c688b994a4d15ca83b3018a122c8de8b5d9d46c9751d2"
+      "source_sha256": "5661f3cd5c5039af5c631d6c24d9bf0a17849d8f64229f267400af4b3dea2f58"
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "d3b788a8a952f70c5ba464805b84718de571ab41a437f808011a7a168a78c040"
+      "source_sha256": "d7c0f2e4c1b6aad9cf619541e848a94d0b21e2a1c4f20bdfa45f3345b86f5045"
     }
   }
 }
