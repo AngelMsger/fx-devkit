@@ -37,9 +37,9 @@ export class SelfUpdate {
       throw new DevkitError(
         'config',
         'REGISTRY_UNKNOWN',
-        'No private update registry is configured',
+        'No valid update registry is configured',
         {
-          hint: 'Check the installed distribution and FX_REGISTRY override; follow the registry setup handoff.',
+          hint: 'Check npm registry configuration and any FX_REGISTRY override; follow the registry setup handoff.',
           nextSteps: ['fx self info'],
           handoff: REGISTRY_HANDOFF,
         },
@@ -48,6 +48,7 @@ export class SelfUpdate {
     const vector = this.installer.vector(input.packageName, {
       registry: input.registry,
       update: true,
+      registryScope: 'package',
     });
     if (!vector)
       throw new DevkitError('config', 'REGISTRY_UNKNOWN', 'The installer cannot plan this update', {

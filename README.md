@@ -43,13 +43,13 @@ The internal package is `@fx/devkit`; the separately gated public package is
 
 <!-- distribution:internal -->
 
-For the internal package, obtain your team's Registry URL and npm access.
+For the internal package, use your team's existing npm configuration. If its
+`@fx` scope is not configured yet, sign in once with the team Registry URL.
 The URL below is fictional:
 
 ```sh
-export FX_REGISTRY=https://npm.example.com/
-npm login --registry="$FX_REGISTRY"
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
 

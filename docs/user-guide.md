@@ -33,25 +33,26 @@ administrator privileges or Developer Mode. See [platform support](support.md#pl
 ### Internal package
 
 The internal distribution uses `@fx/devkit` through your team's private Registry. Obtain its URL and npm
-access from your team, then set `FX_REGISTRY` before installing. The public npm
+access from your team. Existing npm scope configuration is reused; `FX_REGISTRY`
+is an optional override, not a required installation setting. The public npm
 release is on hold. These commands require the version to be available in that Registry.
 
 ```sh
-export FX_REGISTRY=https://npm.example.com/
-npm login --registry="$FX_REGISTRY"
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
 
-The URL above is fictional. Explicitly selecting both registries prevents an
-existing scope setting from redirecting this installation.
+The URL above is fictional. `npm login --scope=@fx --registry=...` associates the
+scope with that Registry. If it is already configured, only the install command
+is needed. `fx self info --format json` reports the effective `registry` and
+`registry_source` without changing npm configuration.
 
 In PowerShell, use `.cmd` entries if local policy blocks `.ps1` shims:
 
 ```powershell
-$env:FX_REGISTRY = 'https://npm.example.com/'
-npm.cmd login --registry=$env:FX_REGISTRY
-npm.cmd install -g @fx/devkit --registry=$env:FX_REGISTRY --@fx:registry=$env:FX_REGISTRY
+npm.cmd login --registry=https://npm.example.com/ --scope=@fx
+npm.cmd install -g @fx/devkit
 fx.cmd --version
 ```
 

@@ -28,8 +28,6 @@ describe('SelfUpdate', () => {
         'install',
         '-g',
         '@fx/devkit@latest',
-        '--registry',
-        'https://npm.example.com/',
         '--@fx:registry=https://npm.example.com/',
       ],
       ran: true,

@@ -28,42 +28,55 @@ individual findings and recovery information.
 
 ## Updates
 
+`fx self info --format json` reports the installed version, runtime, effective
+`registry` and `registry_source`. fx reuses npm's user/global configuration:
+package scope first, then the default Registry. `FX_REGISTRY` is an optional
+higher-priority override. Project npmrc cannot redirect global self-update.
+Normal metadata reads use npm's own authentication and `NPM_CONFIG_USERCONFIG`.
+An invalid override is reported rather than silently ignored.
+
 <!-- distribution:internal -->
 
-Use `fx self info --format json` to identify the version, runtime and configured
-package registry. Package installations use the private Registry supplied by your team through
-`FX_REGISTRY`. Source installations can be updated through Git, followed by
-`npm ci` and `npm run build` in that checkout.
+For `@fx/devkit`, an existing npm `@fx:registry` or private default is sufficient.
+If neither is configured, obtain the team URL and associate the scope once:
 
-For a package installation with an available update source, inspect
-`fx self update --dry-run` before applying it. The current version requires an
-explicit private registry for package-based self-update. Source installations can
-be updated without using that command. Updating fx and updating the team manifest
-are separate operations; `fx sync` refreshes eligible manifest sources.
+```sh
+npm login --registry=https://npm.example.com/ --scope=@fx
+fx self update --dry-run
+```
+
+The URL is fictional. A one-time installation flag does not necessarily persist
+that association; downloaded tarball URLs are not reliable Registry API addresses.
+`FX_REGISTRY` remains available for a one-invocation override.
 
 ### Registry routing
 
-If the private Registry serves fx but fails while proxying a public dependency,
-check the failing package URL first. Where your team's policy permits direct npmjs
-access, keep the fx scope private and route only public dependencies to npmjs:
+Self-update pins the fx scope while leaving public dependencies on npm's default
+Registry. If your private default fails while proxying public dependencies and
+team policy permits npmjs, keep the configured `@fx` scope private and route the
+other packages to npmjs for the installation:
 
 ```sh
-npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 ```
 
-This is a per-command routing choice, not a credential change or a fix to the
-private proxy. `FX_REGISTRY` still selects fx's internal metadata/self-update source.
+Configure the scope first. This changes one invocation, not stored credentials
+or the private proxy. It does not require a separate fx Registry setting.
 
 <!-- /distribution -->
 
 <!-- distribution:public -->
 
-The public package uses npmjs for update checks by default. `FX_REGISTRY` can select an explicit mirror. Inspect `fx self update --dry-run` before applying an update. For source installations, update Git and rebuild. Updating fx is separate from `fx sync`, which updates eligible manifest sources.
+The public package follows npm's `@angelmsger:registry` and default Registry;
+without a usable npm configuration it defaults to npmjs. `FX_REGISTRY` can select
+an explicit mirror. Preview with `fx self update --dry-run` before applying it.
+
 <!-- /distribution -->
 
-`self update --format json` captures installer output so stdout stays parseable.
-Inspect the returned installer `code` and any failure `reason`; receiving JSON
-does not establish that the update succeeded.
+For source installations, update Git and run `npm ci` and `npm run build` in the
+checkout. Updating fx is separate from `fx sync`, which refreshes manifest sources.
+`self update --format json` keeps stdout parseable; inspect installer `code` and
+any failure `reason` rather than treating JSON output as success.
 
 ## Platform support
 

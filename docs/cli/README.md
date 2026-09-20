@@ -1007,7 +1007,7 @@ Arguments:
 
 ## `fx self info`
 
-Where this fx is: version, runtime, personal directory, bundled assets, registry, workspace
+Where this fx is: version, runtime, personal directory, bundled assets, effective registry and its source, workspace
 
 Examples:
 
@@ -1017,7 +1017,7 @@ fx self info --format json
 
 ## `fx self update`
 
-Update fx from its distribution registry (override with FX_REGISTRY)
+Update fx using npm registry configuration; FX_REGISTRY is an optional override
 
 Flags:
 

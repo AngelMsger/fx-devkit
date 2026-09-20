@@ -16,32 +16,38 @@
 
 ## 更新 {#updates}
 
+`fx self info --format json` 显示已安装版本、运行时、有效的 `registry` 和 `registry_source`。fx 复用 npm 用户/全局配置，先取包的 scope Registry，再取默认 Registry；`FX_REGISTRY` 是优先级更高的可选覆盖。项目 npmrc 不能重定向全局自更新。普通元数据查询由 npm 处理认证与 `NPM_CONFIG_USERCONFIG`；无效覆盖会报告出来，不会静默忽略。
+
 <!-- distribution:internal -->
 
-包安装使用团队通过 `FX_REGISTRY` 指定的私有 Registry。
+`@fx/devkit` 可以直接使用已有的 `@fx:registry` 或私有默认源。两者都没有时，获取团队地址并一次性关联 scope：
 
-`fx self info --format json` 显示版本、运行时和包更新来源。源码安装可通过 Git 更新 checkout，再在该目录执行 `npm ci` 和 `npm run build`。
+```sh
+npm login --registry=https://npm.example.com/ --scope=@fx
+fx self update --dry-run
+```
 
-使用包安装且有可用更新来源时，先查看 `fx self update --dry-run`。当前版本的包式自更新需要显式配置私有 registry；源码安装可按上述方式更新，不需要该命令。更新 fx 与更新团队 manifest 是不同操作，`fx sync` 会刷新符合条件的 manifest 来源。
+URL 为虚构示例。一次性安装参数不保证保存该关联，下载用的 tarball URL 也不等于 Registry API 地址。`FX_REGISTRY` 仍可临时覆盖本次调用。
 
 ### Registry 路由
 
-如果私有 Registry 能提供 fx，但代理公共依赖失败，先检查失败包的 URL。团队策略允许直接访问 npmjs 时，可保持 fx scope 使用私有源，仅让公共依赖走 npmjs：
+自更新仅固定 fx 的 scope，公共依赖仍遵循 npm 默认源。如果私有默认源代理公共依赖失败，且团队允许直连 npmjs，可保留已配置的 `@fx` 私有 scope，并在安装时使用：
 
 ```sh
-npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 ```
 
-这是单次命令的路由选择，不修改凭证，也不表示私有代理已修复。`FX_REGISTRY` 仍指定 fx 的内部元信息及自更新来源。
+需要先配置 scope。这是单次路由选择，不修改凭据或修复代理，也不需要另配 fx 专用 Registry。
 
 <!-- /distribution -->
 
 <!-- distribution:public -->
 
-公开包默认从 npmjs 检查更新，可通过 `FX_REGISTRY` 指定镜像。执行前先查看 `fx self update --dry-run`。源码安装通过 Git 更新后重新构建。fx 本体更新与刷新 manifest 的 `fx sync` 是不同操作。
+公开包遵循 npm 的 `@angelmsger:registry` 与默认源；无法读取有效 npm 配置时才默认使用 npmjs。`FX_REGISTRY` 可指定镜像，先用 `fx self update --dry-run` 预览。
+
 <!-- /distribution -->
 
-`self update --format json` 会捕获安装器输出，保持 stdout 可解析。请检查安装器的 `code` 及失败时的 `reason`；收到 JSON 不等于更新成功。
+源码安装通过 Git 更新，再在 checkout 内执行 `npm ci` 和 `npm run build`。fx 本体更新与刷新 manifest 的 `fx sync` 分开。`self update --format json` 保持 stdout 可解析，请检查安装器 `code` 和失败时的 `reason`，不要仅凭收到 JSON 判断成功。
 
 ## 平台支持 {#platform-support}
 

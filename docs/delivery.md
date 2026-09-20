@@ -65,9 +65,10 @@ GitHub Pages with GitHub Actions as its source. Official references:
 `FX_DISTRIBUTION=internal|public` selects website copy and installation instructions.
 Markdown channel blocks keep one reviewed source for both audiences. English is
 default; all four locales select the same channel. Runtime self-update uses the
-installed package identity: internal needs a private `FX_REGISTRY`, public defaults
-to npmjs. Explicit mirrors are validated; private environment tokens never go to
-the public default.
+installed package identity and npm's effective user/global Registry settings;
+`FX_REGISTRY` remains an optional override. Internal packages still require a
+validated private target. Explicit mirrors are validated; private environment
+tokens never go to the public default.
 
 A delivery is complete only with evidence of:
 

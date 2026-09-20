@@ -16,7 +16,6 @@ import { loginDeps, skillDeps, workspaceDeps, type Container } from './container
 import { harnessSession } from './harness.js';
 import { hookStateStore } from './hooks.js';
 import { manifestSourceFor } from './manifest-sources.js';
-import { configuredRegistry } from './registry-location.js';
 import { updateChecks } from './update.js';
 
 interface HookWiringInput {
@@ -83,7 +82,7 @@ function phaseDeps(input: HookWiringInput): BackgroundDeps {
     self: {
       packageName: metadata.name,
       version: metadata.version,
-      registry: configuredRegistry(env, metadata.name),
+      registry: async () => (await container.registryLocator.resolve(metadata.name)).registry,
       update: updates.fx,
     },
   };

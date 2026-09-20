@@ -1,10 +1,10 @@
-// Is a newer fx published? Only a release build asks, and only of the
-// configured private registry. Cache identities include the target registry.
+// Check release versions against the resolved package registry. Cache identities
+// include both the installed package and its selected registry.
 
 import { createHash } from 'node:crypto';
 
 import { compareSemver, isRelease, parseSemver } from '../../domain/semver.js';
-import type { Registry } from '../../ports/registry.js';
+import type { Registry, RegistryLocation } from '../../ports/registry.js';
 
 import type { CachedProbe } from './check.js';
 import { FX_UPDATE_TTL_MS } from './policy.js';
@@ -15,6 +15,7 @@ export interface FxUpdateInput {
   readonly current: string;
   readonly packageName: string;
   readonly registry: string | null;
+  readonly registrySource?: RegistryLocation['source'];
   readonly force?: boolean;
 }
 

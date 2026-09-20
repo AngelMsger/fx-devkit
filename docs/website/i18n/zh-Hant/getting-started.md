@@ -23,14 +23,15 @@
 
 <!-- distribution:internal -->
 
-fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址和 npm 存取權限，並設定 `FX_REGISTRY`。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
+fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
 
 ```sh
-export FX_REGISTRY=https://npm.example.com/
-npm login --registry="$FX_REGISTRY"
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
+
+`npm login --scope=@fx --registry=...` 會關聯 scope 與 Registry。已設定時只需執行安裝命令。`fx self info --format json` 顯示有效的 `registry` 與 `registry_source`，不修改 npm 設定。
 
 <!-- /distribution -->
 

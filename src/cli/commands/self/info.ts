@@ -7,13 +7,14 @@ import { FxCommand } from '../../base.js';
 export default class SelfInfoCommand extends FxCommand {
   static override announcesSkill = false;
   static override description =
-    'Where this fx is: version, runtime, personal directory, bundled assets, registry, workspace';
+    'Where this fx is: version, runtime, personal directory, bundled assets, effective registry and its source, workspace';
   static override examples = ['<%= config.bin %> self info --format json'];
   static override flags = {};
 
   async run(): Promise<void> {
     await this.parse(SelfInfoCommand);
     const current = await this.currentWorkspace();
+    const location = await this.fxUpdateInput();
     const pjson = this.config.pjson as { name: string };
     this.renderer.record(
       selfInfo({
@@ -25,7 +26,8 @@ export default class SelfInfoCommand extends FxCommand {
         trustPath: this.container.trust.path(),
         bundledTools: new URL('../../../../defaults/tools.yaml', import.meta.url).pathname,
         bundledSkill: bundledSkillDir(),
-        registry: this.fxUpdateInput().registry,
+        registry: location.registry,
+        registrySource: location.registrySource,
         workspace: current.workspace,
         workspaceError: current.error,
       }),

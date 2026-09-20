@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reuse npm scope/default registries and native authentication for self-update and version checks; make FX_REGISTRY optional and preserve public dependency routing.
+
 ## 0.3.0 (2026-09-20)
 
 - Preserve login partial results, summaries and structured recovery information after handoffs or exceptions, including on nonzero exit.

@@ -16,32 +16,38 @@
 
 ## 更新 {#updates}
 
+`fx self info --format json` はバージョン、ランタイム、有効な `registry` と `registry_source` を表示します。fx は npm のユーザー/グローバル設定を再利用し、パッケージの scope Registry、既定 Registry の順に解決します。`FX_REGISTRY` は優先度の高い任意の上書きです。プロジェクトの npmrc はグローバル自己更新を変更できません。通常のメタデータ取得は npm の認証と `NPM_CONFIG_USERCONFIG` に従い、無効な上書きは黙って無視せず報告します。
+
 <!-- distribution:internal -->
 
-パッケージ版はチームのプライベート Registry を `FX_REGISTRY` で指定します。
+`@fx/devkit` は既存の `@fx:registry` またはプライベートの既定 Registry を利用できます。どちらも未設定なら、チームの URL を取得して scope を一度関連付けてください：
 
-`fx self info --format json` でバージョン、ランタイム、パッケージ更新元を確認できます。ソースからインストールした場合は Git で checkout を更新し、そのディレクトリで `npm ci` と `npm run build` を実行します。
+```sh
+npm login --registry=https://npm.example.com/ --scope=@fx
+fx self update --dry-run
+```
 
-パッケージからインストールし更新元が利用可能な場合は、先に `fx self update --dry-run` を確認します。現在のパッケージ自己更新にはプライベートレジストリの明示的設定が必要です。ソースからの更新にはこのコマンドは不要です。fx 本体とチームのマニフェストの更新は別の操作で、`fx sync` が条件を満たすマニフェストソースを更新します。
+URL は架空です。一回限りのインストール引数はこの関連付けを保存するとは限らず、tarball URL も Registry API のアドレスとは限りません。`FX_REGISTRY` は一回の呼び出しの上書きに引き続き使えます。
 
 ### Registry の振り分け
 
-プライベート Registry が fx を返しても、公開依存パッケージのプロキシに失敗する場合があります。まず失敗したパッケージの URL を確認します。チームの方針で npmjs への直接接続が許可されていれば、fx の scope はプライベートのまま、公開依存だけを npmjs に振り分けられます：
+自己更新は fx の scope のみを固定し、公開依存パッケージには npm の既定 Registry を使います。プライベートの既定 Registry が公開依存のプロキシに失敗し、チームの方針で npmjs への直接接続が許可されていれば、設定済みの `@fx` scope を維持して次を実行できます：
 
 ```sh
-npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 ```
 
-これは一回の呼び出しの設定で、認証情報の変更やプロキシの修復ではありません。`FX_REGISTRY` は引き続き fx の内部メタデータと自己更新の取得先です。
+先に scope を設定してください。一回の経路選択であり、認証情報を変更したりプロキシを修復したりするものではありません。fx 専用の Registry 設定は不要です。
 
 <!-- /distribution -->
 
 <!-- distribution:public -->
 
-公開パッケージは既定で npmjs を更新元に使います。`FX_REGISTRY` でミラーを指定できます。更新前に `fx self update --dry-run` を確認してください。ソース版は Git を更新して再ビルドします。fx 本体の更新と、マニフェストを更新する `fx sync` は別の操作です。
+公開パッケージは npm の `@angelmsger:registry` と既定 Registry に従います。有効な npm 設定を取得できない場合は npmjs にフォールバックします。`FX_REGISTRY` でミラーを指定できます。先に `fx self update --dry-run` を確認してください。
+
 <!-- /distribution -->
 
-`self update --format json` はインストーラーの出力を捕捉し、stdout を解析可能に保ちます。インストーラーの `code` と失敗時の `reason` を確認してください。JSON が返ること自体は更新成功を意味しません。
+ソース版は Git を更新し、checkout で `npm ci` と `npm run build` を実行します。fx 本体の更新と manifest を更新する `fx sync` は別の操作です。`self update --format json` は stdout を解析可能に保ちます。JSON が返るだけで成功とせず、インストーラーの `code` と失敗時の `reason` を確認してください。
 
 ## 対応プラットフォーム {#platform-support}
 

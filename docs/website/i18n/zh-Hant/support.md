@@ -16,32 +16,38 @@
 
 ## 更新 {#updates}
 
+`fx self info --format json` 顯示已安裝版本、執行環境、有效的 `registry` 與 `registry_source`。fx 重用 npm 使用者/全域設定，先取套件 scope Registry，再取預設 Registry；`FX_REGISTRY` 是較高優先序的選用覆寫。專案 npmrc 不能重新導向全域自我更新。一般中繼資料查詢由 npm 處理驗證與 `NPM_CONFIG_USERCONFIG`；無效覆寫會回報，不會靜默忽略。
+
 <!-- distribution:internal -->
 
-套件安裝使用團隊透過 `FX_REGISTRY` 指定的私有 Registry。
+`@fx/devkit` 可直接使用既有的 `@fx:registry` 或私有預設來源。兩者都沒有時，取得團隊位址並一次性關聯 scope：
 
-`fx self info --format json` 顯示版本、執行環境和套件更新來源。原始碼安裝可透過 Git 更新 checkout，再於該目錄執行 `npm ci` 和 `npm run build`。
+```sh
+npm login --registry=https://npm.example.com/ --scope=@fx
+fx self update --dry-run
+```
 
-使用套件安裝且有可用更新來源時，先查看 `fx self update --dry-run`。目前版本的套件自我更新需要明確設定私有 registry；原始碼安裝可依上述方式更新，不需要該命令。更新 fx 與更新團隊 manifest 是不同操作，`fx sync` 會更新符合條件的 manifest 來源。
+URL 為虛構範例。單次安裝參數不保證保存該關聯，下載用的 tarball URL 也不等於 Registry API 位址。`FX_REGISTRY` 仍可暫時覆寫本次呼叫。
 
 ### Registry 路由
 
-如果私有 Registry 可提供 fx，但代理公共相依套件失敗，先檢查失敗套件的 URL。團隊原則允許直接存取 npmjs 時，可讓 fx scope 維持私有來源，僅將公共相依套件導向 npmjs：
+自我更新只固定 fx 的 scope，公共相依套件仍遵循 npm 預設來源。若私有預設來源代理公共套件失敗，且團隊允許直接連線 npmjs，可保留已設定的 `@fx` 私有 scope，並在安裝時使用：
 
 ```sh
-npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry="$FX_REGISTRY"
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 ```
 
-這是單次命令的路由選擇，不修改憑證，也不表示私有代理已修復。`FX_REGISTRY` 仍指定 fx 的內部中繼資料與自我更新來源。
+須先設定 scope。這是單次路由選擇，不修改憑證或修復代理，也不需另設 fx 專用 Registry。
 
 <!-- /distribution -->
 
 <!-- distribution:public -->
 
-公開套件預設從 npmjs 檢查更新，可透過 `FX_REGISTRY` 指定鏡像。執行前先查看 `fx self update --dry-run`。原始碼安裝透過 Git 更新後重新建置。fx 本體更新與重新整理 manifest 的 `fx sync` 是不同操作。
+公開套件遵循 npm 的 `@angelmsger:registry` 與預設來源；無法讀取有效 npm 設定時才預設使用 npmjs。`FX_REGISTRY` 可指定鏡像，先以 `fx self update --dry-run` 預覽。
+
 <!-- /distribution -->
 
-`self update --format json` 會擷取安裝器輸出，保持 stdout 可解析。請檢查安裝器的 `code` 與失敗時的 `reason`；收到 JSON 不代表更新成功。
+原始碼安裝透過 Git 更新，再於 checkout 內執行 `npm ci` 與 `npm run build`。fx 本體更新與重新整理 manifest 的 `fx sync` 分開。`self update --format json` 保持 stdout 可解析，請檢查安裝器 `code` 與失敗時的 `reason`，不要僅憑收到 JSON 判定成功。
 
 ## 平台支援 {#platform-support}
 

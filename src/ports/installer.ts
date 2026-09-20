@@ -7,6 +7,8 @@ export type InstallerId = 'npm' | 'brew' | 'go' | 'manual';
 export interface VectorOptions {
   readonly registry?: string | undefined;
   readonly update: boolean;
+  // Self-update pins its own scope while leaving other dependency registries to npm.
+  readonly registryScope?: 'package';
 }
 
 export interface Installer {

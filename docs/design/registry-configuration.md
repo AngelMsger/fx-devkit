@@ -1,50 +1,70 @@
 # Distribution and registry contract
 
 The project and binary remain `fx-devkit` and `fx`. Package identity determines
-the distribution; `src/domain/distribution.js` owns that mapping.
+the distribution and npm scope; `src/domain/distribution.js` owns that mapping.
 
-| Package          | Default metadata/update source | Publication target                                           | Access     |
-| ---------------- | ------------------------------ | ------------------------------------------------------------ | ---------- |
-| `@fx/devkit`     | Explicit private `FX_REGISTRY` | Private Registry selected by injected npmrc or `FX_REGISTRY` | restricted |
-| `@angelmsger/fx` | npmjs                          | npmjs only                                                   | public     |
+| Package          | Runtime fallback         | Publication target                                           | Access     |
+| ---------------- | ------------------------ | ------------------------------------------------------------ | ---------- |
+| `@fx/devkit`     | No guessed public source | Private Registry selected by injected npmrc or `FX_REGISTRY` | restricted |
+| `@angelmsger/fx` | npmjs                    | npmjs only                                                   | public     |
 
-Public release is currently paused by the GitHub repository variable gate described
-in [delivery](../delivery.md). Preparing a public artifact is not publication.
+Public release remains gated as described in [delivery](../delivery.md).
+Preparing a public artifact does not publish it.
 
-## Selection
+## Runtime selection
 
-`scripts/select-distribution.mjs internal|public` changes package metadata in a
-disposable CI checkout. The source default is internal. It never writes a private
-Registry or credential. Runtime chooses from the installed package name, so a
-published package never depends on a leftover CI environment variable.
+`FX_REGISTRY`, when present, has priority. Otherwise `NpmRegistryLocator` asks npm
+for the package scope Registry and default Registry in global mode. npm resolves
+its environment, userconfig, globalconfig and built-in settings; a project's
+npmrc is excluded because self-update is a global installation. Scope configuration
+wins over the default. `NPM_CONFIG_USERCONFIG` is honored without copying credentials.
+The lookup is local, capped at two seconds and memoized within an invocation.
 
-Private URLs must be explicit HTTP(S) coordinates without embedded credentials,
-query strings or fragments; known public hosts are rejected. A public installation
-defaults to npmjs and can use a validated explicit private mirror. An invalid override
-fails instead of silently falling back. Cache identities include package and Registry.
+`self info` reports the validated `registry` and `registry_source`: `environment`,
+`npm_scope`, `npm_default`, `distribution_default` or `unavailable`. Invalid explicit
+or scoped settings are retained as unresolved, not silently bypassed. Internal
+packages never use a public target. Addresses must be HTTP(S) without embedded
+credentials, query strings or fragments. Cache identities include package and Registry.
 
-## Publishing and authentication
+This is current configuration, not a claim about historical installation origin.
+One-time install flags need not be persisted, and a Git or tarball source need not
+identify a Registry API. fx does not infer one by trimming a downloaded URL.
 
-`scripts/publish.mjs` accepts optional `--dry-run`, pins both default and scoped npm
-Registry options, enables lifecycle checks and runs from the repository. Internal
-publication requires a private target; public publication is restricted to npmjs.
-The lifecycle guard rejects direct publication, embedded registry metadata and
-mismatched targets. These prevent accidental routing, not deliberate lifecycle bypass.
+## Metadata and self-update
 
-Jenkins injects a Managed npmrc through `NPM_CONFIG_USERCONFIG`, with `NPM_TOKEN`
-bound only in the publish stage. `publish-ci.mjs` resolves the scope target through
-npm and supplies it to the controlled publisher. GitHub Actions uses npm trusted
-publishing and never consumes the internal Managed file or token.
+Normal metadata reads use bounded `npm view` with the chosen target pinned,
+retries and npm's own update notifier disabled. Each live read uses a temporary
+cache removed afterward: npm may otherwise return cached metadata when an upstream
+returns 5xx, contradicting a live-check result. fx retains its own cross-invocation
+probe cache. npm owns authentication and
+configuration interpolation. Diagnostics do not expose its raw output. The explicit
+legacy `FX_REGISTRY_TOKEN` remains supported when paired with an explicit private
+`FX_REGISTRY` through HTTP;
+it is never sent to npmjs or passed as a process argument. fx no longer parses
+npmrc authentication itself.
 
-For metadata reads, `FX_REGISTRY_TOKEN` is used only for a private target; otherwise
-only a matching entry in the user's npmrc may supply authentication. Environment
-tokens are not persisted. Manifest sources, companion installers and source PRs
-have separate configuration and are never redirected by fx's package Registry.
+Self-update pins only fx's package scope to the selected Registry. npm's default
+Registry continues to route public dependencies, avoiding an unnecessary private
+proxy requirement. Companion installation policy remains owned by its declarations.
+
+## Publication
+
+`scripts/select-distribution.mjs internal|public` changes metadata in a disposable
+CI checkout without writing private coordinates or credentials. The source defaults
+to internal metadata. `scripts/publish.mjs` accepts optional `--dry-run`, pins both
+default and scoped npm Registry options and enables lifecycle checks. Internal
+publication requires an explicit private target; public publication is npmjs-only.
+The guard rejects direct publication and embedded registry metadata.
+
+Jenkins supplies a Managed npmrc through `NPM_CONFIG_USERCONFIG` and binds
+`NPM_TOKEN` only while publishing. `publish-ci.mjs` resolves that npm scope target
+and invokes the controlled publisher. GitHub Actions uses its own trusted publishing.
+Runtime discovery does not relax either publication boundary.
 
 ## Distribution boundary
 
-`check-package.mjs` scans the paths owned by the package file list, including
-implicit metadata/README/LICENSE and source maps. Missing paths fail. Both channel
-artifacts must pass this check. Unit tests use fake npm and HTTP implementations;
-actual release acceptance requires the Registry and installed package checks in
-the delivery guide.
+`check-package.mjs` scans paths owned by the package file list, including implicit
+metadata/README/LICENSE and source maps. Both channel artifacts must pass.
+Tests cover a real npm client using isolated configuration and a loopback Registry;
+actual release acceptance still requires the Registry and installation checks in
+[delivery](../delivery.md).

@@ -41,6 +41,8 @@ export function fx(
     env: mergeEnvironment(process.env, {
       FX_HOME: freshHome(),
       FX_UPDATE_CHECK: '0',
+      // Tests opt into Registry discovery explicitly; the host's npm settings are not fixture data.
+      FX_REGISTRY: '',
       FX_COMMAND_SHELL: 'posix',
       ...env,
       HOME: userHome,

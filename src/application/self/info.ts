@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { RegistryLocation } from '../../ports/registry.js';
 import type { WorkspaceRecord } from '../workspace/discover.js';
 
 export interface SelfInfoInput {
@@ -15,6 +16,7 @@ export interface SelfInfoInput {
   readonly bundledTools: string;
   readonly bundledSkill: string;
   readonly registry: string | null;
+  readonly registrySource?: RegistryLocation['source'] | undefined;
   readonly workspace: WorkspaceInfo | null;
   readonly workspaceError?: ErrorEnvelope['error'] | null;
 }
@@ -40,6 +42,7 @@ export interface SelfInfo {
   readonly bundled_skill: string;
   readonly bundled_skill_version: string;
   readonly registry: string | null;
+  readonly registry_source: RegistryLocation['source'] | null;
   readonly workspace: WorkspaceInfo | null;
   readonly workspace_error: ErrorEnvelope['error'] | null;
 }
@@ -58,6 +61,7 @@ export function selfInfo(input: SelfInfoInput): SelfInfo {
     bundled_skill: input.bundledSkill,
     bundled_skill_version: input.version,
     registry: input.registry,
+    registry_source: input.registrySource ?? null,
     workspace: input.workspace,
     workspace_error: input.workspaceError ?? null,
   };
