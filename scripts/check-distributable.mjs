@@ -1,3 +1,4 @@
+// @ts-check
 // Checks built artefacts through the same boundary scanner as contributions.
 // Build first; missing inputs or scanner code cannot count as a passing check.
 
@@ -9,6 +10,7 @@ import { scanBoundary } from '../dist/domain/boundary/scan.js';
 const TEXT = /\.(?:js|mjs|cjs|ts|json|map|yaml|yml|md|txt)$/;
 const SKIP = new Set(['node_modules', '.git']);
 
+/** @param {string} file */
 function problems(file) {
   const text = readFileSync(file, 'utf8');
   return scanBoundary({
@@ -18,6 +20,10 @@ function problems(file) {
   }).map((finding) => `${finding.rule} at ${finding.line}:${finding.column}`);
 }
 
+/**
+ * @param {string} target
+ * @returns {Generator<string>}
+ */
 function* files(target) {
   if (statSync(target).isDirectory()) {
     if (SKIP.has(path.basename(target))) return;
@@ -27,6 +33,7 @@ function* files(target) {
   if (TEXT.test(target)) yield target;
 }
 
+/** @param {string} target */
 function exists(target) {
   try {
     statSync(target);

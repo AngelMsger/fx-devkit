@@ -312,7 +312,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
       );
       expect(unknown.error()).toMatchObject({
         code: 'TOOL_UNKNOWN',
-        next_steps: ['fx tool list --workspace alpha'],
+        next_steps: ['fx tool list --catalog --workspace alpha'],
       });
       const listed = follow(unknown.error().next_steps[0]!, s, env);
       expect(listed.status, listed.stderr).toBe(0);

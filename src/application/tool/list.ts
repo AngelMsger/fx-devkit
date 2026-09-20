@@ -1,8 +1,9 @@
-// The toolchain as rows. `origin` says whether an entry is the bundled baseline,
-// the team's patch or both — which is what tells a reader why a vector might
-// need trust.
+// The toolchain as rows. `source` says why a tool is here at all — a binding derived it,
+// the patch named it, or fx merely knows it; `origin` says who owns its fields, which is
+// what tells a reader why a vector might need trust.
 
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import type { ToolSource, ToolSourceKind } from '../../domain/toolchain/select.js';
 
 export interface ToolRow {
   readonly name: string;
@@ -12,11 +13,14 @@ export interface ToolRow {
   readonly min_version: string | null;
   readonly install_via: string | null;
   readonly origin: 'base' | 'patch' | 'mixed';
+  readonly source: ToolSourceKind;
+  readonly bound_by: readonly string[];
   readonly setup_steps: number;
 }
 
 export const TOOL_COLUMNS = [
   'name',
+  'source',
   'required',
   'enabled',
   'min_version',
@@ -26,8 +30,12 @@ export const TOOL_COLUMNS = [
 ] as const;
 
 export class ToolList {
-  execute(input: { readonly tools: readonly ResolvedTool[] }): ToolRow[] {
+  execute(input: {
+    readonly tools: readonly ResolvedTool[];
+    readonly sources: ReadonlyMap<string, ToolSource>;
+  }): ToolRow[] {
     return input.tools.map((tool) => {
+      const source = input.sources.get(tool.name);
       return {
         name: tool.name,
         desc: tool.desc ?? null,
@@ -36,6 +44,8 @@ export class ToolList {
         min_version: tool.minVersion ?? null,
         install_via: tool.install[0]?.via ?? null,
         origin: originOf(tool),
+        source: source?.kind ?? 'catalog',
+        bound_by: source?.boundBy ?? [],
         setup_steps: tool.setup.length,
       };
     });

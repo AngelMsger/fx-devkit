@@ -1,5 +1,7 @@
+// @ts-check
 // Select metadata in a disposable CI checkout. Never insert registry or credential data.
 import { readFileSync, writeFileSync } from 'node:fs';
+
 import { distribution } from '../src/domain/distribution.js';
 const selected = distribution(process.argv[2]);
 if (process.argv.length !== 3)

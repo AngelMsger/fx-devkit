@@ -32,7 +32,7 @@ describe('JenkinsCi', () => {
       startedAt: '2026-09-03T04:11:13Z',
       url: 'https://jenkins.example.com/job/services/job/a/job/dev/12/',
     });
-    expect(proc.calls[0]?.options.timeoutMs).toBe(15_000);
+    expect(proc.soleCallTo(GET).options.timeoutMs).toBe(15_000);
   });
 
   it('calls a build that is still running "building", whatever its result says', async () => {

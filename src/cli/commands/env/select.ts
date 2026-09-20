@@ -1,11 +1,9 @@
-import { Flags } from '@oclif/core';
-
 import { editEnvScope } from '../../../application/env/scope.js';
 import { selectOperation } from '../../../application/workspace/scope.js';
-import { FxCommand } from '../../base.js';
-import { argument, dryRunFlag, writeIntent } from '../../flags.js';
+import { argument } from '../../flags.js';
+import { SelectionCommand, selectFlags } from '../selection.js';
 
-export default class EnvSelectCommand extends FxCommand {
+export default class EnvSelectCommand extends SelectionCommand {
   static override description =
     'Replace the shared environment selection; --all follows current and future declarations, --none selects none. This changes selection only; it does not perform login or setup.';
   static override examples = [
@@ -16,26 +14,10 @@ export default class EnvSelectCommand extends FxCommand {
   static override args = {
     name: argument('names to select exclusively'),
   };
-  static override flags = {
-    all: Flags.boolean({
-      exclusive: ['none'],
-      description: 'follow all shared declarations, including future additions',
-    }),
-    none: Flags.boolean({ exclusive: ['all'], description: 'select no shared environments' }),
-    'dry-run': dryRunFlag,
-  };
+  static override flags = selectFlags('environments');
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(EnvSelectCommand);
-    const operation = selectOperation(flags.all, flags.none);
-    const result = await editEnvScope(
-      await this.workspaceDeps(),
-      {
-        names: argv as string[],
-        ...writeIntent(flags, this.posture),
-      },
-      operation,
-    );
-    this.renderer.record(result);
+    await this.editSelection(editEnvScope, selectOperation(flags.all, flags.none), argv, flags);
   }
 }

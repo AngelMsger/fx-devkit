@@ -1,8 +1,6 @@
-// From the merged toolchain to what fx can act on for each tool: every
-// inheritance resolved (entry → defaults → built-in), npm specs completed
-// from the scope, and for each executable field whether it came from the
-// bundled baseline or from the team's patch — which is what decides whether
-// a vector needs trust before it runs.
+// From the merged toolchain to what fx can act on for each tool: inheritance resolved
+// (entry → defaults → built-in), npm specs completed from the scope, and each executable
+// field marked baseline or team patch, which is what decides whether it needs trust.
 
 import { DEFAULTS_KEY, type Origin, type Provenance } from '../manifest/overlay.js';
 import type { SetupStep, Tool, Toolchain } from '../manifest/types.js';
@@ -22,6 +20,8 @@ export interface ResolvedTool {
   readonly docs?: string;
   readonly required: boolean;
   readonly enabled: boolean;
+  // The workspace named this tool, as opposed to inheriting it from the baseline.
+  readonly declared: boolean;
   readonly minVersion?: string;
   readonly installOnInit?: boolean;
   readonly versionArgs: readonly string[];
@@ -47,11 +47,21 @@ const FIELD_PATHS: Record<VectorField, string> = {
   setup: 'setup',
 };
 
-export function resolveTools(toolchain: Toolchain, provenance: Provenance): ResolvedTool[] {
-  return toolchain.tools.map((tool) => resolveTool(tool, toolchain, provenance));
+export function resolveTools(
+  toolchain: Toolchain,
+  provenance: Provenance,
+  declared: readonly string[] = [],
+): ResolvedTool[] {
+  const named = new Set(declared);
+  return toolchain.tools.map((tool) => resolveTool(tool, toolchain, provenance, named));
 }
 
-function resolveTool(tool: Tool, toolchain: Toolchain, provenance: Provenance): ResolvedTool {
+function resolveTool(
+  tool: Tool,
+  toolchain: Toolchain,
+  provenance: Provenance,
+  declared: ReadonlySet<string>,
+): ResolvedTool {
   const defaults = toolchain.defaults ?? {};
   const origin = (field: VectorField): Origin => {
     const own = originOf(provenance[tool.name], FIELD_PATHS[field]);
@@ -72,7 +82,8 @@ function resolveTool(tool: Tool, toolchain: Toolchain, provenance: Provenance): 
     ...(tool.docs === undefined ? {} : { docs: tool.docs }),
     required: tool.required ?? false,
     enabled: tool.enabled ?? true,
-    installOnInit: tool.install_on_init ?? false,
+    declared: declared.has(tool.name),
+    installOnInit: tool.install_on_init ?? defaults.install_on_init ?? false,
     ...(tool.min_version === undefined ? {} : { minVersion: tool.min_version }),
     versionArgs: tool.version_args ?? defaults.version_args ?? ['--version'],
     install: (tool.install ?? defaults.install ?? []).map((m) =>

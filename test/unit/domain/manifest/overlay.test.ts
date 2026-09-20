@@ -37,12 +37,41 @@ const base: Toolchain = {
       ],
     },
     { name: 'jira-cli', desc: 'Jira' },
+    {
+      name: 'jenkins-cli',
+      desc: 'Jenkins',
+      min_version: '0.6.2',
+      install: [{ via: 'npm', spec: '@example/jenkins-cli' }],
+    },
   ],
 };
 
 const cli = { cliVersion: '1.0.0' };
 
 describe('mergeTools', () => {
+  it('keeps the whole catalog, whatever the patch names', () => {
+    const { toolchain, declared } = mergeTools(base, { schema_version: 2, tools: [] });
+    expect(toolchain.tools.map((t) => t.name)).toEqual([
+      'bitbucket-cli',
+      'jira-cli',
+      'jenkins-cli',
+    ]);
+    expect(declared).toEqual([]);
+  });
+
+  it('vouches for a catalog tool a patch only names, and owns the field it changes', () => {
+    const { toolchain, provenance, declared } = mergeTools(base, {
+      schema_version: 2,
+      tools: [{ name: 'jenkins-cli', min_version: '0.9.0' }],
+    });
+    const tool = toolchain.tools.find((t) => t.name === 'jenkins-cli');
+    expect(tool?.install).toEqual([{ via: 'npm', spec: '@example/jenkins-cli' }]);
+    expect(declared).toEqual(['jenkins-cli']);
+    expect(provenance['jenkins-cli']?.['name']).toBe('base');
+    expect(provenance['jenkins-cli']?.['install']).toBe('base');
+    expect(provenance['jenkins-cli']?.['min_version']).toBe('patch');
+  });
+
   it('overrides scalars, keeps the rest, and records where each field came from', () => {
     const { toolchain, provenance } = mergeTools(base, {
       schema_version: 2,
@@ -143,6 +172,7 @@ describe('mergeTools', () => {
     expect(toolchain.tools.map((t) => t.name)).toEqual([
       'bitbucket-cli',
       'jira-cli',
+      'jenkins-cli',
       'worklog-cli',
     ]);
     expect(provenance['worklog-cli']?.['install']).toBe('patch');

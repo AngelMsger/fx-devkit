@@ -1,12 +1,11 @@
 // Identical payloads must produce the same guides and assets across transports.
 // All repositories, homes and conflicting user files stay inside temp dirs.
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx, git, manifestDirOf, repository } from './harness.js';
+import { freshHome, fx, git, manifestDirOf, repository, tempDir } from './harness.js';
 
 const content = {
   'AGENTS.md':
@@ -35,7 +34,7 @@ function payload(base: string): Record<string, string> {
 
 describe('source parity', () => {
   it('materializes Git, directory, manifest subdirectory and stdin bundles with the same docs and binary assets', () => {
-    const base = mkdtempSync(path.join(tmpdir(), 'fx-parity-'));
+    const base = tempDir('fx-parity-');
     const files = payload(base);
     const repo = repository(base, 'source', files);
     const directory = path.join(base, 'directory');
@@ -87,7 +86,7 @@ describe('source parity', () => {
   });
 
   it('requires approval for user documents and preserves the original in a backup', () => {
-    const base = mkdtempSync(path.join(tmpdir(), 'fx-conflict-'));
+    const base = tempDir('fx-conflict-');
     const source = repository(base, 'source', payload(base));
     const home = freshHome();
     const root = path.join(base, 'ws');

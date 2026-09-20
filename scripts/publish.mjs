@@ -1,16 +1,17 @@
+// @ts-check
 // The controlled entry point pins both npm registry settings. No arbitrary npm
 // arguments are forwarded, and package metadata is never rewritten with an address.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import spawn from 'cross-spawn';
 
-import { distribution, packageChannel } from '../src/domain/distribution.js';
+import spawn from 'cross-spawn';
 
 import {
   publicationRegistry,
   registryArguments,
 } from '../src/adapters/registry/registry-policy.js';
+import { distribution, packageChannel } from '../src/domain/distribution.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const registry = publicationRegistry(pkg.name, process.env.FX_REGISTRY);

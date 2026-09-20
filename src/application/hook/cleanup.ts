@@ -6,8 +6,8 @@ import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
+import type { AgentCleanupInput } from '../agent/cleanup.js';
 import { readSettings } from '../config/settings.js';
-import type { WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
@@ -22,12 +22,7 @@ export class CleanupAgentHooks {
     private readonly manifestDirFor: (name: string) => string,
   ) {}
 
-  async execute(input: {
-    readonly ids: readonly string[];
-    readonly dryRun: boolean;
-    readonly posture: WritePosture;
-    readonly env: NodeJS.ProcessEnv;
-  }): Promise<readonly AgentCleanupRow[]> {
+  async execute(input: AgentCleanupInput): Promise<readonly AgentCleanupRow[]> {
     const file = await this.config.read();
     const settings = readSettings({ env: input.env, file });
     const rows: AgentCleanupRow[] = [];

@@ -1,8 +1,5 @@
-// The branches a release moves between must agree in both directions: what
-// the source has and the target lacks is unreleased work, what the target
-// has and the source lacks is a hotfix nobody brought back. Merge commits
-// and bot commits are noise on that question; people's commits are the
-// evidence, attributed through the members document when it knows them.
+// Whether the branches a release moves between agree in both directions, from
+// people's commits alone; see "Merge agreement" in docs/design/release.md.
 
 import type { Members } from '../manifest/types.js';
 import { findByGitName } from '../members/resolve.js';

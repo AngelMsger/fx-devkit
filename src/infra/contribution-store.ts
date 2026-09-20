@@ -14,6 +14,8 @@ import { assertWorkspaceName } from '../domain/workspace/name.js';
 import type { ContributionStore } from '../ports/contribution-store.js';
 import type { Lock } from '../ports/lock.js';
 
+import type { ShapeOf } from './stored-shape.js';
+
 const oid = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const digest = z.string().regex(/^[0-9a-f]{64}$/);
 const relative = z
@@ -28,8 +30,14 @@ const relative = z
           (part) => part !== '' && part !== '.' && part !== '..' && part.toLowerCase() !== '.git',
         ),
   );
-const record = z
-  .strictObject({
+const consistentRecord = (value: ContributionOperation): boolean =>
+  value.branch === `fx/contribution/${value.id}` &&
+  (value.phase === 'prepared') === (value.commit === null) &&
+  (value.pullRequestId === null) === (value.pullRequest === null) &&
+  (value.phase !== 'open' || value.pullRequestId !== null);
+
+const record = (object: typeof z.strictObject) =>
+  object({
     id: z.string().regex(/^[A-Za-z0-9_-]+$/),
     remoteIdentity: digest,
     branch: z.string().regex(/^fx\/contribution\/[A-Za-z0-9_-]+$/),
@@ -57,18 +65,15 @@ const record = z
       .nullable(),
     pullRequest: z.string().refine(isSafeUrl).nullable(),
     updatedAt: z.string().refine((value) => Number.isFinite(Date.parse(value))),
-  })
-  .refine(
-    (value) =>
-      value.branch === `fx/contribution/${value.id}` &&
-      (value.phase === 'prepared') === (value.commit === null) &&
-      (value.pullRequestId === null) === (value.pullRequest === null) &&
-      (value.phase !== 'open' || value.pullRequestId !== null),
-  );
-const schema = z.strictObject({
-  owner: z.literal('fx:contributions:v1'),
-  operations: z.array(record),
-});
+  } satisfies ShapeOf<ContributionOperation>).refine(consistentRecord);
+const journal = (object: typeof z.strictObject) =>
+  object({
+    owner: z.literal('fx:contributions:v1'),
+    operations: z.array(record(object)),
+  });
+
+const written = journal(z.strictObject);
+const read = journal(z.object);
 
 export class FileContributionStore implements ContributionStore {
   constructor(
@@ -84,7 +89,7 @@ export class FileContributionStore implements ContributionStore {
     const file = this.file(workspace);
     let text: string;
     try {
-      text = JSON.stringify(schema.parse({ owner: 'fx:contributions:v1', operations }));
+      text = JSON.stringify(written.parse({ owner: 'fx:contributions:v1', operations }));
     } catch {
       throw invalid();
     }
@@ -106,7 +111,7 @@ export class FileContributionStore implements ContributionStore {
     try {
       const stat = await fs.lstat(file);
       if (!stat.isFile() || stat.nlink !== 1) throw invalid();
-      return schema.parse(JSON.parse(await fs.readFile(file, 'utf8'))).operations;
+      return read.parse(JSON.parse(await fs.readFile(file, 'utf8'))).operations;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw invalid();

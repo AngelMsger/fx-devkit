@@ -1,19 +1,17 @@
 // The repositories half of the personal scope; the edit itself is editScope's.
 
-import type { WritePosture } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceItemNotFound } from '../workspace/guidance.js';
-import { editScope, type ScopeOperation, type ScopeOutput } from '../workspace/scope.js';
-
-export interface RepoScopeInput {
-  readonly names: readonly string[];
-  readonly dryRun: boolean;
-  readonly posture: WritePosture;
-}
+import {
+  editScope,
+  type ScopeOperation,
+  type ScopeOutput,
+  type ScopeSelection,
+} from '../workspace/scope.js';
 
 export function editRepoScope(
   deps: WorkspaceDeps,
-  input: RepoScopeInput,
+  input: ScopeSelection,
   operation: ScopeOperation,
 ): Promise<ScopeOutput> {
   const shared = deps.ctx.manifest.workspace.result.doc.repos.map((r) => r.name);

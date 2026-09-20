@@ -8,7 +8,7 @@ describe('Windows URL opening', () => {
     const proc = new FakeProcess().always({ code: 0, stdout: '', stderr: '' });
     const url = 'https://git.example.com/repo?filter=a&other=%PATH%';
     expect(await new SystemUrlOpener(proc, 'win32').open(url)).toBe(true);
-    const call = proc.calls[0]!;
+    const call = proc.soleCallTo(['powershell.exe']);
     expect(call.options.env).toEqual({ FX_OPEN_URL: url });
     const script = Buffer.from(call.vector.at(-1)!, 'base64').toString('utf16le');
     expect(script).toContain('$env:FX_OPEN_URL');

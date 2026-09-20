@@ -145,6 +145,10 @@ export const toolsSchema = z
           .describe('how to install a tool, in order of preference'),
         skill: skillCommand.optional(),
         auth: authCommand.optional(),
+        install_on_init: z
+          .boolean()
+          .optional()
+          .describe('install every tool of this workspace during fx init unless it opts out'),
       })
       .optional()
       .describe('conventions every tool inherits unless it overrides them'),

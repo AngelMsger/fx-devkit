@@ -1,3 +1,4 @@
+// @ts-check
 // Reject deployment-specific SSH ports in public examples without storing a denylist.
 // Non-default-port tests use one explicitly synthetic fixture value.
 import { spawnSync } from 'node:child_process';

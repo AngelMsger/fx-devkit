@@ -1,15 +1,14 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx, manifestDirOf } from './harness.js';
+import { freshHome, fx, manifestDirOf, tempDir } from './harness.js';
 
 const fixtures = path.resolve('test/fixtures/manifest');
 
 function workspaceFrom(kind: string): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-ws-'));
+  const root = tempDir('fx-ws-');
   cpSync(path.join(fixtures, kind), path.join(root, 'manifest'), { recursive: true });
   mkdirSync(path.join(root, 'fx-example-api', 'src'), { recursive: true });
   return root;
@@ -28,7 +27,7 @@ describe('fx manifest', () => {
   });
 
   it('reports problems on stdout and exits 3', () => {
-    const root = mkdtempSync(path.join(tmpdir(), 'fx-ws-'));
+    const root = tempDir('fx-ws-');
     mkdirSync(path.join(root, 'manifest'));
     writeFileSync(
       path.join(root, 'manifest', 'workspace.yaml'),
@@ -49,7 +48,7 @@ describe('fx manifest', () => {
   });
 
   it('turns unknown keys into failures only under --strict', () => {
-    const root = mkdtempSync(path.join(tmpdir(), 'fx-ws-'));
+    const root = tempDir('fx-ws-');
     mkdirSync(path.join(root, 'manifest'));
     writeFileSync(
       path.join(root, 'manifest', 'workspace.yaml'),
@@ -61,7 +60,7 @@ describe('fx manifest', () => {
 
   it('validates the source of the registered workspace whose root holds cwd', () => {
     const home = freshHome();
-    const root = mkdtempSync(path.join(tmpdir(), 'fx-root-'));
+    const root = tempDir('fx-root-');
     const source = manifestDirOf(home, 'w');
     cpSync(path.join(fixtures, 'v1-minimal'), path.join(source, 'manifest'), { recursive: true });
     writeFileSync(path.join(home, 'config.yaml'), `workspaces:\n  w: { root: ${root} }\n`);
@@ -76,7 +75,7 @@ describe('fx manifest', () => {
   });
 
   it('fails with a not_found error outside any workspace', () => {
-    const run = fx(['manifest', 'validate'], {}, mkdtempSync(path.join(tmpdir(), 'fx-none-')));
+    const run = fx(['manifest', 'validate'], {}, tempDir('fx-none-'));
     expect(run.status).toBe(6);
     expect(run.error().code).toBe('WORKSPACE_NOT_FOUND');
   });

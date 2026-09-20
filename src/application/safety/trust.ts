@@ -1,7 +1,9 @@
 // The gate every manifest-supplied command vector passes before it runs.
 // Bundled defaults are trusted by construction; a team patch is trusted
 // once a person has seen the exact vector and said yes (or passed --yes),
-// and the fingerprint is remembered for that workspace.
+// and the fingerprint is remembered for that workspace. A run that will
+// execute several vectors asks about them together, because installing the
+// workspace's tools is one decision rather than one decision per package.
 
 import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
 import type { ResolvedShell } from '../../domain/shell.js';
@@ -32,6 +34,10 @@ export interface TrustInput {
 // What a use case carries when patch-supplied vectors may run on its path.
 // Under a dry run nothing is recorded: an untrusted vector is reported, not
 // asked about.
+export interface TrustBatch extends Omit<TrustInput, 'vector'> {
+  readonly vectors: readonly (readonly string[])[];
+}
+
 export interface TrustContext {
   readonly commandShell?: ResolvedShell | undefined;
   readonly gate: TrustGate;
@@ -49,9 +55,22 @@ export class TrustGate {
   ) {}
 
   async ensure(input: TrustInput): Promise<void> {
+    await this.decide(input, renderVector(input.vector));
+  }
+
+  // The set is what the answer is remembered for, so adding a tool asks again.
+  async ensureAll(input: TrustBatch): Promise<void> {
+    if (input.vectors.length === 0) return;
+    await this.decide(
+      { ...input, vector: input.vectors.map((vector) => JSON.stringify(vector)) },
+      input.vectors.map((vector) => renderVector(vector)).join('\n  '),
+    );
+  }
+
+  private async decide(input: TrustInput, shown: string): Promise<void> {
     if (await this.isTrusted(input)) return;
     assertWritable(input.posture, `trust ${input.label}`);
-    if (!input.yes) await this.confirm(input);
+    if (!input.yes) await this.confirm(input, shown);
     await this.store.trust(input.workspace, trustFingerprint(input), input.label);
   }
 
@@ -62,8 +81,8 @@ export class TrustGate {
     return this.store.isTrusted(input.workspace, trustFingerprint(input));
   }
 
-  private async confirm(input: TrustInput): Promise<void> {
-    const shown = renderVector(input.vector) + renderTrustContext(input.execution);
+  private async confirm(input: TrustInput, vectors: string): Promise<void> {
+    const shown = vectors + renderTrustContext(input.execution);
     let ok: boolean;
     try {
       ok = await this.prompter.confirm(

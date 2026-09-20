@@ -5,21 +5,15 @@ import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
+import type { AgentCleanupInput } from '../agent/cleanup.js';
 import { enabledHosts } from '../agent/list.js';
 import { readSettings } from '../config/settings.js';
-import type { WritePosture } from '../safety/posture.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { ReconcileHarness } from './reconcile.js';
 import type { HarnessDeps } from './types.js';
 
-export interface HarnessCleanupInput {
-  readonly ids: readonly string[];
-  readonly dryRun: boolean;
-  readonly posture: WritePosture;
-  readonly env: NodeJS.ProcessEnv;
-}
 export class CleanupAgentHarness {
   constructor(
     private readonly deps: HarnessDeps,
@@ -27,7 +21,7 @@ export class CleanupAgentHarness {
     private readonly fs: FileSystem,
     private readonly manifestDirFor: (name: string) => string,
   ) {}
-  async execute(input: HarnessCleanupInput): Promise<readonly AgentCleanupRow[]> {
+  async execute(input: AgentCleanupInput): Promise<readonly AgentCleanupRow[]> {
     const config = await this.config.read();
     const selected = await this.selected(input, config);
     const rows: AgentCleanupRow[] = [];
@@ -70,6 +64,8 @@ export class CleanupAgentHarness {
           ),
         );
       } catch (error) {
+        // One workspace's failure is a row, not the end of the sweep: the others are
+        // still registered and still hold resources of the agents being dropped.
         rows.push(
           ...input.ids.map((agent) => ({
             workspace,
@@ -85,7 +81,7 @@ export class CleanupAgentHarness {
     return rows;
   }
   private async selected(
-    input: HarnessCleanupInput,
+    input: AgentCleanupInput,
     config: Awaited<ReturnType<ConfigStore['read']>>,
   ) {
     return (

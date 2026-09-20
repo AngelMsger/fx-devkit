@@ -1,8 +1,7 @@
 // Where repositories live. fx never talks to a code host's API itself; a provider drives
-// the host's own CLI. Readability is a value with four states because "I cannot tell" is
-// different from "it is not there". The query methods are what `release` asks a host,
-// read-only and nothing more: which branches exist, what one branch has that another
-// lacks, one commit, one file at a ref.
+// the host's own CLI. Readability has four states, and the query methods are read-only
+// and no wider than `release` needs: branches, a range between two of them, one commit,
+// one file at a ref.
 
 import type {
   ContributionPullRequest,

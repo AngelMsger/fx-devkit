@@ -1,8 +1,6 @@
 // A code host that is a directory of bare repositories: `host/PROJECT/name.git`
-// upstream, `host/~user/name.git` forks. It exists so the workspace can be
-// exercised end to end without a server, and it is the first proof that a
-// provider is one manifest line away from being swapped. Queries run git
-// against the bare repository itself, so no checkout is ever involved.
+// upstream, `host/~user/name.git` forks, so a workspace can be exercised end to end
+// without a server. Queries run git against the bare repository itself, never a checkout.
 
 import path from 'node:path';
 
@@ -190,7 +188,10 @@ function lines(text: string): string[] {
 // nobody can read would shorten a comparison into "the branches agree".
 function commitsOf(ref: RepoRef, text: string): Commit[] {
   return lines(text).flatMap((line) => {
-    if (!line.includes('\0')) return line.startsWith('commit ') ? [] : [unreadableRow(ref, line)];
+    if (!line.includes('\0')) {
+      if (line.startsWith('commit ')) return [];
+      throw unreadableError(ref, 'a commit', line);
+    }
     const [sha, author, date, parents, message] = line.split('\0');
     if (sha === undefined || sha === '' || date === undefined)
       throw unreadableError(ref, 'a commit', line);
@@ -204,10 +205,6 @@ function commitsOf(ref: RepoRef, text: string): Commit[] {
       },
     ];
   });
-}
-
-function unreadableRow(ref: RepoRef, line: string): never {
-  throw unreadableError(ref, 'a commit', line);
 }
 
 function unreadableError(ref: RepoRef, what: string, line: string): DevkitError {

@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -8,8 +7,9 @@ import { FileCache } from '../../../src/infra/cache.js';
 import { FileLocalLayerStore } from '../../../src/infra/local-store.js';
 import { localLayerPath } from '../../../src/infra/workspace-home.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { tempDir } from '../../temp.js';
 
-const home = (): string => mkdtempSync(path.join(tmpdir(), 'fx-home-'));
+const home = (): string => tempDir('fx-home-');
 
 describe('FileLocalLayerStore', () => {
   it('reads an absent layer as empty and round-trips a write under workspaces/<name>', async () => {

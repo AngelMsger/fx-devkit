@@ -1,8 +1,6 @@
-// The thin layer over a family CLI subprocess (bitbucket-cli, jenkins-cli):
-// one place that knows the global flags, the JSON envelopes and the family
-// exit codes, so a provider above it reads like a description of its
-// platform, not of a CLI. Raw stdout is kept because some answers are not
-// JSON at all (a file's bytes).
+// The one place that knows a family CLI's global flags, JSON envelopes and exit codes
+// (bitbucket-cli, jenkins-cli). Raw stdout is kept too, because some answers are not JSON
+// at all — a file's bytes.
 
 import { type Category, DevkitError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
@@ -141,9 +139,8 @@ export function queryFailed(binary: string, call: CliCall, what: string): Devkit
   );
 }
 
-// A zero exit whose payload cannot be read is a failure too: dropping the
-// rows that did not parse would turn a changed schema into a confident
-// "nothing to report".
+// A zero exit whose payload cannot be read is a failure too: a changed schema
+// must not read as nothing to report. See Coverage in domain/report.ts.
 export function unreadableError(binary: string, what: string): DevkitError {
   return new DevkitError(
     'server',
@@ -159,11 +156,10 @@ export function objectOf(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-// A family list answer is `{items, has_more, next?}`; a bare array is
-// accepted for tools that answer without the envelope. undefined means the
-// answer is not a list of records, does not say whether it is complete, or
-// is short of its own last page — each of which would otherwise read as
-// "there is nothing there".
+// A family list answer is `{items, has_more, next?}`; a bare array is accepted
+// for tools that answer without the envelope. undefined means the answer is not
+// a list of records, does not say whether it is complete, or is short of its own
+// last page.
 export function itemsOf(value: unknown): Record<string, unknown>[] | undefined {
   const envelope = objectOf(value);
   const list = Array.isArray(value) ? value : envelope?.['items'];

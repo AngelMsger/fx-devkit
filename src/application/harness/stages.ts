@@ -91,6 +91,8 @@ async function checkHarness(command: HarnessSession, kind: 'mcp' | 'rules') {
     if (kind === 'mcp') findings.push(...(await readinessFindings(command, { deps, input })));
     return findings;
   } catch (err) {
+    // Doctor answers for every group, so an inspection that threw is an unanswered
+    // check rather than a failed one; see Coverage in domain/report.ts.
     return [
       finding(kind, 'inspection', 'warn', `Harness inspection failed: ${asDevkitError(err).code}`, {
         fix: 'fx manifest validate --kind harness',

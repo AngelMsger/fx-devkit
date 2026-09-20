@@ -1,3 +1,4 @@
+// @ts-check
 // Distribution identity varies by channel; the project and executable remain fx-devkit/fx.
 export const DISTRIBUTIONS = {
   internal: { packageName: '@fx/devkit', access: 'restricted' },

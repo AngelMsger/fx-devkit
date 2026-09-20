@@ -42,10 +42,13 @@ import { repoSchema, workspaceSchema } from './workspace.schema.js';
 
 export type { InspectLoadOptions, LoadOptions } from './decode.js';
 
-export type ToolsLoadResult = LoadResult<Toolchain> & { readonly provenance: Provenance };
-export type InspectedToolsLoadResult = InspectedLoadResult<Toolchain> & {
+export type ToolsLoadResult = LoadResult<Toolchain> & Selection;
+export type InspectedToolsLoadResult = InspectedLoadResult<Toolchain> & Selection;
+
+interface Selection {
   readonly provenance: Provenance;
-};
+  readonly declared: readonly string[];
+}
 
 export function loadWorkspace(
   text: string,
@@ -147,14 +150,16 @@ export function loadTools(
   opts: AnyLoadOptions,
 ): InspectedToolsLoadResult {
   const base = load(bundledText, opts, TOOLS);
-  if (!base.valid) return { ...base, provenance: {} };
+  if (!base.valid) return { ...base, provenance: {}, declared: [] };
   if (patchText === undefined) {
-    return { ...base, provenance: mergeTools(base.doc, undefined).provenance };
+    // No patch still goes through the merge: it is what drops the opt-in tools nobody named.
+    const merged = mergeTools(base.doc, undefined);
+    return { ...base, doc: merged.toolchain, ...selection(merged) };
   }
   const { raw, lineOf } = parse(TOOLS, patchText);
   const { value, deletions } = splitNulls(TOOLS.schema, raw);
   const patch = finish({ ...TOOLS, rules: () => [] }, value, opts, lineOf);
-  if (!patch.valid) return { ...patch, provenance: mergeTools(base.doc, undefined).provenance };
+  if (!patch.valid) return { ...patch, ...selection(mergeTools(base.doc, undefined)) };
   const merged = mergeTools(base.doc, patch.doc, { deletions });
   const result = finish(TOOLS, merged.toolchain as unknown as Raw, opts, NO_LINES);
   const retainedDrops = base.dropped.filter(
@@ -168,8 +173,12 @@ export function loadTools(
     problems: [...retainedProblems, ...patch.problems, ...result.problems],
     dropped: [...retainedDrops, ...result.dropped],
     unknown: [...base.unknown, ...patch.unknown],
-    provenance: merged.provenance,
+    ...selection(merged),
   };
+}
+
+function selection(merged: ReturnType<typeof mergeTools>): Selection {
+  return { provenance: merged.provenance, declared: merged.declared };
 }
 
 export function loadHarness(text: string, opts: InspectLoadOptions): InspectedLoadResult<Harness>;

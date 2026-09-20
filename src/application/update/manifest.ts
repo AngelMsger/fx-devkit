@@ -1,8 +1,7 @@
-// Has the manifest repository moved upstream since the last sync? Asked of
-// the remote directly, without fetching or touching the checkout; the
-// remote's HEAD is compared with what sync last fetched of the default
-// branch, so a checkout parked on a branch still hears about it. The branch
-// is the remote's word, else the clone's record of it; never a guess.
+// Has the manifest repository moved upstream since the last sync? Asked of the remote
+// directly, without fetching or touching the checkout, so a checkout parked on another
+// branch still hears about the default one. The branch is the remote's word, else the
+// clone's record of it, never a guess.
 
 import { DevkitError } from '../../domain/errors.js';
 import type { Git } from '../../ports/git.js';

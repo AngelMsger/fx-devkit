@@ -1,9 +1,6 @@
-// Retired command spellings, and how the rest of the line is rewritten into what
-// answers the same intent now. The rest is read as flags and words first, so a
-// flag keeps its value, a boolean keeps nothing, and a fixed replacement keeps
-// the global flags (--dry-run above all) and drops the obsolete ones.
-//
-// This table is meant to be deleted whole one day; routing calls it once.
+// Retired command spellings and the rewrite each becomes. The rest of the line is
+// read as flags and words before it is rebuilt, so a flag keeps its value and a
+// fixed replacement keeps the global flags while dropping the obsolete ones.
 
 import { GLOBAL_FLAGS, VALUE_FLAGS } from './tokens.js';
 

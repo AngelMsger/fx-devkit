@@ -1,10 +1,8 @@
-// A platform instance narrowed to the query a use case is about to make.
-// The registry hands back a Platform and asserts nothing more, and anything
-// registered under a capability is accepted, so the method is checked for
-// before it is called: a platform that cannot answer is a reason, not a
-// crash. When the question is about one environment, the platform that
-// environment declares answers it — two environments may be served by
-// different instances of the same capability.
+// A platform instance narrowed to the query a use case is about to make. The registry
+// asserts only the capability, so the method is checked for before it is called and a
+// platform that cannot answer becomes a reason rather than a crash. An environment is
+// answered by the instance it declares; see "Selection and identity" in
+// docs/design/setup.md.
 
 import type { Capability } from '../../domain/capability.js';
 import type { PlatformBinding } from '../../domain/manifest/providers.js';

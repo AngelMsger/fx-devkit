@@ -1,7 +1,14 @@
-# The toolchain baseline bundled with fx. A team's manifest/tools.yaml is a
-# patch over this file: entries match by name, objects merge, a null deletes
-# a field, `enabled: false` retires a tool. Nothing here is team-specific;
-# internal registries, hosts and team-only tools belong in the patch.
+# The catalog of companion CLIs fx knows how to drive: version floor, install
+# method and commands, and nothing team-specific. A team's manifest/tools.yaml
+# is a patch over it: entries match by name, objects merge, a null deletes a
+# field, `enabled: false` retires a tool.
+#
+# Nothing here is a requirement. A workspace's toolchain is read off its
+# provider bindings — binding `ci` to jenkins-cli is what puts jenkins-cli in
+# the toolchain — together with whatever its patch names outright. Everything
+# else stays in the catalog, unselected. The commands below are fx's own, so
+# no one confirms them by hand; a field a patch overrides becomes the team's
+# and is confirmed again.
 schema_version: 2
 defaults:
   version_args: [--version]

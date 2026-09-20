@@ -2,15 +2,7 @@
 // materialized under FX_HOME as the checkout a person edits, linked into the
 // root for agents, refreshed by sync, and never confused with another source.
 
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readlinkSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -18,7 +10,15 @@ import { describe, expect, it } from 'vitest';
 import { begin, end } from '../../src/domain/docs/regions.js';
 import { pathKey } from '../../src/domain/path.js';
 
-import { freshHome, fx, git, manifestDirOf, repository, type Repository } from './harness.js';
+import {
+  freshHome,
+  fx,
+  git,
+  manifestDirOf,
+  repository,
+  tempDir,
+  type Repository,
+} from './harness.js';
 
 interface Items<T> {
   items: T[];
@@ -58,7 +58,7 @@ const agentsMd = [
 ].join('\n');
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-manifest-e2e-'));
+  const base = tempDir('fx-manifest-e2e-');
   const host = path.join(base, 'host');
   mkdirSync(path.join(host, 'fx'), { recursive: true });
   for (const name of ['a', 'b', 'c'])

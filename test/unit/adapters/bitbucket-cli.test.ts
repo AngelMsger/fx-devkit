@@ -64,7 +64,7 @@ describe('BitbucketCodeHost', () => {
   it('adds --use-context only when the binding names a context', async () => {
     const plain = new FakeProcess().always(ok({}));
     await host(plain).canRead(ref);
-    expect(plain.calls[0]?.vector).toEqual([
+    expect(plain.soleCallTo(['bitbucket-cli']).vector).toEqual([
       'bitbucket-cli',
       '--format',
       'json',
@@ -74,7 +74,7 @@ describe('BitbucketCodeHost', () => {
     ]);
     const scoped = new FakeProcess().always(ok({}));
     await host(scoped, { context: 'dc' }).canRead(ref);
-    expect(scoped.calls[0]?.vector).toEqual([
+    expect(scoped.soleCallTo(['bitbucket-cli']).vector).toEqual([
       'bitbucket-cli',
       '--format',
       'json',

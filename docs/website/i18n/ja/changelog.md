@@ -2,9 +2,16 @@
 
 ## 未リリース
 
+- `calendar`、`task`、`worklog`、`metrics` の能力を追加しました。前 2 つには Lark と WeCom の provider、worklog には Jira の provider があります。`metrics` は名前だけで実装はなく、マニフェストで記述はできますが結び付けには provider が必要です。`im` は「メッセージ」だけを指すようになりました。
+- Jira の issue tracker と Lark wiki の knowledge base を追加し、それぞれの能力に 2 つ目の実装ができました。1 つの連携 CLI が複数の能力を担っても、インストールと確認は 1 回だけです。
+- workspace のツールチェーンを、結び付けた provider から導出するようにしました。同梱ツールを二度宣言する必要はなくなり、`tool list` は各ツールが結び付けによるものか manifest の宣言によるものかを示し、`--catalog` は残りを表示します。
+- manifest が同名のツールを宣言している場合、fx が実装していない provider も能力に結び付けられるようにしました。同梱ツールの名前に似ているだけの id は、そのまま受け入れず訂正を促します。
+- tools ドキュメントの `defaults` ブロックで `install_on_init` を指定できるようにしました。個々のエントリでの上書きは従来どおりです。
 - provider が結び付いているのに tools ドキュメントがその配下のツールを宣言していない場合を `TOOL_UNDECLARED` として報告し、provider が無いという誤った説明をやめました。
 - platform の `service` を、その名前が示す provider の宣言と照合するようにしました。正しい宣言を誤って拒否せず、誤った宣言も見逃しません。
 - session-start の背景処理が実施する phase を事前に記録し、途中で終了させられた worker が到達しなかった phase を `HOOK_PHASE_UNREPORTED` として残すようにしました。
+- session-start の背景実行では、配下のコマンドが 1 つ持ち時間を使い切っても実行全体を終了せず、以降の phase が結果を残すようにしました。ホストが待っている前景の実行は従来どおりそこで終了します。
+- 切り離された背景実行の終わり方を、workspace の `run` observation として記録するようにしました。これまで supervisor は誰も読まないストリームにしか書けませんでした。
 
 - 全出力形式のレポート抽出、復旧コマンドの workspace 指定、貢献ロック内のソース同一性検証を修正。
 - 検証済みローカル Git のインポートと一致する upstream の安全な追加に対応し、有効・必須ツールの宣言に準備判定を統一。

@@ -1,11 +1,11 @@
+// @ts-check
 // Bare npm publish is refused: scoped CLI settings are not all exported to
 // lifecycle scripts. The wrapper controls both settings and never inherits a target.
 
 import { readFileSync } from 'node:fs';
 
-import { distribution, packageChannel } from '../src/domain/distribution.js';
-
 import { publicationRegistry } from '../src/adapters/registry/registry-policy.js';
+import { distribution, packageChannel } from '../src/domain/distribution.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const registry = publicationRegistry(pkg.name, process.env.FX_REGISTRY);

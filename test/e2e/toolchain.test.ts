@@ -7,13 +7,11 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   readlinkSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -21,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { pathKey } from '../../src/domain/path.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, tempDir, userHome } from './harness.js';
 
 const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
@@ -32,7 +30,7 @@ interface Stage {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-tool-e2e-'));
+  const base = tempDir('fx-tool-e2e-');
   const shims = path.join(base, 'shims');
   mkdirSync(shims);
   writeNodeShim(shims, 'fake-tool', 'console.log("fake-tool v1.2.3 (fixture)");');
@@ -152,6 +150,36 @@ describe('doctor checks a tool with trust-on-first-use', () => {
     expect(trustFile).toMatch(/[0-9a-f]{64}/);
 
     expect(check()).toMatchObject({ level: 'ok' });
+  });
+});
+
+describe('tool show', () => {
+  it('shows one tool with the origin of each field, and names the nearest tool for a typo', () => {
+    const s = stage();
+    const shown = fx(['tool', 'show', 'fake-tool', '--format', 'json'], s.env, s.ws);
+    expect(shown.status, shown.stderr).toBe(0);
+    expect(shown.json()).toMatchObject({
+      name: 'fake-tool',
+      binary: 'fake-tool',
+      min_version: '1.0.0',
+      enabled: true,
+      version_args: ['--version'],
+      install: [{ via: 'manual', spec: null, registry: null }],
+      // The workspace declares this tool, so every field it carries came from the patch.
+      fields: { name: 'patch', min_version: 'patch', install: 'patch' },
+      depended_on_by: [],
+    });
+    expect(fx(['tool', 'show', 'fake-tool'], s.env, s.ws).stdout).toContain('fake-tool');
+
+    const typo = fx(['tool', 'show', 'fake-tol', '--format', 'json'], s.env, s.ws);
+    expect(typo.status).toBe(6);
+    expect(typo.error()).toMatchObject({
+      code: 'TOOL_UNKNOWN',
+      hint: 'Did you mean "fake-tool"?',
+    });
+
+    const bare = fx(['tool', 'show', '--format', 'json'], s.env, s.ws);
+    expect(bare.status).toBe(2);
   });
 });
 

@@ -59,6 +59,8 @@ async function withLeases<T>(deps: PushSourceDeps, work: () => Promise<T>): Prom
       if (!lease) throw busyError('SOURCE_BUSY', 'The contribution source');
       leases.push(lease);
     }
+    // Again, now that every lease is held: waiting for one can outlast the identity
+    // checked before it.
     await assertContributionIdentity(deps);
     return await work();
   } finally {

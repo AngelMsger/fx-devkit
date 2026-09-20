@@ -95,6 +95,10 @@ export abstract class FxCommand extends Command {
     return `fx ${(this.id ?? '').replaceAll(':', ' ')}`.trim();
   }
 
+  // The order here is load-bearing: the resolved format decides the renderer, an
+  // unconnected diagnostic channel drops what it is handed, and the handshake
+  // needs the settings. The workspace lease is acquired last, so a command that
+  // cannot take it has already told its caller how to read the failure.
   protected override async init(): Promise<void> {
     await super.init();
     const spec = this.constructor as typeof FxCommand & { flags?: object; args?: object };
@@ -200,6 +204,8 @@ export abstract class FxCommand extends Command {
       enabled: this.skillNoticeOn,
       cliVersion: this.config.version,
     });
+    // Its own renderer: the handshake is addressed to the non-interactive caller
+    // that reached here, not to the format the command was asked for.
     if (notice !== undefined) createRenderer('json', processIo()).notice(notice);
   }
 

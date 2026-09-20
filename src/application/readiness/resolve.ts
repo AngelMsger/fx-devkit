@@ -7,10 +7,15 @@ import {
   CAPABILITY_INFO,
   knownCapability,
   type Capability,
+  type CapabilityName,
 } from '../../domain/capability.js';
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
-import type { Binding, PlatformBinding } from '../../domain/manifest/providers.js';
+import {
+  servesCapability,
+  type Binding,
+  type PlatformBinding,
+} from '../../domain/manifest/providers.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import type { LoginDeps } from '../login/deps.js';
@@ -34,6 +39,7 @@ export function resolveTarget(
     if (binding === null) throw capabilityUnbound(deps, capability, env);
     const served = toolOf(deps, login, binding);
     if (served.kind === 'unbound') throw capabilityUnbound(deps, capability, env);
+    if (served.kind === 'unserved') throw providerUnknown(deps, capability, served.provider);
     if (served.kind === 'undeclared') throw toolUndeclared(deps, capability, served);
     return { capability, tool: served.kind === 'tool' ? served.tool : null, binding };
   }
@@ -64,7 +70,7 @@ export function targetOfBinding(
   binding: PlatformBinding,
 ): Target | null {
   const served = toolOf(deps, login, binding);
-  if (served.kind === 'unbound' || served.kind === 'undeclared') return null;
+  if (served.kind !== 'tool' && served.kind !== 'toolless') return null;
   return {
     capability: knownCapability(binding.capability),
     tool: served.kind === 'tool' ? served.tool : null,
@@ -72,16 +78,19 @@ export function targetOfBinding(
   };
 }
 
-// Which companion tool a binding reaches, or why it reaches none. A provider that
-// is bound and registered but whose tool no toolchain document declares is a
-// different answer from a capability nothing is bound to.
+// Which companion tool a binding reaches, or why it reaches none. A bound provider whose
+// tool neither the catalog nor the patch describes is a different answer from a capability
+// nothing is bound to.
 type ServedTool =
   | { readonly kind: 'tool'; readonly tool: ResolvedTool }
   | { readonly kind: 'toolless' }
   | { readonly kind: 'unbound' }
+  | { readonly kind: 'unserved'; readonly provider: string }
   | { readonly kind: 'undeclared'; readonly provider: string; readonly name: string };
 
-// A family provider is named after its tool; the descriptor may say otherwise.
+// A family provider is named after its tool; a registered descriptor may say otherwise. A
+// provider fx does not serve can still be one the manifest defines itself, but only where
+// the team declared the tool it is named after — otherwise the id names nothing.
 function toolOf(
   deps: WorkspaceDeps,
   login: LoginDeps,
@@ -89,12 +98,39 @@ function toolOf(
 ): ServedTool {
   const provider = binding.provider;
   if (provider === null) return { kind: 'unbound' };
+  const tools = toolchainOf(deps.ctx).tools;
   const descriptor = login.describeProvider(provider);
-  if (descriptor?.capability === binding.capability && descriptor.tools.length === 0)
-    return { kind: 'toolless' };
-  const name = descriptor?.tools[0] ?? provider;
-  const tool = toolchainOf(deps.ctx).tools.find((t) => t.name === name);
+  if (!servesCapability(descriptor, binding.capability)) {
+    const own = tools.find((t) => t.name === provider && t.declared);
+    return own === undefined ? { kind: 'unserved', provider } : { kind: 'tool', tool: own };
+  }
+  if (descriptor.tools.length === 0) return { kind: 'toolless' };
+  const name = descriptor.tools[0] as string;
+  const tool = tools.find((t) => t.name === name);
   return tool === undefined ? { kind: 'undeclared', provider, name } : { kind: 'tool', tool };
+}
+
+function providerUnknown(
+  deps: WorkspaceDeps,
+  capability: CapabilityName,
+  provider: string,
+): DevkitError {
+  const candidates = deps.ctx.providers
+    .filter((candidate) => candidate.capability === capability)
+    .map((candidate) => candidate.id);
+  const suggestion = nearest(provider, candidates);
+  return new DevkitError(
+    'config',
+    'PROVIDER_UNKNOWN',
+    `"${provider}" is not a ${capability} provider this fx knows`,
+    {
+      hint:
+        suggestion === undefined
+          ? `Available: ${candidates.join(', ') || 'none'}. A provider fx does not implement needs a tool of its own name in the manifest tools document.`
+          : `Did you mean "${suggestion}"?`,
+      nextSteps: [workspaceCommand(deps, 'manifest', 'providers')],
+    },
+  );
 }
 
 function capabilityUnbound(
@@ -123,11 +159,11 @@ function toolUndeclared(
     'TOOL_UNDECLARED',
     `${served.name} is not declared in the toolchain`,
     {
-      hint: `The provider bound to ${capability} is ${served.provider}; fx checks a companion tool only where a tools document declares it.`,
+      hint: `The provider bound to ${capability} is ${served.provider}, and neither the bundled catalog nor the manifest tools document describes ${served.name}.`,
       nextSteps: [
-        `Declare ${served.name} in the manifest tools document.`,
+        `Describe ${served.name} in the manifest tools document.`,
         workspaceCommand(deps, 'manifest', 'schema', '--kind', 'tools'),
-        workspaceCommand(deps, 'tool', 'list'),
+        workspaceCommand(deps, 'tool', 'list', '--catalog'),
       ],
     },
   );
@@ -170,8 +206,11 @@ function bindingDriving(
   tool: string,
   env: string | undefined,
 ): Binding | PlatformBinding | null {
-  const drives = (b: Binding | PlatformBinding): boolean =>
-    b.provider !== null && (login.describeProvider(b.provider)?.tools ?? []).includes(tool);
+  const drives = (b: Binding | PlatformBinding): boolean => {
+    if (b.provider === null) return false;
+    const descriptor = login.describeProvider(b.provider);
+    return descriptor === undefined ? b.provider === tool : descriptor.tools.includes(tool);
+  };
   return selectBinding(
     deps,
     [...deps.ctx.bindings, ...deps.ctx.platforms].filter(drives),

@@ -116,6 +116,43 @@ describe('workspace hooks', () => {
     const wrong = fx(args, { ...s.env, PATH: '' }, s.root, JSON.stringify({ cwd: freshHome() }));
     expect(wrong.stdout).toBe('');
   });
+  it('records how a background run ended, which no stream of its own could report', () => {
+    const s = setup();
+    expect(fx(['hook', 'inject'], s.env, s.root).status).toBe(0);
+    const stateFile = path.join(s.home, 'workspaces/test/hooks.json');
+    const owner = JSON.parse(readFileSync(stateFile, 'utf8')).receipts.find(
+      (r: { agent: string }) => r.agent === 'codex',
+    ).owner;
+    writeFileSync(path.join(s.home, 'config.yaml'), 'agents: [\n');
+    const result = fx(
+      [
+        '__hook-background',
+        'session-start',
+        '--workspace',
+        'test',
+        '--root',
+        s.root,
+        '--fx-home',
+        s.home,
+        '--agent',
+        'codex',
+        '--owner',
+        owner,
+      ],
+      { ...s.env, PATH: '' },
+      s.root,
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(JSON.parse(readFileSync(stateFile, 'utf8')).observations).toEqual([
+      {
+        checkedAt: expect.any(Number),
+        phase: 'run',
+        code: 'HOOK_WORKER_FAILED',
+        command: 'fx sync',
+      },
+    ]);
+  });
   it('previews without writing, injects selected hosts, and keeps removal disabled', () => {
     const s = setup();
     const preview = fx(['hook', 'inject', '--dry-run', '--format', 'json'], s.env, s.root);

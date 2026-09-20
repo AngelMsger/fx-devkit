@@ -2,9 +2,16 @@
 
 ## 未发布
 
+- 新增 `calendar`、`task`、`worklog`、`metrics` 四个能力：前两个有飞书与企业微信 provider，工时有 Jira provider；`metrics` 只命名未实现，manifest 可以描述它，绑定则要等 provider。`im` 的含义收窄为纯消息。
+- 新增 Jira 工作项 provider 与飞书知识库 provider，这两个能力各有了第二种实现；一个配套 CLI 服务多个能力时仍只安装和检查一次。
+- workspace 的工具链改为从其绑定的 provider 推导，内置工具不必再声明一遍；`tool list` 说明每个工具是被绑定带进来的还是 manifest 声明的，`--catalog` 列出其余的。
+- manifest 声明了同名工具时，能力可以绑定 fx 未实现的 provider；仅与内置工具重名的 provider id 会被指出更正，而不是照单全收。
+- tools 文档的 `defaults` 块支持 `install_on_init`，单个条目仍可覆盖。
 - 能力已绑定 provider、但工具文档未声明该 provider 所用配套工具时报告 `TOOL_UNDECLARED`，不再误称该能力没有 provider。
 - platform 的 `service` 按其名称推导出的 provider 校验：合法声明不再被误报，此前被跳过的真实问题也会报出。
 - 预先记录 session-start 后台运行承诺执行的阶段，worker 被终止时未执行到的阶段留下 `HOOK_PHASE_UNREPORTED`，不再直接消失。
+- session-start 后台运行中某条伴随命令用尽预算时不再终止整个运行，其后的每个阶段照常给出结论；宿主正在等待的前台运行仍在该处结束。
+- 分离的后台运行如何结束，记录为 workspace 的 `run` 观测，此前其 supervisor 只能写进无人读取的流。
 
 - 修复所有格式的报告字段投影、恢复命令的 workspace 上下文和贡献锁内的来源身份校验。
 - 支持经验证的本地 Git 导入与匹配 upstream 的安全补充，按启用和必需工具声明统一准备状态。

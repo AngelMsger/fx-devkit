@@ -27,7 +27,6 @@ export interface AdapterDeps {
 export type Vars = Readonly<Record<string, string>>;
 
 export interface ProviderDescriptor<P> extends ProviderFacts {
-  readonly tools: readonly string[];
   readonly recipes: readonly SetupRecipe[];
   readonly service?: (settings: ServiceSettings) => ServiceDefinition;
   readonly vars: readonly VarSpec[];

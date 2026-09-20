@@ -7,16 +7,14 @@ import {
   symlinkSync,
   realpathSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx, git, manifestDirOf } from './harness.js';
+import { freshHome, fx, git, manifestDirOf, tempDir } from './harness.js';
 
 interface Stage {
   readonly host: string;
@@ -27,7 +25,7 @@ interface Stage {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-e2e-'));
+  const base = tempDir('fx-e2e-');
   const host = path.join(base, 'host');
   mkdirSync(path.join(host, 'fx'), { recursive: true });
   const authors: Record<string, string> = {};

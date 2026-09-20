@@ -12,7 +12,9 @@ import type { ToolInstallation } from '../domain/toolchain/installation.js';
 import type { Lock } from '../ports/lock.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
 
-const entrySchema = z.strictObject({
+import type { ShapeOf } from './stored-shape.js';
+
+const entry = {
   id: z.string().uuid(),
   at: z.string().datetime(),
   event: z.enum(['started', 'installed', 'finished']),
@@ -29,11 +31,15 @@ const entrySchema = z.strictObject({
   failure_code: z.string().nullable(),
   installation_origin: z.enum(['fx', 'external', 'unknown']).optional(),
   binary_path_before: z.string().nullable().optional(),
-});
-const schema = z.strictObject({
-  owner: z.enum(['fx:tool-history:v1', 'fx:tool-history:v2']),
-  entries: z.array(entrySchema),
-});
+} satisfies ShapeOf<ToolInstallation>;
+const ledger = (object: typeof z.strictObject) =>
+  object({
+    owner: z.enum(['fx:tool-history:v1', 'fx:tool-history:v2']),
+    entries: z.array(object(entry)),
+  });
+
+const written = ledger(z.strictObject);
+const read = ledger(z.object);
 
 export class FileToolHistoryStore implements ToolHistoryStore {
   constructor(
@@ -46,7 +52,7 @@ export class FileToolHistoryStore implements ToolHistoryStore {
     try {
       const stat = await fs.lstat(this.file());
       if (!stat.isFile() || stat.nlink !== 1) throw invalid();
-      return schema.parse(JSON.parse(await fs.readFile(this.file(), 'utf8'))).entries;
+      return read.parse(JSON.parse(await fs.readFile(this.file(), 'utf8'))).entries;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw invalid();
@@ -62,7 +68,7 @@ export class FileToolHistoryStore implements ToolHistoryStore {
       });
     try {
       const entries = [...(await this.read()), entry];
-      const parsed = schema.safeParse({ owner: 'fx:tool-history:v2', entries });
+      const parsed = written.safeParse({ owner: 'fx:tool-history:v2', entries });
       if (!parsed.success) throw invalid();
       await fs.mkdir(this.home, { recursive: true, mode: 0o700 });
       await this.checkHome();

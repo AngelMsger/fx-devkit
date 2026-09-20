@@ -1,8 +1,6 @@
-// What to do at one Skill location (the skills stage never replaces a directory it did
-// not create). A team-Skills link is fx's only when it points at the manifest source's
-// skills/ itself; anything else at the path is somebody's work and stays. fx's own Skill
-// is a copy identified by its frontmatter; a same-named directory without one is foreign
-// too.
+// What to do at one Skill location. Ownership decides it, by the rules AGENTS.md states
+// under workspace and data ownership: the stage never replaces a directory it did not
+// create.
 
 import { samePath } from '../path.js';
 import { atLeast } from '../semver.js';

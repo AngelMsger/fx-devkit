@@ -49,6 +49,8 @@ export class SkillStage {
         await applyLinks(this.deps, links);
         await applyCopies(this.deps, this.skills, fx, input);
       }
+      // External tools last: their approval and exit codes must not decide whether
+      // fx's own links and copies were written.
       if (!input.dryRun) await runTools(this.deps, tools);
       reportForeign(this.deps, links);
       return { links, fx, tools, summary: summarize(links, fx, tools) };

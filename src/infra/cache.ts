@@ -1,11 +1,6 @@
-// ~/.fx/cache: one JSON file per key with an expiry. Anything here can be
-// deleted at any time; a miss only costs another probe, so nothing that goes
-// wrong here (unreadable, unwritable, not a regular file) is anyone's error.
-// Nothing is followed either: a symlink where the directory or an entry
-// should be is a miss, and a write lands over it, never through it. The
-// owner replacing the directory underneath a running fx is not defended
-// against: it is their directory, and Node cannot open relative to a
-// directory it has verified.
+// ~/.fx/cache: one JSON file per key with an expiry, disposable at any time. No
+// failure here is anyone's error and no symlink is followed; see "Personal
+// stores" in docs/design/runtime.md.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';

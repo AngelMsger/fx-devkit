@@ -1,12 +1,12 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FileConfigStore } from '../../../src/infra/config-store.js';
+import { tempDir } from '../../temp.js';
 
-const home = (): string => mkdtempSync(path.join(tmpdir(), 'fx-home-'));
+const home = (): string => tempDir('fx-home-');
 
 describe('FileConfigStore', () => {
   it('holds the lease across async decisions and releases it after rejection', async () => {

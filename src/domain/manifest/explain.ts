@@ -1,8 +1,7 @@
-// `manifest explain`: a field's type, requiredness, description and
-// children, read from the same schema that validates the document. A path
-// may be spelled the way a problem prints it (repos[3].branch), the way docs
-// write it (repos[].branch) or plainly (repos.branch); arrays and maps are
-// stepped through implicitly.
+// `manifest explain`: a field's type, requiredness, description and children, read from
+// the same schema that validates the document. A path may be spelled the way a problem
+// prints it (repos[3].branch), the way docs write it (repos[].branch) or plainly
+// (repos.branch).
 
 import type * as z from 'zod';
 

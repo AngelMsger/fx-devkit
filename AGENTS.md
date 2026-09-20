@@ -75,7 +75,9 @@ not provider-specific application branches.
   Unknown commands, config keys and resource selectors offer nearest matches.
 - Resolve settings as explicit flag > environment > file > default. Effective
   configuration and `--explain` must describe that same invocation. Keep parser
-  metadata, routing, completion and generated help consistent. Register compatibility
+  metadata, routing, completion and generated help consistent. The parser reads a
+  command's own static members only, so `strict`, `args` and `flags` stay declared
+  on each command even where a shared base would carry identical values. Register compatibility
   names in the alias map; primary discovery uses canonical commands, while typed
   aliases retain execution and flag completion.
 - Every write has `--dry-run`: build its plan first, then gate actual effects
@@ -128,6 +130,10 @@ own branches and histories.
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery
   journals rather than guessing through unrecognized state.
+- A personal store's codec states the domain contract it persists, so a stored
+  shape cannot drift from that interface. These files carry no version and any
+  installed fx may write them: reads ignore unknown keys rather than failing a
+  workspace closed, and writes reject anything outside the contract.
 - Team Skills use one directory link per selected agent to the manifest's Skills
   tree. Windows uses junctions; do not silently substitute copies. The bundled
   fx Skill is a copy recognized by its name and version frontmatter. An unversioned
@@ -184,8 +190,12 @@ source or package metadata. Use Apache-2.0 consistently in both distributions.
 
 Private registry coordinates come from `FX_REGISTRY` or Jenkins Managed npmrc,
 not package metadata; the public package defaults to npmjs. Keep the
-shared registry policy as the checked JavaScript implementation used by scripts
-and compiled adapters. Publishing uses `scripts/publish.mjs`; the lifecycle guard
+shared registry policy and version grammar as the checked JavaScript
+implementations used by scripts and compiled adapters, so a release gate that
+runs before the build decides the same way fx does. Delivery scripts belong to
+the type-checked project and the full rule set; JavaScript opts in per file
+with `// @ts-check`, because generated output is in the same program.
+Publishing uses `scripts/publish.mjs`; the lifecycle guard
 rejects direct publication. Package file lists own scanner coverage. Remotes,
 tags and publication remain separate task effects; see the
 [registry contract](docs/design/registry-configuration.md).

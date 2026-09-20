@@ -4,15 +4,14 @@
 // by an environment variable, and a temporary FX_HOME.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim, runtimeTools, systemPath } from '../platform.js';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -45,7 +44,7 @@ function bareWithCommit(host: string, base: string, name: string): void {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-facts-e2e-'));
+  const base = tempDir('fx-facts-e2e-');
   const shims = path.join(base, 'shims');
   mkdirSync(shims);
   const host = path.join(base, 'host', 'fx');
@@ -144,6 +143,12 @@ interface Coordinate {
   readonly ready: string | null;
   readonly handoff: Handoff | null;
 }
+interface MemberRow {
+  readonly id: string;
+  readonly display: string | null;
+  readonly status: string;
+  readonly areas: readonly string[];
+}
 interface CanAnswer {
   readonly status: string;
   readonly tool: string;
@@ -213,6 +218,54 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
       exit_code: 4,
     });
     expect(run.stderr).not.toContain('private-token');
+  });
+
+  it('lists people by area and status, and opens a repository by printing its page', () => {
+    const s = stage();
+    const json = ['--format', 'json'] as const;
+
+    const all = fx(['member', 'list', ...json], s.env, s.ws);
+    expect(all.status, all.stderr).toBe(0);
+    expect((all.json() as Items<MemberRow>).items).toEqual([
+      { id: 'alice', display: 'Alice', status: 'active', areas: ['Platform'] },
+      { id: 'bob', display: 'Bob', status: 'active', areas: ['Platform'] },
+    ]);
+    expect(fx(['member', 'list'], s.env, s.ws).stdout.split('\n')[0]).toMatch(
+      /^id\s+display\s+status\s+areas$/,
+    );
+    expect(
+      (
+        fx(
+          ['member', 'list', '--area', 'Platform', ...json],
+          s.env,
+          s.ws,
+        ).json() as Items<MemberRow>
+      ).items,
+    ).toHaveLength(2);
+    expect(
+      (
+        fx(
+          ['member', 'list', '--status', 'resigned', ...json],
+          s.env,
+          s.ws,
+        ).json() as Items<MemberRow>
+      ).items,
+    ).toEqual([]);
+    const area = fx(['member', 'list', '--area', 'Platfrom', ...json], s.env, s.ws);
+    expect(area.status).toBe(6);
+    expect(area.error()).toMatchObject({
+      code: 'AREA_NOT_FOUND',
+      hint: 'Did you mean "Platform"?',
+    });
+
+    // Not a terminal, so the command prints the page instead of opening it.
+    const open = fx(['repo', 'open', 'a', ...json], s.env, s.ws);
+    expect(open.status, open.stderr).toBe(0);
+    expect(open.json()).toMatchObject({ name: 'a', url: expect.stringContaining('/fx/a.git') });
+    expect(open.stderr).not.toContain('BROWSER_OPEN_FAILED');
+    const unknown = fx(['repo', 'open', 'nope', ...json], s.env, s.ws);
+    expect(unknown.status).toBe(6);
+    expect(unknown.error().code).toBe('REPO_NOT_FOUND');
   });
 
   it('answers from the manifest, hands off when the machine is not ready, and keeps AGENTS.md honest', () => {

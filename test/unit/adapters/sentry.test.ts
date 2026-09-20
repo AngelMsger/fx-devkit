@@ -62,7 +62,7 @@ describe('SentryErrorTracker', () => {
         culprit: 'Factory',
       },
     ]);
-    const vector = proc.calls[0]?.vector ?? [];
+    const vector = proc.soleCallTo(LIST).vector;
     expect(vector).toContain('--json');
     expect(vector.slice(vector.indexOf('--query'), vector.indexOf('--query') + 4)).toEqual([
       '--query',
@@ -74,8 +74,8 @@ describe('SentryErrorTracker', () => {
       '--limit',
       '1000',
     ]);
-    expect(proc.calls[0]?.options.timeoutMs).toBe(30_000);
-    expect(proc.calls[0]?.options.env).toEqual({
+    expect(proc.soleCallTo(LIST).options.timeoutMs).toBe(30_000);
+    expect(proc.soleCallTo(LIST).options.env).toEqual({
       SENTRY_URL: 'https://sentry.example.com',
       SENTRY_HOST: 'https://sentry.example.com',
     });

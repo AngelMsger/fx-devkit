@@ -6,6 +6,8 @@ import { spawn } from 'node:child_process';
 import { hookRequestArgs, type HookRequest } from '../../domain/harness/request.js';
 import type { HookTasks } from '../../ports/hook-tasks.js';
 
+import { unsupervised } from './supervision.js';
+
 export class NodeHookTasks implements HookTasks {
   constructor(private readonly executable: readonly string[]) {}
   start(request: HookRequest): Promise<void> {
@@ -19,7 +21,7 @@ export class NodeHookTasks implements HookTasks {
         detached: true,
         windowsHide: true,
         stdio: 'ignore',
-        env: { ...process.env, FX_LIFECYCLE_WORKER: '0' },
+        env: { ...process.env, ...unsupervised() },
       });
       child.once('error', () => resolve());
       child.once('spawn', () => {

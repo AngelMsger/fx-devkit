@@ -1,7 +1,6 @@
-// New unresolved errors are what the checklist's "exception cleanup" asks
-// about: anything first seen inside the window and still open. The tracker
-// answers with activity inside the window; first-seen is judged here, and
-// an issue the tracker cannot date is neither counted nor forgotten.
+// Unresolved issues first seen inside the window. The tracker answers with
+// activity, so first-seen is judged here; see "Unresolved errors" in
+// docs/design/release.md.
 
 import type { Issue } from '../obs/types.js';
 import type { Level } from '../report.js';
@@ -69,8 +68,7 @@ function verdict(
   // Without a first-seen date nothing can be said about when it appeared.
   if (undated > 0)
     return ['warn', `${undated} unresolved issue${undated === 1 ? '' : 's'} in ${where} undated`];
-  // The tracker stopped at the ceiling, so what it did not send is unread,
-  // not absent.
+  // The tracker stopped at the ceiling: what it did not send is unread, not absent.
   if (input.capped)
     return [
       'warn',

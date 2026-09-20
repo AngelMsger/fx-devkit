@@ -236,6 +236,13 @@ A provider implements it through its companion CLI. The manifest binds capabilit
 to providers and environment-specific coordinates. Use `can` for readiness,
 `where` for service coordinates, and `release` for the declared release checklist.
 
+A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
+`calendar`, `task` and `worklog` once; an environment binds `error-tracker`,
+`log-store`, `metrics`, `ci` and `cluster` per platform instance. `fx manifest
+providers` lists what is bound and what each capability accepts. A capability
+fx names but implements for nobody, such as `metrics`, can still be described
+and read: binding it needs a provider, and until one exists it is unbound.
+
 ### Companion tools and trust
 
 `tool list/show` explains requirements; `tool install/update` uses available
@@ -243,10 +250,14 @@ installers; `login` guides setup. Companions own authentication. Manifest-suppli
 execution vectors require trust, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
-Tool definitions combine the bundled baseline with the selected workspace's
-`tools.yaml` patch. Workspace selection is `--workspace`, `FX_WORKSPACE`, the
-registered root containing the current directory, then `default_workspace`.
-Without a resolved workspace, tool commands use the bundled baseline. The package
+Tool definitions combine the bundled catalog with the selected workspace's
+`tools.yaml` patch, and the workspace's toolchain is the part of that the
+workspace actually uses: the tools its bound providers drive, plus the tools its
+patch names. `fx tool list` reports which of the two put each tool there, and
+`--catalog` also lists the tools fx knows that nothing selects. Workspace
+selection is `--workspace`, `FX_WORKSPACE`, the registered root containing the
+current directory, then `default_workspace`. Without a resolved workspace there
+are no bindings to read, so tool commands list the bundled catalog. The package
 manager owns installation locations; tools are shared across workspaces.
 
 `tool install` and `tool update` require names or `--all`, never both. Install's
@@ -255,10 +266,12 @@ enabled tools in the selected toolchain. Named operations can explicitly select
 a disabled tool. No-argument invocations fail before package operations.
 
 Doctor checks tools declared by the workspace and dependencies of providers
-active in the selected environments. Unused tools from the bundled catalog are
-available through `tool list` or an explicit `doctor --tool <name>` check; their
-absence does not make an unrelated workspace unhealthy. A disabled dependency of
-an active provider remains an incomplete requirement, not a passing check.
+active in the selected environments. Bundled tools the workspace does not use
+are still checked on request with `doctor --tool <name>`; their absence does not
+make an unrelated workspace unhealthy. The toolchain itself spans every
+environment the manifest declares, because installation is machine-wide, while
+`doctor` narrows its checks to the environments in scope. A disabled dependency
+of an active provider remains an incomplete requirement, not a passing check.
 Init and sync use the same relevant tool scope. Missing optional tools remain
 visible without blocking preparation. An enabled `install_on_init` tool must be
 verified; a disabled optional tool does not become required merely because that

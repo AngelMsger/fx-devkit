@@ -70,7 +70,7 @@ describe('code-host contribution queries and creation', () => {
       source,
       target,
     });
-    expect(process.calls[0]?.vector).toEqual([
+    expect(process.soleCallTo(['bitbucket-cli']).vector).toEqual([
       'bitbucket-cli',
       '--format',
       'json',
@@ -103,7 +103,7 @@ describe('code-host contribution queries and creation', () => {
         id: pr.url.replace('git.example.com', 'other.example.com'),
       }),
     ).rejects.toMatchObject({ code: 'SOURCE_PR_REFERENCE_INVALID' });
-    expect(process.calls.filter((call) => call.vector.includes('pr'))).toHaveLength(1);
+    expect(process.callsTo(['bitbucket-cli', '--format', 'json', 'pr'])).toHaveLength(1);
   });
   it('passes exact description bytes in a temporary file and forwards only explicit write override', async () => {
     let descriptionFile = '';

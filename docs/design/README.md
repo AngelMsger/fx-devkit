@@ -63,6 +63,7 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | [Initialization and selection](init-selection.md)   | Scope modes, first-clone selection and truthful source previews    |
 | [Status and recovery](status-recovery.md)           | Uncommitted work, validation and live repository readiness         |
 | [Setup and readiness](setup.md)                     | Selector validation, stable step identities and evidence semantics |
+| [Release checklist](release.md)                     | Policy resolution, check order and build-currency semantics        |
 | [Import](import.md)                                 | Repository discovery and inference without changing checkouts      |
 | [Harness](harness.md)                               | MCP/rules declarations, projection ownership and readiness         |
 | [Lifecycle](lifecycle.md)                           | Host dispatch, deadlines, background work and recovery             |

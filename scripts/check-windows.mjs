@@ -1,3 +1,4 @@
+// @ts-check
 // Native acceptance entry, callable from a developer terminal or a Windows CI
 // node. A missing prerequisite fails; no skipped runtime is counted as passing.
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -8,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import spawn from 'cross-spawn';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+/** @type {{ platform: string, node: string, started_at: string, checks: { name: string, code: number | null, error: string | null }[], ok: boolean }} */
 const report = {
   platform: process.platform,
   node: process.version,
@@ -21,14 +23,15 @@ try {
   if (process.platform !== 'win32') throw new Error('Run this entry on native Windows.');
   if (Number(process.versions.node.split('.')[0]) < 22)
     throw new Error('Node 22 or newer is required.');
-  for (const [name, args] of [
+  /** @type {[string, string[]][]} */
+  const prerequisites = [
     ['git', ['--version']],
     ['npm', ['--version']],
     ['bun', ['--version']],
     ['powershell.exe', ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']],
     ['pwsh.exe', ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']],
-  ])
-    check(name, name, args);
+  ];
+  for (const [name, args] of prerequisites) check(name, name, args);
   for (const script of ['lint', 'typecheck', 'test', 'test:bun', 'test:e2e', 'docs:check'])
     check(script, 'npm', ['run', script]);
   check('package-boundary', process.execPath, ['scripts/check-package.mjs']);
@@ -70,6 +73,13 @@ try {
   console.error(`Windows acceptance report: ${reportFile}`);
 }
 
+/**
+ * @param {string} name
+ * @param {string} binary
+ * @param {string[]} args
+ * @param {boolean} [capture]
+ * @param {NodeJS.ProcessEnv} [env]
+ */
 function check(name, binary, args, capture = false, env = process.env) {
   const result = spawn.sync(binary, args, {
     cwd: root,

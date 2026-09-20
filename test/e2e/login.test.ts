@@ -3,15 +3,14 @@
 // directory, and the personal layer sits in a temporary FX_HOME.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -29,7 +28,7 @@ const SHIMS: Record<string, string> = {
 };
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-setup-e2e-'));
+  const base = tempDir('fx-setup-e2e-');
   const shims = path.join(base, 'shims');
   mkdirSync(shims);
   for (const [name, body] of Object.entries(SHIMS)) {

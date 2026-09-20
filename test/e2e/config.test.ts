@@ -1,9 +1,21 @@
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { freshHome, fx, packageName } from './harness.js';
+
+// stderr carries one JSON record per notice.
+function notices(stderr: string): { code: string; nextSteps?: string[] }[] {
+  return stderr
+    .trim()
+    .split('\n')
+    .filter((line) => line.startsWith('{'))
+    .map(
+      (line) => (JSON.parse(line) as { _notice: { code: string; nextSteps?: string[] } })._notice,
+    )
+    .filter((notice) => notice !== undefined);
+}
 
 describe('fx config', () => {
   it.each([
@@ -152,6 +164,81 @@ describe('fx config', () => {
     expect(preview.status, preview.stderr).toBe(0);
     expect(preview.json()).toMatchObject({ path: out, written: false });
     expect(existsSync(out)).toBe(false);
+  });
+
+  it('carries a profile to another home, previews it first, and reports a missing file', () => {
+    const source = freshHome();
+    const target = freshHome();
+    const out = path.join(source, 'profile.yaml');
+    expect(fx(['config', 'set', 'user', 'alice'], { FX_HOME: source }).status).toBe(0);
+    expect(fx(['config', 'export', '-o', out], { FX_HOME: source }).status).toBe(0);
+
+    const missing = fx(['config', 'import', path.join(source, 'absent.yaml'), '--format', 'json'], {
+      FX_HOME: target,
+    });
+    expect(missing.status).toBe(6);
+    expect(missing.error()).toMatchObject({
+      category: 'not_found',
+      code: 'CONFIG_IMPORT_NOT_FOUND',
+      next_steps: ['fx config export -o profile.yaml'],
+    });
+
+    const preview = fx(['config', 'import', out, '--dry-run', '--format', 'json'], {
+      FX_HOME: target,
+    });
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(preview.json()).toMatchObject({ config: 'changed', written: false });
+    expect(
+      fx(['config', 'get', 'user', '--format', 'json'], { FX_HOME: target }).json(),
+    ).toMatchObject({ value: null, source: 'default' });
+
+    const applied = fx(['config', 'import', out, '--format', 'json'], { FX_HOME: target });
+    expect(applied.status, applied.stderr).toBe(0);
+    expect(applied.json()).toMatchObject({ config: 'changed', written: true });
+    expect(
+      fx(['config', 'get', 'user', '--format', 'json'], { FX_HOME: target }).json(),
+    ).toMatchObject({ value: 'alice', source: 'file' });
+  });
+
+  it('notices the preparation a profile with an unprepared workspace still needs', () => {
+    const home = freshHome();
+    const root = path.join(home, 'ws');
+    const profile = path.join(home, 'profile.yaml');
+    writeFileSync(
+      profile,
+      [
+        'fx_profile: 1',
+        'config:',
+        '  workspaces:',
+        '    team:',
+        `      root: ${root}`,
+        '      source: https://git.example.com/team/manifest.git',
+        'workspaces: {}',
+        '',
+      ].join('\n'),
+    );
+    // A registration is pinned to the root's real path, whatever the profile spells.
+    const pinned = path.join(realpathSync(home), 'ws');
+    const step = `fx init ${pinned} --name team --from https://git.example.com/team/manifest.git`;
+
+    const preview = fx(['config', 'import', profile, '--dry-run', '--format', 'json'], {
+      FX_HOME: home,
+    });
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(preview.json()).toMatchObject({
+      registrations: [{ name: 'team', action: 'created', preparation: 'manifest_missing' }],
+      next_steps: [step],
+      written: false,
+    });
+    expect(notices(preview.stderr)).toContainEqual(
+      expect.objectContaining({ code: 'CONFIG_IMPORT_PLANNED', nextSteps: [step] }),
+    );
+
+    const applied = fx(['config', 'import', profile, '--format', 'json'], { FX_HOME: home });
+    expect(applied.status, applied.stderr).toBe(0);
+    expect(notices(applied.stderr)).toContainEqual(
+      expect.objectContaining({ code: 'CONFIG_IMPORTED', nextSteps: [step] }),
+    );
   });
 
   it('names the config path in self info', () => {

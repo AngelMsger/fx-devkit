@@ -53,11 +53,15 @@ export class Can {
     };
   }
 
+  // A provider fx does not implement is still usable when the manifest describes a tool of
+  // that name: fx has no entry coordinate to offer, but the tool's own readiness answers the
+  // question. Without such a tool the binding names nothing at all.
   private entry(target: Target): CanResult['entry'] {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;
     const descriptor = this.login.describeProvider(binding.provider);
-    if (!servesCapability(descriptor, binding.capability))
+    if (!servesCapability(descriptor, binding.capability)) {
+      if (descriptor === undefined && target.tool !== null) return undefined;
       throw new DevkitError(
         'config',
         'PROVIDER_UNKNOWN',
@@ -66,6 +70,7 @@ export class Can {
           nextSteps: [workspaceCommand(this.deps, 'manifest', 'providers')],
         },
       );
+    }
     if (!descriptor.reference) return undefined;
     const coordinate = this.deps.reference(binding);
     return {

@@ -12,6 +12,7 @@ function tool(name: string, extra: Partial<ResolvedTool> = {}): ResolvedTool {
     binary: name,
     required: false,
     enabled: true,
+    declared: false,
     versionArgs: ['--version'],
     install: [],
     setup: [],

@@ -8,9 +8,11 @@ import {
   loadEnvironments,
   loadLocal,
   loadMembers,
+  loadTools,
   loadToolsDocument,
   loadWorkspace,
 } from '../../../../src/domain/manifest/loader.js';
+import { commandOrigin, resolveTools } from '../../../../src/domain/toolchain/resolve.js';
 
 const text = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
@@ -287,5 +289,44 @@ describe('loadLocal', () => {
     expect(() => loadLocal(text('local/leaks-shared-field.yaml'))).toThrow(
       expect.objectContaining({ code: 'LOCAL_INVALID' }),
     );
+  });
+});
+
+describe('loadTools', () => {
+  const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
+
+  it('keeps every catalog entry, whatever the workspace names', () => {
+    const result = loadTools(
+      bundled(),
+      'schema_version: 2\ntools: [{ name: bitbucket-cli }]\n',
+      cli,
+    );
+    if (!result.valid) throw new Error('patch rejected');
+    expect(result.doc.tools.map((tool) => tool.name)).toContain('jenkins-cli');
+    expect(result.declared).toEqual(['bitbucket-cli']);
+  });
+
+  it('vouches for a catalog tool a workspace only names', () => {
+    const result = loadTools(bundled(), 'schema_version: 2\ntools: [{ name: jenkins-cli }]\n', cli);
+    if (!result.valid) throw new Error('patch rejected');
+    const [tool] = resolveTools(result.doc, result.provenance, result.declared).filter(
+      (item) => item.name === 'jenkins-cli',
+    );
+    expect(tool?.declared).toBe(true);
+    expect(tool?.install).toEqual([{ via: 'npm', spec: '@angelmsger/jenkins-cli' }]);
+    expect(commandOrigin(tool!)).toBe('base');
+    expect(tool?.patchedFields).toEqual([]);
+  });
+
+  it('lets the defaults block decide installation at init, and an entry opt out', () => {
+    const result = loadTools(
+      bundled(),
+      'schema_version: 2\ndefaults: { install_on_init: true }\ntools: [{ name: kubectl, install_on_init: false }]\n',
+      cli,
+    );
+    if (!result.valid) throw new Error('patch rejected');
+    const resolved = resolveTools(result.doc, result.provenance, result.declared);
+    expect(resolved.find((tool) => tool.name === 'bitbucket-cli')?.installOnInit).toBe(true);
+    expect(resolved.find((tool) => tool.name === 'kubectl')?.installOnInit).toBe(false);
   });
 });

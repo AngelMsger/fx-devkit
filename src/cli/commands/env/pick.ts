@@ -1,8 +1,8 @@
 import { editEnvScope } from '../../../application/env/scope.js';
-import { FxCommand } from '../../base.js';
-import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
+import { dryRunFlag, requiredArgument } from '../../flags.js';
+import { SelectionCommand } from '../selection.js';
 
-export default class EnvPickCommand extends FxCommand {
+export default class EnvPickCommand extends SelectionCommand {
   static override description =
     'Add shared environments to the current selection; already-all is unchanged. Use env select to replace it.';
   static override examples = ['<%= config.bin %> env pick dev test'];
@@ -14,11 +14,6 @@ export default class EnvPickCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(EnvPickCommand);
-    const result = await editEnvScope(
-      await this.workspaceDeps(),
-      { names: argv as string[], ...writeIntent(flags, this.posture) },
-      'pick',
-    );
-    this.renderer.record(result);
+    await this.editSelection(editEnvScope, 'pick', argv, flags);
   }
 }

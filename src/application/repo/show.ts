@@ -25,7 +25,7 @@ export interface RepoDetail extends StatusRow {
   readonly upstream_url: string | null;
   readonly web_url: string | null;
   readonly contact: string | null;
-  // null: no members document, which is not the same as nobody owning it.
+  // null: no members document, not an unowned repository.
   readonly owners: readonly Ownership[] | null;
 }
 

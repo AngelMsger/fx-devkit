@@ -21,6 +21,9 @@ export interface MergeOptions {
 export interface Merged {
   readonly toolchain: Toolchain;
   readonly provenance: Provenance;
+  // Which tools the patch named: a claim that the team uses them, which provenance cannot
+  // carry, because naming a baseline tool changes no field.
+  readonly declared: readonly string[];
 }
 
 export const DEFAULTS_KEY = '(defaults)';
@@ -73,7 +76,11 @@ export function mergeTools(
     ...(defaults === undefined ? {} : { defaults: defaults as Toolchain['defaults'] }),
     tools,
   };
-  return { toolchain: applyDeletions(merged, options.deletions ?? [], patch), provenance };
+  return {
+    toolchain: applyDeletions(merged, options.deletions ?? [], patch),
+    provenance,
+    declared: (patch?.tools ?? []).map((tool) => tool.name),
+  };
 }
 
 function mergeValue(

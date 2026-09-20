@@ -8,8 +8,12 @@ import { describe, expect, it } from 'vitest';
 const RETIRED =
   /fx (bootstrap|setup|need|obs (where|probe)|docs render|profile (export|import)|skill sync|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version|version(?!\s[a-z])|import)\b/;
 
+// Generated output and installed dependencies are not maintained documentation.
+const SKIP = new Set(['node_modules', 'dist']);
+
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
+    if (SKIP.has(name)) return [];
     const full = path.join(dir, name);
     return statSync(full).isDirectory() ? files(full) : [full];
   });
@@ -21,7 +25,7 @@ const BARE =
   /`(bootstrap|obs (where|probe)|docs render|profile (export|import)|skill sync|tool (check|explain)|agent (detect|enable|disable)|member (who|owners)|config path|self version)`/;
 const PROSE = /\.md$/;
 
-const ROOTS = ['src', 'skills', 'docs/design', 'docs/cli', 'README.md', 'AGENTS.md'];
+const ROOTS = ['src', 'skills', 'docs', 'README.md', 'AGENTS.md'];
 
 describe('retired command names', () => {
   it('appear nowhere outside the changelog', () => {

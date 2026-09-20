@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -10,6 +9,7 @@ import {
 } from '../../../src/adapters/process/executable.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { writeNodeShim } from '../../platform.js';
+import { tempDir } from '../../temp.js';
 
 describe('Windows executable resolution', () => {
   it('uses PATHEXT in order and never implicitly searches the working directory', () => {
@@ -65,7 +65,7 @@ describe('Windows executable resolution', () => {
 
 describe('portable command execution', () => {
   it('preserves arguments and input through a PATH shim without evaluating them', async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'fx-中文 shim-'));
+    const dir = tempDir('fx-中文 shim-');
     const marker = path.join(dir, 'must-not-exist');
     writeNodeShim(
       dir,
@@ -99,7 +99,7 @@ describe('portable command execution', () => {
   });
 
   it('cleans up helpers when a command is aborted', async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'fx-tree-'));
+    const dir = tempDir('fx-tree-');
     const file = path.join(dir, 'helper');
     const script = `const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});require('node:fs').writeFileSync(${JSON.stringify(file)},String(c.pid));setInterval(()=>{},1000);`;
     const control = new AbortController();

@@ -3,13 +3,12 @@
 // manifest that comes out feeding an init of its own.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx } from './harness.js';
+import { freshHome, fx, tempDir } from './harness.js';
 
 const GIT_ENV = {
   ...process.env,
@@ -25,7 +24,7 @@ function bare(host: string, project: string, name: string, branch: string): stri
   const dir = path.join(host, project, `${name}.git`);
   mkdirSync(path.dirname(dir), { recursive: true });
   execFileSync('git', ['init', '--quiet', '--bare', '-b', branch, dir]);
-  const seed = mkdtempSync(path.join(tmpdir(), 'seed-'));
+  const seed = tempDir('seed-');
   git(seed, 'clone', '-q', dir, 'w');
   const w = path.join(seed, 'w');
   git(w, 'checkout', '-q', '-b', branch);
@@ -43,7 +42,7 @@ interface Stage {
 }
 
 function stage(): Stage {
-  const base = mkdtempSync(path.join(tmpdir(), 'fx-import-e2e-'));
+  const base = tempDir('fx-import-e2e-');
   const host = path.join(base, 'host');
   const root = path.join(base, 'ws');
   mkdirSync(root);

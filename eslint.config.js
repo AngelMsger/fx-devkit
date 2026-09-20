@@ -40,9 +40,9 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     // src's two JavaScript modules are shared with scripts that run before a
-    // build; the type-checked project covers them, so the layering and style
-    // rules reach them too.
-    files: ['**/*.ts', 'src/**/*.js'],
+    // build; the type-checked project covers them and the delivery scripts, so
+    // the layering and style rules reach all of them too.
+    files: ['**/*.ts', 'src/**/*.js', 'scripts/**/*.mjs'],
     languageOptions: {
       parserOptions: { project: './tsconfig.all.json', tsconfigRootDir: import.meta.dirname },
     },
@@ -106,8 +106,22 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', innerImports(true)] },
   },
   {
-    files: ['scripts/**/*.mjs'],
-    plugins: { 'import-x': importX },
-    rules: { 'import-x/order': 'error' },
+    // A fake records calls so a test can say which ones ran, not in what
+    // position; `vectors()` states that the order itself is the contract.
+    files: ['test/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[computed=true][object.property.name='calls']",
+          message: 'Select a recorded call by its vector, not by its position.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='at'][callee.object.property.name='calls']",
+          message: 'Select a recorded call by its vector, not by its position.',
+        },
+      ],
+    },
   },
 );

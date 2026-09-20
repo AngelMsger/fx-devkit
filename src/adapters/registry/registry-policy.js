@@ -1,3 +1,4 @@
+// @ts-check
 // Shared JavaScript keeps the same registry policy available to runtime adapters
 // and pre-build publication guards. Private coordinates come only from configuration.
 import { PUBLIC_REGISTRY, packageChannel } from '../../domain/distribution.js';

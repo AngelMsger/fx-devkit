@@ -3,20 +3,23 @@
 // non-interactive.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { mergeEnvironment } from '../../src/adapters/process/executable.js';
 import { manifestSourceDir } from '../../src/infra/workspace-home.js';
+import { tempDir } from '../temp.js';
+
+export { tempDir };
 
 const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../bin/fx.js');
-// One home per test run: agent detection and Skill links never reach the person's own.
 export const packageName: string = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 ).name;
-export const userHome = mkdtempSync(path.join(tmpdir(), 'fx-user-home-'));
+
+// One home per test file: agent detection and Skill links never reach the person's own.
+export const userHome = tempDir('fx-user-home-');
 
 export interface Run {
   readonly status: number;
@@ -55,7 +58,7 @@ export function fx(
 }
 
 export function freshHome(): string {
-  return mkdtempSync(path.join(tmpdir(), 'fx-home-'));
+  return tempDir('fx-home-');
 }
 
 // Where a workspace's manifest source lands under a given FX_HOME.

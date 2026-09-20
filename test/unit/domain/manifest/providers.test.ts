@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { providerCatalog } from '../../../../src/composition/registry.js';
+import { capabilitiesInScope } from '../../../../src/domain/capability.js';
 import { bindProviders } from '../../../../src/domain/manifest/providers.js';
 import type { Workspace } from '../../../../src/domain/manifest/types.js';
 
@@ -40,12 +41,7 @@ describe('bindProviders', () => {
       repos: [{ name: 'a' }],
     };
     const bindings = bindProviders(ws, providerCatalog());
-    expect(bindings.map((b) => b.capability)).toEqual([
-      'code-host',
-      'issue-tracker',
-      'knowledge-base',
-      'im',
-    ]);
+    expect(bindings.map((b) => b.capability)).toEqual(capabilitiesInScope('workspace'));
     expect(bindings.find((b) => b.capability === 'im')).toMatchObject({
       provider: 'lark-cli',
       source: 'explicit',

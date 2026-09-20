@@ -45,7 +45,7 @@ function fixture(timeout: number): { root: string; controller: string; heartbeat
     path.join(root, 'supervisor.mjs'),
     compile(readFileSync('src/adapters/process/lifecycle-runner.ts', 'utf8')),
   );
-  for (const module of ['executable', 'terminate'])
+  for (const module of ['executable', 'supervision', 'terminate'])
     writeFileSync(
       path.join(root, module + '.js'),
       compile(readFileSync('src/adapters/process/' + module + '.ts', 'utf8')),
@@ -55,7 +55,7 @@ function fixture(timeout: number): { root: string; controller: string; heartbeat
     controller,
     `import {NodeLifecycleRunner} from './supervisor.mjs';
     await new Promise(r=>setTimeout(r,200));
-    const output=await new NodeLifecycleRunner().run({vector:[process.execPath,'-e',${JSON.stringify(worker)}],input:Promise.resolve('{}'),timeoutMs:${timeout}});
+    const output=await new NodeLifecycleRunner().run({vector:[process.execPath,'-e',${JSON.stringify(worker)}],input:Promise.resolve('{}'),timeoutMs:${timeout},role:'foreground'});
     process.stdout.write(output);`,
   );
   return { root, controller, heartbeat };
