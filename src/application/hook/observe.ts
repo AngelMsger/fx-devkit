@@ -43,7 +43,7 @@ export interface BackgroundDeps {
   readonly self: {
     readonly packageName: string;
     readonly version: string;
-    readonly registry: string | null;
+    readonly registry: () => Promise<string | null>;
     readonly update: FxUpdateCheck;
   };
 }
@@ -142,7 +142,7 @@ async function checkSelf(deps: BackgroundDeps): Promise<readonly HookObservation
   const verdict = await deps.self.update.execute({
     current: deps.self.version,
     packageName: deps.self.packageName,
-    registry: deps.self.registry,
+    registry: await deps.self.registry(),
   });
   if (verdict.source === 'skipped') return [observed('FX_UPDATE_UNAVAILABLE', 'fx self info')];
   if (verdict.error) return [observed('FX_UPDATE_UNAVAILABLE', 'fx doctor')];

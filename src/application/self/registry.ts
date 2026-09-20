@@ -1,5 +1,5 @@
 // Registry readiness has one recovery route shared by self update and doctor.
-// Internal coordinates are explicit; the public distribution has a public default.
+// Runtime discovery follows npm configuration, with an optional explicit override.
 
 import type { Handoff } from '../../domain/errors.js';
 
@@ -11,7 +11,7 @@ export const REGISTRY_HANDOFF: Handoff = {
       id: 'fx-registry',
       kind: 'manual',
       title:
-        'For @fx/devkit, set FX_REGISTRY from your team. For @angelmsger/fx, remove an invalid override to use npmjs or select a valid mirror.',
+        'Check npm config get registry --global and the package scope registry. Configure @fx:registry for @fx/devkit, or use FX_REGISTRY as an optional override. Remove invalid overrides before retrying.',
     },
   ],
 };

@@ -174,14 +174,22 @@ refreshing installed Skill copies. These notices do not change the command resul
 Skill management, self-update, completion and lifecycle dispatch skip these checks.
 
 Checks are cached for a day (fx) or an hour (manifest), run with two-second upstream
-deadlines and stay silent on failure. Local cache/npmrc access is outside that
+deadlines and stay silent on failure. Local cache access and bounded npm Registry discovery are outside that
 deadline. `FX_UPDATE_CHECK=0`, `update_check: false` or `--quiet` disables them;
 doctor then marks those checks as not checked. A failure before configuration is
 loaded performs no update check.
 
-### Initialization and synchronization
+`self info` exposes the effective `registry` and `registry_source`. Runtime order
+is optional `FX_REGISTRY`, npm's package-scope setting, then npm's default setting.
+Discovery uses global mode, honoring user/global config and `NPM_CONFIG_USERCONFIG`
+while excluding project npmrc. Invalid chosen settings remain unresolved; internal
+packages never fall back to a public Registry. Historical tarball URLs are not used
+to guess Registry APIs. Metadata authentication is delegated to npm; the existing
+private `FX_REGISTRY_TOKEN` override remains supported when paired with explicit
+`FX_REGISTRY`; it is not applied to an inferred target. Self-update pins only the
+fx package scope, preserving npm's default route for other dependencies.
 
-`fx sync`) and `FX_OUTDATED` (`fx self update --yes`, then `fx skill install`). Cached a day (fx) and an hour (manifest), silent on failure, the two probes side by side, each giving its upstream at most two seconds (local reads and writes of the cache and `~/.npmrc` are not under that clock). Off with `FX_UPDATE_CHECK=0`, the `update_check` config key, or `--quiet`; the same switch turns doctor's two live findings into `ok … not checked`. A command that fails before its configuration is read makes no check.
+### Initialization and synchronization
 
 `fx sync` — `items[]` of repository rows (exceptions only in summary JSON), then `summary` and `stages` (`services`, `docs`, `skills`, `hooks`, `mcp`, `tools`) in the same envelope. Failed repository rows keep the display `error` and a
 `failure` object with `category`, `code`, `message`, `hint`, `next_steps`,

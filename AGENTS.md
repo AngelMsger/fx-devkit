@@ -188,8 +188,10 @@ must render the matching installation commands for its channel in all four langu
 Keep private endpoints and credentials in platform configuration, never generic
 source or package metadata. Use Apache-2.0 consistently in both distributions.
 
-Private registry coordinates come from `FX_REGISTRY` or Jenkins Managed npmrc,
-not package metadata; the public package defaults to npmjs. Keep the
+Runtime Registry discovery follows npm's effective user/global scope and default
+configuration, with `FX_REGISTRY` as an optional override. Project npmrc cannot
+redirect global self-update. Publication still requires an explicit private
+coordinate or Jenkins Managed npmrc; package metadata carries no Registry. Keep the
 shared registry policy and version grammar as the checked JavaScript
 implementations used by scripts and compiled adapters, so a release gate that
 runs before the build decides the same way fx does. Delivery scripts belong to

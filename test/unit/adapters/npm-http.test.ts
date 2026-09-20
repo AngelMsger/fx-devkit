@@ -1,24 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { NpmHttpRegistry, npmrcTokenIn } from '../../../src/adapters/registry/npm-http.js';
+import { NpmHttpRegistry } from '../../../src/adapters/registry/npm-http.js';
+import { NpmRegistry } from '../../../src/adapters/registry/npm-registry.js';
+import { FakeProcess } from '../../fakes/fake-process.js';
 
 const REGISTRY = 'https://npm.example.com/repository/npm';
-
-describe('npmrcTokenIn', () => {
-  it('matches the registry host exactly or as a path under the line, and strips quotes', () => {
-    const npmrc = [
-      'registry=https://npm.example.com/',
-      '//npm.example.com/:_authToken="abc"',
-      '',
-    ].join('\n');
-    expect(npmrcTokenIn(npmrc, 'https://npm.example.com')).toBe('abc');
-    expect(npmrcTokenIn(npmrc, REGISTRY)).toBe('abc');
-    expect(npmrcTokenIn('//other.example.com/:_authToken=x', REGISTRY)).toBeUndefined();
-    expect(npmrcTokenIn('//npm.example.com/repository/npm/:_authToken=deep', REGISTRY)).toBe(
-      'deep',
-    );
-  });
-});
 
 describe('NpmHttpRegistry', () => {
   it('asks for the abbreviated document with the token, and reads dist-tags.latest', async () => {
@@ -27,14 +13,16 @@ describe('NpmHttpRegistry', () => {
       seen.push({ url: String(url), headers: init?.headers as Record<string, string> });
       return new Response(JSON.stringify({ 'dist-tags': { latest: '0.3.0' } }), { status: 200 });
     }) as typeof fetch;
-    const registry = new NpmHttpRegistry({
+    const process = new FakeProcess();
+    const registry = new NpmRegistry(process, {
       registry: `${REGISTRY}/`,
       timeoutMs: 100,
-      env: { FX_REGISTRY_TOKEN: 'tok' },
+      env: { FX_REGISTRY_TOKEN: 'tok', FX_REGISTRY: REGISTRY },
       userHome: '/nowhere',
       fetch: fake,
     });
     expect(await registry.latest('@fx/devkit')).toBe('0.3.0');
+    expect(process.calls).toEqual([]);
     expect(seen[0]).toEqual({
       url: `${REGISTRY}/@fx%2Fdevkit`,
       headers: { Accept: 'application/vnd.npm.install-v1+json', Authorization: 'Bearer tok' },

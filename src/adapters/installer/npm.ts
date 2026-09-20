@@ -23,7 +23,11 @@ export class NpmInstaller implements Installer {
       `${spec}@latest`,
       ...(options.registry === undefined
         ? []
-        : registryArguments({ packageName: spec, registry: options.registry })),
+        : registryArguments({
+            packageName: spec,
+            registry: options.registry,
+            packageOnly: options.registryScope === 'package',
+          })),
     ];
   }
 }

@@ -23,14 +23,15 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 <!-- distribution:internal -->
 
-fx はチームのプライベート Registry で配布します。公開リリースは当面予定していません。チームから Registry の URL と npm のアクセス権を取得し、`FX_REGISTRY` を設定してください。以下は架空の URL です。パッケージが Registry に提供されている必要があります。
+fx はチームのプライベート Registry で配布し、公開リリースは保留中です。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
 
 ```sh
-export FX_REGISTRY=https://npm.example.com/
-npm login --registry="$FX_REGISTRY"
-npm install -g @fx/devkit --registry="$FX_REGISTRY" --@fx:registry="$FX_REGISTRY"
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
+
+`npm login --scope=@fx --registry=...` は scope と Registry を関連付けます。設定済みならインストールだけで構いません。`fx self info --format json` は有効な `registry` と `registry_source` を表示し、npm 設定を変更しません。
 
 <!-- /distribution -->
 

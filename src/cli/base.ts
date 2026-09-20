@@ -31,7 +31,6 @@ import {
   type Container,
 } from '../composition/container.js';
 import type { HarnessCommandInput } from '../composition/harness.js';
-import { configuredRegistry } from '../composition/registry-location.js';
 import { updateChecks, type UpdateChecks } from '../composition/update.js';
 import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
@@ -309,12 +308,19 @@ export abstract class FxCommand extends Command {
     return this.updateCheckOn && !this.quietOn;
   }
 
-  protected fxUpdateInput(): FxUpdateInput {
+  protected async fxUpdateInput(
+    options: { resolveRegistry?: boolean } = {},
+  ): Promise<FxUpdateInput> {
     const pjson = this.config.pjson as { name: string };
+    const location =
+      options.resolveRegistry === false
+        ? undefined
+        : await this.container.registryLocator.resolve(pjson.name);
     return {
       current: this.config.version,
       packageName: pjson.name,
-      registry: configuredRegistry(process.env, this.config.pjson.name),
+      registry: location?.registry ?? null,
+      ...(location ? { registrySource: location.source } : {}),
     };
   }
 
@@ -324,7 +330,7 @@ export abstract class FxCommand extends Command {
     if (shouldCheckUpdates(gate)) {
       const notices = await updateNotices(
         this.updateChecks(),
-        this.fxUpdateInput(),
+        await this.fxUpdateInput(),
         this.located === undefined
           ? undefined
           : { workspace: this.located.name, sourceDir: this.located.manifestDir },

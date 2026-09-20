@@ -15,7 +15,8 @@ import { DiagnosticProcess } from '../adapters/process/diagnostic-process.js';
 import { NodeProcess } from '../adapters/process/node-process.js';
 import { SystemUrlOpener } from '../adapters/process/url-opener.js';
 import { TerminalPrompter } from '../adapters/prompter/terminal.js';
-import { NpmHttpRegistry } from '../adapters/registry/npm-http.js';
+import { NpmRegistryLocator } from '../adapters/registry/npm-config.js';
+import { NpmRegistry } from '../adapters/registry/npm-registry.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { TrustGate } from '../application/safety/trust.js';
@@ -45,7 +46,7 @@ import type { Process } from '../ports/process.js';
 import type { ProjectionStore } from '../ports/projection.js';
 import type { Prompter } from '../ports/prompter.js';
 import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
-import type { Registry } from '../ports/registry.js';
+import type { Registry, RegistryLocator } from '../ports/registry.js';
 import type { Reporter } from '../ports/reporter.js';
 import type { Cache, ConfigStore, LocalLayerStore, TrustStore } from '../ports/stores.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
@@ -88,6 +89,7 @@ export interface Container {
   readonly manifestDirFor: (name: string) => string;
   readonly describeProvider: (id: string) => ProviderDescriptor<unknown> | undefined;
   readonly providers: ProviderCatalog;
+  readonly registryLocator: RegistryLocator;
   readonly registryAt: (url: string, timeoutMs: number) => Registry;
   readonly diagnostics: DiagnosticChannel;
 }
@@ -127,8 +129,9 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     manifestDirFor: (name) => manifestSourceDir(home, name),
     describeProvider,
     providers: providerCatalog(),
+    registryLocator: new NpmRegistryLocator(process, env, os.homedir()),
     registryAt: (registry, timeoutMs) =>
-      new NpmHttpRegistry({ registry, timeoutMs, env, userHome: os.homedir() }),
+      new NpmRegistry(process, { registry, timeoutMs, env, userHome: os.homedir() }),
     diagnostics,
   };
 }

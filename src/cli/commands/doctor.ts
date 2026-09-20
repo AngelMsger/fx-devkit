@@ -35,7 +35,11 @@ export default class DoctorCommand extends FxCommand {
       login: this.loginDeps(),
       skills: this.skillDeps(),
       bundledTools: this.container.bundledTools,
-      updates: { ...this.updateChecks(), self: this.fxUpdateInput(), enabled: this.updateChecksOn },
+      updates: {
+        ...this.updateChecks(),
+        self: await this.fxUpdateInput({ resolveRegistry: this.updateChecksOn }),
+        enabled: this.updateChecksOn,
+      },
     }).execute({
       envs: flags.env,
       tools: flags.tool,
