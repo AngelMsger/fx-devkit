@@ -37,8 +37,8 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
     docs: https://github.com/AngelMsger/openobserve-cli
   - name: jira-cli
-    min_version: '0.2.1'
-    desc: Issues, comments and transitions in Jira
+    min_version: '0.6.0'
+    desc: Issues, comments, transitions and worklogs in Jira
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli
   - name: sentry
