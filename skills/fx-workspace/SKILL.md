@@ -1,6 +1,6 @@
 ---
 name: fx-workspace
-version: 0.2.1
+version: 0.3.0
 description: 'Use only when the user explicitly asks for the fx workspace CLI or manifest, or the current task is inside an fx-managed workspace or routed by its fx-derived AGENTS.md. Drive workspace init and sync, repository status and selection, manifest validation and editing, companion tools and login, doctor, agent Skills, repository ownership, environment coordinates and readiness through can/where, and release checks across dependencies, branches, builds and errors. Do not use for generic Sentry, OpenObserve, Jenkins, Kubernetes, logs, errors or builds outside an fx-managed workspace.'
 metadata:
   requires:
@@ -23,7 +23,7 @@ fx-managed workspace, use the relevant platform tool unless the user asks about 
    `node <checkout>/bin/fx.js`, keep using that prefix. Bare `fx` can resolve to
    a different installation after shell startup.
 2. After reading this bundled Skill, use `FX_SKILL_LOADED=1` and
-   `FX_SKILL_VERSION=0.2.1` with `--format json`. Rediscover the bundled version
+   `FX_SKILL_VERSION=0.3.0` with `--format json`. Rediscover the bundled version
    when the executable changes. The declaration acknowledges a version; it does
    not prove that an agent read or understood it.
 3. Discover the task's resources using the routes below. For team-specific
