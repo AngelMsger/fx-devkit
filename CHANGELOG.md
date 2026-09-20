@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 (2026-09-20)
+
 - Preserve login partial results, summaries and structured recovery information after handoffs or exceptions, including on nonzero exit.
 - Protect manifest and guide edits from stale plans; move approved originals to backups atomically and retain per-file outcomes after document failures.
 - State overall initialization/sync preparation clearly and stop interpreting descriptive metadata as failure states.

@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.2.1).
+Command syntax for the current source (package version 0.3.0).
 An installed package may not include [unreleased changes](../../CHANGELOG.md) yet.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 
