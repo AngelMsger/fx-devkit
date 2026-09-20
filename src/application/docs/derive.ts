@@ -12,6 +12,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import {
   actionFor,
+  documentPath,
   finish,
   pending,
   reportRegions,
@@ -50,7 +51,11 @@ export class DeriveDocs {
       if (await input.replace(conflicts.map((f) => f.file.path))) {
         for (const conflict of conflicts) {
           const index = files.indexOf(conflict);
-          files[index] = { ...conflict, file: { ...conflict.file, action: 'updated' } };
+          files[index] = {
+            ...conflict,
+            before: { kind: 'absent', text: null },
+            file: { ...conflict.file, action: 'updated', result: 'planned' },
+          };
         }
       }
     }
@@ -61,7 +66,7 @@ export class DeriveDocs {
         message: `${foreign.map((f) => f.file.path).join(', ')} ${foreign.length === 1 ? 'was' : 'were'} not written by fx and left alone`,
         nextSteps: ['Move the file aside if fx should own it, then `fx sync --only docs`.'],
       });
-    return finish(fs, input, files);
+    return finish(this.deps.projections, input, files);
   }
 
   private async sourceLinks(text: string): Promise<string> {
@@ -80,14 +85,12 @@ export class DeriveDocs {
   private async file(
     target: string,
     text: string,
-    regions?: Parameters<typeof pending>[3],
+    regions?: Parameters<typeof pending>[4],
   ): Promise<Pending> {
-    const occupied =
-      (await this.deps.fs.isDirectory(target)) ||
-      (await this.deps.fs.readLink(target)) !== undefined;
-    const current = occupied ? undefined : await this.deps.fs.readText(target);
-    const foreign = occupied || (current !== undefined && !isDerived(current));
-    return pending(target, foreign ? 'foreign' : actionFor(current, text), text, regions);
+    const before = await this.deps.projections.read(documentPath(target));
+    const current = before.text ?? undefined;
+    const foreign = before.kind === 'foreign' || (current !== undefined && !isDerived(current));
+    return pending(target, foreign ? 'foreign' : actionFor(current, text), text, before, regions);
   }
 }
 

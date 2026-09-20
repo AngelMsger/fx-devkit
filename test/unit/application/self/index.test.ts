@@ -17,7 +17,7 @@ const base = {
 };
 
 describe('SelfUpdate', () => {
-  it('runs npm against the publish registry with the terminal attached, after asking', async () => {
+  it('runs npm against the publish registry with isolated installer output, after asking', async () => {
     const process = new FakeProcess().always({ code: 0, stdout: '', stderr: '' });
     process.binaries.add('npm');
     const prompter = new FakePrompter();
@@ -36,7 +36,7 @@ describe('SelfUpdate', () => {
       code: 0,
       reason: null,
     });
-    expect(process.soleCallTo(['npm']).options.interactive).toBe(true);
+    expect(process.soleCallTo(['npm']).options.interactive).toBe(false);
     expect(prompter.questions).toHaveLength(1);
   });
 

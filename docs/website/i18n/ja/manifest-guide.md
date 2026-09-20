@@ -134,6 +134,8 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
+`manifest repo-set` はファイルロックを保持した状態で元の文書を再確認してから置き換えます。他の書き込みで内容が変わった場合、通常ファイルではない場合、または manifest ディレクトリがシンボリックリンクの場合は、`MANIFEST_EDIT_CONFLICT` を返して既存の内容を保持します。実体のソースパスを確認し、`--dry-run` で再試行してください。ロックを削除したり、他の編集を上書きしたりしないでください。同じ内容への編集は `written: false` を返します。
+
 `manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
 
 ## ソースの共有と保守 {#share-and-maintain-the-source}
@@ -192,6 +194,8 @@ fx doctor --tool openobserve-cli --format json
 ```
 
 `fx manifest render` が名前、利用条件、ソースへのリンクを生成します。新規ガイドには領域を含めます。既存ガイドにない場合は追加を案内し、人が書いた文章には自動挿入しません。ソースガイドは相対リンク、派生したルートガイドは解決済みソースパスを使うため、特定ホストの Skill リンクに依存しません。`fx sync --only docs,skills` が追加、削除、メタデータ変更を反映します。カタログは探索の補助であり、ネイティブのインストールやロードを証明しません。対象はワークスペースルートのみで、業務リポジトリのガイドは変更しません。
+
+文書の書き込み前に、計画時のファイルスナップショットと比較します。`DOCS_WRITE_CONFLICT` は並行編集または安全に置換できないパスを保持したことを示します。パスを確認し、親がリンクなら実際のディレクトリを使って、プレビュー後に再試行してください。各行の `action` は計画、`result` は `planned`、`done`、`skipped`、`failed`、`not_started` です。非ゼロ終了前に一部の書き込みが完了している場合があるため、stdout の `files`（sync では `stage_details.docs.files`、init では `sync.stage_details.docs.files`）を確認してください。再試行では変更のないファイルを省略します。承認済みの外部文書の置換では、元のファイル、ディレクトリ、リンク自体を未使用の同階層 `.fx-backup[-N]` に移動し、既存のバックアップを保持します。
 
 ## 公開サービスプリセット {#public-service-presets}
 

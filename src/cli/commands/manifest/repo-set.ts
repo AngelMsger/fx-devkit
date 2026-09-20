@@ -1,4 +1,4 @@
-import { SetRepoField } from '../../../application/manifest/set.js';
+import { editManifestRepo } from '../../../composition/manifest-edit.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
@@ -20,7 +20,7 @@ export default class ManifestRepoSet extends FxCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestRepoSet);
     const dir = await this.manifestDir();
-    const result = await new SetRepoField(this.container.fs).execute({
+    const result = await editManifestRepo(this.container, {
       dir,
       cliVersion: this.config.version,
       providers: this.container.providers,

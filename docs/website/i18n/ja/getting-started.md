@@ -2,6 +2,15 @@
 
 fx をインストールし、チームのマニフェストを接続してリポジトリやツール、エージェントを利用します。
 
+[未リリースの変更](../CHANGELOG.md#未リリース)は現在のソースを説明しており、インストール済みパッケージにはまだ含まれない場合があります。実行中の `fx <command> --help` と bundled Skill を確認してください。同じバージョン表記だけでは変更の公開を確認できません。
+
+目的に合わせて読み始めてください：
+
+- 新規ワークスペース：[インストール](#install)、次に[クイックスタート](#quick-start)。
+- リポジトリが多い場合：[ダウンロード前に選択](#choose-repositories-before-downloading)。
+- セットアップが中断した場合：[結果の確認と復旧](#reading-initialization-and-recovery-results)。
+- コーディング Agent：[構造化結果と bundled Skill](#for-coding-agents)。
+
 ## 動作環境 {#requirements}
 
 - Node.js ≥22。開発バージョンは package.json に固定されています。Bun もランタイムとして利用できます。
@@ -58,6 +67,8 @@ PowerShell の実行ポリシーが `.ps1` shim をブロックする場合は�
 ## クイックスタート {#quick-start}
 
 プレースホルダーをチームから提供された実際の値に置き換えてください。
+
+新規ワークスペースは既定ですべての共有リポジトリを選択します。最初のダウンロードを絞る場合は、[名前を選び](#choose-repositories-before-downloading)、両方の init コマンドに `--repos <name,...>` を追加してください。
 
 ```sh
 fx init ./work --name work --from <manifest-repository> --dry-run
@@ -248,6 +259,8 @@ fx skill status
 
 `init`、`sync`、`doctor`、`release` は要約を既定とし、件数、例外、復旧手順を保持します。`omitted` は省略数です。`--details` は完全な結果、明示的な `--fields` は完全な結果からの抽出で、`--verbose` は別途診断を制御します。明示的な `--fields` は全形式で完全なレポートから抽出します。JSON/NDJSON は1つのオブジェクト、human は選択したキーと値を出力します。ドットパスは平坦なキーを維持します。例えば `fx sync --fields operation,preparation_complete,items,summary` はステージ詳細を含みません。フィールド未指定の human/NDJSON は従来どおりです。事実照会は項目ごとに抽出し、コレクションのメタデータを保持します。
 
+init/sync の最後の通知にも、選択範囲の準備が完了したかを表示します。`preparation_complete` が false なら、クローンが成功しても準備未完了と報告し、残る障害を明示してください。文書の失敗時は sync の `stage_details.docs.files`、init の `sync.stage_details.docs.files` を確認します。`action` は計画、`result` は完了、失敗、未開始を区別します。競合を解消して再試行すると、変更のない文書は省略されます。外部文書の置換には承認が必要で、元のオブジェクトは一意の同階層バックアップに保存されます。
+
 | 結果             | 確認するフィールド                                                                                           |
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
 | `init/sync`      | `operation` と `preparation_complete`。プレビューは `null`。実行では今回選択・要求した準備だけを判定します。 |
@@ -327,6 +340,12 @@ Git マニフェストの更新とプレビューは、変更済み・未追跡�
 通常の再試行ではリポジトリの読み取り可否を再確認します。以前は存在しなかったリポジトリを古い負のキャッシュで遮断し続けません。
 
 ツール、ログイン、更新の問題は[サポート](support.md#troubleshooting)を参照してください。`no_access` は環境が未選択という意味で、リモート ACL の拒否ではありません。Git 転送の認証情報と任意のコードホスト API 確認は独立しています。
+
+### 人の操作後にログインを再開する {#resume-login-after-a-handoff}
+
+`login` が人の入力を必要とする場合は、許可された handoff を完了して同じコマンドを再実行します。fx は操作の前に現在の状態を確認します。その後、元の `can` または `doctor` を再実行し、元のタスクを続けてください。
+
+機械から呼び出す場合、非ゼロ終了でも部分的な stdout と stderr のエラーを両方確認します。完了済みのステップは保持され、`handoff`、`blocked`、`failed`、`not_started` が残る作業を区別します。集計、計画上の問題、復旧フィールドは[ログイン応答契約](../skills/fx-workspace/references/commands.md#readiness-and-recovery)を参照してください。
 
 ### Skill の所有権とホストの有効化 {#skill-ownership-and-host-activation}
 

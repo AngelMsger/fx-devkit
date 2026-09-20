@@ -76,6 +76,7 @@ describe.skipIf(process.platform === 'win32')('native shell completion', () => {
     expect(complete(['fx', 'tool', 'inst'])).toEqual(['install']);
     expect(complete(['fx', 'skill', 'li'])).toEqual([]);
     expect(complete(['fx', 'hook', 'inject', '--d'])).toEqual(['--dry-run']);
+    expect(complete(['fx', 'tool', 'installed', '--format', 'j'])).toEqual(['json']);
     expect(complete(['fx', 'skill', 'list', '--a'])).toEqual(['--allow-writes', '--agent']);
   });
 });

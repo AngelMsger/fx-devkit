@@ -13,6 +13,7 @@ import type { ManifestSource } from '../../../../src/ports/manifest-source.js';
 import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
@@ -71,6 +72,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
       ctx,
       git,
       fs,
+      projections: new FakeFileProjection(fs),
       localStore: new FakeLocalStore(),
       cache: new FakeCache(),
       reporter,

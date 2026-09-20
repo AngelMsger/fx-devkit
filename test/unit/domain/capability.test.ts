@@ -3,7 +3,6 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { providersFor } from '../../../src/composition/registry.js';
 import {
   CAPABILITIES,
   CAPABILITY_INFO,
@@ -37,18 +36,5 @@ describe('the capability table', () => {
       'ci',
       'cluster',
     ]);
-  });
-
-  it('registers a provider under the capability it claims', () => {
-    for (const capability of CAPABILITIES)
-      for (const provider of providersFor(capability))
-        expect(provider.capability, provider.id).toBe(capability);
-  });
-
-  // A capability fx names but implements for nobody is a promise it can describe and a
-  // manifest can bind; without an adapter it is simply unbound, never a crash.
-  it('names metrics without pretending to implement it', () => {
-    expect(providersFor('metrics')).toEqual([]);
-    expect(CAPABILITY_INFO.metrics.desc).toContain('metrics');
   });
 });

@@ -123,6 +123,33 @@ describe('public service declarations', () => {
 });
 
 describe('native preparation', () => {
+  it('keeps structured preparation failures in login rows', async () => {
+    const { h, login } = await fixture({ readOnly: true });
+    h.process.on(['bitbucket-cli', 'config'], {
+      code: 0,
+      stdout: JSON.stringify({ changed: true }),
+      stderr: '',
+    });
+    const output = await new Login(h.deps, login).execute({
+      tools: ['bitbucket-cli'],
+      dryRun: false,
+      noInput: true,
+      skipManual: true,
+      posture: login.trust.posture,
+    });
+    expect(output.items[0]).toMatchObject({
+      result: 'blocked',
+      failure: { code: 'READONLY_BLOCKED' },
+      next_steps: expect.any(Array),
+    });
+    expect(output.items[1]).toMatchObject({ result: 'blocked' });
+    expect(
+      h.process.calls.every(
+        (call) => call.vector.includes('--version') || call.vector.includes('--dry-run'),
+      ),
+    ).toBe(true);
+  });
+
   it('withholds authenticated queries when the target preset is missing or conflicts', async () => {
     const { h } = await fixture();
     h.process.on(['bitbucket-cli', 'config'], { code: 11, stdout: '', stderr: '{}' });
@@ -284,7 +311,7 @@ envs:
     const { h } = await fixture();
     vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
     const promise = new Sync(h.deps).execute({
-      dryRun: true,
+      dryRun: false,
       posture: { readOnly: false, source: 'default' },
       jobs: 1,
       stages: { services: async () => ({ summary: { configured: 1 }, details: { items: [] } }) },

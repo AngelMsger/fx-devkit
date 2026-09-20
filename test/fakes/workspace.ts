@@ -15,6 +15,7 @@ import type { Platform } from '../../src/ports/platform.js';
 import { FakeCache } from './fake-cache.js';
 import { FakeCodeHost } from './fake-code-host.js';
 import { FakeConfigStore } from './fake-config-store.js';
+import { FakeFileProjection } from './fake-file-projection.js';
 import { FakeFs } from './fake-fs.js';
 import { FakeGit } from './fake-git.js';
 import { FakeLocalStore } from './fake-local-store.js';
@@ -88,6 +89,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     ctx,
     git,
     fs,
+    projections: new FakeFileProjection(fs),
     localStore,
     cache,
     reporter,

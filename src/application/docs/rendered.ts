@@ -1,11 +1,22 @@
-// What both docs use cases share: the input flags, one row per file with
-// the action taken or previewed, and the ending — object under --check,
-// write nothing under --dry-run, otherwise write what changed.
+// Apply document plans against captured snapshots and retain per-file outcomes
+// when a later write fails. A planned action is not evidence of a completed write.
+
+import path from 'node:path';
 
 import type { RenderedRegions } from '../../domain/docs/regions.js';
 import { begin, end } from '../../domain/docs/regions.js';
-import { DevkitError } from '../../domain/errors.js';
-import type { FileSystem } from '../../ports/fs.js';
+import {
+  asDevkitError,
+  DevkitError,
+  toEnvelope,
+  withPartialResult,
+  type ErrorEnvelope,
+} from '../../domain/errors.js';
+import type {
+  ProjectionPath,
+  ProjectionSnapshot,
+  ProjectionStore,
+} from '../../ports/projection.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import type { Reporter } from '../../ports/reporter.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
@@ -21,6 +32,8 @@ export interface RenderInput {
 export interface RenderedFile {
   readonly path: string;
   readonly action: 'created' | 'updated' | 'unchanged' | 'foreign';
+  readonly result: 'planned' | 'done' | 'skipped' | 'failed' | 'not_started';
+  readonly failure?: ErrorEnvelope['error'];
   readonly replaced: readonly string[];
   readonly missing: readonly string[];
   readonly unknown: readonly string[];
@@ -33,6 +46,7 @@ export interface RenderOutput {
 export interface Pending {
   readonly file: RenderedFile;
   readonly text: string;
+  readonly before: ProjectionSnapshot;
 }
 
 export function actionFor(current: string | undefined, next: string): RenderedFile['action'] {
@@ -44,13 +58,16 @@ export function pending(
   path: string,
   action: RenderedFile['action'],
   text: string,
+  before: ProjectionSnapshot,
   regions?: RenderedRegions,
 ): Pending {
   return {
     text,
+    before,
     file: {
       path,
       action,
+      result: action === 'created' || action === 'updated' ? 'planned' : 'skipped',
       replaced: regions?.replaced ?? [],
       missing: regions?.missing ?? [],
       unknown: regions?.unknown ?? [],
@@ -74,7 +91,7 @@ export function reportRegions(reporter: Reporter, source: string, file: Rendered
 }
 
 export async function finish(
-  fs: FileSystem,
+  store: ProjectionStore,
   input: RenderInput,
   files: readonly Pending[],
 ): Promise<RenderOutput> {
@@ -94,6 +111,42 @@ export async function finish(
   }
   if (input.dryRun || stale.length === 0) return output;
   assertWritable(input.posture, 'docs');
-  for (const f of stale) await fs.writeText(f.file.path, f.text);
+  for (const f of stale) {
+    const index = files.indexOf(f);
+    try {
+      const result = await store.write({
+        ...documentPath(f.file.path),
+        before: f.before,
+        text: f.text,
+      });
+      if (result === 'busy' || result === 'conflict') throw documentConflict(f.file.path);
+      output.files[index] = { ...f.file, result: result === 'written' ? 'done' : 'skipped' };
+    } catch (error) {
+      const failure = toEnvelope(asDevkitError(error)).error;
+      output.files[index] = { ...f.file, result: 'failed', failure };
+      for (let pending = index + 1; pending < output.files.length; pending++) {
+        const file = output.files[pending]!;
+        if (file.result === 'planned') output.files[pending] = { ...file, result: 'not_started' };
+      }
+      throw withPartialResult(error, output);
+    }
+  }
   return output;
+}
+
+export function documentPath(file: string): ProjectionPath {
+  const absolute = path.resolve(file);
+  return { root: path.dirname(absolute), relative: path.basename(absolute) };
+}
+
+export function documentConflict(file: string): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'DOCS_WRITE_CONFLICT',
+    `The document changed or cannot be safely replaced: ${file}`,
+    {
+      hint: 'Concurrent edits and non-regular paths are preserved.',
+      nextSteps: ['Inspect the reported path, then preview and retry the same docs command.'],
+    },
+  );
 }

@@ -41,6 +41,8 @@ npm install -g @fx/devkit --registry=https://registry.npmjs.org/ --@fx:registry=
 公開パッケージは既定で npmjs を更新元に使います。`FX_REGISTRY` でミラーを指定できます。更新前に `fx self update --dry-run` を確認してください。ソース版は Git を更新して再ビルドします。fx 本体の更新と、マニフェストを更新する `fx sync` は別の操作です。
 <!-- /distribution -->
 
+`self update --format json` はインストーラーの出力を捕捉し、stdout を解析可能に保ちます。インストーラーの `code` と失敗時の `reason` を確認してください。JSON が返ること自体は更新成功を意味しません。
+
 ## 対応プラットフォーム {#platform-support}
 
 Node.js 22 以上と Git が必要です。Bun もランタイムとして利用できますが、npm によるインストールと自己更新には npm が必要です。

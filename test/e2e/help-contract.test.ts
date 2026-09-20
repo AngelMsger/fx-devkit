@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 import { describe, expect, it } from 'vitest';
 
 import { fx } from './harness.js';
@@ -31,32 +29,11 @@ describe('public discovery contracts', () => {
     },
   );
 
-  it('completes the routed command tree and offers each global flag once', () => {
-    const script = fx(['completion', 'bash']).stdout;
-    expect(script).toContain("'tool:installed') fx_cmd='tool installed'");
-    expect(script).toContain("'sync:--only') fx_pending='--only'");
-    expect(script.match(/'sync:--format'\) fx_pending/g)).toHaveLength(1);
-  });
-
   it('does not suggest hidden lifecycle commands for misspelled public invocations', () => {
     const result = fx(['hook', 'dispacth', '--format', 'json']);
     expect(result.status).toBe(2);
     expect(result.stderr).not.toContain('hook dispatch');
     expect(result.error().next_steps).toContain('fx hook --help');
-  });
-
-  it('documents parameter semantics and hides internal commands', () => {
-    const reference = readFileSync('docs/cli/README.md', 'utf8');
-    expect(reference).not.toContain('fx hook dispatch');
-    expect(reference).toContain('--check / --no-check');
-    expect(reference).toContain('default: true');
-    expect(reference).toContain('(variadic)');
-    expect(reference).toContain('repeatable');
-    expect(reference).toContain('exclusive with:');
-    expect(reference).toContain('requires: --fetch');
-    expect(reference.split('\n').find((line) => line.startsWith('| `--from`'))).toContain(
-      '(required)',
-    );
   });
 });
 

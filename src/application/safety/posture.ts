@@ -1,6 +1,5 @@
-// Read-only posture: one switch with three sources and one enforcement point. Every code
-// path that changes anything calls `assertWritable` after it has built its plan, so
-// `--dry-run` can still show the plan while the posture blocks the change.
+// Resolve the write posture and gate planned user-requested changes. Dry-run
+// callers return their plan before this gate; operational caches have separate policy.
 
 import { DevkitError } from '../../domain/errors.js';
 import { parseBoolean } from '../../domain/values.js';

@@ -7,6 +7,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { writeNodeShim } from '../platform.js';
+
 import {
   freshHome,
   fx,
@@ -149,4 +151,21 @@ describe('update notices', () => {
     expect(codes(run.stderr)).toEqual([]);
     expect(existsSync(path.join(home, 'cache'))).toBe(false);
   });
+});
+
+// The installer is a local shim: this never changes the installed fx package.
+it('self update keeps installer output out of its JSON result', () => {
+  const shims = tempDir('fx-update-shim-');
+  writeNodeShim(
+    shims,
+    'npm',
+    'console.log("installer progress"); console.error("installer diagnostic"); process.exit(17);',
+  );
+  const result = fx(['self', 'update', '--yes', '--no-input', '--format', 'json'], {
+    FX_HOME: freshHome(),
+    FX_REGISTRY: 'https://npm.example.com',
+    PATH: `${shims}${path.delimiter}${process.env.PATH ?? ''}`,
+  });
+  expect(result.json()).toMatchObject({ ran: true, code: 17 });
+  expect(result.stdout).not.toContain('installer progress');
 });

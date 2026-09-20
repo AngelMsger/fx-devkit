@@ -13,11 +13,16 @@ export function syncNotices(out: SyncOutput, dryRun: boolean): Notice[] {
       : { code: 'SYNC_STAGE', message: `${stage}: ${describe(state)}` },
   );
   const { done, skipped, failed, unreadable } = out.summary;
+  let preparation = 'Preparation preview';
+  if (!dryRun)
+    preparation = out.preparation_complete
+      ? 'Preparation complete for the selected stages'
+      : 'Preparation incomplete';
   return [
     ...stages,
     {
       code: 'SYNC_SUMMARY',
-      message: `${done} done, ${skipped} skipped, ${failed} failed, ${unreadable} unreadable${dryRun ? ' (dry run)' : ''}`,
+      message: `${preparation}; repositories: ${done} done, ${skipped} skipped, ${failed} failed, ${unreadable} unreadable`,
     },
   ];
 }

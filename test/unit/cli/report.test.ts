@@ -45,7 +45,7 @@ const report = {
   sync: {
     items: [
       ...Array.from({ length: 70 }, (_, i) => ({
-        name: `sample-${i}`,
+        name: i === 0 ? 'not_implemented' : `sample-${i}`,
         path: `sample-${i}`,
         action: 'skip_unpicked',
         result: 'skipped',
@@ -55,7 +55,16 @@ const report = {
     ],
     summary: { done: 0, failed: 0, skipped: 71 },
     stages: { skills: { status: 'failed' }, hooks: { status: 'not_started' } },
-    stage_details: { skills: { tools: [{ tool: 'sample', vector, status: 'failed', failure }] } },
+    stage_details: {
+      skills: { tools: [{ tool: 'sample', vector, status: 'failed', failure }] },
+      docs: {
+        failure,
+        files: [
+          { path: '/workspace/AGENTS.md', action: 'created', result: 'done' },
+          { path: '/workspace/CLAUDE.md', action: 'created', result: 'failed', failure },
+        ],
+      },
+    },
   },
 };
 

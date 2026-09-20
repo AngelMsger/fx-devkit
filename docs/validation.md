@@ -35,6 +35,40 @@ resource existence, publication status or native agent activation. Capture the
 revision, runtime and exact command when recording results in your team's
 private validation store. Do not commit live credentials, responses or transcripts.
 
+## Test value and ownership
+
+Keep a test when it protects a recurring user decision or a costly failure:
+user work must survive synchronization and edits; unapproved commands must not
+execute; partial work must remain diagnosable and resumable; missing evidence
+must not become readiness or release approval. A past bug is a candidate, not
+an automatic reason to add a permanent test.
+
+Before adding or retaining a case, identify the user action, realistic failure,
+observable consequence and regression it would detect. Check whether another
+test already owns that assertion. Prefer extending the owning scenario when
+it exercises the same decision; keep separate cases for different failure
+mechanisms, even when they share an error code.
+
+| Boundary              | What its tests should establish                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain                | Meaningful policy alternatives, such as unknown evidence versus failed checks; not a restatement of constants or filters.                                     |
+| Application           | Plans, authorization, effects and recovery through injected ports; inject external failures at the port rather than replacing an internal helper.             |
+| Adapter / store       | Real filesystem, Git or process behavior when mocks cannot establish ownership, locking, atomic replacement or protocol parsing.                              |
+| CLI end to end        | Argument routing, stdout/stderr, exit status, persistence and resumable user flows; do not repeat every policy combination or generator formatting assertion. |
+| Build / documentation | Validate shipped artifacts and public contracts at their owning gate; avoid duplicating a generator's assertions over its checked-in output.                  |
+
+A list of prototype methods does not prove that a query cannot write. A source
+substring check does not prove that thrown errors are translated correctly.
+Test effects and boundary outputs instead. Architectural rules may have focused
+policy tests when they exercise the actual enforcement, such as forbidden
+imports through ESLint.
+
+Remove obsolete implementation milestones and tautologies. Consolidate duplicate
+setup only when it still leaves a coherent, independently diagnosable scenario;
+do not wrap unrelated cases in a loop merely to lower the displayed count.
+Use actual suite timings to justify runtime claims. Test count, coverage percentage
+and green runs alone do not establish test value or business coverage.
+
 ## Live integrations
 
 `npm run test:contract` is opt-in and read-only. It uses explicit environment

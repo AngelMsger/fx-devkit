@@ -1,6 +1,5 @@
-// child_process.spawn behind the Process port. A missing executable is an
-// ordinary result (exit 127) so callers can turn it into a handoff; a hung
-// process is the one thing that becomes an error.
+// Execute process vectors through the Process port. Missing executables return
+// exit 127; bounded piped calls reject on timeout or cancellation and reap children.
 
 import type { ChildProcess } from 'node:child_process';
 

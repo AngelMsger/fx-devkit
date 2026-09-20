@@ -20,12 +20,7 @@ export function replacementFor(
     )
       return false;
     for (const target of paths) {
-      let backup = `${target}.fx-backup`;
-      let suffix = 1;
-      while ((await fs.exists(backup)) || (await fs.readLink(backup)) !== undefined)
-        backup = `${target}.fx-backup-${suffix++}`;
-      await fs.copyDir(target, backup);
-      await fs.remove(target);
+      const backup = await fs.moveToBackup(target);
       reporter.notice({ code: 'FILE_BACKED_UP', message: `${target} preserved at ${backup}` });
     }
     return true;

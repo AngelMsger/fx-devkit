@@ -209,6 +209,12 @@ Changing the source of an already registered root is not an implicit migration.
 Use `fx workspace rebind <name> --from <source> --dry-run` to preview an explicit
 source change while preserving the workspace identity and personal selection.
 
+`manifest repo-set` rechecks the captured document under a file lease before
+replacing it. If another writer changed it, the path is not a regular file, or
+its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
+content. Inspect the real source path and retry with `--dry-run`; do not remove
+locks or overwrite another edit. An identical edit reports `written: false`.
+
 `manifest validate/lint/providers/repo-set/render` honour `--workspace` and
 `FX_WORKSPACE` before looking for a source checkout around the current directory.
 An unknown explicit workspace is an error. Without an explicit selection, the
@@ -280,6 +286,17 @@ source links so manual discovery does not depend on a host-specific Skill link.
 Metadata changes, additions and removals are picked up by `fx sync --only docs,skills`.
 The catalog is a discovery aid, not proof of native installation or loaded context.
 It applies at the workspace root and does not modify business-repository guides.
+
+Document rendering compares the file with its planning snapshot before writing.
+`DOCS_WRITE_CONFLICT` means a concurrent edit or unsafe path was preserved. Inspect
+the path, use its real directory when a parent is linked, then preview and retry.
+Document rows separate planned `action` from execution `result`: `planned`, `done`,
+`skipped`, `failed` or `not_started`. A nonzero exit can follow a completed file;
+read partial stdout (`files` for render, `stage_details.docs.files` for sync, or
+`sync.stage_details.docs.files` for init) before
+resuming. Retrying skips unchanged files. Approved foreign replacement moves the
+original file, directory or link itself to an unused `.fx-backup[-N]` sibling;
+existing backups remain intact.
 
 ## Public service presets
 

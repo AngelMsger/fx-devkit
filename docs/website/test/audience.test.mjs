@@ -25,6 +25,7 @@ test('public content cannot link retired maintainer routes or expose personal/bu
     '<a href="/fx-devkit/ja/docs/website/">Setup</a>',
     'build-manifest.json',
     'npm run site:build',
+    'npm run docs:gen',
     'scripts/publish.mjs',
     '/Users/example/Development/',
     'appgprj_example123',

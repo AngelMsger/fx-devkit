@@ -51,24 +51,6 @@ const off = d.findings.filter((f) => f.level !== "ok");
 console.log(`doctor: ok ${d.summary.ok}, warn ${d.summary.warn}, fail ${d.summary.fail}`);
 for (const f of off) console.log(`  ${f.level} ${f.group}:${f.id} ${f.message}`);
 ' "$EVAL/.eval/doctor.json"
-node - "$EVAL/.eval/init.json" <<'NODE'
-const fs = require('node:fs');
-const init = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-const sync = init.sync;
-const failures = [];
-if (!init.written || !sync) failures.push('initialization did not finish');
-if (sync?.summary.failed) failures.push(`${sync.summary.failed} repository operations failed`);
-if (sync?.summary.unreadable) failures.push(`${sync.summary.unreadable} repositories unreadable`);
-for (const [stage, counts] of Object.entries(sync?.stages ?? {})) {
-  for (const [key, count] of Object.entries(counts)) {
-    if (count > 0 && /(^|_)(failed|foreign)$/.test(key)) {
-      failures.push(`${stage}.${key}: ${count}`);
-    }
-  }
-}
-if (failures.length) {
-  console.error(`Sandbox preparation incomplete: ${failures.join(', ')}. Inspect init.json and init.stderr before a trial.`);
-  process.exit(1);
-}
-NODE
+node "$(dirname "$0")/check-preparation.mjs" "$EVAL/.eval/init.json"
+
 echo "sandbox prepared at $EVAL/root (FX_HOME=$FX_HOME); inspect doctor coverage before choosing a trial"

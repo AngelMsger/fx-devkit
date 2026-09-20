@@ -25,7 +25,7 @@ const COUNT_SUFFIX =
 
 export function hasPreparationIssue(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(hasPreparationIssue);
-  if (typeof value !== 'object' || value === null) return value === 'not_implemented';
+  if (typeof value !== 'object' || value === null) return false;
   const row = value as Record<string, unknown>;
   if (
     row['preparation_required'] === false &&
@@ -44,7 +44,14 @@ export function hasPreparationIssue(value: unknown): boolean {
   )
     return false;
   return Object.entries(row).some(([key, item]) => {
-    if (item === 'not_implemented') return true;
+    if (
+      key === 'stages' &&
+      typeof item === 'object' &&
+      item !== null &&
+      !Array.isArray(item) &&
+      Object.values(item).includes('not_implemented')
+    )
+      return true;
     if ((key === 'failure' || key === 'error') && item !== undefined && item !== null) return true;
     if (key === 'coverage' && item === 'incomplete') return true;
     if (STATE_KEYS.has(key) && typeof item === 'string' && INCOMPLETE.has(item)) return true;

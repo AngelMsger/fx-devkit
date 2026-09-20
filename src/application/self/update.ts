@@ -1,7 +1,8 @@
-// Updating fx uses the configured private registry and the installer port.
-// The reviewed vector runs with the terminal only after the write gate.
+// Update fx through its distribution registry after confirmation and the write gate.
+// Capture installer output so machine-readable results remain valid on stdout.
 
 import { DevkitError } from '../../domain/errors.js';
+import { stderrReason } from '../../domain/toolchain/stderr.js';
 import type { Installer } from '../../ports/installer.js';
 import type { Process } from '../../ports/process.js';
 import type { Prompter } from '../../ports/prompter.js';
@@ -69,7 +70,12 @@ export class SelfUpdate {
       const go = await this.prompter.confirm(`Run \`${vector.join(' ')}\`?`, { defaultYes: true });
       if (!go) return { vector, ran: false, code: null, reason: 'declined' };
     }
-    const result = await this.process.run(vector, { interactive: true });
-    return { vector, ran: true, code: result.code, reason: null };
+    const result = await this.process.run(vector, { interactive: false });
+    return {
+      vector,
+      ran: true,
+      code: result.code,
+      reason: result.code === 0 ? null : stderrReason(result.stderr, result.code),
+    };
   }
 }

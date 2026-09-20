@@ -158,7 +158,7 @@ export class Init {
       });
       this.deps.reporter.notice({
         code: 'INIT_DONE',
-        message: `workspace ${done.name} is registered at ${done.root}; inspect synchronization results and doctor readiness`,
+        message: `Workspace ${done.name} is registered at ${done.root}; preparation ${done.preparation_complete ? 'complete for the selected scope' : 'incomplete — inspect sync.stages and resolve the reported blockers'}. Remote readiness requires separate verification.`,
         nextSteps: done.next_steps,
       });
       return done;

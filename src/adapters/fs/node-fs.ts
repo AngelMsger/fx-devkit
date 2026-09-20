@@ -99,6 +99,51 @@ export class NodeFs implements FileSystem {
     }
   }
 
+  async moveToBackup(target: string): Promise<string> {
+    if (!this.lock)
+      throw new DevkitError('internal', 'LOCK_UNAVAILABLE', 'Path replacement requires a lock');
+    const requested = path.resolve(target);
+    const parent = await fs.realpath(path.dirname(requested));
+    const file = path.join(parent, path.basename(requested));
+    const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 2000 });
+    if (!lease) throw busyError('LOCK_BUSY', 'The replacement');
+    try {
+      await assertBackupParent(requested, parent);
+      const current = await fs.lstat(file);
+      if (!current.isFile() && !current.isDirectory() && !current.isSymbolicLink())
+        throw new DevkitError('conflict', 'PROJECTION_FOREIGN', 'The path cannot be backed up', {
+          nextSteps: [`Inspect ${file} and move it aside before retrying.`],
+        });
+      for (let suffix = 0; ; suffix += 1) {
+        const backup = `${file}.fx-backup${suffix === 0 ? '' : `-${suffix}`}`;
+        const backupLease = await this.lock.acquire({
+          key: `projection:${pathKey(backup)}`,
+          waitMs: 0,
+        });
+        if (!backupLease) throw busyError('LOCK_BUSY', 'The backup');
+        try {
+          if (await fs.lstat(backup).then(() => true, missingPath)) continue;
+          await assertBackupParent(requested, parent);
+          // The move preserves saves through an open file handle; a later editor
+          // replacement at the original path is left for the caller to recheck.
+          await fs.rename(file, backup);
+          return backup;
+        } finally {
+          await backupLease.release();
+        }
+      }
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT')
+        throw new DevkitError('conflict', 'PROJECTION_CHANGED', 'The replacement path changed', {
+          nextSteps: [`Inspect ${file} and retry from its current state.`],
+          cause: err,
+        });
+      throw asDevkitError(err);
+    } finally {
+      await lease.release();
+    }
+  }
+
   async exists(file: string): Promise<boolean> {
     try {
       await fs.access(file);
@@ -166,4 +211,16 @@ export class NodeFs implements FileSystem {
         : path.join(await this.realpath(parent), path.basename(absolute));
     }
   }
+}
+
+function missingPath(error: unknown): false {
+  if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+  throw error;
+}
+
+async function assertBackupParent(file: string, parent: string): Promise<void> {
+  if ((await fs.realpath(path.dirname(file))) !== parent)
+    throw new DevkitError('conflict', 'PROJECTION_CHANGED', 'The replacement directory changed', {
+      nextSteps: [`Inspect the directory containing ${file}, then retry.`],
+    });
 }

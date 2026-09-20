@@ -1,6 +1,5 @@
-// One configuration contract: every key the CLI registers must round-trip
-// through the on-disk store and travel in a profile. skill_notice once
-// drifted out of the store schema; this pins all three surfaces together.
+// Every exposed setting must remain available in personal storage and exported
+// profiles; otherwise a saved or transferred preference silently disappears.
 
 import { describe, expect, it } from 'vitest';
 

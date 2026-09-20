@@ -134,6 +134,8 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
+`manifest repo-set` 在持有文件锁时核对原文再替换。其他写入者已修改内容、目标不是普通文件或 manifest 目录是符号链接时，会以 `MANIFEST_EDIT_CONFLICT` 保留现有内容。检查真实源路径后用 `--dry-run` 重试；不要删除锁或覆盖他人的修改。内容不变的编辑返回 `written: false`。
+
 `manifest validate/lint/providers/repo-set/render` 优先使用显式 `--workspace` 或 `FX_WORKSPACE`，即使当前目录位于另一份源 checkout 内。未知的显式名称会报错，不会退回修改附近的 manifest。未显式选择时，仍优先使用当前目录附近的源 checkout，支持独立维护。`manifest import <dir>` 保留目录参数语义，`manifest record-probe` 使用所选已注册工作区。所有文件输出参数支持 `-o` 和 `--out`，包括 render。
 
 ## 共享与维护来源 {#share-and-maintain-the-source}
@@ -192,6 +194,8 @@ fx doctor --tool openobserve-cli --format json
 ```
 
 `fx manifest render` 自动填入名称、触发说明和源文件链接。新建指南默认带有该区域；已有指南缺少时只提示维护者添加，不自动插入人写内容。源指南使用相对链接，派生到工作区根的指南使用解析后的源路径，不依赖某个宿主的 Skill 链接。`fx sync --only docs,skills` 会更新新增、删除及元数据变化。目录帮助发现，不证明宿主已经安装或加载。仅覆盖工作区根，不修改业务仓库指南。
+
+文档写入前会比较规划时的文件快照。`DOCS_WRITE_CONFLICT` 表示并发编辑或不安全路径已被保留；检查路径，父目录为链接时使用真实目录，再预览并重试。文件行的 `action` 表示计划，`result` 为 `planned`、`done`、`skipped`、`failed` 或 `not_started`。非零退出前可能已有文件写入成功，请先读 stdout 中的 `files`（sync 中为 `stage_details.docs.files`，init 中为 `sync.stage_details.docs.files`）；重试会跳过未变化文件。获准替换外来内容时，原文件、目录或链接本身会移动到未占用的同级 `.fx-backup[-N]`，已有备份保持不变。
 
 ## 公共服务预设 {#public-service-presets}
 
