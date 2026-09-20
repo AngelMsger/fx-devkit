@@ -1,17 +1,23 @@
-// Worklogs kept in Jira, read through the family CLI. fx reports what is logged; entering
+// Worklogs kept in Jira, read through the family CLI. fx points at what is logged; entering
 // and correcting time stays with the person.
-//
-// The vector below is the one surface this provider depends on, and jira-cli 0.2.1 does not
-// carry it yet: readiness therefore fails against a CLI without it, which is the intended
-// answer rather than a silent pass. Confirm the vector against `jira-cli worklog --help`
-// and raise the tool's version floor once a release ships it.
 
 import type { Coordinate } from '../../../domain/obs/types.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';
 import { familyService } from '../../family/service.js';
 import { referenceEntry } from '../../reference/entry.js';
 
-const PROJECT_WORKLOG = ['worklog', 'list', '--project', '{project}', '--format', 'json'];
+// `worklog search` requires a bounded window so a query cannot scan every visible issue,
+// and it answers for the authenticated user by default.
+const worklogSearch = (since: string): readonly string[] => [
+  'worklog',
+  'search',
+  '--project',
+  '{project}',
+  '--since',
+  since,
+  '--format',
+  'json',
+];
 
 export const jiraWorklogProvider: ProviderDescriptor<Coordinate> = {
   id: 'jira-worklog',
@@ -37,17 +43,17 @@ export const jiraWorklogProvider: ProviderDescriptor<Coordinate> = {
       instructions:
         'Configure jira-cli for the intended site and obtain access to the declared project.',
       open: '{base_url}',
-      verify: { command: [...PROJECT_WORKLOG, '--limit', '1'] },
+      verify: { command: [...worklogSearch('24h'), '--limit', '1'] },
     },
   ],
   create: (_deps, vars) =>
     referenceEntry({
       template: {
-        label: 'Worklogs in {project}',
+        label: 'Recent worklogs in {project}',
         command: [
           'jira-cli',
           ...(vars['context'] ? ['--use-context', vars['context']] : []),
-          ...PROJECT_WORKLOG,
+          ...worklogSearch('7d'),
         ],
         url: '{base_url}',
       },
