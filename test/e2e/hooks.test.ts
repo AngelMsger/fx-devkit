@@ -17,7 +17,7 @@ function setup() {
 }
 
 describe('workspace hooks', () => {
-  it('reports corrupted hook metadata as a finding without failing doctor', () => {
+  it('reports corrupted optional hook metadata alongside required preparation blockers', () => {
     const s = setup();
     const source = path.join(s.home, 'workspaces/test/source/manifest');
     mkdirSync(source, { recursive: true });
@@ -27,7 +27,7 @@ describe('workspace hooks', () => {
     );
     writeFileSync(path.join(s.home, 'workspaces/test/hooks.json'), '{');
     const result = fx(['doctor', '--format', 'json'], { ...s.env, PATH: '' }, s.root);
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(12);
     expect(result.json()).toMatchObject({
       findings: expect.arrayContaining([
         expect.objectContaining({ group: 'hooks', id: 'metadata', level: 'warn' }),

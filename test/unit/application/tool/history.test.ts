@@ -16,7 +16,7 @@ import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { fakeToolAudit, FakeToolHistory } from '../../../fakes/fake-tool-history.js';
 
-const baseline = `schema_version: 2
+const baseline = `schema_version: 3
 tools: [{name: sample, install: [{via: npm, spec: '@example/sample'}]}]`;
 const workspace = `schema_version: 2
 providers: {code-host: {provider: local-git, vars: {host: /host}}}
@@ -37,7 +37,7 @@ function fixture() {
   const fs = FakeFs.from({
     '/first/manifest/workspace.yaml': workspace,
     // No registered provider drives this fixture's tool, so the workspace names it outright.
-    '/first/manifest/tools.yaml': 'schema_version: 2\ntools: [{name: sample}]',
+    '/first/manifest/tools.yaml': 'schema_version: 3\ntools: [{name: sample}]',
   });
   const inventory = new ToolInstalled({
     history,
@@ -75,7 +75,7 @@ async function recorded(f: ReturnType<typeof fixture>, scope: string | null = 'f
 async function disable(f: ReturnType<typeof fixture>) {
   await f.fs.writeText(
     '/first/manifest/tools.yaml',
-    'schema_version: 2\ntools: [{name: sample, enabled: false}]',
+    'schema_version: 3\ntools: [{name: sample, enabled: false}]',
   );
 }
 
@@ -200,7 +200,7 @@ describe('recorded installations', () => {
     await f.fs.writeText('/second/manifest/workspace.yaml', workspace);
     await f.fs.writeText(
       '/second/manifest/tools.yaml',
-      `schema_version: 2
+      `schema_version: 3
 tools:
   - {name: sample, enabled: false}
   - {name: renamed, install: [{via: npm, spec: '@example/sample'}]}`,
@@ -235,7 +235,7 @@ tools:
     );
     await f.fs.writeText(
       '/first/manifest/tools.yaml',
-      'schema_version: 2\ntools: [{name: custom, install: [{via: brew}]}]',
+      'schema_version: 3\ntools: [{name: custom, install: [{via: brew}]}]',
     );
     expect(await f.inventory.execute()).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'custom', state: 'required' })]),

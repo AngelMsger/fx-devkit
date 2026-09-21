@@ -156,7 +156,7 @@ describe('lintManifest', () => {
   it('points out a patch field that only repeats the baseline', () => {
     const base = loadToolsDocument(
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'defaults: { install: [{ via: npm }] }',
         'tools:',
         '  - name: x',
@@ -167,7 +167,7 @@ describe('lintManifest', () => {
     ).doc;
     const patch = loadToolsDocument(
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'tools:',
         '  - name: x',
         '    desc: same',

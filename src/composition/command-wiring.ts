@@ -4,6 +4,7 @@ import { harnessDoctor } from '../application/harness/stages.js';
 import { hookDoctor, type HookSession } from '../application/hook/session.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
+import { Login } from '../application/login/run.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
 import type { TrustGate } from '../application/safety/trust.js';
 import { prepareServices } from '../application/services/stage.js';
@@ -11,6 +12,7 @@ import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync/types.js';
 import { ToolInitialize } from '../application/tool/initialize.js';
+import { workspaceToolScope } from '../application/tool/scope.js';
 import { toolchainOf } from '../application/tool/toolchain.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
@@ -97,7 +99,12 @@ export class CommandWiring {
             posture: this.input.posture,
           },
         }),
-      stagesFor: (ctx) => this.stages(depsFor(ctx), false),
+      stagesFor: (ctx) =>
+        syncStages({ ...this.stageWiring(depsFor(ctx), false), initialize: true }),
+      setupPlan: (ctx) =>
+        new Login(depsFor(ctx), this.loginDeps()).plan({
+          tools: workspaceToolScope(ctx, {}).configuredNames,
+        }),
       settleManifest: (name, dir) =>
         updateChecks(this.input.container).manifest.markCurrent(name, dir),
     };

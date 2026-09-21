@@ -2,10 +2,9 @@
 
 Install fx, connect your team’s manifest, and work with repositories and coding agents.
 
-[Unreleased changes](../CHANGELOG.md#unreleased) describe the current source and may
-not be available in an installed package yet. Check `fx <command> --help` and the
-Skill bundled with that executable; a matching version label alone does not
-establish that a source change has been published.
+See the [version history](../CHANGELOG.md) for release changes. Check
+`fx <command> --help` and the Skill bundled with your installed executable for
+the features it supports.
 
 Choose the section for your task:
 
@@ -97,56 +96,37 @@ and configured package registry. See the
 
 ## Quick start
 
-Create a workspace from the source your team supplies. If you do not have one,
-start with the [manifest guide](manifest-guide.md). Replace angle-bracket
-placeholders before running commands. By default, a new workspace selects all
-shared repositories. To download a subset, [choose names first](#choose-repositories-before-downloading)
-and add `--repos` to both init commands:
+You need two things: the manifest source supplied by your team and a directory
+for the workspace. You can ask your coding agent: “Use fx to prepare this manifest
+in this directory.” If you are running the commands yourself:
 
 ```sh
-fx init ./work --name work --from <manifest-repository> --dry-run
-fx init ./work --name work --from <manifest-repository>
-cd work
-fx login --list
-fx login
-fx doctor
+fx init ./work --from <manifest-repository> --dry-run
+fx init ./work --from <manifest-repository>
 ```
 
-`init` first installs missing tools explicitly marked `install_on_init` in the
-team manifest and enabled, after command trust approval, then synchronizes repositories and
-selected agent resources. Existing tool installations are preserved. Registration
-can succeed while some synchronization stages fail; inspect the reported failures
-and retry the relevant stages after resolving access or setup.
+fx checks the source, prepares authorized local tools and configuration, clones
+the selected repositories, and prepares the Agent guides and Skills. The name
+is derived from the directory and avoids existing registrations. Existing files
+and completed work are preserved.
+Review the displayed commands before approving new manifest actions.
 
-Initialization can adopt an existing directory; `--adopt` is retained for
-compatibility and is no longer required. Inspect the plan with `--dry-run`
-before adopting or changing an unfamiliar workspace. When a checkout has only
-`origin` and its URL exactly matches the declared upstream, sync adds `upstream`
-without changing `origin`, the current branch or local files. The plan exposes
-`upstream_to_add`; the result records `upstream_added`. Conflicting remotes remain
-unchanged and need review.
-
-Bring repositories up to date and inspect a service:
+When fx reports **Ready to work**, you can start. If it needs personal sign-in,
+access or approval, it reports the remaining items together. Complete those
+items and use the printed continuation command:
 
 ```sh
-fx sync --dry-run
-fx sync
-fx status
-fx repo list
-fx where <repo> --env <environment>
-fx can <capability> --env <environment>
+fx init --resume --workspace work
 ```
 
-`where` prints coordinates and commands; it does not execute those commands.
-`can` and `doctor` check readiness now. Follow their handoffs when configuration,
-authentication or access is missing. A generated report is not itself a passing
-check: inspect `ok`, `complete` and individual findings.
+A continuation verifies current state and skips completed preparation. It does
+not reimport a directory source or rebuild checkouts. You do not need to choose
+internal stages or run a separate diagnostic sequence to finish initialization.
 
-Choose exact sets with `fx repo select` and `fx env select`; use `pick/unpick`
-to add or remove individual names.
-`fx config set agents claude-code,codex` selects agent resources; omitting that
-setting enables detection. `fx sync --only docs,skills` refreshes just those
-resources. Every command's exact syntax is available through `--help`.
+New workspaces select all shared repositories. To limit the first download,
+[choose repositories](#choose-repositories-before-downloading) and add `--repos`
+to the initial preview and apply. Existing directories are adopted automatically.
+For everyday updates use `fx sync`; `fx status` shows repository state.
 
 ## Find and manage workspaces
 
@@ -367,11 +347,9 @@ same-version copies and never downgrade newer ones. Foreign replacements require
 confirmation and backup. Uninstalling a copy does not unselect its host, so later
 sync may install it again.
 
-Installation, version alignment and declared loading are separate facts. After
-reading the bundled instructions, agents declare `FX_SKILL_LOADED=1` and
-`FX_SKILL_VERSION=<bundled_skill_version>`; a declaration is not proof of reading.
-Bootstrap commands stay quiet. Other non-TTY commands provide advisory guidance
-until the version matches; `FX_SKILL_NOTICE=0` suppresses it.
+`skill status` reports installation versions and `activation: unverified`.
+An installed file is not proof that the host loaded it. Read the bundled guide
+when needed; normal commands require no Skill-loaded environment declaration.
 
 **Team Skills** live in the manifest's `skills/` tree. Init/sync link that tree into
 selected hosts and generate a catalog in the root AGENTS.md. Start at the workspace
@@ -454,68 +432,78 @@ capabilities instead of assuming feature parity. See the
 
 ## For coding agents
 
-Start with `fx self info --format json`, read the returned bundled Skill (or
-`fx skill show`), then declare `FX_SKILL_LOADED=1` and the matching
-`FX_SKILL_VERSION`. Use the [Skill](../skills/fx-workspace/SKILL.md) for task routing.
+Start with `fx self info --format json`. For initialization, read the returned
+`initialization_guide`; it is the short route from a source and directory to a
+verified workspace. Keep the exact executable prefix. Initialization does not
+require a Skill-loaded environment declaration. The full
+[Skill](../skills/fx-workspace/SKILL.md) covers other tasks.
 
-stdout carries results; stderr carries notices, progress and error envelopes.
-Keep the streams separate. Collections use `{items, has_more, next?}`.
-`--no-input` prevents prompts; `--quiet` suppresses notices and progress.
-
-`init`, `sync`, `doctor` and `release` default to JSON summaries. They preserve
-counts, exceptions and recovery actions; `omitted` counts rows/evidence left out.
-Use `--details` for full results. Explicit `--fields` projects the full result,
-in every output format, while `--verbose` controls diagnostics. JSON/NDJSON emit
-one projected report object; human output shows the selected key/value pairs.
-For example, `fx sync --fields operation,preparation_complete,items,summary` keeps
-those report fields and omits stage details. Dotted paths retain flat keys.
-Without `--fields`, human/NDJSON behavior is unchanged. Fact queries such as
-`repo list`, `where` and `can` still project each item and retain collection metadata.
-
-| Result              | What to read                                                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `init`, `sync`      | `operation` and `preparation_complete`: previews use `null`; apply is complete only for selected repositories and requested stages. |
-| `doctor`, `release` | `ok` means no failure findings; `complete` means no requested check lacks coverage. Warnings still matter.                          |
-| `can`               | `status` and any `handoff`; readiness is separate from a specific remote query succeeding.                                          |
-
-Doctor/release can exit zero with failing findings. Init/sync can report partial
-success, and errors may follow partial stdout. A protected dirty/diverged checkout,
-blocked or failed stage, or unverified activation prevents preparation from being
-complete. Excluded resources do not. Preparation does not establish remote health.
-
-The final init/sync notice also states whether preparation is complete for the
-requested scope. If `preparation_complete` is false, keep that incomplete verdict
-even when cloning succeeded; name the remaining blocker separately.
-
-For document failures, inspect `stage_details.docs.files` in sync or
-`sync.stage_details.docs.files` in init: `action` is the plan,
-while `result` distinguishes completed, failed and unstarted writes. Resolve the
-reported conflict and retry; unchanged documents are skipped. Foreign replacements
-require approval and preserve the original object in a unique sibling backup.
-
-Choose the output view before executing a write. For an authorized sync, capture
-the full result once and inspect the same file afterward:
+stdout contains results; stderr contains progress, notices and structured errors.
+Use `--format json` and capture both streams. Workflow JSON keeps the preparation
+verdict and every blocker; `--details` adds full stage evidence. Human output starts
+with the task result and next action. `--fields` projects the complete report in
+any format, using flat keys for dot paths, for example:
 
 ```sh
-fx sync --format json --details > sync-result.json
+fx sync --format json --fields operation,preparation.state,items,summary
 ```
 
-Read that JSON with a parser; do not truncate it with byte limits or repeat sync
-just to obtain details. Partial results and the original stderr error must both
-be considered. See [response contracts](../skills/fx-workspace/references/commands.md).
+| Result                   | Completion decision                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `init`, `sync`, `doctor` | `preparation.state`: `planned`, `ready`, or `incomplete`, for `preparation.scope`. |
+| `release`                | `ok`, `complete` and the findings; it does not publish or deploy.                  |
+| `can`                    | `status` and the handoff for that capability.                                      |
 
-## Migrating to 0.2.0
+Ready preparation exits 0; incomplete preparation exits 12. Preview is only a
+plan. Fatal configuration/execution errors retain their category exit codes and
+may include partial stdout. `doctor.coverage` describes diagnostic coverage
+separately; optional native activation can remain unverified without blocking
+required work. A projection file alone does not establish host activation.
 
-- Workflow JSON now defaults to summaries. Scripts that need successful rows or
-  finding evidence should add `--details`; existing `--fields` projections still
-  use the full result.
-- An explicit empty agent selection now means none. Use `config unset agents`
-  and remove any `FX_AGENTS` override to restore automatic detection.
-- Agents declare `FX_SKILL_VERSION` after reading the current bundled Skill.
-  The old `FX_SKILL_LOADED=1` boolean alone does not verify the version.
+Init executes authorized local preparation itself. Completed setup steps stay
+visible in the result; do not repeat them while authentication is pending.
 
-These contracts are described in [agent usage](#for-coding-agents) and
-[agent selection](#agent-selection).
+`--workspace` accepts a registered name or root directory. `--details` can be
+used consistently across commands; fact queries already return full results.
+When capturing output for further analysis, use a location inside the authorized
+task directory; Read-only posture cannot control shell redirection.
+
+Read `preparation.next` first: review a preview, continue the original task when
+complete, perform Agent actions, or hand off missing prerequisites.
+`next_actions` contains Agent work only; personal actions stay on their blockers
+with `actor: user`. Run `resume` after conditions change.
+
+Read all `preparation.blockers` together. `next_actions` provide exact argument
+vectors, working directories, optional environment coordinates and approval
+requirements. Preserve the returned `argv`, `cwd` and `env`; `resume` continues the
+registered workspace. Existing approval persists; new vectors need review. Never
+infer success from registration or a clone, repeat a write to obtain more detail,
+or copy personal credentials into a manifest.
+
+For file conflicts, `stage_details.docs.files` (under `sync` in init) preserves
+completed and unstarted writes. Foreign replacements require approval and retain
+a sibling backup. See the [response contracts](../skills/fx-workspace/references/commands.md).
+
+## Migrating to 0.4.0
+
+- Tools documents now use `schema_version: 3`. A `kind: run` setup step declares
+  `phase: prepare` for local non-interactive preparation or `phase: authenticate`
+  for personal sign-in. Old documents fail before workspace effects, with a
+  migration explanation; fx does not guess a script's purpose.
+- The Skill-loaded handshake and `skill_notice` setting are removed.
+  `FX_SKILL_LOADED`, `FX_SKILL_VERSION` and `FX_SKILL_NOTICE` are no longer used.
+  Replace reads of skill status loaded/version_verified with its installation
+  versions and `activation` evidence.
+- `preparation.state` replaces `preparation_complete`. Doctor replaces its
+  top-level `ok/complete` with preparation plus diagnostic `coverage`; release
+  keeps its existing report contract. Incomplete preparation now exits 12.
+- Workspace discovery reports `registration_status: available` for a readable
+  registration. This is not a workspace preparation verdict.
+- `init --resume --workspace <name>` continues using the managed source and
+  existing selection. Ordinary source guides no longer need fx markers: missing
+  regions are appended to generated guides, preserving the shared source.
+
+See [the manifest guide](manifest-guide.md) for the authoring format.
 
 ## Configuration
 
@@ -565,46 +553,30 @@ restore detection. Selection is global across workspaces in this `FX_HOME`.
 
 ## Reading initialization and recovery results
 
-`init` can register a workspace before a later phase fails. Read partial stdout
-even after a nonzero exit, then resolve the reported cause before retrying the
-same name, source and directory. A symlink alias of the same root is accepted;
-a different root remains a conflict.
+Follow the continuation action in the result. If new source input was rejected
+before acceptance, it returns the full original retry; otherwise resume uses the
+managed source and existing selection. Registration and written files are effects,
+not completion. `preparation.state` and its blockers own that decision.
 
-| Evidence                            | Meaning and next step                                                                                        |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `registered` / `written`            | Whether registration exists / this invocation wrote local state; neither proves preparation completed.       |
-| `failed_phase`, `phases`, `failure` | Identify where init stopped and retain the original recovery steps.                                          |
-| `sync.stages`, `sync.stage_details` | Init's repository/resource outcomes; sync exposes these without the `sync` prefix.                           |
-| `tool_install`                      | Installation attempts; `code: null` is not success. A version-check failure can follow a successful install. |
-| `observed`                          | Disk state after a Skill failure; a failed write may already have changed the destination.                   |
+Source validation identifies invalid fields before workspace effects. A local
+preview inspects directories, stdin or committed Git contents; a fresh remote
+source remains `source_inspected: false` until acquired. Known guide conflicts
+and planned command vectors are shown before application; no preview grants trust.
+Plain source guides are supported: missing fx regions are appended to generated
+target guides, preserving source prose. Ambiguous markers require source repair.
 
-Choose a targeted recovery after fixing the cause. For `SKILL_WRITE_DENIED`, inspect
-the denied path; changing `FX_HOME` does not relocate shared Skill locks. Local
-repository/guide work can continue with
-`fx sync --only repos,docs --no-refresh-manifest`. This does not fix the Skill
-stage. Do not retry the same permission failure or approve an untrusted vector
-without the required authorization.
+Completed repositories, local preparation and user files survive a partial failure.
+Resolve all reported prerequisites, then use the returned action. Existing installs
+and successful setup checks are skipped on continuation. Relative verification
+files are resolved from the workspace root. Names are generated for directories
+with spaces or Unicode; use the returned workspace identity instead of guessing it.
 
-`INIT_PREPARED` reports the plan before installers/cloning. Init's dry run inspects
-local directory, stdin and committed local Git inputs and describes repository
-actions without applying them. A fresh remote-source dry run does not fetch the
-source: `source_inspected: false` identifies that boundary, and any requested
-selection remains unverified until source inspection. Follow the preview's
-next steps to inspect a local checkout when its contents must be reviewed first.
-The plan separates intended registration/materialization from actual state;
-`registered` is no longer shorthand for a planned or newly created registration.
-Git manifest refresh and preview preserve modified, untracked and ignored source
-payload files that fx reads. This source-specific protection does not change the
-business checkout synchronization policy.
-Progress on stderr reports active repositories and elapsed time; it is not a Git
-transfer percentage or ETA. Full JSON requires `--details`.
-
-For missing or outdated tools, login, manifest validation and updates, use
-[Support](support.md#troubleshooting). `no_access` means an environment is outside
-personal selection, not a remote ACL denial. Git transport uses its own credentials;
-optional code-host API probes are separate.
-Repository readability is probed again on normal retries, so an earlier missing
-repository does not remain blocked by an old negative cache.
+`SKILL_WRITE_DENIED` identifies the protected path. Changing FX_HOME does not move
+global Skill locks. Available repository/guide work can continue with
+`fx sync --only repos,docs --no-refresh-manifest`, without claiming Skill repair.
+Foreign replacement still requires approval and preserves a sibling backup.
+Git-source refresh protects local work, and ordinary retries recheck repository
+readability. [Support](support.md#troubleshooting) explains discovery and updates.
 
 ### Resume login after a handoff
 

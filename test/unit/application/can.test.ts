@@ -23,6 +23,7 @@ const login: SetupRecipe = {
   tool: 'jenkins-cli',
   perEnv: false,
   kind: 'run',
+  phase: 'authenticate',
   title: 'Log in to Jenkins',
   run: ['auth', 'login'],
   verify: { command: ['auth', 'status'] },
@@ -111,7 +112,7 @@ describe('Can', () => {
     ['min_version: 99.0.0', 'outdated_tool'],
   ])('preserves tool state %s', async (declaration, status) => {
     const s = await stage({
-      tools: `schema_version: 2\ntools: [{ name: bitbucket-cli, ${declaration} }]`,
+      tools: `schema_version: 3\ntools: [{ name: bitbucket-cli, ${declaration} }]`,
     });
     s.h.process.binaries.add('bitbucket-cli');
     expect(await s.can.execute({ target: 'code-host' })).toMatchObject({ status });
@@ -187,7 +188,7 @@ describe('Can', () => {
     });
     await expect(bound(null)).rejects.toMatchObject({ code: 'CAPABILITY_UNBOUND' });
     expect(
-      await bound('acme-host', 'schema_version: 2\ntools: [{ name: acme-cli }]'),
+      await bound('acme-host', 'schema_version: 3\ntools: [{ name: acme-cli }]'),
     ).toMatchObject({ status: 'missing_tool', tool: 'acme-cli', provider: 'acme-host' });
   });
 
@@ -210,7 +211,7 @@ describe('Can', () => {
     // tool it names, so readiness is the tool's own and no entry coordinate is claimed.
     const result = await bound(
       'worklog-cli',
-      'schema_version: 2\ntools: [{ name: worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]',
+      'schema_version: 3\ntools: [{ name: worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]',
     );
     expect(result).toMatchObject({ status: 'missing_tool', tool: 'worklog-cli' });
     expect(result.entry).toBeUndefined();
@@ -223,7 +224,7 @@ describe('Can', () => {
 
   it('does not require an environment document for workspace bindings or standalone tools', async () => {
     // Declared rather than derived: without the environments document nothing binds it.
-    const { h } = await stage({ tools: 'schema_version: 2\ntools: [{ name: jenkins-cli }]' });
+    const { h } = await stage({ tools: 'schema_version: 3\ntools: [{ name: jenkins-cli }]' });
     const readiness = new Readiness(
       {
         ...h.deps,
@@ -382,7 +383,7 @@ describe('Can', () => {
 
   it('answers unknown when the tool cannot be probed or a patch check is untrusted', async () => {
     const patched = [
-      'schema_version: 2',
+      'schema_version: 3',
       'tools:',
       '  - { name: jenkins-cli, version_args: [--ver] }',
       '',
@@ -447,7 +448,7 @@ describe('Can', () => {
     const s = await stage({
       yes: true,
       tools: [
-        'schema_version: 2',
+        'schema_version: 3',
         'tools: [{ name: standalone, auth: { command: [auth, status] } }]',
       ].join('\n'),
     });

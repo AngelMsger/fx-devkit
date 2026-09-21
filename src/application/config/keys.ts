@@ -71,13 +71,6 @@ export const KEYS: readonly Key[] = [
     desc: 'refuse every write unless --allow-writes is passed',
   },
   {
-    name: 'skill_notice',
-    env: 'FX_SKILL_NOTICE',
-    kind: 'bool',
-    default: 'true',
-    desc: 'tell an agent (json/ndjson output) when the fx Skill is missing, outdated or not loaded',
-  },
-  {
     name: 'update_check',
     env: 'FX_UPDATE_CHECK',
     kind: 'bool',

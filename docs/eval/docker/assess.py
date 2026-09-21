@@ -7,32 +7,13 @@ from pathlib import Path
 
 
 def init_findings(result):
-    problems = []
-    if not isinstance(result, dict) or result.get("written") is not True:
-        return ["initialization did not report written=true"]
-    sync = result.get("sync")
-    if not isinstance(sync, dict):
-        return ["initialization has no synchronization result"]
-    for field in ["failed", "unreadable"]:
-        count = sync.get("summary", {}).get(field)
-        if count is None:
-            problems.append(f"sync.summary.{field} is missing")
-        elif count:
-            problems.append(f"sync.summary.{field}={count}")
-    for item in sync.get("items", []):
-        if item.get("failure") or item.get("result") == "failed":
-            problems.append(f"repository failure: {item.get('name')}")
-    for stage, counts in sync.get("stages", {}).items():
-        if not isinstance(counts, dict):
-            problems.append(f"{stage}: {counts}")
-            continue
-        for key, count in counts.items():
-            if isinstance(count, (int, float)) and count > 0 and (key.endswith("failed") or key.endswith("foreign")):
-                problems.append(f"{stage}.{key}={count}")
-    for item in result.get("tool_install", []):
-        if item.get("ran") is not True or item.get("code") != 0 or not item.get("version_after"):
-            problems.append(f"tool installation incomplete: {item.get('name')}")
-    return problems
+    if not isinstance(result, dict) or result.get("operation") != "apply" or not result.get("registered"):
+        return ["initialization did not report an applied workspace registration"]
+    preparation = result.get("preparation", {})
+    if preparation.get("state") == "ready":
+        return []
+    blockers = preparation.get("blockers", [])
+    return [item.get("message", item.get("id", "unfinished preparation")) for item in blockers] or ["preparation is not verified ready"]
 
 
 def lines(path):

@@ -15,7 +15,7 @@ it('withholds a trial until preparation is complete, even when repository sync s
     registered: true,
     sync: { summary: { done: 3, failed: 0, unreadable: 0 } },
     output_mode: 'summary',
-    preparation_complete: false,
+    preparation: { state: 'incomplete' },
   };
   const check = () =>
     spawnSync(process.execPath, ['docs/eval/check-preparation.mjs', file], { encoding: 'utf8' });
@@ -23,7 +23,7 @@ it('withholds a trial until preparation is complete, even when repository sync s
   const incomplete = check();
   expect(incomplete.status).toBe(1);
   expect(incomplete.stderr).toContain('preparation incomplete');
-  writeFileSync(file, JSON.stringify({ ...init, preparation_complete: true }));
+  writeFileSync(file, JSON.stringify({ ...init, preparation: { state: 'ready' } }));
   const complete = check();
   expect(complete.status, complete.stderr).toBe(0);
 });

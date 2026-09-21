@@ -80,8 +80,6 @@ function pairs(item: Record<string, unknown>): string {
 
 export function humanNotice(notice: Notice): string {
   const lines = [`notice ${notice.code}: ${notice.message}`];
-  if (notice.code === 'INIT_PREPARED' && notice.data?.['plan'] !== undefined)
-    lines.push(humanRecord(notice.data['plan'] as object));
   for (const step of notice.nextSteps ?? []) lines.push(`  ${step}`);
   if (notice.silence !== undefined) lines.push(`  silence with ${notice.silence}`);
   return lines.join('\n');

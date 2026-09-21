@@ -8,6 +8,8 @@ export const userSources = new Set([
   'docs/cli/README.md',
   'skills/fx-workspace/SKILL.md',
   'skills/fx-workspace/references/commands.md',
+  'skills/fx-workspace/references/initialization.md',
+  'skills/fx-workspace/references/workspace-tasks.md',
   'CHANGELOG.md',
 ]);
 export function assertPublicPath(file) {

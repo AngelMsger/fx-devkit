@@ -1,7 +1,9 @@
 // Explicit setup runs only public preparation, never login or credential acquisition.
+import { preparationCheck } from '../../domain/preparation.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { StageResult } from '../sync/types.js';
+import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { ServiceOperation } from './operation.js';
@@ -25,6 +27,25 @@ export async function prepareServices(
     ]),
   );
   return {
+    checks: [
+      ...items.map((item) =>
+        preparationCheck(
+          `service:${item.id}`,
+          item.status === 'failed' || item.status === 'blocked' ? 'blocked' : 'ready',
+          item.detail,
+          {
+            resource: item.id,
+            required: workspaceToolScope(deps.ctx, {}).required.has(item.tool),
+            owner: 'user',
+            ...(item.failure ? { failure: item.failure, code: item.failure.code } : {}),
+            ...(item.actions ? { actions: item.actions } : {}),
+          },
+        ),
+      ),
+      ...problems.map((problem) =>
+        preparationCheck(problem.step, 'blocked', problem.detail, { owner: 'maintainer' }),
+      ),
+    ],
     summary: { ...summary, problems: problems.length },
     details: { items, problems },
   };

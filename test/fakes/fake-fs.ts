@@ -4,6 +4,9 @@ import { DevkitError } from '../../src/domain/errors.js';
 import type { FileSystem } from '../../src/ports/fs.js';
 
 export class FakeFs implements FileSystem {
+  async ensureDir(directory: string): Promise<void> {
+    this.mkdir(directory);
+  }
   readonly writes: string[] = [];
   private readonly dirs = new Set<string>();
   readonly links = new Map<string, string>();

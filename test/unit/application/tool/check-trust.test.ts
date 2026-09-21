@@ -12,8 +12,8 @@ import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 const writable = { readOnly: false, source: 'default' } as const;
 
 const patched = loadTools(
-  'schema_version: 2\ndefaults: { install: [{ via: npm }] }\ntools:\n  - name: alpha\n',
-  'schema_version: 2\ntools: [{ name: alpha, version_args: [--ver] }]',
+  'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools:\n  - name: alpha\n',
+  'schema_version: 3\ntools: [{ name: alpha, version_args: [--ver] }]',
   { cliVersion: '1.0.0' },
 );
 
@@ -53,14 +53,14 @@ describe('ToolCheck under a dry run', () => {
   it.each([
     {
       case: 'a patched binary',
-      base: 'schema_version: 2\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
-      patch: 'schema_version: 2\ntools: [{ name: alpha, binary: surprise }]',
+      base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
+      patch: 'schema_version: 3\ntools: [{ name: alpha, binary: surprise }]',
       binary: 'surprise',
     },
     {
       case: 'a patch-added tool inheriting bundled arguments',
-      base: 'schema_version: 2\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: bundled }]',
-      patch: 'schema_version: 2\ntools: [{ name: surprise }]',
+      base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: bundled }]',
+      patch: 'schema_version: 3\ntools: [{ name: surprise }]',
       binary: 'surprise',
     },
   ])('refuses $case before its version probe runs', async ({ base, patch, binary }) => {

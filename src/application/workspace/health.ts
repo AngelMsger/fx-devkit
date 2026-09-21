@@ -10,14 +10,14 @@ import { LoadManifest } from '../manifest/load.js';
 
 import type { Located, ResolveInput } from './resolve.js';
 
-export type WorkspaceHealth = 'ready' | 'root_missing' | 'unprepared' | 'missing' | 'invalid';
+export type WorkspaceHealth = 'available' | 'root_missing' | 'unprepared' | 'missing' | 'invalid';
 export interface HealthInput extends Pick<ResolveInput, 'fs' | 'config' | 'commandShell'> {
   readonly bundledTools: () => string;
   readonly providers: ProviderCatalog;
   readonly cliVersion: string;
 }
 export interface WorkspaceHealthResult {
-  readonly status: WorkspaceHealth;
+  readonly registration_status: WorkspaceHealth;
   readonly error: ErrorEnvelope['error'] | null;
 }
 
@@ -32,7 +32,7 @@ export async function workspaceReadiness(
       cliVersion: input.cliVersion,
       providers: input.providers,
     });
-    return { status: 'ready', error: null };
+    return { registration_status: 'available', error: null };
   } catch (error) {
     const failure = contextualWorkspaceError(input, located, error);
     const statuses: Readonly<Record<string, WorkspaceHealth>> = {
@@ -41,7 +41,7 @@ export async function workspaceReadiness(
       MANIFEST_MISSING: 'missing',
     };
     const status = statuses[failure.code] ?? 'invalid';
-    return { status, error: toEnvelope(failure).error };
+    return { registration_status: status, error: toEnvelope(failure).error };
   }
 }
 

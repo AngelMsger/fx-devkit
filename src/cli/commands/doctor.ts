@@ -1,11 +1,9 @@
 import { Flags } from '@oclif/core';
 
 import { Doctor } from '../../application/doctor/index.js';
-import { DOCTOR_FINDING_COLUMNS } from '../../application/doctor/types.js';
 import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, listFlag, writeIntent } from '../flags.js';
-import { DOCTOR_CODES, reportNotice } from '../notices.js';
+import { listFlag, writeIntent } from '../flags.js';
 
 export default class DoctorCommand extends FxCommand {
   static override description =
@@ -16,7 +14,6 @@ export default class DoctorCommand extends FxCommand {
     '<%= config.bin %> doctor --fix   # run-type login steps and Skill links; nothing a person must do',
   ];
   static override flags = {
-    details: detailsFlag,
     fix: Flags.boolean({ description: 'apply the fixes fx can make itself' }),
     env: listFlag('only these environments (provider tool and login checks)'),
     tool: listFlag('check these tools explicitly (default: declared tools and active providers)'),
@@ -47,7 +44,6 @@ export default class DoctorCommand extends FxCommand {
       ...writeIntent(flags, this.posture),
       noInput: this.noInput,
     });
-    this.renderReport(report, DOCTOR_FINDING_COLUMNS);
     for (const repair of report.repairs) {
       if (repair.status === 'failed')
         this.renderer.notice({
@@ -57,6 +53,6 @@ export default class DoctorCommand extends FxCommand {
           data: { repair },
         });
     }
-    this.renderer.notice(reportNotice(report, DOCTOR_CODES));
+    this.renderPreparation(report);
   }
 }

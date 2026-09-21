@@ -16,7 +16,7 @@ import { fakeToolAudit } from '../../../fakes/fake-tool-history.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 
 const bundled = [
-  'schema_version: 2',
+  'schema_version: 3',
   'defaults: { version_args: [--version], install: [{ via: npm }], npm_scope: "@example" }',
   'tools:',
   '  - name: alpha',
@@ -339,7 +339,7 @@ describe('ToolInstall', () => {
 describe('ToolShow', () => {
   it('shows the resolved entry, field origins, dependants and setup steps', () => {
     const s = setup(
-      'schema_version: 2\ntools: [{ name: alpha, min_version: 2.0.0, setup: [{ id: token, kind: manual, title: t, verify: { command: [auth, status] } }] }]',
+      'schema_version: 3\ntools: [{ name: alpha, min_version: 2.0.0, setup: [{ id: token, kind: manual, title: t, verify: { command: [auth, status] } }] }]',
     );
     const explained = new ToolShow().execute({
       tools: s.tools,
@@ -379,11 +379,11 @@ describe('ToolInstall with a trust gate', () => {
     const { loadTools } = await import('../../../../src/domain/manifest/loader.js');
     const { resolveTools } = await import('../../../../src/domain/toolchain/resolve.js');
     const bundled = [
-      'schema_version: 2',
+      'schema_version: 3',
       'defaults: { version_args: [--version], install: [{ via: npm }] }',
       'tools: [{ name: alpha }]',
     ].join('\n');
-    const patch = ['schema_version: 2', 'tools: [{ name: alpha, version_args: [--ver] }]'].join(
+    const patch = ['schema_version: 3', 'tools: [{ name: alpha, version_args: [--ver] }]'].join(
       '\n',
     );
     const loaded = loadTools(bundled, patch, { cliVersion: '1.0.0' });

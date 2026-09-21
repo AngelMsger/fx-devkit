@@ -60,7 +60,7 @@ describe('doctor tool scope', () => {
     const h = await harness({
       workspace,
       files: {
-        [`${MANIFEST_DIR}/manifest/tools.yaml`]: 'schema_version: 2\ntools: [{ name: lark-cli }]\n',
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]: 'schema_version: 3\ntools: [{ name: lark-cli }]\n',
       },
     });
     const scope = workspaceToolScope(h.ctx, {});
@@ -72,7 +72,7 @@ describe('doctor tool scope', () => {
     const h = await harness({ workspace });
     const scope = workspaceToolScope(h.ctx, { tools: ['bitbucket-cli'] });
     expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
-      { id: 'bitbucket-cli', level: 'warn', evidence: { required: false, state: 'missing' } },
+      { id: 'bitbucket-cli', level: 'fail', evidence: { required: true, state: 'missing' } },
     ]);
   });
 
@@ -88,7 +88,7 @@ describe('doctor tool scope', () => {
     const h = await harness({
       workspace: workspace.replace('local-git', 'bitbucket-cli'),
       files: {
-        [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, required: ${required}}]\n`,
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 3\ntools: [{name: bitbucket-cli, required: ${required}}]\n`,
       },
     });
     const scope = workspaceToolScope(h.ctx, {});
@@ -108,7 +108,7 @@ describe('doctor tool scope', () => {
       const h = await harness({
         workspace: active ? workspace.replace('local-git', 'bitbucket-cli') : workspace,
         files: {
-          [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, enabled: false, required: ${required}}]\n`,
+          [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 3\ntools: [{name: bitbucket-cli, enabled: false, required: ${required}}]\n`,
         },
       });
       const scope = workspaceToolScope(h.ctx, {});
@@ -123,7 +123,7 @@ describe('doctor tool scope', () => {
       workspace,
       files: {
         [`${MANIFEST_DIR}/manifest/tools.yaml`]:
-          'schema_version: 2\ntools: [{name: required-tool, required: true}, {name: optional-tool}]\n',
+          'schema_version: 3\ntools: [{name: required-tool, required: true}, {name: optional-tool}]\n',
       },
     });
     const scope = workspaceToolScope(h.ctx, {});
@@ -136,7 +136,7 @@ describe('doctor tool scope', () => {
   it('keeps inactive platform tools out of readiness and marks disabled active dependencies incomplete', async () => {
     const files = {
       [`${MANIFEST_DIR}/manifest/tools.yaml`]:
-        'schema_version: 2\ntools: [{name: jenkins-cli, enabled: false}]\n',
+        'schema_version: 3\ntools: [{name: jenkins-cli, enabled: false}]\n',
       [`${MANIFEST_DIR}/manifest/environments.yaml`]:
         'schema_version: 2\nplatforms: {build: {provider: jenkins-cli, capability: ci}}\nenvs: {dev: {}, test: {platforms: {build: {}}}}\n',
     };

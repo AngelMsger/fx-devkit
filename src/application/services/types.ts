@@ -2,6 +2,7 @@
 // work was a native command or an owned workspace file.
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { PreparationAction } from '../../domain/preparation.js';
 
 export interface ServiceResult {
   readonly id: string;
@@ -12,6 +13,7 @@ export interface ServiceResult {
   readonly changes?: Readonly<Record<string, unknown>>;
   readonly failure?: ErrorEnvelope['error'];
   readonly next_steps?: readonly string[];
+  readonly actions?: readonly PreparationAction[];
 }
 
 // The part a preparation decides; the caller owns the row's identity.

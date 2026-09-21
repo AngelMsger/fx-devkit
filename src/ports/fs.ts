@@ -15,6 +15,7 @@ export interface FileReader {
 }
 
 export interface FileSystem extends FileReader {
+  ensureDir(path: string): Promise<void>;
   writeBytes(path: string, bytes: Uint8Array, executable?: boolean): Promise<void>;
   writeText(path: string, text: string): Promise<void>;
   link(target: string, at: string): Promise<void>;

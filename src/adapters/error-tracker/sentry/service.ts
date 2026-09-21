@@ -18,6 +18,7 @@ export function sentryService(settings: ServiceSettings): ServiceDefinition {
         tool: 'sentry',
         perEnv: false,
         kind: 'run',
+        phase: 'authenticate',
         title: 'Sign in to the shared Sentry instance with your own account',
         instructions:
           'Complete the personal device/browser authorization. The manifest supplies only the service URL and organization, never a personal token.',

@@ -2,29 +2,29 @@
 
 ## Troubleshooting
 
-Start with the current result from `fx doctor --format json`. For a particular
-capability, use `fx can <capability> --env <environment> --format json`. Follow the
-reported handoff instead of repeatedly retrying a command with missing access.
+For interrupted initialization, start with its reported blockers and continuation
+command. Completed work is retained:
 
-If workspace resolution or manifest loading fails, start with `fx workspace list`,
-`fx workspace show <name>` and `fx self info`. These discovery commands retain
-known registration and installation facts even when the workspace is unhealthy.
-A missing root needs `workspace relocate` after the directory has moved; a missing
-manifest needs preparation from its recorded source. `manifest validate --strict`
-fails validation when the required workspace document is missing or invalid.
-Optional undeclared documents may be absent.
+```sh
+fx init --resume --workspace <name>
+```
 
-- Missing tool: inspect `fx tool show <tool>` and its installation requirements.
-- Missing authentication: use `fx login --list`, then the relevant login flow.
-- Environment outside your selection: inspect `fx env list` and select it only
-  when it belongs in your workspace.
-- Invalid manifest: run `fx manifest validate --strict` and use
-  `fx manifest explain '<field>'` to inspect the reported field.
-- Partial sync: inspect failed repository rows and resource stages, resolve the
-  cause, then rerun the relevant `fx sync --only <stage>` operation.
+Personal authentication and operator files require the named person; finish those
+steps before continuing. For an existing workspace, `fx doctor --format json`
+reports current preparation and concrete recovery actions. `fx can <capability>`
+answers a specific capability question.
 
-A zero exit code from a report does not prove readiness. Read `ok`, `complete`,
-individual findings and recovery information.
+`preparation.state` is `ready` or `incomplete`; incomplete preparation exits 12.
+`doctor.coverage` separately identifies missing diagnostic evidence. Release
+checks still use `ok` and `complete`. Parse partial stdout even after a nonzero exit.
+
+If the source cannot be loaded, inspect the reported file and field. Tools schema 3
+requires each run step to identify local preparation or personal authentication.
+After correcting the original source, retry the supplied full init command; after
+registration, the resume command uses the managed source rather than recopying it.
+`fx workspace list` and `fx self info` remain available for discovery. A moved root
+needs `workspace relocate`; an absent source needs preparation from its recorded
+source. Keep credentials in their companion tools.
 
 ## Updates
 

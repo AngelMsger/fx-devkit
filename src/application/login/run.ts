@@ -9,6 +9,7 @@ import {
   type ErrorEnvelope,
   type HandoffStep,
 } from '../../domain/errors.js';
+import type { PreparationAction } from '../../domain/preparation.js';
 import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { ServiceOperation } from '../services/operation.js';
@@ -22,6 +23,7 @@ import { ensureScopeEnvs } from './scope-envs.js';
 import { expandHomeIn, Verifier } from './verify.js';
 
 export interface LoginInput {
+  readonly mode?: 'login' | 'prepare';
   readonly tools?: readonly string[] | undefined;
   readonly envs?: readonly string[] | undefined;
   readonly skipManual: boolean;
@@ -42,6 +44,7 @@ export type StepResult =
   | 'not_started';
 
 export interface StepRow {
+  readonly actions?: readonly PreparationAction[];
   readonly id: string;
   readonly tool: string;
   readonly env: string | null;
@@ -54,7 +57,10 @@ export interface StepRow {
   readonly handoff?: HandoffStep;
 }
 
-type StepOutcome = Pick<StepRow, 'result' | 'detail' | 'failure' | 'next_steps' | 'handoff'>;
+type StepOutcome = Pick<
+  StepRow,
+  'result' | 'detail' | 'failure' | 'next_steps' | 'handoff' | 'actions'
+>;
 
 export const LOGIN_STEP_COLUMNS = ['id', 'kind', 'result', 'detail'] as const;
 
@@ -83,22 +89,13 @@ export class Login {
   }
 
   async execute(input: LoginInput): Promise<LoginOutput> {
-    const conflicts = (await this.plan(input)).problems.filter((p) => p.reason === 'step_conflict');
-    if (conflicts.length > 0)
-      throw new DevkitError(
-        'config',
-        'SETUP_PLAN_CONFLICT',
-        'Setup steps have conflicting definitions',
-        {
-          hint: conflicts.map((problem) => problem.detail).join(' '),
-          nextSteps: [
-            workspaceCommand(this.deps, 'login', '--list'),
-            workspaceCommand(this.deps, 'manifest', 'providers'),
-          ],
-        },
-      );
-    const scopeEnvs = await ensureScopeEnvs(this.deps, this.setup.prompter, input);
+    this.validatePlan(await this.plan(input), true);
+    const scopeEnvs =
+      input.mode === 'prepare'
+        ? this.deps.ctx.local.scope?.envs
+        : await ensureScopeEnvs(this.deps, this.setup.prompter, input);
     const plan = buildPlan(this.deps, this.setup, { ...input, scopeEnvs });
+    this.validatePlan(plan);
     const rows: StepRow[] = [];
     const pending: SetupStep[] = [];
     const undone = new Set<string>();
@@ -133,14 +130,38 @@ export class Login {
             next_steps: failure.next_steps,
           }),
         );
+        if (input.mode === 'prepare') {
+          undone.add(step.id);
+          continue;
+        }
         for (const remaining of plan.steps.slice(index + 1))
           rows.push(row(remaining, { result: 'not_started', detail: `Stopped after ${step.id}` }));
         throw withPartialResult(error, output());
       }
     }
-    if (pending.length > 0)
+    if (pending.length > 0 && input.mode !== 'prepare')
       throw withPartialResult(setupRequired(pending, input, this.deps), output());
     return output();
+  }
+
+  private validatePlan(plan: SetupPlan, conflictsOnly = false): void {
+    const problems = conflictsOnly
+      ? plan.problems.filter((problem) => problem.reason === 'step_conflict')
+      : plan.problems;
+    if (!problems.length) return;
+    const conflicts = problems.some((problem) => problem.reason === 'step_conflict');
+    throw new DevkitError(
+      'config',
+      conflicts ? 'SETUP_PLAN_CONFLICT' : 'SETUP_PLAN_INVALID',
+      'Setup cannot execute the declared plan',
+      {
+        hint: problems.map((problem) => `${problem.step}: ${problem.detail}`).join(' '),
+        nextSteps: [
+          workspaceCommand(this.deps, 'login', '--list'),
+          workspaceCommand(this.deps, 'manifest', 'providers'),
+        ],
+      },
+    );
   }
 
   private async attempt(
@@ -167,10 +188,13 @@ export class Login {
         detail: prepared.detail,
         ...(prepared.failure === undefined ? {} : { failure: prepared.failure }),
         ...(prepared.next_steps === undefined ? {} : { next_steps: prepared.next_steps }),
+        ...(prepared.actions ? { actions: prepared.actions } : {}),
       };
     }
     const before = await this.verifier.verify(step, { dryRun: input.dryRun });
     if (before.ok) return { result: 'verified', detail: before.detail };
+    if (input.mode === 'prepare' && (step.kind !== 'run' || step.phase !== 'prepare'))
+      return 'handoff';
     if (step.kind === 'run') return this.runStep(step, input, before.detail);
     if (input.skipManual) return { result: 'skipped', detail: '--skip-manual' };
     if (input.dryRun) return { result: 'would_ask', detail: before.detail };
@@ -185,9 +209,10 @@ export class Login {
   ): Promise<StepOutcome | 'handoff'> {
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    if (input.noInput && !this.setup.trust.yes) return 'handoff';
+    if (input.mode !== 'prepare' && input.noInput && !this.setup.trust.yes) return 'handoff';
     assertWritable(input.posture, `setup ${step.id}`);
     await this.setup.trust.gate.ensure({
+      tool: step.tool,
       workspace: this.deps.ctx.name,
       commandShell: this.deps.commandShell,
       vector,
@@ -205,7 +230,7 @@ export class Login {
           }
         : {}),
     });
-    if (!this.setup.trust.yes) {
+    if (!this.setup.trust.yes && input.mode !== 'prepare') {
       const go = await this.setup.prompter.confirm(
         `${describe(step)}\nRun \`${vector.join(' ')}\`?`,
         {
@@ -216,7 +241,8 @@ export class Login {
     }
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
     const run = await this.deps.processRun(expandHomeIn(vector, this.setup.home), {
-      interactive: !input.noInput,
+      interactive: input.mode !== 'prepare' && !input.noInput,
+      ...(input.mode === 'prepare' ? { timeoutMs: 120000 } : {}),
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} setup` },

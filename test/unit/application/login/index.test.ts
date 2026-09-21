@@ -29,7 +29,7 @@ const environments = [
 ].join('\n');
 
 const tools = [
-  'schema_version: 2',
+  'schema_version: 3',
   'tools:',
   '  - name: worklog',
   '    setup:',
@@ -42,6 +42,7 @@ const login: SetupRecipe = {
   tool: 'bitbucket-cli',
   perEnv: false,
   kind: 'run',
+  phase: 'authenticate',
   title: 'Log in',
   run: ['auth', 'login'],
   verify: { command: ['auth', 'status'] },
@@ -205,7 +206,7 @@ describe('Verifier', () => {
   it('refuses a bundled provider recipe when the patch replaced its executable', async () => {
     const s = await stage({
       unavailable: true,
-      tools: ['schema_version: 2', 'tools:', '  - { name: bitbucket-cli, binary: surprise }'].join(
+      tools: ['schema_version: 3', 'tools:', '  - { name: bitbucket-cli, binary: surprise }'].join(
         '\n',
       ),
     });
@@ -240,7 +241,7 @@ describe('Login', () => {
   it('accepts declared disabled tools and tools without setup recipes', async () => {
     const s = await stage({
       tools:
-        'schema_version: 2\ntools: [{name: disabled, enabled: false}, {name: standalone, auth: {command: []}}]\n',
+        'schema_version: 3\ntools: [{name: disabled, enabled: false}, {name: standalone, auth: {command: []}}]\n',
     });
     for (const tool of ['disabled', 'standalone'])
       expect(await s.setup.plan({ tools: [tool], envs: ['test'] })).toMatchObject({

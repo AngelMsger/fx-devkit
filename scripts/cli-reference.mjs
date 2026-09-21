@@ -125,7 +125,7 @@ export function renderCliReference(registry) {
     '# fx-devkit command reference',
     '',
     `Command syntax for the current source (package version ${registry.version}).`,
-    'An installed package may not include [unreleased changes](../../CHANGELOG.md) yet.',
+    'See the [version history](../../CHANGELOG.md) for changes between releases.',
     'Use `fx <command> --help` for the exact syntax supported by your executable.',
     '',
     '## Everyday',

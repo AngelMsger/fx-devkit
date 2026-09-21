@@ -87,6 +87,7 @@ export function workspaceToolScope(
     covered: available.filter((tool) => names.includes(tool.name)),
     dependencies,
     required: new Set([
+      ...(selection.tools ?? []),
       ...available.filter((tool) => isRequired(tool, dependencies)).map((tool) => tool.name),
       ...[...dependencies].filter((name) => !known(name)),
     ]),
@@ -125,5 +126,9 @@ function activeBindings(ctx: WorkspaceContext, selection: ToolScopeSelection): K
 }
 
 function isRequired(tool: ResolvedTool, dependencies: ReadonlySet<string>): boolean {
-  return tool.required || (dependencies.has(tool.name) && !tool.patchedFields.includes('required'));
+  return (
+    tool.required ||
+    (tool.enabled && tool.installOnInit === true) ||
+    (dependencies.has(tool.name) && !tool.patchedFields.includes('required'))
+  );
 }

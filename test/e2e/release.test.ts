@@ -100,7 +100,7 @@ function stage(): Stage {
   );
   writeFileSync(
     path.join(manifestDir, 'tools.yaml'),
-    "schema_version: 2\ntools: [{name: sentry, min_version: '0.42.2'}, {name: jenkins-cli, min_version: '1.0.0'}]\n",
+    "schema_version: 3\ntools: [{name: sentry, min_version: '0.42.2'}, {name: jenkins-cli, min_version: '1.0.0'}]\n",
   );
   writeFileSync(
     path.join(manifestDir, 'environments.yaml'),
@@ -171,6 +171,7 @@ else process.exit(2);
     env,
   );
   expect(boot.status, boot.stderr).toBe(0);
+  expect(boot.json()).toMatchObject({ preparation: { state: 'ready' }, registered: true });
   return { ws, env };
 }
 

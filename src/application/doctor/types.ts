@@ -1,7 +1,7 @@
-// Doctor's findings are the shared report shape (domain/report) with the
-// machine's six groups as their vocabulary.
+// Doctor combines built-in and extension findings with preparation and repair results.
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { Preparation } from '../../domain/preparation.js';
 import type { Finding as ReportFinding, Report } from '../../domain/report.js';
 import { finding as anyFinding, type FindingExtra } from '../../domain/report.js';
 import type { WritePosture } from '../safety/posture.js';
@@ -16,7 +16,9 @@ export interface RepairAttempt {
   readonly status: 'planned' | 'completed' | 'failed';
   readonly failure?: ErrorEnvelope['error'];
 }
-export interface DoctorReport extends Report<Group> {
+export interface DoctorReport extends Omit<Report<Group>, 'ok' | 'complete'> {
+  readonly preparation: Preparation;
+  readonly coverage: 'complete' | 'incomplete';
   readonly repairs: readonly RepairAttempt[];
 }
 

@@ -118,6 +118,14 @@
     "docs/changelog/": {
       "title": "変更履歴",
       "description": "fx ワークスペース CLI の変更点。"
+    },
+    "docs/agent-initialization/": {
+      "title": "Agent による初期設定",
+      "description": "ワークスペースを準備し、手動対応後に再開します。"
+    },
+    "docs/agent-workspace/": {
+      "title": "ワークスペースの操作",
+      "description": "fx で既存のワークスペースを照会・保守します。"
     }
   },
   "publicRelease": "公開リリースは停止中",

@@ -79,7 +79,11 @@ describe('source parity', () => {
         expect(readFileSync(path.join(materialized, name), 'utf8')).toBe(text);
       expect(readFileSync(path.join(materialized, asset))).toEqual(binary);
       guides.push(
-        readFileSync(path.join(root, 'AGENTS.md'), 'utf8').split('\n').slice(1).join('\n'),
+        readFileSync(path.join(root, 'AGENTS.md'), 'utf8')
+          .split('\n')
+          .slice(1)
+          .join('\n')
+          .replaceAll(materialized, '<managed-source>'),
       );
     }
     expect(new Set(guides).size).toBe(1);

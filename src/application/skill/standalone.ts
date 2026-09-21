@@ -11,7 +11,6 @@ import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 import { SkillCopies, withSkillLock } from './copies.js';
 import { assertSkillDestination } from './destination.js';
-import { SKILL_LOADED_ENV, SKILL_VERSION_ENV } from './notice.js';
 import { observeCopy } from './observe.js';
 import {
   standaloneTargets,
@@ -65,14 +64,9 @@ export interface SkillWriteInput extends StandaloneTargetsInput {
 }
 
 export interface SkillStatus {
-  readonly loaded: boolean;
-  readonly loaded_env: string;
-  readonly loaded_version: string | null;
-  readonly version_env: string;
-  readonly version_verified: boolean;
   readonly embedded_version: string;
+  readonly activation: 'unverified';
   readonly installs: readonly SkillInstallation[];
-  readonly next: string;
 }
 
 export class StandaloneSkill {
@@ -83,25 +77,11 @@ export class StandaloneSkill {
     return Promise.all(targets.map((target) => this.inspect(target)));
   }
 
-  async status(
-    input: StandaloneTargetsInput,
-    loaded: boolean,
-    loadedVersion?: string,
-  ): Promise<SkillStatus> {
-    const installs = await this.paths(input);
-    const verified = loadedVersion === this.deps.version;
-    const next = verified
-      ? ''
-      : `Read fx skill show, then set ${SKILL_VERSION_ENV}=${this.deps.version}; global installation is optional.`;
+  async status(input: StandaloneTargetsInput): Promise<SkillStatus> {
     return {
-      loaded: loaded || verified,
-      loaded_env: SKILL_LOADED_ENV,
-      loaded_version: loadedVersion ?? null,
-      version_env: SKILL_VERSION_ENV,
-      version_verified: verified,
       embedded_version: this.deps.version,
-      installs,
-      next,
+      activation: 'unverified',
+      installs: await this.paths(input),
     };
   }
 

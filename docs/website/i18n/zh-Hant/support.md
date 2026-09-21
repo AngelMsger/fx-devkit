@@ -2,17 +2,17 @@
 
 ## 排查問題 {#troubleshooting}
 
-先執行 `fx doctor --format json`。針對某項能力，使用 `fx can <capability> --env <environment> --format json`。依報告中的 handoff 處理，不要反覆重試缺少存取權限的命令。
+初始化中斷時，先處理結果列出的阻塞項，再使用傳回的繼續命令：
 
-- 缺少工具：使用 `fx tool show <tool>` 查看安裝需求。
-- 缺少驗證：使用 `fx login --list` 查看步驟，再進入對應登入流程。
-- 環境未被選取：檢查 `fx env list`，只在需要時將它納入工作區。
-- manifest 無效：執行 `fx manifest validate --strict`，並使用 `fx manifest explain '<field>'` 查詢問題欄位。
-- 同步部分失敗：查看儲存庫項目和資源階段的錯誤，解決後使用 `fx sync --only <stage>` 重試相關操作。
+```sh
+fx init --resume --workspace <name>
+```
 
-報告結束代碼為零不代表已就緒。請閱讀 `ok`、`complete`、各項結果和復原資訊。
+已完成的工作會保留。個人登入及操作員檔案由對應人員完成。既有工作區可用 `fx doctor --format json` 查看目前準備狀態與具體操作；單項能力使用 `fx can <capability>`。
 
-工作區解析或 manifest 載入失敗時，先執行 `fx workspace list`、`fx workspace show <name>` 與 `fx self info`，保留查看註冊與安裝事實的能力。目錄移動後使用 `workspace relocate` 修正根路徑；manifest 遺失時依記錄來源重新準備。必需工作區文件遺失或無效時，`manifest validate --strict` 會判定失敗；選用且未宣告的文件允許不存在。
+`preparation.state` 為 `ready` 或 `incomplete`，未完成結束代碼為 12。`doctor.coverage` 單獨表示診斷涵蓋範圍；release 仍使用 `ok/complete`。非零結束代碼也要解析部分 stdout。
+
+來源錯誤會標示檔案與欄位。工具 schema 3 要求 run 步驟明確區分本機準備與個人驗證。新輸入尚未接受時，修正來源後使用傳回的完整重試命令；已接受的初始化使用託管來源續跑。`fx workspace list` 與 `fx self info` 可用於發現。目錄移動後使用 `workspace relocate`；個人憑據始終留在配套工具中。
 
 ## 更新 {#updates}
 

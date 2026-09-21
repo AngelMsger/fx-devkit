@@ -25,7 +25,7 @@ caches; a failure there is not evidence that native authentication is broken.
 
 The script preserves initialization stdout/stderr and reports failed or incomplete
 stages instead of treating exit zero as readiness. Its preparation gate requires
-`operation: apply` and `preparation_complete: true`; compact stage summaries are
+`operation: apply` and `preparation.state: ready`; compact stage summaries are
 not a substitute for that verdict. Read doctor coverage before
 choosing a task. `sandbox.sh smoke` checks child-process discovery and tracing
 without requiring a manifest; `sandbox.sh env` prints the trial environment.

@@ -36,11 +36,11 @@ fx 不假定任何工具。它內建的 CLI 只是一份目錄，記錄它知道
 
 ## 初始化時安裝團隊工具 {#install-a-team-tool-during-initialization}
 
-fx 0.1.1 起，可以在 `manifest/tools.yaml` 中宣告初始化時安裝工具。
+fx 0.4.0 起，可以在 `manifest/tools.yaml` 中宣告初始化時安裝工具。
 
 ```yaml
-schema_version: 2
-min_cli: '0.1.1'
+schema_version: 3
+min_cli: '0.4.0'
 tools:
   - name: example-team-tool
     install_on_init: true
@@ -50,7 +50,7 @@ tools:
 若團隊希望新機器裝齊全部工具，可在 `defaults` 中寫一次，個別條目仍可覆寫回 `false`：
 
 ```yaml
-schema_version: 2
+schema_version: 3
 defaults:
   install_on_init: true
 tools:
@@ -61,6 +61,30 @@ tools:
 以下套件名稱和執行檔名稱均為虛構範例。Registry 和認證使用本機 npm 設定。`fx init` 只安裝標記了 `install_on_init: true`、已啟用且缺少的工具，並在儲存庫及 Skill 同步前完成安裝。執行前須確認具體的安裝與版本檢查命令。既有工具即使低於最低版本也會保留，升級使用 `fx tool update`。一般 `fx sync` 不安裝套件，初始化也不會登入服務。
 
 初始化成功後可查看 `tool_install` 中的結果。dry-run 不取得或複製來源、不執行安裝器，`tool_install` 和 `sync` 均為 null；唯讀模式禁止安裝。安裝或版本驗證失敗會回報 `INIT_TOOL_INSTALL_FAILED`。此時工作區可能已經註冊，修復 npm 存取或 PATH 後，以相同目錄和來源重試即可。
+
+## 本機準備與個人登入 {#local-preparation-and-personal-sign-in}
+
+工具文件採用 schema 3，每個 run 步驟明確宣告用途：
+
+```yaml
+schema_version: 3
+tools:
+  - name: example-team-tool
+    required: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+    install_on_init: true
+    setup:
+      - id: local
+        kind: run
+        phase: prepare
+        title: Prepare local files
+        run: [prepare]
+        verify: { file: ~/.example-tool/ready }
+```
+
+`prepare` 在準確命令獲准後由初始化非互動執行；`authenticate` 在 init 中只驗證既有登入，缺少時交給使用者。manual/file 步驟只檢查並交接。驗證已通過時略過執行，`init --resume` 繼續剩餘工作。僅宣告自訂執行檔不會自動要求驗證，需要時明確宣告 `auth`。
+
+非法項目會阻止準備，不會悄悄刪除需求。普通來源 AGENTS.md 即可使用；fx 在目標指南中補齊缺少的發現區域，保留作者正文和既有區塊位置。模糊或不完整的標記由維護者修正。
 
 ## 從最小宣告開始 {#start-with-a-small-declaration}
 
@@ -99,8 +123,7 @@ cd work
 fx manifest validate --strict
 fx manifest lint
 fx manifest providers
-fx login --list
-fx doctor
+fx init --resume --workspace work
 ```
 
 檢查 init 各同步階段並處理 handoff。manifest 有效不代表儲存庫可存取、工具已就緒或 Agent 宿主已啟用。

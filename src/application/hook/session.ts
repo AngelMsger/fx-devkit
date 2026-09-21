@@ -1,5 +1,6 @@
 // Resolves workspace hook settings and owns sync and doctor workflow policy.
 import { asDevkitError, handoffEnvelope } from '../../domain/errors.js';
+import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
@@ -45,7 +46,33 @@ export function hookStage(
     const out = await manageHooks({ ...input, action: 'sync' });
     const summary: Record<string, number> = {};
     for (const item of out.items) summary[item.action] = (summary[item.action] ?? 0) + 1;
-    return { summary, details: { items: out.items } };
+    const projection = out.items.map((item) => {
+      let state: 'ready' | 'blocked' | 'skipped' = 'blocked';
+      if (['create', 'update', 'unchanged', 'remove'].includes(item.action)) state = 'ready';
+      if (['disabled', 'unsupported'].includes(item.action)) state = 'skipped';
+      return preparationCheck(
+        `hook:${item.agent}:projection`,
+        state,
+        `${item.agent}: ${item.action}`,
+        { required: false, owner: 'user' },
+      );
+    });
+    const activation = out.items
+      .filter((item) => item.activation === 'unverified')
+      .map((item) =>
+        preparationCheck(
+          `hook:${item.agent}:activation`,
+          'unknown',
+          item.handoff?.summary ?? 'Native activation has not been verified',
+          { required: false, owner: 'user' },
+        ),
+      );
+    return {
+      summary,
+      details: { items: out.items },
+      checks: [...projection, ...activation],
+      operationChecks: projection.map((check) => ({ ...check, required: true })),
+    };
   };
 }
 
@@ -56,13 +83,18 @@ export function hookDoctor(input: HookSession): DoctorExtension {
       try {
         const out = await manageHooks({ ...input, action: 'inspect', dryRun: true });
         return out.items.map((item) => {
-          const ok = ['disabled', 'unsupported', 'unchanged'].includes(item.action);
+          const ok = ['disabled', 'unsupported'].includes(item.action);
           return finding(
             'hooks',
             item.agent,
             ok ? 'ok' : 'warn',
             `${item.agent}: ${item.action}; native activation ${item.activation}`,
-            { ...(ok ? {} : { fix: 'fx hook enable' }), handoff: item.handoff ?? undefined },
+            {
+              required: false,
+              coverage: ok ? 'not_applicable' : 'incomplete',
+              ...(ok ? {} : { fix: 'fx hook list' }),
+              handoff: item.handoff ?? undefined,
+            },
           );
         });
       } catch (err) {

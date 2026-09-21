@@ -17,8 +17,8 @@ import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 
 function setup() {
   const loaded = loadTools(
-    'schema_version: 2\ntools: [{name: base, enabled: false, install: [{via: manual}]}]',
-    `schema_version: 2
+    'schema_version: 3\ntools: [{name: base, enabled: false, install: [{via: manual}]}]',
+    `schema_version: 3
 tools:
   - name: example-log
     install_on_init: true
@@ -59,7 +59,7 @@ tools:
 function bundled() {
   const loaded = loadTools(
     readFileSync(path.resolve('defaults/tools.yaml'), 'utf8'),
-    `schema_version: 2
+    `schema_version: 3
 tools:
   - { name: jenkins-cli, install_on_init: true }
   - { name: openobserve-cli, install_on_init: true }

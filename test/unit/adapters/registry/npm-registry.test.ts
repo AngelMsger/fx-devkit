@@ -48,9 +48,11 @@ it('reads private metadata using native npm userconfig and environment-backed au
     );
     const env = {
       HOME: root,
-      NPM_CONFIG_USERCONFIG: config,
-      NPM_CONFIG_GLOBALCONFIG: global,
-      NPM_CONFIG_CACHE: path.join(root, 'cache'),
+      // npm lifecycle scripts supply lowercase keys, which win over uppercase
+      // variants. Override those keys to keep the caller's config out of this fixture.
+      npm_config_userconfig: config,
+      npm_config_globalconfig: global,
+      npm_config_cache: path.join(root, 'cache'),
       DEMO_NPM_TOKEN: 'fixture-secret',
       FX_REGISTRY_TOKEN: 'unused-legacy-token',
     };

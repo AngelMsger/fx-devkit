@@ -7,7 +7,6 @@ import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
 import { loginNotices } from '../notices.js';
 
 export default class LoginCommand extends FxCommand {
-  static override announcesSkill = false;
   static override description =
     'Prepare tool access for the selected workspace: authentication, configuration and permission checks';
   static override examples = [

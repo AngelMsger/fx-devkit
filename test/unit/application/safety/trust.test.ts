@@ -156,7 +156,7 @@ describe('TrustGate', () => {
       category: 'config',
       code: 'VECTOR_UNTRUSTED',
       message: expect.stringContaining('bitbucket-cli auth status'),
-      nextSteps: expect.arrayContaining([expect.stringContaining('terminal')]),
+      nextSteps: expect.arrayContaining([expect.stringContaining('authorized')]),
     });
   });
 

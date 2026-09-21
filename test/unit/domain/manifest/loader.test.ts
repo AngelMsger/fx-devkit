@@ -240,7 +240,7 @@ describe('loadMembers', () => {
 
 describe('loadToolsDocument', () => {
   it('returns an explicit invalid state instead of casting a malformed document', () => {
-    const result = loadToolsDocument('schema_version: 2\ntools: nope\n', {
+    const result = loadToolsDocument('schema_version: 3\ntools: nope\n', {
       ...cli,
       allowInvalid: true,
     });
@@ -250,7 +250,7 @@ describe('loadToolsDocument', () => {
 
   it('rejects an interpreter as a binary and a shell-looking argument', () => {
     const doc = [
-      'schema_version: 2',
+      'schema_version: 3',
       'defaults: { install: [{ via: npm }] }',
       'tools:',
       '  - name: bash',
@@ -266,7 +266,7 @@ describe('loadToolsDocument', () => {
 
   it('quarantines a tool without any install method', () => {
     const doc = [
-      'schema_version: 2',
+      'schema_version: 3',
       'tools:',
       '  - name: lonely',
       '  - name: fine',
@@ -298,7 +298,7 @@ describe('loadTools', () => {
   it('keeps every catalog entry, whatever the workspace names', () => {
     const result = loadTools(
       bundled(),
-      'schema_version: 2\ntools: [{ name: bitbucket-cli }]\n',
+      'schema_version: 3\ntools: [{ name: bitbucket-cli }]\n',
       cli,
     );
     if (!result.valid) throw new Error('patch rejected');
@@ -307,7 +307,7 @@ describe('loadTools', () => {
   });
 
   it('vouches for a catalog tool a workspace only names', () => {
-    const result = loadTools(bundled(), 'schema_version: 2\ntools: [{ name: jenkins-cli }]\n', cli);
+    const result = loadTools(bundled(), 'schema_version: 3\ntools: [{ name: jenkins-cli }]\n', cli);
     if (!result.valid) throw new Error('patch rejected');
     const [tool] = resolveTools(result.doc, result.provenance, result.declared).filter(
       (item) => item.name === 'jenkins-cli',
@@ -321,7 +321,7 @@ describe('loadTools', () => {
   it('lets the defaults block decide installation at init, and an entry opt out', () => {
     const result = loadTools(
       bundled(),
-      'schema_version: 2\ndefaults: { install_on_init: true }\ntools: [{ name: kubectl, install_on_init: false }]\n',
+      'schema_version: 3\ndefaults: { install_on_init: true }\ntools: [{ name: kubectl, install_on_init: false }]\n',
       cli,
     );
     if (!result.valid) throw new Error('patch rejected');

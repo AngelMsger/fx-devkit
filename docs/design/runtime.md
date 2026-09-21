@@ -22,8 +22,8 @@ hint, next_steps and retryable. Handoffs describe the user's missing action.
 
 `--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
 structured error. `--fields` projects result data; top-level error envelopes on stderr remain
-intact. Include nested recovery fields in the projection when they are needed. Successfully generated doctor/release reports exit zero; their `ok`,
-`complete`, findings and coverage describe the actual outcome. Login preserves completed and pending step rows on stdout even when a later
+intact. Include nested recovery fields in the projection when they are needed. Init/sync/doctor exit 12 when required preparation is incomplete; their structured
+result survives that exit. Release retains exit zero with `ok` and `complete`. Login preserves completed and pending step rows on stdout even when a later
 check fails or requires human input. Read stdout alongside the stderr error;
 see [setup](setup.md) for statuses and recovery fields. Self-update captures
 installer output rather than inheriting stdout. Init/sync also
@@ -37,9 +37,11 @@ these fields under `sync`. Registration or `written: true` does not prove readin
 ## Workflow report views
 
 The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
-results and INIT_PREPARED notices. Application values remain complete. --details
+results. Application values remain complete. --details
 returns those values; explicit --fields projects them before any summary filter.
-Without --fields, human tables and NDJSON row/trailer streams retain their defaults.
+Init/sync/doctor emit a single structured result in JSON/NDJSON; their default human
+view shows the task verdict, blockers and the next action. --details exposes the full
+report. Release and ordinary collection commands retain their existing views.
 With --fields, every workflow report uses its complete top-level result as the
 projection source, including sync's items and trailer fields and doctor/release's
 findings and summary. JSON and NDJSON emit one projected object; human output uses
@@ -56,23 +58,46 @@ Summaries expose output_mode and omitted
 counts, keep exception rows and exact trust/recovery data, and remove successful
 rows and large finding evidence. Error envelopes remain intact on stderr.
 
-Init/sync operation distinguishes preview/apply. preparation_complete is null in
-preview, otherwise accounts for selected repositories and requested stages.
-Protected or unavailable work and unverified activation are incomplete. Excluded
-and explicitly inapplicable resources do not reduce completion. Doctor/release
-ok and coverage complete keep their existing independent meanings.
-Preparation reads outcome fields and stage summaries, not descriptive names or
-command arguments. The legacy `not_implemented` sentinel only applies to a
-requested stage; a repository or label with that text is ordinary metadata.
+Init/sync retain preview/apply in `operation`. Init/sync/doctor expose one
+`preparation` contract: `state` (planned/ready/incomplete), scoped resources,
+completed check IDs, required blockers, optional warnings, unchecked evidence,
+concrete next_actions and a continuation action. Typed stage checks own the
+verdict; rendering never decides readiness by searching nested result strings.
+Only required checks block. Native activation remains separate from local
+projection and service readiness; optional unverified activation is not a permanent
+initialization failure. Doctor reports diagnostic coverage separately and no longer
+exposes the old top-level ok/complete flags.
+
+`preparation.next` names the current decision: review the preview, continue the
+original task on complete, act on Agent recovery, or hand off missing prerequisites.
+`next_actions` contains only Agent actions available for the current blockers;
+personal actions remain on their blockers with `actor: user`. `resume` is separate
+and is used after prerequisites change, not an unconditional next action.
+
+Actions carry their actor, exact argv, cwd and requires_approval, plus optional env coordinates
+for FX_HOME, HOME, USERPROFILE and FX_AGENTS. Preserve these coordinates when
+continuing; they contain no credentials. The CLI binds fx actions to
+the running executable; an error before the root exists uses an existing invocation
+directory for retry. Normal incomplete reports exit 12 with PREPARATION_INCOMPLETE;
+fatal errors preserve their original category and partial result. Default summaries
+retain every blocker/action and local setup outcome, including completed steps,
+and selected initialization repository/guide/Skill effects, and omit redundant
+execution plans. Workspace discovery
+uses registration_status (available/root_missing/unprepared/missing/invalid), which
+is not a readiness check. Existing category exit codes 1–11 remain unchanged.
 
 Explicit empty agent lists survive scalar conversion in every entrypoint,
 including hooks and harness cleanup; an unset value alone selects detection.
-FX_SKILL_VERSION acknowledges the package-versioned bundled Skill. A legacy
-FX_SKILL_LOADED boolean does not bypass version checks. This is advisory session
-metadata, not an execution permission or proof of model comprehension.
+Skill discovery is explicit through self info, skill show and skill status.
+Business commands do not scan installations or require a self-reported loaded
+version. Native activation remains unverified until the host provides evidence.
 Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
 SKILL_WRITE_DENIED with their original cause and local recovery. Global locks
 continue coordinating shared targets across FX_HOME directories.
+
+The global `--details` flag expands workflow reports; on fact queries the result
+is already complete. Global `--workspace` accepts a registered name or root path
+without changing fallback precedence or registering new workspaces.
 
 ## Configuration
 

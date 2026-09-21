@@ -1,7 +1,5 @@
-// The manifest the workspace was loaded with, re-read the strict way:
-// quarantined entries and unbound platforms are failures here even though
-// the load tolerated them. The derived root documents are a convenience for
-// agents, so missing or stale ones only warn.
+// Revalidate declarations tolerated during discovery and check generated guides.
+// Missing, stale or foreign required guides block preparation even at warning severity.
 
 import { DevkitError } from '../../domain/errors.js';
 import { codeHostBinding } from '../../domain/manifest/providers.js';
@@ -120,12 +118,19 @@ async function checkDocs(
     const foreign = out.files.filter((f) => f.action === 'foreign').map((f) => f.path);
     if (foreign.length > 0)
       return finding('manifest', 'docs', 'warn', `${foreign.join(', ')} not written by fx`, {
+        required: true,
         fix: `Move the file aside, then ${workspaceCommand(deps, 'sync', '--only', 'docs')}`,
       });
     return finding('manifest', 'docs', 'ok', 'the root AGENTS.md and CLAUDE.md match the manifest');
   } catch (err) {
+    if (err instanceof DevkitError && err.code === 'DOCS_REGIONS_INVALID')
+      return finding('manifest', 'docs', 'fail', err.message, {
+        required: true,
+        fix: err.nextSteps[0],
+      });
     if (!(err instanceof DevkitError) || err.code !== 'DOCS_STALE') throw err;
     return finding('manifest', 'docs', 'warn', err.message, {
+      required: true,
       fix: workspaceCommand(deps, 'sync', '--only', 'docs'),
     });
   }

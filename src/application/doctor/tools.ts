@@ -4,6 +4,7 @@
 import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
+import { toolChecks } from '../sync/checks.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
 import type { WorkspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -32,6 +33,12 @@ export async function checkTools(
       if (status !== undefined)
         findings.push({
           ...fromStatus(status, options.dependencies.has(tool.name), deps),
+          required: options.required.has(tool.name),
+          actions:
+            toolChecks(
+              [{ ...status, preparation_required: options.required.has(tool.name) }],
+              deps,
+            )[0]!.actions ?? [],
           evidence: {
             binary: status.binary,
             binary_path: status.binary_path ?? null,
@@ -44,26 +51,48 @@ export async function checkTools(
         });
     } catch (err) {
       if (!(err instanceof DevkitError)) throw err;
-      if (!isTrustRequired(err)) {
-        findings.push(
-          finding('tools', tool.name, 'warn', err.message, {
-            coverage: 'incomplete',
-            fix: workspaceCommand(deps, 'tool', 'show', tool.name),
-          }),
-        );
-        continue;
-      }
-      const handoff = commandTrustHandoff({ ...trust, tool: tool.name });
-      findings.push(
-        finding('tools', tool.name, 'warn', err.message, {
-          coverage: 'incomplete',
-          fix: handoff.command,
-          handoff,
-        }),
-      );
+      findings.push(toolCheckFailure(deps, options, tool.name, err));
     }
   }
+
   return findings;
+}
+
+function toolCheckFailure(
+  deps: WorkspaceDeps,
+  options: ToolCheckOptions,
+  name: string,
+  error: DevkitError,
+): Finding {
+  const required = options.required.has(name);
+  if (!isTrustRequired(error))
+    return finding('tools', name, 'warn', error.message, {
+      coverage: 'incomplete',
+      required,
+      fix: workspaceCommand(deps, 'tool', 'show', name),
+    });
+  const handoff = commandTrustHandoff({
+    tool: name,
+    workspace: deps.ctx.name,
+    posture: options.trust.posture,
+    commandShell: deps.commandShell,
+  });
+  return finding('tools', name, 'warn', error.message, {
+    coverage: 'incomplete',
+    required,
+    fix: handoff.command,
+    handoff,
+    actions: [
+      {
+        id: `approve:${name}`,
+        description: `Review ${name}'s exact probe arguments, then approve the check`,
+        argv: ['fx', 'doctor', '--tool', name, '--workspace', deps.ctx.name, '--yes'],
+        cwd: deps.ctx.root,
+        actor: 'agent',
+        requires_approval: true,
+      },
+    ],
+  });
 }
 
 function fromStatus(

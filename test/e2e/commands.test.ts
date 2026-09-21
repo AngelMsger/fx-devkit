@@ -82,7 +82,7 @@ describe('command resolution', () => {
     );
     expect(everyday).not.toContain('repo ');
     expect(run.stdout.slice(at('TOPICS'), at('AGENT USAGE'))).toContain('manifest');
-    expect(run.stdout).toContain('doctor and release exit 0');
+    expect(run.stdout).toContain('init/sync/doctor return preparation.state');
   });
 
   it('rejects contradictory or inert flag combinations before doing any work', () => {

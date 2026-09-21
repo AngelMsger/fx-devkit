@@ -1,6 +1,6 @@
-// Which workspace a command means, from the registry alone: the name given,
-// else the registered root that contains cwd, else the default. No file is
-// read here, so a workspace whose manifest is broken can still be named.
+// Which workspace a command means, from the registry: the name or root given,
+// else the registered root that contains cwd, else the default. No manifest
+// is read here, so broken workspaces can still be selected.
 
 import path from 'node:path';
 
@@ -50,9 +50,8 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
     manifestDir: input.manifestDirFor(name),
   });
   if (input.name !== undefined) {
-    const entry = registry[input.name];
-    if (entry === undefined) throw unknownWorkspace(input.name, names);
-    return await locate(input.name, entry, input.selection ?? 'explicit');
+    const selected = await explicitWorkspace(input.name, input.cwd, registry, input.fs);
+    return await locate(selected.name, selected.entry, input.selection ?? 'explicit');
   }
   // Nested roots are legal; the innermost one owns cwd, judged on real paths.
   const candidates = await Promise.all(names.map((name) => locate(name, registry[name]!, 'cwd')));
@@ -63,20 +62,7 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
   const candidate = matches[0];
   if (candidate) {
     const aliases = matches.filter((item) => samePath(item.root, candidate.root));
-    if (aliases.length > 1)
-      throw new DevkitError(
-        'conflict',
-        'WORKSPACE_ROOT_AMBIGUOUS',
-        `This directory has multiple workspace registrations: ${aliases.map((item) => item.name).join(', ')}`,
-        {
-          hint: 'Choose one explicitly, then unregister the duplicate identity.',
-          nextSteps: [
-            'fx workspace list',
-            'fx workspace show <name>',
-            'fx workspace unregister <duplicate> --dry-run',
-          ],
-        },
-      );
+    if (aliases.length > 1) throw ambiguousRoot(aliases.map((item) => item.name));
     return candidate;
   }
   assertDefaultWorkspace(config);
@@ -93,6 +79,44 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
     });
   }
   return await locate(fallback, entry, 'default');
+}
+
+export async function explicitWorkspace(
+  selector: string,
+  cwd: string,
+  registry: Readonly<Record<string, WorkspaceEntry>>,
+  fs: FileSystem,
+): Promise<{ name: string; entry: WorkspaceEntry }> {
+  const named = registry[selector];
+  if (Object.hasOwn(registry, selector) && named) return { name: selector, entry: named };
+  const root = await fs.realpath(path.resolve(cwd, selector));
+  const entries = await Promise.all(
+    Object.entries(registry).map(async ([name, entry]) => ({
+      name,
+      entry,
+      root: await fs.realpath(path.resolve(entry.root)),
+    })),
+  );
+  const matches = entries.filter((entry) => samePath(root, entry.root));
+  if (matches.length > 1) throw ambiguousRoot(matches.map((entry) => entry.name));
+  if (!matches[0]) throw unknownWorkspace(selector, Object.keys(registry).sort());
+  return { name: matches[0].name, entry: matches[0].entry };
+}
+
+function ambiguousRoot(names: readonly string[]): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'WORKSPACE_ROOT_AMBIGUOUS',
+    `This directory has multiple workspace registrations: ${names.join(', ')}`,
+    {
+      hint: 'Choose a registration by name, then unregister the duplicate identity.',
+      nextSteps: [
+        'fx workspace list',
+        'fx workspace show <name>',
+        'fx workspace unregister <duplicate> --dry-run',
+      ],
+    },
+  );
 }
 
 export function workspaceNotFound(cwd: string, names: readonly string[] = []): DevkitError {
@@ -116,7 +140,7 @@ function unknownWorkspace(name: string, names: readonly string[]): DevkitError {
   return new DevkitError(
     'not_found',
     'WORKSPACE_UNKNOWN',
-    `No workspace named "${name}" is registered`,
+    `No registered workspace matches "${name}"`,
     {
       hint:
         suggestion === undefined

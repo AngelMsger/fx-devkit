@@ -70,7 +70,7 @@ describe('MCP can command', () => {
     expect(synced.status, synced.stderr).toBe(0);
     expect(synced.json()).toMatchObject({ stages: { mcp: { created: 1 } } });
     const report = fx(['doctor', '--format', 'json'], env, f.root);
-    expect(report.status, report.stderr).toBe(0);
+    expect(report.status, report.stderr).toBe(12);
     expect(report.json()).toMatchObject({
       findings: expect.arrayContaining([expect.objectContaining({ group: 'mcp' })]),
     });
@@ -88,7 +88,7 @@ describe('MCP can command', () => {
       { ...env, FX_AGENTS: 'gemini' },
       f.root,
     );
-    expect(docs.status, docs.stderr).toBe(0);
+    expect(docs.status, docs.stderr).toBe(12);
     expect(readFileSync(path.join(f.root, 'GEMINI.md'), 'utf8')).toBe('User rules stay here.\n');
     expect(docs.json()).toMatchObject({
       stages: { docs: { rules_foreign: 1 } },

@@ -36,6 +36,7 @@ export interface RenderedFile {
   readonly failure?: ErrorEnvelope['error'];
   readonly replaced: readonly string[];
   readonly missing: readonly string[];
+  readonly added: readonly string[];
   readonly unknown: readonly string[];
 }
 
@@ -70,6 +71,7 @@ export function pending(
       result: action === 'created' || action === 'updated' ? 'planned' : 'skipped',
       replaced: regions?.replaced ?? [],
       missing: regions?.missing ?? [],
+      added: regions?.added ?? [],
       unknown: regions?.unknown ?? [],
     },
   };

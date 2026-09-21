@@ -64,7 +64,7 @@ describe('tools schema', () => {
   });
 
   it('rejects an installer outside npm/go/brew/manual', () => {
-    const doc = { schema_version: 2, tools: [{ name: 'x', install: [{ via: 'curl' }] }] };
+    const doc = { schema_version: 3, tools: [{ name: 'x', install: [{ via: 'curl' }] }] };
     expect(toolsSchema.safeParse(doc).success).toBe(false);
   });
 });

@@ -2,6 +2,8 @@
 // every phase it reached.
 
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
+import type { Preparation } from '../../domain/preparation.js';
+import type { SetupPlan } from '../../domain/setup/types.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -18,6 +20,7 @@ import type { ScopeMode } from '../workspace/scope.js';
 import type { WorkspaceContext } from '../workspace-context.js';
 
 export interface InitDeps {
+  readonly setupPlan?: (ctx: WorkspaceContext) => Promise<SetupPlan>;
   readonly lock: Lock;
   readonly commandShell?: ResolvedShell | undefined;
   readonly fs: FileSystem;
@@ -37,6 +40,7 @@ export interface InitDeps {
 }
 
 export interface InitInput {
+  readonly resume?: boolean;
   readonly dir: string;
   readonly source: ManifestSource;
   readonly name?: string | undefined;
@@ -49,24 +53,23 @@ export interface InitInput {
 
 export interface InitOutput {
   readonly operation: 'preview' | 'apply';
-  readonly preparation_complete: boolean | null;
+  readonly preparation: Preparation;
   readonly root: string;
   readonly name: string;
   readonly source: string;
   readonly manifest_dir: string;
-  readonly manifest: 'materialized' | 'refreshed' | 'not_written';
+  readonly manifest: 'materialized' | 'refreshed' | 'not_written' | 'kept';
   readonly adopted: boolean;
   readonly registered: boolean;
   readonly default_workspace: boolean;
-  readonly sync: SyncOutput | null;
+  readonly sync: Omit<SyncOutput, 'preparation'> | null;
   readonly tool_install: readonly ToolInstallOutput[] | null;
-  readonly next_steps: readonly string[];
   readonly written: boolean;
   readonly prepared?: object | null;
   readonly plan: {
     readonly source_inspected: boolean;
     readonly inspected_source: string | null;
-    readonly manifest_action: 'materialize' | 'refresh';
+    readonly manifest_action: 'materialize' | 'refresh' | 'keep';
     readonly registration: 'register' | 'keep';
     readonly default_workspace: 'set' | 'keep';
     readonly selection: {

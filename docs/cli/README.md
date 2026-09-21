@@ -1,14 +1,14 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.3.0).
-An installed package may not include [unreleased changes](../../CHANGELOG.md) yet.
+Command syntax for the current source (package version 0.4.0).
+See the [version history](../../CHANGELOG.md) for changes between releases.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 
 ## Everyday
 
 | Command | What it answers |
 |---|---|
-| `fx init` | Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced |
+| `fx init` | Prepare a workspace from a manifest, or continue unfinished preparation |
 | `fx sync` | Bring the workspace up to date: clone what is missing, fast-forward what is clean, never touch work in progress |
 | `fx login` | Prepare tool access for the selected workspace: authentication, configuration and permission checks |
 | `fx doctor` | Check repositories, tools, login state, agent Skills, the manifest and whether fx or the manifest is behind, in one pass |
@@ -44,47 +44,46 @@ Every command accepts these.
 |---|---|
 | `--allow-writes` | override read-only posture (read_only / FX_READ_ONLY) for this invocation (default: false) |
 | `--command-shell` | shell for generated commands (does not change execution) (one of: auto, posix, powershell, cmd; env: FX_COMMAND_SHELL) |
+| `--details` | include all report details; fact queries already return their full result (default: false) |
 | `--fields` | comma-separated dot paths to keep in the output, e.g. name,obs.svc |
 | `--format` | output format (one of: human, json, ndjson; env: FX_FORMAT) |
 | `--no-header` | omit column headings from human list output (default: false) |
 | `--no-input` | never prompt; fail with a structured error instead (default: false) |
 | `--quiet` | suppress notices on stderr; errors are still reported (default: false) |
 | `--verbose` | diagnostic detail on stderr (default: false) |
-| `--workspace` | select a workspace: containing cwd, then default_workspace when omitted; global commands still cover this FX_HOME (env: FX_WORKSPACE) |
+| `--workspace` | select a registered name or root directory; otherwise use cwd then default_workspace; global commands still cover this FX_HOME (env: FX_WORKSPACE) |
 | `--yes` | assume yes for confirmations (default: false) |
 
 ## `fx init`
 
-Create a workspace from a manifest source: the source lands under ~/.fx, the directory is registered and synced
+Prepare a workspace from a manifest, or continue unfinished preparation
 
-Tools marked install_on_init are installed if missing, after command trust approval and before synchronization. Existing installations are preserved. Declared public service settings are prepared before repository queries; each member obtains their own credentials.
-
-Registration can succeed with partial synchronization. Inspect sync.summary, sync.stages and failed item details; exit zero does not establish complete preparation.
+Provide a directory and source. fx prepares the selected repositories, local tools and Agent guides, then verifies the result. Only local prepare steps execute automatically, even with --yes; personal sign-in is a handoff. Read preparation.next for the next decision. After completing them, use init --resume --workspace <name>. Existing user files and completed work are preserved.
 
 Arguments:
 
 | Argument | Required | Description |
 |---|---|---|
-| `dir` | yes | directory to create, reuse or adopt |
+| `dir` | no | directory to prepare; omitted with --resume |
 
 Flags:
 
 | Flag | Description |
 |---|---|
-| `--adopt` | legacy flag; adoption is automatic (default: false) |
-| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
-| `--from` | git URL or checkout of the manifest repository, a directory holding manifest/, or - for workspace YAML / a source bundle (required) |
+| `--from` | git URL or checkout of the manifest repository, a directory holding manifest/, or - for workspace YAML / a source bundle |
 | `--jobs` | independent checks handled at the same time (default: 4) |
-| `--name` | name in ~/.fx/config.yaml; default: the directory name |
+| `--name` | registration name; default: an available name derived from the directory |
 | `--no-repos` | select no shared repositories; still prepares declared tools and agent resources (exclusive with: --repos) |
 | `--repos` | comma-separated shared repositories to select before the first clone; replaces existing shared selection when provided (exclusive with: --no-repos) |
+| `--resume` | continue a registered workspace without reimporting its source (exclusive with: --from, --name, --repos, --no-repos) |
 
 Examples:
 
 ```bash
 fx init ~/Workspaces/fx --from ssh://git@git.example.com/team/workspace-manifest.git
 fx init ./ws --from ./manifest --repos api --dry-run
+fx init --resume --workspace ws
 cat workspace.yaml | fx init ./ws --from -
 ```
 
@@ -100,10 +99,9 @@ Flags:
 
 | Flag | Description |
 |---|---|
-| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
-| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, services, docs, skills, hooks, mcp, tools) |
+| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, services, setup, docs, skills, hooks, mcp, tools) |
 | `--refresh-manifest / --no-refresh-manifest` | pull the manifest repository first; --no-refresh-manifest skips it (default: true) |
 
 Examples:
@@ -150,7 +148,6 @@ Flags:
 
 | Flag | Description |
 |---|---|
-| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--dry-run` | print the fix plan instead of applying it (requires: --fix) |
 | `--env` | only these environments (provider tool and login checks) (repeatable or comma-separated) (repeatable) |
 | `--fix` | apply the fixes fx can make itself |
@@ -254,7 +251,6 @@ Flags:
 
 | Flag | Description |
 |---|---|
-| `--details` | include all workflow report details in JSON; explicit --fields projects the full result (default: false) |
 | `--env` | environment whose errors count; default: release.env |
 | `--jobs` | independent checks handled at the same time (default: 4) |
 | `--only` | only these checks (repeatable or comma-separated) (repeatable; one of: deps, merge, ci, errors) |
@@ -1071,7 +1067,7 @@ Print the bundled SKILL.md verbatim (raw text in every output format)
 
 ## `fx skill status`
 
-Report companion Skill installation, version alignment and loaded handshake separately
+Report companion Skill installations and versions; host activation is unverified
 
 Flags:
 

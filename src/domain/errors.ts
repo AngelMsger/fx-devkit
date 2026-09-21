@@ -14,6 +14,7 @@ export const CATEGORIES = [
   'server',
   'parse',
   'internal',
+  'incomplete',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -30,6 +31,7 @@ const EXIT_CODE: Record<Category, number> = {
   server: 9,
   parse: 10,
   conflict: 11,
+  incomplete: 12,
 };
 
 const RETRYABLE: ReadonlySet<Category> = new Set(['rate_limit', 'network', 'server']);
@@ -40,6 +42,10 @@ export interface Guidance {
 }
 
 const GUIDANCE: Record<Category, Guidance> = {
+  incomplete: {
+    hint: 'Completed work is preserved. Resolve the reported blockers, then continue.',
+    nextSteps: ['fx init --resume --workspace <name>'],
+  },
   usage: { hint: 'The command was invoked incorrectly.', nextSteps: ['fx <command> --help'] },
   config: {
     hint: 'The configuration or workspace state is missing or invalid.',

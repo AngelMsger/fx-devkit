@@ -125,10 +125,9 @@ using `grok login --device-auth`. Review native project and hook trust before
 running fixed private prompts. Use the same model, isolated sessions and memory
 settings; do not inject fx command hints. Preserve session reports, tool traces,
 stop reasons and usage when available. Hooks must be observed natively; file
-presence alone does not prove activation. Remove `FX_SKILL_LOADED` from the
-initial agent environment so the trial discovers the matching bundled Skill.
-The recorder does this automatically for commands beginning with `grok` and
-sets `GROK_MEMORY=0` to disable cross-session memory. Choose `--no-subagents`
+presence alone does not prove activation. Keep the initial model context free of
+fx command hints and record any preloaded Skill. The recorder sets `GROK_MEMORY=0`
+for Grok commands to disable cross-session memory. Choose `--no-subagents`
 explicitly for a single-agent baseline.
 
 Verify one real terminal tool call before starting the campaign: a model-only

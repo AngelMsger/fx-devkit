@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
+import type { StageResult } from '../../../../src/application/sync/types.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
-import { hasPreparationIssue } from '../../../../src/domain/preparation.js';
+const blocked = (result: StageResult) =>
+  result.checks.some((check) => check.required && ['blocked', 'unknown'].includes(check.state));
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -42,7 +44,7 @@ async function stage(options: StageOptions = {}) {
       options.patch === undefined
         ? {}
         : {
-            [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 2\ntools: [{name: bitbucket-cli, ${options.patch}}]\n`,
+            [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 3\ntools: [{name: bitbucket-cli, ${options.patch}}]\n`,
           },
   });
   const prompter = new FakePrompter();
@@ -77,7 +79,7 @@ describe('sync tool preparation', () => {
     const s = await stage();
     const result = await s.run();
     expect(result).toMatchObject({ summary: { missing: 0, problems: 0 }, details: { items: [] } });
-    expect(hasPreparationIssue(result)).toBe(false);
+    expect(blocked(result)).toBe(false);
     expect(s.h.process.calls).toEqual([]);
   });
 
@@ -89,7 +91,7 @@ describe('sync tool preparation', () => {
     { undeclared: true },
   ])('retains missing declared preparation or provider requirements: %j', async (options) => {
     const s = await stage(options);
-    expect(hasPreparationIssue(await s.run())).toBe(true);
+    expect(blocked(await s.run())).toBe(true);
   });
 
   it('keeps optional declared tool observations advisory and visible', async () => {
@@ -99,6 +101,6 @@ describe('sync tool preparation', () => {
       summary: { missing: 0 },
       details: { items: [{ state: 'missing', preparation_required: false }] },
     });
-    expect(hasPreparationIssue(result)).toBe(false);
+    expect(blocked(result)).toBe(false);
   });
 });

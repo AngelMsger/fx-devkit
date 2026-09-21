@@ -2,14 +2,15 @@
 
 The generated repository reference is `docs/cli/README.md`; installed commands
 expose the same flags through `fx <command> --help`. The table lists common flags;
-`--dry-run` belongs to write commands and `--details` to the four workflow reports.
+`--dry-run` belongs to write commands. `--details` is a global view option;
+fact queries already return full results.
 
 | Flag                           | Meaning                                                            |
 | ------------------------------ | ------------------------------------------------------------------ |
 | `--format json\|ndjson\|human` | output format; agents use `json`                                   |
-| `--details`                    | full JSON for init, sync, doctor and release                       |
+| `--details`                    | full workflow reports; fact queries are already complete           |
 | `--fields a,b.c`               | keep only these dot paths                                          |
-| `--workspace <name>`           | a registered workspace instead of the one containing cwd           |
+| `--workspace <name-or-root>`   | a registered name or root instead of the workspace containing cwd  |
 | `--no-input`                   | never prompt; a needed answer becomes a structured error           |
 | `--yes`                        | confirm prompts, including trust-on-first-use of manifest commands |
 | `--dry-run`                    | on write commands: print the plan, change nothing                  |
@@ -18,6 +19,12 @@ expose the same flags through `fx <command> --help`. The table lists common flag
 
 Every `--help` ends with an `AGENT USAGE` block that restates the output
 and error contract.
+
+Use a registered name or root directory with `--workspace`; an unknown value
+never selects a different default. When a host truncates a large response, use
+`--fields` on a read-only query to retrieve the required facts. If you capture full
+output, keep it within the task's authorized directory: shell redirection writes a
+file even when the fx command is read-only.
 
 ## Workflow report views
 
@@ -29,21 +36,31 @@ Explicit report projection applies in every format: JSON/NDJSON emit one object;
 human output emits selected key/value pairs. Dotted paths retain flat keys and
 array alignment. Without explicit fields, human/NDJSON defaults are unchanged.
 Fact-query projections still apply per item and retain collection metadata. Error envelopes are never
-projected or compacted. Large INIT_PREPARED notices follow the same report mode.
+projected or compacted.
 
-For init/sync, `operation` is `preview` or `apply`. `preparation_complete` is null for preview,
-false when selected/requested work is protected, blocked, failed or unverified,
-and true only when preparation completed. Doctor/release `ok` and `complete`
-retain their failure/coverage meanings; preparation does not prove remote health.
+For init/sync/doctor, `preparation` contains `state` (`planned`, `ready`, `incomplete`),
+`next`, `scope`, `completed`, `blockers`, `warnings`, `unchecked`, `next_actions` and `resume`.
+`next.kind` is `review`, `complete`, `act` or `handoff`. Agent `next_actions` exclude
+personal actions (`actor: user`) and the conditional `resume`; use resume only
+after the prerequisites change.
+Initialization summaries retain selected repository, guide and Skill outcomes,
+along with setup results, so callers can verify effects without extra discovery.
+The setup stage retains completed outcomes in summary mode so callers do not
+repeat local side effects while another step needs human input.
+Only required blockers prevent readiness. Actions contain `actor`, `id`, `description`,
+`argv`, `cwd` and `requires_approval`, with optional `env` coordinates for the
+current configuration/home and Agent selection. Preserve these values and use
+the returned exact executable. Credentials are never included.
+Init and sync also identify preview/apply through `operation`. Ready exits 0;
+incomplete preparation exits 12. Fatal failures keep their category exit codes
+and partial stdout. `init --resume --workspace <name>` uses the managed source and
+retains existing selection and work.
 
-`self info.bundled_skill_version` names the bundled instructions. Read the returned
-source, then declare `FX_SKILL_VERSION` alongside `FX_SKILL_LOADED=1`. A matching
-version can acknowledge loading even without a global copy. `skill status`
-separates `loaded`, `loaded_version` and `version_verified` from installed copies.
-A legacy boolean without a version produces `SKILL_VERSION_UNVERIFIED`; a declared
-mismatch produces `SKILL_VERSION_MISMATCH`. With neither declaration, discovery
-notices can instead report a missing, outdated, foreign or unread Skill copy. Notices are non-blocking and can be silenced with
-the existing quiet/notice settings. Bootstrap commands remain available.
+`self info.bundled_skill_version` identifies the instructions shipped with the
+running executable. `skill status` reports `embedded_version`, installation
+versions and `activation: unverified`. Installation or an environment declaration
+cannot establish native host activation. Commands do not require a Skill-loaded
+handshake; load the bundled task guide when the task needs it.
 
 `SKILL_WRITE_DENIED` keeps denied filesystem paths and partial stage evidence.
 Check access before repeating writes. To continue local repository/guide work,
@@ -120,16 +137,12 @@ expanded setup identities as `step_conflict` notices; executing that plan fails
 with `SETUP_PLAN_CONFLICT`. Inspect the provider recipes rather than retrying the
 same ambiguous setup. Doctor marks its missing verification as incomplete.
 
-`fx doctor` and `fx release` return `ok`, `complete`, `summary {ok, warn, fail}`
-and `findings[]`. Findings carry `group`, `id`, `level`, `coverage`, `message`,
-`fix` and `handoff`; the full `--details` view also carries `evidence`.
-
-Both commands exit 0 when the report was produced, even with failures.
-`ok: true` means no `fail` finding. `complete: true` means no requested finding
-has `coverage: incomplete`; `not_applicable` marks exclusions and `checked`
-marks completed checks. Advisory warnings may still be checked. Inspect
-findings and evidence before claiming readiness; neither top-level flag proves
-that every capability is ready. For `can`, inspect `status` instead.
+`fx doctor` returns `preparation`, diagnostic `coverage` (`complete` or `incomplete`),
+`summary {ok, warn, fail}` and `findings[]`. The preparation verdict owns task completion;
+optional host activation can remain unverified. An incomplete verdict exits 12.
+`fx release` retains `ok`, `complete`, summary and findings and exits zero when its
+checklist was produced. Findings carry group, id, level, coverage, message, fix and
+handoff; full results also carry evidence. For `can`, inspect its capability status.
 
 Doctor groups are `repos`, `tools`, `login`, `agents`, `manifest`, `self`,
 `hooks`, `mcp` and `rules`. `manifest:docs` checks derived guides;

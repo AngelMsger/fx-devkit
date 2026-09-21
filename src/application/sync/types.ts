@@ -3,6 +3,7 @@
 // release does not implement is reported as such rather than silently skipped.
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { Preparation, PreparationCheck } from '../../domain/preparation.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
 import type { WritePosture } from '../safety/posture.js';
 
@@ -11,6 +12,9 @@ export type SyncStage = string;
 export type StageSummary = Readonly<Record<string, number | string>>;
 
 export interface StageResult {
+  readonly checks: readonly PreparationCheck[];
+  // Explicit stage selection requires its requested effects, while native activation stays advisory.
+  readonly operationChecks?: readonly PreparationCheck[];
   readonly summary: StageSummary;
   readonly details?: Readonly<Record<string, unknown>>;
 }
@@ -20,6 +24,7 @@ export interface SyncStages {
 }
 
 export interface SyncInput {
+  readonly initializing?: boolean;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
   readonly jobs: number;
@@ -47,7 +52,7 @@ export interface SyncSummary {
 
 export interface SyncOutput {
   readonly operation: 'preview' | 'apply';
-  readonly preparation_complete: boolean | null;
+  readonly preparation: Preparation;
   readonly items: readonly SyncItem[];
   readonly summary: SyncSummary;
   readonly stages: Readonly<Record<string, StageSummary | 'not_implemented'>>;

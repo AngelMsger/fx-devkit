@@ -1,7 +1,11 @@
 # 変更履歴
 
-## 未リリース
+## 0.4.0 (2026-09-21)
 
+- Skill 読み込みハンドシェイクと `skill_notice` 設定を廃止しました。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` は使用しません。loaded/version_verified の代わりにインストール版と `activation` を確認してください。
+- 承認済みのローカル準備を初期化で実行し、個人認証をまとめて引き継ぎます。`init --resume` は完了済みの作業を保持します。
+- `preparation.state` と具体的な復旧操作を統一しました。準備未完了は終了コード 12、任意のホスト有効化は別に報告します。
+- 無効なマニフェストを変更前に拒否し、共有ソースを保持して生成ガイドを補完します。ツール schema は 3、run 手順は prepare/authenticate を宣言します。
 - 自己更新とバージョン取得で npm の scope/既定 Registry と認証設定を再利用します。`FX_REGISTRY` は任意の上書きとなり、公開依存パッケージの既定経路を維持します。
 
 ## 0.3.0 (2026-09-20)

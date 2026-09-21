@@ -5,7 +5,7 @@ import { mergeTools } from '../../../../src/domain/manifest/overlay.js';
 import type { Toolchain } from '../../../../src/domain/manifest/types.js';
 
 const base: Toolchain = {
-  schema_version: 2,
+  schema_version: 3,
   min_cli: '0.1.0',
   defaults: {
     version_args: ['--version'],
@@ -30,6 +30,7 @@ const base: Toolchain = {
         {
           id: 'login',
           kind: 'run',
+          phase: 'authenticate',
           title: 'Log in',
           run: ['auth', 'login'],
           verify: { command: ['auth', 'status'] },
@@ -50,7 +51,7 @@ const cli = { cliVersion: '1.0.0' };
 
 describe('mergeTools', () => {
   it('keeps the whole catalog, whatever the patch names', () => {
-    const { toolchain, declared } = mergeTools(base, { schema_version: 2, tools: [] });
+    const { toolchain, declared } = mergeTools(base, { schema_version: 3, tools: [] });
     expect(toolchain.tools.map((t) => t.name)).toEqual([
       'bitbucket-cli',
       'jira-cli',
@@ -61,7 +62,7 @@ describe('mergeTools', () => {
 
   it('vouches for a catalog tool a patch only names, and owns the field it changes', () => {
     const { toolchain, provenance, declared } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [{ name: 'jenkins-cli', min_version: '0.9.0' }],
     });
     const tool = toolchain.tools.find((t) => t.name === 'jenkins-cli');
@@ -74,7 +75,7 @@ describe('mergeTools', () => {
 
   it('overrides scalars, keeps the rest, and records where each field came from', () => {
     const { toolchain, provenance } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [{ name: 'bitbucket-cli', min_version: '0.16.0' }],
     });
     const tool = toolchain.tools[0]!;
@@ -87,7 +88,7 @@ describe('mergeTools', () => {
   it('deletes a field the patch sets to null', () => {
     const { toolchain } = mergeTools(
       base,
-      { schema_version: 2, tools: [{ name: 'bitbucket-cli' }] },
+      { schema_version: 3, tools: [{ name: 'bitbucket-cli' }] },
       { deletions: [['tools', 0, 'docs']] },
     );
     expect(toolchain.tools[0]).not.toHaveProperty('docs');
@@ -96,7 +97,7 @@ describe('mergeTools', () => {
   it('applies deletions uniformly at the top level, in defaults, and in nested fields', () => {
     const { toolchain } = mergeTools(
       base,
-      { schema_version: 2, defaults: {}, tools: [] },
+      { schema_version: 3, defaults: {}, tools: [] },
       {
         deletions: [
           ['min_cli'],
@@ -115,7 +116,7 @@ describe('mergeTools', () => {
 
   it('keeps a disabled tool in the list, marked disabled', () => {
     const { toolchain } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [{ name: 'jira-cli', enabled: false }],
     });
     expect(toolchain.tools.find((t) => t.name === 'jira-cli')).toMatchObject({
@@ -126,7 +127,7 @@ describe('mergeTools', () => {
 
   it('merges setup steps by id and install methods by installer and spec', () => {
     const { toolchain } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [
         {
           name: 'bitbucket-cli',
@@ -158,7 +159,7 @@ describe('mergeTools', () => {
 
   it('replaces an unkeyed list as a whole', () => {
     const { toolchain } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [{ name: 'bitbucket-cli', version_args: ['version'] }],
     });
     expect(toolchain.tools[0]?.version_args).toEqual(['version']);
@@ -166,7 +167,7 @@ describe('mergeTools', () => {
 
   it('appends a tool the base does not know, with every field from the patch', () => {
     const { toolchain, provenance } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       tools: [{ name: 'worklog-cli', install: [{ via: 'npm', spec: '@example/worklog-cli' }] }],
     });
     expect(toolchain.tools.map((t) => t.name)).toEqual([
@@ -180,7 +181,7 @@ describe('mergeTools', () => {
 
   it('merges defaults recursively', () => {
     const { toolchain } = mergeTools(base, {
-      schema_version: 2,
+      schema_version: 3,
       defaults: { npm_scope: '@example' },
       tools: [],
     });
@@ -193,7 +194,7 @@ describe('mergeTools', () => {
 
 describe('loadTools', () => {
   const bundled = [
-    'schema_version: 2',
+    'schema_version: 3',
     'min_cli: 0.1.0',
     'defaults: { install: [{ via: npm }], auth: { command: [auth, status] }, skill: { command: [skill, install], agent_flag: --agent } }',
     'tools:',
@@ -211,7 +212,7 @@ describe('loadTools', () => {
 
   it('applies a patch with a null deletion and reports the merged result', () => {
     const patch = [
-      'schema_version: 2',
+      'schema_version: 3',
       'tools:',
       '  - name: bitbucket-cli',
       '    docs: null',
@@ -224,7 +225,7 @@ describe('loadTools', () => {
 
   it('carries null deletion semantics through defaults and nested fields', () => {
     const patch = [
-      'schema_version: 2',
+      'schema_version: 3',
       'min_cli: null',
       'defaults:',
       '  auth: null',
@@ -238,7 +239,7 @@ describe('loadTools', () => {
   });
 
   it('catches an entry the patch broke and drops it from the merged result', () => {
-    const patch = ['schema_version: 2', 'tools:', '  - name: jira-cli', '    binary: bash'].join(
+    const patch = ['schema_version: 3', 'tools:', '  - name: jira-cli', '    binary: bash'].join(
       '\n',
     );
     const result = loadTools(bundled, patch, cli);
@@ -248,7 +249,7 @@ describe('loadTools', () => {
 
   it('does not require a patch to be complete on its own', () => {
     const patch = [
-      'schema_version: 2',
+      'schema_version: 3',
       'tools:',
       '  - name: only-here',
       '    desc: no install method of its own',

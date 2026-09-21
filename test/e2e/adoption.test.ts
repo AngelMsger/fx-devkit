@@ -35,7 +35,7 @@ function importSource(s: ReturnType<typeof stage>, disableTools = true) {
   if (disableTools)
     writeFileSync(
       path.join(s.source, 'manifest/tools.yaml'),
-      'schema_version: 2\ntools:\n' +
+      'schema_version: 3\ntools:\n' +
         baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n'),
     );
   return imported.json() as { manifest: string; report: { review: { note: string }[] } };
@@ -62,7 +62,7 @@ describe('ordinary clone import and adoption', () => {
     );
     expect(result.status, result.stderr).toBe(0);
     expect(result.json()).toMatchObject({
-      preparation_complete: true,
+      preparation: { state: 'ready' },
       sync: {
         items: [expect.objectContaining({ name: 'api', upstream_added: true })],
         stage_details: { tools: { items: [] } },
@@ -94,7 +94,7 @@ describe('ordinary clone import and adoption', () => {
       );
       expect(result.status, result.stderr).toBe(0);
       expect(result.json()).toMatchObject({
-        preparation_complete: true,
+        preparation: { state: 'ready' },
         sync: {
           items: [expect.objectContaining({ name: 'api', action: 'clone', result: 'done' })],
         },
@@ -105,7 +105,7 @@ describe('ordinary clone import and adoption', () => {
         s.env,
       );
       expect(resync.status, resync.stderr).toBe(0);
-      expect(resync.json()).toMatchObject({ preparation_complete: true });
+      expect(resync.json()).toMatchObject({ preparation: { state: 'ready' } });
     },
   );
 
@@ -121,23 +121,25 @@ describe('ordinary clone import and adoption', () => {
       importSource(s, false);
       writeFileSync(
         path.join(s.source, 'manifest/tools.yaml'),
-        `schema_version: 2\ntools: [{name: optional-review-tool, required: ${required}, enabled: false, install_on_init: ${installOnInit}, skill: {command: []}, auth: {command: []}}]\n`,
+        `schema_version: 3\ntools: [{name: optional-review-tool, required: ${required}, enabled: false, install_on_init: ${installOnInit}, skill: {command: []}, auth: {command: []}}]\n`,
       );
       const initialized = s.run(initialArgs(s));
-      expect(initialized.status, initialized.stderr).toBe(0);
-      expect(initialized.json()).toMatchObject({ preparation_complete: !required });
-      expect(initialized.stderr).toContain(
-        required ? 'preparation incomplete' : 'preparation complete',
-      );
+      expect(initialized.status, initialized.stderr).toBe(required ? 12 : 0);
+      expect(initialized.json()).toMatchObject({
+        preparation: { state: required ? 'incomplete' : 'ready' },
+      });
+
       const sync = s.run(['sync', '--only', 'tools', '--details']);
-      expect(sync.status, sync.stderr).toBe(0);
-      expect(sync.json()).toMatchObject({ preparation_complete: !required });
-      expect(sync.stderr).toContain(required ? 'Preparation incomplete' : 'Preparation complete');
+      expect(sync.status, sync.stderr).toBe(required ? 12 : 0);
+      expect(sync.json()).toMatchObject({
+        preparation: { state: required ? 'incomplete' : 'ready' },
+      });
+
       const doctor = s.run(['doctor', '--details']);
-      expect(doctor.status, doctor.stderr).toBe(0);
+      expect(doctor.status, doctor.stderr).toBe(required ? 12 : 0);
       expect(doctor.json()).toMatchObject({
-        ok: !required,
-        complete: !required,
+        preparation: { state: required ? 'incomplete' : 'ready' },
+        coverage: required ? 'incomplete' : 'complete',
         findings: expect.arrayContaining([
           expect.objectContaining({
             id: 'optional-review-tool',
@@ -180,7 +182,7 @@ describe('ordinary clone import and adoption', () => {
       expect(locked.error().code).toBe('READONLY_BLOCKED');
       expect(git(['remote'], s.checkout)).toBe('origin');
       const applied = s.run(initialArgs(s));
-      expect(applied.status, applied.stderr).toBe(0);
+      expect(applied.status, applied.stderr).toBe(work === 'dirty' ? 12 : 0);
       expect(applied.json()).toMatchObject({
         sync: {
           items: [
@@ -192,9 +194,9 @@ describe('ordinary clone import and adoption', () => {
           ],
         },
       });
-      expect((applied.json() as { preparation_complete: boolean }).preparation_complete).toBe(
-        work !== 'dirty',
-      );
+      expect(applied.json()).toMatchObject({
+        preparation: { state: work === 'dirty' ? 'incomplete' : 'ready' },
+      });
       expect(git(['remote', 'get-url', 'origin'], s.checkout)).toBe(s.remote.bare);
       expect(git(['remote', 'get-url', 'upstream'], s.checkout)).toBe(s.remote.bare);
       expect(git(['rev-parse', 'HEAD'], s.checkout)).toBe(head);
@@ -210,9 +212,9 @@ describe('ordinary clone import and adoption', () => {
     const conflict = path.join(s.base, 'other.git');
     git(['remote', 'add', 'upstream', conflict], s.checkout);
     const result = s.run(initialArgs(s));
-    expect(result.status, result.stderr).toBe(0);
+    expect(result.status, result.stderr).toBe(12);
     expect(result.json()).toMatchObject({
-      preparation_complete: false,
+      preparation: { state: 'incomplete' },
       sync: { items: [expect.objectContaining({ action: 'skip_remote_mismatch' })] },
     });
     expect(git(['remote', 'get-url', 'upstream'], s.checkout)).toBe(conflict);

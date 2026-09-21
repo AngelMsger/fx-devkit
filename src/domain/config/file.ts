@@ -19,7 +19,6 @@ export interface ConfigFile {
   readonly command_shell?: CommandShell;
   readonly agents?: readonly string[];
   readonly read_only?: boolean;
-  readonly skill_notice?: boolean;
   readonly update_check?: boolean;
   readonly hooks?: boolean;
 }
@@ -34,7 +33,6 @@ export const configFileSchema = z.strictObject({
   command_shell: z.enum(COMMAND_SHELLS).optional(),
   agents: z.array(z.string()).optional(),
   read_only: z.boolean().optional(),
-  skill_notice: z.boolean().optional(),
   update_check: z.boolean().optional(),
   hooks: z.boolean().optional(),
 });

@@ -165,7 +165,7 @@ export function askFx(): string {
     '',
     'For recovery, use only a verified installation or a local checkout identified by package.json as `@fx/devkit` or `@angelmsger/fx` with bin `fx`. Check its runtime requirements and README; an available build can run as `node <checkout>/bin/fx.js` without global installation. If runtime/dependencies/build are missing, perform authorized local preparation from that README. Do not guess a package registry, publication state, credentials or a checkout outside this workspace. If no usable source is documented or reachable, ask for that specific source/access and retain the original task.',
     '',
-    'After recovering or changing the entry, repeat `self info --format json` and load its bundled Skill. Use the verified entry with `FX_SKILL_LOADED=1` and `FX_SKILL_VERSION` set to the returned `bundled_skill_version`. A startup failure is a runtime/PATH/source problem to diagnose; do not repeat an unchanged failure.',
+    'After recovering or changing the entry, repeat `self info --format json` and load its bundled Skill. Keep using the verified entry; no Skill-loaded environment declaration is required. A startup failure is a runtime/PATH/source problem to diagnose; do not repeat an unchanged failure.',
     '',
     'Coordinates, people, tool state and machine setup are answered by `fx`, always with `--format json` when an agent is asking. Do not guess any of them.',
     '',

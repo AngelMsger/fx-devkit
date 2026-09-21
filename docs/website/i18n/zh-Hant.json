@@ -118,6 +118,14 @@
     "docs/changelog/": {
       "title": "更新日誌",
       "description": "fx 工作區 CLI 的變化。"
+    },
+    "docs/agent-initialization/": {
+      "title": "Agent 初始化",
+      "description": "準備工作區，並在人工接手後繼續。"
+    },
+    "docs/agent-workspace/": {
+      "title": "工作區操作",
+      "description": "使用 fx 查詢和維護既有工作區。"
     }
   },
   "publicRelease": "公開發佈暫停",

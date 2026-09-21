@@ -28,6 +28,7 @@ export function serviceRecipes(input: {
         tool,
         perEnv: false,
         kind: 'run',
+        phase: 'prepare',
         title: `Prepare public ${tool} service settings`,
         instructions:
           'Only public service settings are distributed. Each member obtains and stores their own credentials using the companion CLI.',
