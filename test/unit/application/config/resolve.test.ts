@@ -61,7 +61,6 @@ describe('findKey', () => {
       'format',
       'agents',
       'read_only',
-      'skill_notice',
       'update_check',
     ]);
     for (const key of KEYS) {

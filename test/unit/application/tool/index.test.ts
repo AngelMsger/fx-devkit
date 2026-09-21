@@ -7,7 +7,7 @@ import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 
 const bundled = [
-  'schema_version: 2',
+  'schema_version: 3',
   'defaults: { version_args: [--version], install: [{ via: npm }], npm_scope: "@example" }',
   'tools:',
   '  - name: alpha',
@@ -78,7 +78,7 @@ describe('ToolCheck', () => {
 describe('ToolList', () => {
   it('summarises each entry with where its fields came from', () => {
     const rows = new ToolList().execute({
-      tools: tools('schema_version: 2\ntools: [{ name: beta, min_version: 3.0.0 }]'),
+      tools: tools('schema_version: 3\ntools: [{ name: beta, min_version: 3.0.0 }]'),
       sources: new Map([['beta', { kind: 'binding' as const, boundBy: ['ci:build'] }]]),
     });
     expect(rows.find((r) => r.name === 'beta')).toMatchObject({
@@ -107,7 +107,7 @@ describe('ToolCheck with a trust gate', () => {
     const { FakeClock } = await import('../../../fakes/fake-clock.js');
     const proc = new FakeProcess().always({ code: 0, stdout: 'alpha v1.4.0', stderr: '' });
     proc.binaries.add('alpha');
-    const patched = tools('schema_version: 2\ntools: [{ name: alpha, version_args: [--ver] }]');
+    const patched = tools('schema_version: 3\ntools: [{ name: alpha, version_args: [--ver] }]');
     const prompter = new FakePrompter();
     prompter.unavailable = true;
     const gate = new TrustGate(new FakeTrustStore(), prompter, new FakeClock());

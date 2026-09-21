@@ -59,7 +59,7 @@ it('validates and previews command, JSON, file and provider checks without exter
   writeFileSync(
     path.join(source, 'manifest/tools.yaml'),
     stringify({
-      schema_version: 2,
+      schema_version: 3,
       tools: [
         ...baseline.tools.map((tool) => ({ name: tool.name, enabled: false })),
         {
@@ -71,7 +71,7 @@ it('validates and previews command, JSON, file and provider checks without exter
       ],
     }),
   );
-  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0', FX_SKILL_NOTICE: '0' };
+  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0' };
   for (const strict of [[], ['--strict']]) {
     const validation = fx(['manifest', 'validate', ...strict, '--format', 'json'], env, root);
     expect(validation.status, validation.stderr).toBe(0);

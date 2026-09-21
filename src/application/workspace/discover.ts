@@ -26,7 +26,7 @@ export const WORKSPACE_COLUMNS = [
   'cwd_match',
   'selected',
   'selection',
-  'status',
+  'registration_status',
 ] as const;
 
 export interface WorkspaceDiscovery {

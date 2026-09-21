@@ -4,7 +4,6 @@ import { SkillCommand } from '../../skill-command.js';
 
 // It shares the companion wiring but reports on a workspace, not on fx itself.
 export default class AgentSkillsCommand extends SkillCommand {
-  static override announcesSkill = true;
   static override description =
     'List workspace team Skills and the bundled fx Skill for selected agents';
   static override flags = {

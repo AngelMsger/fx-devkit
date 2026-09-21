@@ -1,6 +1,7 @@
 // Connects harness projection and readiness to sync and doctor.
 
 import { asDevkitError, DevkitError } from '../../domain/errors.js';
+import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
@@ -59,7 +60,32 @@ export function harnessStage(command: ManageHarness): () => Promise<StageResult>
           data: { handoff: row.handoff },
         });
     }
-    return { summary, details: { items: result.items } };
+    const checks = result.items.map((row) => {
+      let state: 'ready' | 'skipped' | 'blocked' = 'blocked';
+      if (['created', 'updated', 'unchanged', 'removed'].includes(row.action)) state = 'ready';
+      if (row.action === 'unsupported') state = 'skipped';
+      return preparationCheck(`harness:${row.key}`, state, `${row.name}: ${row.action}`, {
+        resource: row.name,
+        required: row.kind === 'rules',
+        owner: 'user',
+      });
+    });
+    const activation = result.items
+      .filter((row) => row.kind === 'mcp' && row.action !== 'unsupported')
+      .map((row) =>
+        preparationCheck(
+          `activation:${row.key}`,
+          'unknown',
+          `${row.name}: native activation is unverified`,
+          { resource: row.name, required: false, owner: 'user' },
+        ),
+      );
+    return {
+      summary,
+      details: { items: result.items },
+      checks: [...checks, ...activation],
+      operationChecks: checks.map((check) => ({ ...check, required: true })),
+    };
   };
 }
 export function harnessDoctor(command: HarnessSession, kind: 'mcp' | 'rules'): DoctorExtension {

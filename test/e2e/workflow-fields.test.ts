@@ -24,7 +24,7 @@ function fixture() {
   };
   writeFileSync(
     path.join(source, 'manifest/tools.yaml'),
-    `schema_version: 2\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
+    `schema_version: 3\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
   );
   const env = { FX_HOME: freshHome(), FX_AGENTS: '' };
   const init = ['init', root, '--from', source, '--repos', 'api'];
@@ -34,11 +34,11 @@ function fixture() {
 it('projects init and sync preview/apply reports without exposing unrequested detail', () => {
   const f = fixture();
   const init = fx(
-    [...f.init, '--format', 'json', '--fields', 'name,registered,preparation_complete'],
+    [...f.init, '--format', 'json', '--fields', 'name,registered,preparation.state'],
     f.env,
   );
   expect(init.status, init.stderr).toBe(0);
-  expect(init.json()).toEqual({ name: 'work', registered: true, preparation_complete: true });
+  expect(init.json()).toEqual({ name: 'work', registered: true, 'preparation.state': 'ready' });
   for (const flags of [['--dry-run'], []]) {
     const result = fx(
       [
@@ -50,14 +50,14 @@ it('projects init and sync preview/apply reports without exposing unrequested de
         'json',
         '--details',
         '--fields',
-        'operation,preparation_complete,items,summary',
+        'operation,preparation.state,items,summary',
       ],
       f.env,
       f.root,
     );
     expect(result.status, result.stderr).toBe(0);
     const json = result.json() as { items: { name: string }[] };
-    expect(Object.keys(json)).toEqual(['operation', 'preparation_complete', 'items', 'summary']);
+    expect(Object.keys(json)).toEqual(['operation', 'preparation.state', 'items', 'summary']);
     expect(json.items.map((item) => item.name)).toEqual(['api', 'docs']);
     expect(result.stdout).not.toContain('stage_details');
     expect(result.stdout).not.toContain('AGENTS.md');
@@ -108,16 +108,13 @@ it('projects doctor and release summaries across JSON, NDJSON and human output',
   const f = fixture();
   expect(fx([...f.init, '--format', 'json'], f.env).status).toBe(0);
   for (const command of [['doctor'], ['release', 'api', '--only', 'deps']]) {
+    const fields =
+      command[0] === 'doctor'
+        ? 'preparation.state,coverage,summary,findings.group'
+        : 'ok,complete,summary,findings.group';
     for (const format of ['json', 'ndjson', 'human']) {
       const result = fx(
-        [
-          ...command,
-          '--format',
-          format,
-          '--details',
-          '--fields',
-          'ok,complete,summary,findings.group',
-        ],
+        [...command, '--format', format, '--details', '--fields', fields],
         f.env,
         f.root,
       );
@@ -126,12 +123,7 @@ it('projects doctor and release summaries across JSON, NDJSON and human output',
       expect(result.stdout).not.toContain('evidence');
       expect(result.stdout).not.toContain('stage_details');
       if (format !== 'human') {
-        expect(Object.keys(result.json() as object)).toEqual([
-          'ok',
-          'complete',
-          'summary',
-          'findings.group',
-        ]);
+        expect(Object.keys(result.json() as object)).toEqual(fields.split(','));
         expect(result.stdout.trim().split('\n')).toHaveLength(1);
       } else {
         expect(result.stdout).toContain('findings.group');

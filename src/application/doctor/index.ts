@@ -3,14 +3,16 @@
 import { asDevkitError, toEnvelope } from '../../domain/errors.js';
 import { report } from '../../domain/report.js';
 import { DeriveDocs } from '../docs/derive.js';
+import { setupActions } from '../init/setup.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
 import { validateSetupSelection } from '../login/selection.js';
+import { findingCheck, workspacePreparation } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { ToolInstalled } from '../tool/installed.js';
-import { workspaceToolScope } from '../tool/scope.js';
+import { workspaceToolScope, type WorkspaceToolScope } from '../tool/scope.js';
 import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -27,6 +29,7 @@ import {
   type DoctorInput,
   type DoctorReport,
   type DoctorExtension,
+  type Finding,
   type RepairAttempt,
 } from './types.js';
 
@@ -73,10 +76,65 @@ export class Doctor {
       checkSelf(this.doctor.updates),
       ...(this.doctor.extensions ?? []).map((extension) => extension.check()),
     ]);
+    return this.summarize(input, toolScope, groups.flat(), repairs);
+  }
+
+  private async summarize(
+    input: DoctorInput,
+    toolScope: WorkspaceToolScope,
+    findings: readonly Finding[],
+    repairs: readonly RepairAttempt[],
+  ): Promise<DoctorReport> {
+    const groupOrder = [
+      ...GROUPS,
+      ...(this.doctor.extensions ?? []).map((extension) => extension.group),
+    ];
+    const diagnostic = report(groupOrder, findings);
+    const plan = await new Login(this.deps, this.doctor.login).plan({
+      tools: toolScope.configuredNames,
+      envs: input.envs,
+    });
+    const checks = diagnostic.findings.map((item) => {
+      const step =
+        item.group === 'login' ? plan.steps.find((step) => step.id === item.id) : undefined;
+      const required = step ? toolScope.required.has(step.tool) : item.required;
+      return {
+        ...findingCheck(item, required),
+        ...(step && item.level !== 'ok' && !item.actions
+          ? { actions: setupActions(this.deps, step, this.doctor.login.home) }
+          : {}),
+      };
+    });
     return {
-      ...report(
-        [...GROUPS, ...(this.doctor.extensions ?? []).map((extension) => extension.group)],
-        groups.flat(),
+      findings: diagnostic.findings,
+      summary: diagnostic.summary,
+      coverage: diagnostic.complete ? 'complete' : 'incomplete',
+      preparation: workspacePreparation(
+        this.deps,
+        groupOrder,
+        checks,
+        input.dryRun,
+        {
+          tools: toolScope.configuredNames,
+          ...(input.envs ? { environments: input.envs } : {}),
+        },
+        {
+          id: 'recheck-preparation',
+          description:
+            'Recheck the same workspace and selected tools after the prerequisites change',
+          argv: [
+            'fx',
+            'doctor',
+            '--workspace',
+            this.deps.ctx.name,
+            ...(input.tools ? input.tools.flatMap((tool) => ['--tool', tool]) : []),
+            ...(input.envs ? input.envs.flatMap((env) => ['--env', env]) : []),
+            ...(input.fix ? ['--fix'] : []),
+          ],
+          cwd: this.deps.ctx.root,
+          actor: 'agent',
+          requires_approval: input.dryRun,
+        },
       ),
       repairs,
     };
@@ -113,6 +171,7 @@ export class Doctor {
     );
     await attempt('login', () =>
       new Login(this.deps, this.doctor.login).execute({
+        mode: 'prepare',
         tools: input.tools,
         envs: input.envs,
         skipManual: true,

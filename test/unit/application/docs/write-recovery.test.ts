@@ -8,6 +8,7 @@ import { afterEach, expect, it } from 'vitest';
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { RenderRegions } from '../../../../src/application/docs/render-regions.js';
+import { documentChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
 import { WorkspaceContext } from '../../../../src/application/workspace-context.js';
@@ -96,7 +97,10 @@ it('keeps the first write in a failed sync report and resumes without rewriting 
       jobs: 1,
       only: 'docs',
       stages: {
-        docs: async () => ({ summary: {}, details: { files: (await docs.execute(input)).files } }),
+        docs: async () => {
+          const { files } = await docs.execute(input);
+          return { summary: {}, checks: documentChecks(files), details: { files } };
+        },
       },
     });
   const failure = await sync().then(() => {
@@ -105,7 +109,7 @@ it('keeps the first write in a failed sync report and resumes without rewriting 
   expect(failure).toMatchObject({
     code: 'DOCS_WRITE_CONFLICT',
     partialResult: {
-      preparation_complete: false,
+      preparation: { state: 'incomplete' },
       stage_details: {
         docs: {
           files: [
@@ -122,7 +126,7 @@ it('keeps the first write in a failed sync report and resumes without rewriting 
   await rm(claude);
   const resumed = await sync();
   expect(resumed).toMatchObject({
-    preparation_complete: true,
+    preparation: { state: 'ready' },
     stage_details: {
       docs: {
         files: [
@@ -177,7 +181,7 @@ it('retains completed documents when the following rules source cannot be projec
   });
   await rm(blocked, { recursive: true });
   await expect(sync()).resolves.toMatchObject({
-    preparation_complete: true,
+    preparation: { state: 'ready' },
     stage_details: {
       docs: {
         files: [

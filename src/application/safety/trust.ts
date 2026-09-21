@@ -21,6 +21,7 @@ import { recoveryCommand } from '../workspace/guidance.js';
 import { assertWritable, type WritePosture } from './posture.js';
 
 export interface TrustInput {
+  readonly tool?: string;
   readonly commandShell?: ResolvedShell | undefined;
   readonly workspace: string;
   readonly vector: readonly string[];
@@ -98,9 +99,8 @@ export class TrustGate {
           {
             hint: 'A person confirms each manifest-supplied command once per workspace.',
             nextSteps: [
-              'Re-run the same command in a terminal and review the vector.',
-              recoveryCommand(input, 'tool', 'show', '<tool>'),
-              `Review the manifest patch that defines ${input.label}.`,
+              ...(input.tool ? [recoveryCommand(input, 'tool', 'show', input.tool)] : []),
+              'Review the exact arguments above; rerun the original command with --yes only if they are authorized.',
             ],
           },
         );
@@ -114,7 +114,9 @@ export class TrustGate {
         `The command for ${input.label} was not trusted: ${shown}`,
         {
           hint: 'Nothing ran. Edit the manifest patch, or re-run and confirm.',
-          nextSteps: [recoveryCommand(input, 'tool', 'show', '<tool>')],
+          nextSteps: input.tool
+            ? [recoveryCommand(input, 'tool', 'show', input.tool)]
+            : ['Review the rejected command in the manifest source.'],
         },
       );
     }

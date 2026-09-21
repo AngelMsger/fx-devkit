@@ -64,7 +64,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,
-    stagesFor: () => ({ docs: async () => ({ summary: { created: 2 } }) }),
+    stagesFor: () => ({ docs: async () => ({ checks: [], summary: { created: 2 } }) }),
     settleManifest: async (name: string) => {
       settled.push(name);
     },
@@ -92,6 +92,30 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
 const settled: string[] = [];
 
 describe('Init', () => {
+  it('rejects an invalid required tool before registering or cloning, including in preview', async () => {
+    const s = setup({
+      [path.resolve('/input/manifest/workspace.yaml')]: manifest,
+      [path.resolve('/input/manifest/tools.yaml')]:
+        'schema_version: 3\ntools: [{name: required-tool, required: true, binary: /unsafe/path, install: [{via: manual}]}]',
+    });
+    const source = new FileSource(path.resolve('/input'), s.fs);
+    for (const dryRun of [true, false]) {
+      await expect(
+        new Init(s.deps).execute({
+          dir: ROOT,
+          name: 'new',
+          source,
+          adopt: false,
+          dryRun,
+          posture: writable,
+          jobs: 1,
+        }),
+      ).rejects.toMatchObject({ code: 'MANIFEST_INVALID' });
+      expect((await s.config.read()).workspaces).toBeUndefined();
+      expect(s.git.calls).toEqual([]);
+      expect(await s.fs.exists(manifestDirFor('new'))).toBe(false);
+    }
+  });
   it('uses physical root identity both during planning and inside registration', async () => {
     const s = setup(
       {},
@@ -159,8 +183,19 @@ describe('Init', () => {
       partialResult: {
         registered: true,
         failed_phase: 'validation',
-        preparation_complete: false,
-        next_steps: expect.arrayContaining([expect.stringContaining('fx status --workspace new')]),
+        preparation: {
+          state: 'incomplete',
+          resume: {
+            argv: expect.arrayContaining([
+              'init',
+              ROOT,
+              '--name',
+              'new',
+              '--from',
+              path.resolve('/src/manifest'),
+            ]),
+          },
+        },
       },
     });
     expect((await s.config.read()).workspaces?.new?.root).toBe(ROOT);
@@ -171,7 +206,7 @@ describe('Init', () => {
     const deps = {
       ...s.deps,
       stagesFor: () => ({
-        docs: async () => ({ summary: { created: 2 } }),
+        docs: async () => ({ checks: [], summary: { created: 2 } }),
         skills: async () => {
           throw new Error('fixture failure');
         },
@@ -190,8 +225,10 @@ describe('Init', () => {
       partialResult: {
         registered: true,
         written: true,
-        preparation_complete: false,
-        next_steps: expect.arrayContaining([expect.stringContaining('fx status --workspace new')]),
+        preparation: { state: 'incomplete' },
+        next_steps: expect.arrayContaining([
+          expect.stringContaining('fx init --resume --workspace new'),
+        ]),
         failed_phase: 'sync',
         phases: { registration: 'done', tools: 'done', sync: 'failed' },
         sync: { stages: { docs: { created: 2 }, skills: { status: 'failed' } } },
@@ -200,7 +237,7 @@ describe('Init', () => {
   });
 
   it('reports registration without claiming readiness when repository synchronization fails', async () => {
-    const { deps, source, git, reporter, config } = setup();
+    const { deps, source, git, config } = setup();
     vi.spyOn(git, 'clone').mockRejectedValue(new Error('fixture clone failed'));
     const result = await new Init(deps).execute({
       dir: ROOT,
@@ -214,9 +251,6 @@ describe('Init', () => {
     expect(result.written).toBe(true);
     expect(result.sync!.summary.failed).toBeGreaterThan(0);
     expect(result.sync!.items.some((item) => item.failure?.next_steps.length)).toBe(true);
-    const notice = reporter.notices.find((notice) => notice.code === 'INIT_DONE');
-    expect(notice?.message).toContain('registered');
-    expect(notice?.message).not.toMatch(/\bis ready\b/);
   });
   it('creates, registers as default, and syncs a brand-new directory', async () => {
     settled.length = 0;
@@ -250,7 +284,7 @@ describe('Init', () => {
     });
     expect(git.calls.filter((c) => c.startsWith('clone'))).toHaveLength(3);
     expect(out.sync?.summary.done).toBe(3);
-    expect(out.next_steps).toEqual([`cd ${ROOT}`, 'fx login --list', 'fx doctor']);
+    expect(out.preparation).toMatchObject({ state: 'ready', next_actions: [], blockers: [] });
   });
 
   it('uses an empty directory, keeps an existing default, and honours --name', async () => {
@@ -366,18 +400,26 @@ describe('Init', () => {
     expect(gitRoot.reporter.codes()).toContain('ROOT_IS_GIT');
   });
 
-  it('refuses a taken name', async () => {
+  it('keeps an existing workspace and disambiguates an automatic name, while rejecting an explicit collision', async () => {
     const taken = setup({}, { workspaces: { new: { root: path.resolve('/elsewhere/new') } } });
-    await expect(
-      new Init(taken.deps).execute({
-        dir: ROOT,
-        source: taken.source,
-        adopt: false,
-        dryRun: false,
-        posture: writable,
-        jobs: 1,
-      }),
-    ).rejects.toMatchObject({ code: 'WORKSPACE_NAME_TAKEN' });
+    const input = {
+      dir: ROOT,
+      source: taken.source,
+      adopt: false,
+      dryRun: false,
+      posture: writable,
+      jobs: 1,
+    };
+    await expect(new Init(taken.deps).execute({ ...input, name: 'new' })).rejects.toMatchObject({
+      code: 'WORKSPACE_NAME_TAKEN',
+    });
+    expect(taken.source.materialized).toEqual([]);
+    const output = await new Init(taken.deps).execute(input);
+    expect(output.name).toMatch(/^new-[a-f0-9]{8}$/);
+    expect((await taken.config.read()).workspaces).toMatchObject({
+      new: { root: path.resolve('/elsewhere/new') },
+      [output.name]: { root: ROOT },
+    });
   });
 
   it('describes the plan under dry-run and writes nothing', async () => {

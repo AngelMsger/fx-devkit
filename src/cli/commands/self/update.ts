@@ -3,7 +3,6 @@ import { FxCommand } from '../../base.js';
 import { dryRunFlag, writeIntent } from '../../flags.js';
 
 export default class SelfUpdateCommand extends FxCommand {
-  static override announcesSkill = false;
   static override description =
     'Update fx using npm registry configuration; FX_REGISTRY is an optional override';
   static override examples = [

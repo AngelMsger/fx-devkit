@@ -6,10 +6,10 @@ import * as z from 'zod';
 import { loadTools, loadToolsDocument } from '../../../../src/domain/manifest/loader.js';
 import { stripUnknown } from '../../../../src/domain/manifest/reflect.js';
 
-const baseline = 'schema_version: 2\ntools: [{name: baseline, install: [{via: manual}]}]\n';
+const baseline = 'schema_version: 3\ntools: [{name: baseline, install: [{via: manual}]}]\n';
 function document(verify: unknown): string {
   return stringify({
-    schema_version: 2,
+    schema_version: 3,
     tools: [
       {
         name: 'fixture-tool',
@@ -113,7 +113,7 @@ describe('setup verification union loading', () => {
 
   it('preserves an explicit null assertion while applying ordinary overlay deletions', () => {
     const base = stringify({
-      schema_version: 2,
+      schema_version: 3,
       defaults: { auth: { command: ['auth', 'status'] } },
       tools: [
         {
@@ -124,7 +124,7 @@ describe('setup verification union loading', () => {
       ],
     });
     const patch = stringify({
-      schema_version: 2,
+      schema_version: 3,
       defaults: { auth: null },
       tools: [
         {

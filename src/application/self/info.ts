@@ -41,6 +41,7 @@ export interface SelfInfo {
   readonly bundled_tools: string;
   readonly bundled_skill: string;
   readonly bundled_skill_version: string;
+  readonly initialization_guide: string;
   readonly registry: string | null;
   readonly registry_source: RegistryLocation['source'] | null;
   readonly workspace: WorkspaceInfo | null;
@@ -60,6 +61,7 @@ export function selfInfo(input: SelfInfoInput): SelfInfo {
     bundled_tools: input.bundledTools,
     bundled_skill: input.bundledSkill,
     bundled_skill_version: input.version,
+    initialization_guide: path.join(input.bundledSkill, 'references', 'initialization.md'),
     registry: input.registry,
     registry_source: input.registrySource ?? null,
     workspace: input.workspace,

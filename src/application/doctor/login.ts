@@ -7,6 +7,7 @@ import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
 import { Verifier } from '../login/verify.js';
+import { verifyAction } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
@@ -63,6 +64,7 @@ export async function checkLogin(
         finding('login', step.id, when !== undefined || required ? 'fail' : 'warn', message, {
           fix,
           handoff: handoffFor(step, fix),
+          ...(verdict.actions ? { actions: verdict.actions } : {}),
         }),
       );
     } catch (err) {
@@ -88,7 +90,7 @@ function trustFinding(
   step: SetupStep,
   login: LoginDeps,
   error: DevkitError,
-  deps: WorkspaceGuidance,
+  deps: WorkspaceDeps,
 ): Finding {
   const handoff = commandTrustHandoff({
     tool: step.tool,
@@ -100,6 +102,7 @@ function trustFinding(
     coverage: 'incomplete',
     fix: handoff.command,
     handoff,
+    actions: [verifyAction(deps, step.tool)],
   });
 }
 

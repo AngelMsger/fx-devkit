@@ -4,6 +4,7 @@
 
 import path from 'node:path';
 
+import type { PreparationAction } from '../../domain/preparation.js';
 import { matchesJson } from '../../domain/setup/json-check.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
@@ -13,6 +14,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import type { LoginDeps } from './deps.js';
 
 export interface Verdict {
+  readonly actions?: readonly PreparationAction[];
   readonly ok: boolean;
   readonly detail: string;
 }
@@ -32,11 +34,15 @@ export class Verifier {
   async verify(step: SetupStep, options: VerifyOptions = {}): Promise<Verdict> {
     if (step.preparation) {
       const result = await new ServiceOperation(this.deps, this.setup).execute(step, true);
-      return { ok: result.status === 'unchanged', detail: result.detail };
+      return {
+        ok: result.status === 'unchanged',
+        detail: result.detail,
+        ...(result.actions ? { actions: result.actions } : {}),
+      };
     }
     const { verify } = step;
     if ('file' in verify) {
-      const target = expandHome(verify.file, this.setup.home);
+      const target = path.resolve(this.deps.ctx.root, expandHome(verify.file, this.setup.home));
       return (await this.deps.fs.exists(target))
         ? { ok: true, detail: `${target} exists` }
         : { ok: false, detail: `${target} is missing` };
@@ -50,6 +56,7 @@ export class Verifier {
       }
     }
     const trust = {
+      tool: step.tool,
       workspace: this.deps.ctx.name,
       commandShell: this.deps.commandShell,
       vector: verify.command,
@@ -76,6 +83,7 @@ export class Verifier {
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} check` },
+      sensitiveOutput: true,
     });
     if (result.code === 0 && verify.json !== undefined && !matchesJson(result.stdout, verify.json))
       return { ok: false, detail: `JSON check did not match ${verify.json.path}` };

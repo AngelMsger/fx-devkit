@@ -118,6 +118,14 @@
     "docs/changelog/": {
       "title": "Changelog",
       "description": "User-visible changes to fx."
+    },
+    "docs/agent-initialization/": {
+      "title": "Agent initialization",
+      "description": "Prepare a workspace and continue after human input."
+    },
+    "docs/agent-workspace/": {
+      "title": "Workspace tasks",
+      "description": "Query and maintain an existing workspace with fx."
     }
   },
   "publicRelease": "PUBLIC RELEASE PAUSED",

@@ -8,6 +8,7 @@ import { matchesPublicDefaults } from '../../domain/setup/public-defaults.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import type { LoginDeps } from '../login/deps.js';
 import { assertWritable } from '../safety/posture.js';
+import { toolChecks } from '../sync/checks.js';
 import { ToolCheck } from '../tool/check.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -54,7 +55,14 @@ export class ServiceOperation {
         return {
           ...base,
           status: 'blocked',
-          detail: `Companion tool is ${version?.state ?? 'unknown'}; service settings were not written`,
+          detail: `${step.tool} is ${version?.state ?? 'unknown'}; requires ${preparation.minVersion} for public service settings`,
+          ...(version
+            ? {
+                actions:
+                  toolChecks([{ ...version, preparation_required: step.required }], this.deps)[0]
+                    ?.actions ?? [],
+              }
+            : {}),
           next_steps: [
             workspaceCommand(this.deps, 'doctor', '--tool', step.tool),
             workspaceCommand(this.deps, 'tool', 'update', step.tool),

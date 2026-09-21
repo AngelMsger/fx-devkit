@@ -9,7 +9,9 @@ import { DeriveDocs } from '../docs/derive.js';
 import type { HarnessSession } from '../harness/session.js';
 import { harnessStage } from '../harness/stages.js';
 import { hookStage, type HookSession } from '../hook/session.js';
+import { prepareWorkspaceSetup } from '../init/setup.js';
 import type { LoginDeps } from '../login/deps.js';
+import { findingCheck } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
 import { prepareServices } from '../services/stage.js';
@@ -21,9 +23,11 @@ import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
+import { documentChecks, skillChecks, toolChecks } from './checks.js';
 import type { StageResult, SyncStages } from './types.js';
 
 export interface SyncStageInput {
+  readonly initialize?: boolean;
   readonly inventory?: ToolInstalled;
   // The lifecycle sessions as ports: which resource each stage reconciles, and that
   // reconciling it is a sync, is this module's decision.
@@ -41,10 +45,17 @@ export interface SyncStageInput {
 
 const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageResult>>> = {
   services: (input) => prepareServices(input.deps, input.login, input.dryRun),
+  setup: (input) =>
+    prepareWorkspaceSetup(input.deps, input.login, {
+      apply: input.initialize ?? false,
+      dryRun: input.dryRun,
+      posture: input.posture,
+    }),
   docs: docsStage,
   skills: skillsStage,
-  hooks: async (input) => (await hooksStage(input)) ?? { summary: { unsupported: 0 } },
-  mcp: async (input) => (await harnessResource(input, 'mcp')) ?? { summary: { unsupported: 0 } },
+  hooks: async (input) => (await hooksStage(input)) ?? { summary: { unsupported: 0 }, checks: [] },
+  mcp: async (input) =>
+    (await harnessResource(input, 'mcp')) ?? { summary: { unsupported: 0 }, checks: [] },
   tools: toolsStage,
 };
 
@@ -78,7 +89,11 @@ async function skillsStage(input: SyncStageInput): Promise<StageResult> {
     dryRun: input.dryRun,
     posture: input.posture,
   });
-  return { summary, details };
+  return {
+    summary,
+    details,
+    checks: skillChecks({ summary, ...details }, workspaceToolScope(input.deps.ctx, {}).required),
+  };
 }
 
 async function docsStage(input: SyncStageInput): Promise<StageResult> {
@@ -111,6 +126,7 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
   }
   return {
     summary,
+    checks: [...documentChecks(out.files), ...(rules?.checks ?? [])],
     details: {
       files: out.files,
       ...(rules?.details === undefined ? {} : { rules: rules.details }),
@@ -127,6 +143,7 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
     tools.some((tool) => tool.name === name && tool.enabled && tool.installOnInit);
   const rows = (
     await new ToolCheck(input.process).execute({
+      continueOnError: true,
       tools: tools.map((tool) => ({ ...tool, required: scope.required.has(tool.name) })),
       trust: {
         ...input.trust,
@@ -155,6 +172,10 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
       data: { installation: item },
     });
   return {
+    checks: [
+      ...toolChecks(rows, input.deps),
+      ...problems.map((problem) => findingCheck(problem, true)),
+    ],
     summary: {
       ...summary,
       unused: unused.length,

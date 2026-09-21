@@ -1,5 +1,29 @@
 # Initialization and personal selection
 
+Initialization owns the onboarding workflow: inspect and validate, register,
+create the target directory, install opted-in tools, prepare public/local settings,
+synchronize repositories and Agent resources, then verify required work. Local
+source semantic errors and discarded declarations block before registration or
+cloning. A remote source may first be acquired, but no business effect precedes
+validation. Unknown ordinary extension fields retain the documented warning policy.
+
+Preview and apply share toolchain selection and setup planning. The preview lists
+known guide ownership conflicts and exact available command vectors; it never grants
+trust. Source guidance stays unchanged: missing discovery regions are appended only
+to generated workspace guides, preserving prose and existing region positions.
+Malformed or duplicate markers require source repair. Foreign targets retain the
+existing approval, backup and concurrent-write protection.
+
+Init --resume --workspace uses the registered directory, managed manifest and
+personal selection without materialization or refresh. It verifies current state
+and skips successful work. A rejected new input returns the complete original retry
+instead of silently continuing an older source. A directory's valid basename is
+its default identity; spaces/Unicode get a deterministic safe name, and an existing
+physical-root registration is reused. The resolved name is fixed under its lease.
+
+The [runtime contract](runtime.md) owns preparation output and exit codes; the
+[setup policy](setup.md) separates local preparation from personal sign-in.
+
 Repository and environment scopes have three explicit modes: `all` is an absent
 scope key and dynamically follows shared declarations; `explicit` is a nonempty
 personal list; `none` is an empty list. Personal repositories and the manifest
@@ -59,16 +83,26 @@ validation. Source inspection supplies a read-only document reader to the same
 manifest loaders used during application.
 
 The repository preview and ordinary sync share `planRepositories` and domain
-`planSync`. Initialization preview reads checkout state but does not call provider
-commands, install tools, write caches, register a workspace or grant trust. The plan
-lists clone/update/skip actions, registration/source/personal-layer destinations,
-opted-in global tools, companion Skills and declared MCP names. Exact resource
-ownership conflicts, host selection, installation presence and service readiness
-remain explicitly unchecked until preparation. Business remote access, incoming
-commits and branch availability are also explicitly unchecked.
+`planSync`. The repository plan reads local checkout state without querying
+business remotes or incoming commits. Resource preparation can inspect local
+installations, host selection and file ownership, and run already-authorized
+read-only or native dry-run probes. It does not install tools, project resources,
+register the workspace or grant new command trust. The plan includes known
+conflicts and exact available vectors; its unchecked entries identify what still
+needs verification during application.
 
 Remote source previews do not fetch or clone. They return `source_inspected:false`,
 `selection.validated:false`, `repositories:null`, and recovery explaining how to
 inspect a local source. This does not assert source validity, selection validity or
 readiness. On application, the source, selection and normal command trust gates are
 validated before tools or business-repository cloning execute.
+
+Initialization previews mark local setup as `prepare_if_needed` and personal/manual
+prerequisites as `verify_only`. Only automatic steps expose an executable `command`;
+verification vectors remain visible for exact authorization review. Approval never
+turns personal authentication into automatic initialization.
+
+Explicit `--workspace` selection accepts a registered name or an exact registered
+root directory, resolving symlinks before comparing roots. Names take precedence;
+an unknown selector never falls back to another workspace, and a root shared by
+multiple registrations requires choosing an unambiguous name.

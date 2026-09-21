@@ -35,6 +35,7 @@ export function familyService(
         tool,
         perEnv: false,
         kind: 'run',
+        phase: 'authenticate',
         title: `Authenticate ${tool} with your own credentials`,
         instructions: `Each member obtains their own credentials. Run ${tool} ${scope.join(' ')} auth guide for acquisition instructions. No personal credential is distributed by the manifest.`,
         ...(settings.credential_url ? { open: settings.credential_url } : {}),

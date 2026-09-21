@@ -52,6 +52,13 @@ function toolRules(tool: Tool, at: string, doc: Toolchain): Problem[] {
     else ids.set(step.id, k);
     if (step.kind === 'run' && step.run === undefined)
       push(`${stepAt}.run`, 'a run step needs a command');
+    if (step.kind === 'run' && step.phase === undefined)
+      push(
+        `${stepAt}.phase`,
+        'choose prepare for local non-interactive setup or authenticate for personal sign-in',
+      );
+    if (step.kind !== 'run' && step.phase !== undefined)
+      push(`${stepAt}.phase`, 'only run steps declare a phase');
     if (step.kind === 'file' && step.expects === undefined)
       push(`${stepAt}.expects`, 'a file step needs expects.path');
     vectors.push([`${stepAt}.run`, step.run]);

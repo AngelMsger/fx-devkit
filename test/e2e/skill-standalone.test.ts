@@ -75,10 +75,8 @@ describe('standalone companion Skill lifecycle', () => {
     expect(existsSync(path.join(target, 'obsolete.md'))).toBe(false);
     installed(path.dirname(target), '99.0.0');
     expect(s.run(['status', '--dir', './custom'], { FX_SKILL_LOADED: '1' }).json()).toMatchObject({
-      loaded: true,
+      activation: 'unverified',
       installs: [{ version_state: 'newer' }],
-      version_verified: false,
-      next: expect.stringContaining('FX_SKILL_VERSION='),
     });
     expect(s.run(['install', '--dir', './custom']).json().items[0].version).toBe(version);
     const blocked = s.run(['uninstall', '--dir', './custom']);
@@ -117,7 +115,7 @@ describe('standalone companion Skill lifecycle', () => {
     const explicit = s.run(['install', '--project', '--agent', 'codex,agents', '--agent', 'codex']);
     expect(explicit.json().items).toHaveLength(1);
     expect(s.run(['status', '--project', '--agent', 'codex']).json()).toMatchObject({
-      loaded: false,
+      activation: 'unverified',
       embedded_version: version,
       installs: [{ status: 'installed', version_state: 'matching' }],
     });

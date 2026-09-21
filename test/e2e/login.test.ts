@@ -100,7 +100,7 @@ function stage(): Stage {
   const ws = path.join(base, 'ws');
   writeFileSync(
     path.join(manifestDir, 'tools.yaml'),
-    "schema_version: 2\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n",
+    "schema_version: 3\ntools:\n  - { name: kubectl, min_version: '1.30.0' }\n",
   );
   const env = {
     FX_HOME: freshHome(),
@@ -113,7 +113,8 @@ function stage(): Stage {
     ['init', '--details', ws, '--from', path.dirname(manifestDir), '--format', 'json'],
     env,
   );
-  expect(boot.status, boot.stderr).toBe(0);
+  expect(boot.status, boot.stderr).toBe(12);
+  expect(boot.json()).toMatchObject({ preparation: { state: 'incomplete' }, registered: true });
   return { ws, kube, env };
 }
 
@@ -127,7 +128,7 @@ interface Finding {
   readonly fix?: string;
 }
 interface Report {
-  readonly ok: boolean;
+  readonly preparation: { state: string };
   readonly findings: readonly Finding[];
 }
 
@@ -216,7 +217,7 @@ describe('login and doctor', () => {
       'ok',
     ]);
     expect(report.findings.filter((f) => f.level === 'fail')).toEqual([]);
-    expect(report.ok).toBe(true);
+    expect(report.preparation.state).toBe('ready');
 
     const unpick = fx(['env', 'unpick', 'selfhosted', '--format', 'json'], s.env, s.ws);
     expect(unpick.status, unpick.stderr).toBe(0);
@@ -238,7 +239,7 @@ describe('login and doctor', () => {
       level: 'fail',
       fix: 'fx login openobserve-cli --env test --workspace ws',
     });
-    expect((broken.json() as Report).ok).toBe(false);
-    expect(broken.stderr).toContain('DOCTOR_FAILURES');
+    expect((broken.json() as Report).preparation.state).toBe('incomplete');
+    expect(broken.error().code).toBe('PREPARATION_INCOMPLETE');
   });
 });

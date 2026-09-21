@@ -1,7 +1,11 @@
 # 更新日誌
 
-## 尚未發佈
+## 0.4.0 (2026-09-21)
 
+- 已移除 Skill 載入握手及 `skill_notice` 設定。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；請改讀安裝版本和 `activation`，不要再讀取 loaded/version_verified。
+- 初始化自動完成已授權的本機準備，並集中交接個人驗證；新增 `init --resume`，保留已完成工作。
+- 統一 `preparation.state` 與具體復原操作；準備未完成結束代碼為 12，選用宿主啟用單獨回報。
+- 寫入前阻止非法 manifest 項目；自動補齊目標指南並保留共享來源。工具 schema 升為 3，run 步驟宣告 prepare/authenticate。
 - 自我更新與版本查詢自動重用 npm 的 scope/預設 Registry 與驗證設定，`FX_REGISTRY` 改為選用覆寫；自我更新保留公共相依套件的預設路由。
 
 ## 0.3.0 (2026-09-20)

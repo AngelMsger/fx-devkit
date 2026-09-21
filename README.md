@@ -29,8 +29,8 @@ Use Node.js 22 or newer, Git and npm. Bun is also supported as an alternative
 runtime. macOS and Linux are supported; native Windows execution and agent host
 activation remain unverified. See [platform support](docs/support.md#platform-support).
 
-The documentation follows current source. [Unreleased changes](CHANGELOG.md#unreleased)
-may not be available in an installed package; its help and bundled Skill describe
+The documentation follows current source. See the [version history](CHANGELOG.md)
+for release changes; an installed package's help and bundled Skill describe
 that executable.
 
 You also need a team manifest. Use an existing source or
@@ -72,26 +72,37 @@ PowerShell commands and Registry routing. For updates, use
 
 ## Quick start
 
-Replace `<manifest-repository>` with the source your team supplies. New workspaces
-select all shared repositories by default; add `--repos <name,...>` to both init
-commands to limit the first download:
+You need two things: the manifest source supplied by your team and a directory
+for the workspace. You can ask your coding agent: “Use fx to prepare this manifest
+in this directory.” If you are running the commands yourself:
 
 ```sh
-fx init ./work --name work --from <manifest-repository> --dry-run
-fx init ./work --name work --from <manifest-repository>
-cd work
-fx login --list
-fx login
-fx doctor
+fx init ./work --from <manifest-repository> --dry-run
+fx init ./work --from <manifest-repository>
 ```
 
-`init` registers the workspace, installs missing tools opted into initialization,
-and synchronizes the selected repositories and resources. Partial success is
-possible: registration and exit zero alone do not prove preparation is complete.
-Read `preparation_complete` and recovery steps before continuing.
+fx checks the source, prepares authorized local tools and configuration, clones
+the selected repositories, and prepares the Agent guides and Skills. The name
+is derived from the directory and avoids existing registrations. Existing files
+and completed work are preserved.
+Review the displayed commands before approving new manifest actions.
 
-The workspace root is a plain directory. Its manifest source is stored separately
-under `~/.fx/workspaces/<name>/source`; business repositories remain independent.
+When fx reports **Ready to work**, you can start. If it needs personal sign-in,
+access or approval, it reports the remaining items together. Complete those
+items and use the printed continuation command:
+
+```sh
+fx init --resume --workspace work
+```
+
+A continuation verifies current state and skips completed preparation. It does
+not reimport a directory source or rebuild checkouts. You do not need to choose
+internal stages or run a separate diagnostic sequence to finish initialization.
+
+New workspaces select all shared repositories. To limit the first download,
+[choose repositories](docs/user-guide.md#choose-repositories-before-downloading) and add `--repos`
+to the initial preview and apply. Existing directories are adopted automatically.
+For everyday updates use `fx sync`; `fx status` shows repository state.
 
 ## Everyday commands
 
@@ -120,9 +131,8 @@ The [CLI reference](docs/cli/README.md) and `fx <command> --help` own exact synt
 ## For coding agents
 
 Run `fx self info --format json`, then read `SKILL.md` in its `bundled_skill`
-directory, or run `fx skill show`. After reading, set `FX_SKILL_LOADED=1` and
-`FX_SKILL_VERSION` to the returned `bundled_skill_version`. Global Skill installation
-is optional. Start sessions at the registered workspace root to use team guidance.
+directory, or run `fx skill show`. No Skill-loaded environment declaration is
+required. Global Skill installation is optional. Start sessions at the registered workspace root to use team guidance.
 
 Document updates recheck their planning snapshots and return `DOCS_WRITE_CONFLICT`
 when they detect an intervening change. Partial docs results distinguish completed and
@@ -139,10 +149,9 @@ key/value pairs in human output. Keep stdout
 separate from diagnostic stderr. Do not repeat a write just to obtain a different
 view of its output.
 
-For `init/sync`, inspect `operation` and `preparation_complete`; preview completion
-is `null`. For `doctor/release`, inspect both `ok` and coverage `complete`, plus
-warnings and recovery steps. See the [bundled Skill](skills/fx-workspace/SKILL.md)
-and [response contracts](skills/fx-workspace/references/commands.md).
+For `init`, `sync` and `doctor`, read `preparation.state` and the scoped blockers.
+Incomplete preparation exits 12; continuation is `fx init --resume --workspace <name>`.
+Release checks retain their separate `ok` and `complete` fields.
 
 ## Configuration
 

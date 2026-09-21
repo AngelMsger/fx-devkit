@@ -2,12 +2,10 @@ import { Flags } from '@oclif/core';
 
 import { Sync } from '../../application/sync/index.js';
 import { syncStageIds } from '../../application/sync/stages.js';
-import { SYNC_COLUMNS } from '../../application/sync/types.js';
 import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
-import { detailsFlag, dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
-import { syncNotices } from '../notices.js';
+import { dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
 
 export default class SyncCommand extends FxCommand {
   static override description =
@@ -17,7 +15,6 @@ export default class SyncCommand extends FxCommand {
     '<%= config.bin %> sync --dry-run --format json',
   ];
   static override flags = {
-    details: detailsFlag,
     'dry-run': dryRunFlag,
     only: listFlag('run selected stages', syncStageIds()),
     jobs: jobsFlag,
@@ -41,21 +38,6 @@ export default class SyncCommand extends FxCommand {
       only,
       stages: this.stages(deps, run.dryRun),
     });
-    const projected = this.renderOptions;
-    const visible =
-      this.format === 'human' && !projected.verbose && projected.fields === undefined
-        ? out.items.filter((item) => item.action !== 'skip_unpicked')
-        : out.items;
-    this.renderer.list(visible, {
-      columns: SYNC_COLUMNS,
-      trailer: {
-        operation: out.operation,
-        preparation_complete: out.preparation_complete,
-        summary: out.summary,
-        stages: out.stages,
-        ...(out.stage_details === undefined ? {} : { stage_details: out.stage_details }),
-      },
-    });
-    for (const notice of syncNotices(out, run.dryRun)) this.renderer.notice(notice);
+    this.renderPreparation(out);
   }
 }

@@ -44,6 +44,20 @@ export const pages = [
   ],
   [
     'Reference',
+    'Agent initialization',
+    'docs/agent-initialization/',
+    'skills/fx-workspace/references/initialization.md',
+    'Prepare a workspace and continue after human input.',
+  ],
+  [
+    'Reference',
+    'Workspace tasks',
+    'docs/agent-workspace/',
+    'skills/fx-workspace/references/workspace-tasks.md',
+    'Query and maintain an existing workspace with fx.',
+  ],
+  [
+    'Reference',
     'Response contracts',
     'docs/agent-commands/',
     'skills/fx-workspace/references/commands.md',

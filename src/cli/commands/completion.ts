@@ -7,7 +7,6 @@ import { globalFlags, requiredArgument } from '../flags.js';
 import { compatibilityTarget } from './aliases.js';
 
 export default class CompletionCommand extends FxCommand {
-  static override announcesSkill = false;
   static override description = 'Print a shell completion script for bash, zsh, fish or PowerShell';
   static override examples = [
     '<%= config.bin %> completion zsh > ~/.zfunc/_fx',

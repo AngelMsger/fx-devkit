@@ -42,9 +42,18 @@ mkdir -p "$EVAL/root" "$EVAL/.eval" "$EVAL/user-home" "$FX_HOME/workspaces/$NAME
 } > "$FX_HOME/workspaces/$NAME/local.yaml"
 
 (cd "$DEVKIT" && npm run -s build)
-env HOME="$EVAL/user-home" fx init "$EVAL/root" --from "$MANIFEST" --name "$NAME" --format json --no-input > "$EVAL/.eval/init.json" 2> "$EVAL/.eval/init.stderr"
+init_status=0
+env HOME="$EVAL/user-home" fx init "$EVAL/root" --from "$MANIFEST" --name "$NAME" --format json --no-input > "$EVAL/.eval/init.json" 2> "$EVAL/.eval/init.stderr" || init_status=$?
+if [ "$init_status" -ne 0 ]; then
+  echo "Initialization needs attention; inspect $EVAL/.eval/init.json and init.stderr, then follow the returned continuation action." >&2
+  exit "$init_status"
+fi
 smoke_runtime
-fx doctor --workspace "$NAME" --format json > "$EVAL/.eval/doctor.json"
+fx doctor --workspace "$NAME" --format json > "$EVAL/.eval/doctor.json" || doctor_status=$?
+if [ "${doctor_status:-0}" -ne 0 ]; then
+  echo "Doctor found unfinished required preparation; inspect $EVAL/.eval/doctor.json." >&2
+  exit "$doctor_status"
+fi
 node -e '
 const d = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
 const off = d.findings.filter((f) => f.level !== "ok");

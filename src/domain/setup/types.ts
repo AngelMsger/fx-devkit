@@ -27,6 +27,7 @@ export type ServicePreparation =
     };
 
 export interface SetupRecipe {
+  readonly phase?: 'prepare' | 'authenticate';
   readonly id: string;
   readonly tool: string;
   readonly perEnv: boolean;
@@ -45,6 +46,7 @@ export interface SetupRecipe {
 // One concrete step: variables substituted, the tool's binary in front of
 // every vector, and an id that local.setup and doctor can refer to.
 export interface SetupStep {
+  readonly phase?: 'prepare' | 'authenticate';
   readonly id: string;
   readonly tool: string;
   readonly env?: string;

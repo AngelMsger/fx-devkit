@@ -31,6 +31,8 @@ export async function checkRepos(deps: WorkspaceDeps): Promise<Finding[]> {
     return busy.length === 0
       ? finding('repos', row.name, 'ok', 'clean, on the tracked branch')
       : finding('repos', row.name, 'warn', busy.join('; '), {
+          required:
+            row.branch === row.tracked_branch && (row.dirty || (row.ahead > 0 && row.behind > 0)),
           fix: workspaceCommand(deps, 'repo', 'show', row.name),
         });
   });

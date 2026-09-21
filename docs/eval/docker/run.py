@@ -39,7 +39,7 @@ def environment(round_id):
                NPM_CONFIG_PREFIX=str(home / ".local"),
                NPM_CONFIG_CACHE=str(home / ".npm"),
                NPM_CONFIG_USERCONFIG="/input/npmrc", FX_UPDATE_CHECK="0",
-               FX_SKILL_LOADED="1", SSH_AUTH_SOCK="/run/host-services/ssh-auth.sock",
+               SSH_AUTH_SOCK="/run/host-services/ssh-auth.sock",
                GIT_SSH_COMMAND="ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/input/known_hosts -o ConnectTimeout=15")
     env["PATH"] = str(home / ".local/bin") + ":" + os.environ["PATH"]
     return root, env
@@ -135,7 +135,6 @@ def record(args):
     if not command:
         raise RuntimeError("a command is required after --")
     if command[0] == "grok":
-        env.pop("FX_SKILL_LOADED", None)
         env["GROK_MEMORY"] = "0"
     result = capture(command, dest, terminal=args.terminal, timeout=args.timeout,
                      env=env, cwd=root / "workspace")

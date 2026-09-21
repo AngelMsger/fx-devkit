@@ -65,13 +65,12 @@ class RecorderTests(unittest.TestCase):
         self.assertEqual(json.loads((self.output / "receipt.json").read_text())["stop_reason"], "SIGTERM")
 
     def test_partial_initialization_cannot_pass(self):
-        complete = {"written": True, "sync": {"summary": {"failed": 0, "unreadable": 0},
-                                               "stages": {"docs": {"written": 2}}}, "tool_install": []}
+        complete = {"operation": "apply", "registered": True,
+                    "preparation": {"state": "ready", "warnings": [{"message": "Optional activation unverified"}]}}
         self.assertEqual(init_findings(complete), [])
-        complete["sync"]["summary"]["unreadable"] = 1
-        complete["sync"]["stages"]["skills"] = {"failed": 1}
-        complete["tool_install"] = [{"name": "example-tool", "ran": True, "code": 0, "version_after": None}]
-        self.assertEqual(len(init_findings(complete)), 3)
+        complete["preparation"] = {"state": "incomplete", "blockers": [{"message": "Access is missing"}]}
+        complete["sync"] = {"summary": {"done": 3, "failed": 0}}
+        self.assertEqual(init_findings(complete), ["Access is missing"])
         self.assertTrue(init_findings({"written": True}))
 
     def test_consent_wait_does_not_hide_a_later_silent_operation(self):

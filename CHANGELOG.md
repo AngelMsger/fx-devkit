@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-09-21)
 
+- Remove the self-reported Skill-loaded handshake and its notice setting; keep explicit installation/version discovery and unverified host activation.
+- Prepare authorized local setup through init, hand off personal authentication together, and resume without repeating completed work.
+- Replace preparation booleans with a scoped verdict and executable recovery actions; incomplete preparation exits 12, optional activation stays separate.
+- Reject invalid declarations before workspace effects and complete generated guides without changing shared sources. Tools schema 3 requires run phases prepare/authenticate.
 - Reuse npm scope/default registries and native authentication for self-update and version checks; make FX_REGISTRY optional and preserve public dependency routing.
 
 ## 0.3.0 (2026-09-20)

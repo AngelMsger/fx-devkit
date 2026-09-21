@@ -1,79 +1,88 @@
 // Plan repository updates and aggregate repository and resource-stage outcomes.
 
 import { asDevkitError, toEnvelope, withPartialResult } from '../../domain/errors.js';
-import { hasPreparationIssue } from '../../domain/preparation.js';
+import {
+  preparationCheck,
+  type PreparationAction,
+  type PreparationCheck,
+} from '../../domain/preparation.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
+import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
+import { workspacePreparation } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { prepareUpstream } from '../workspace/adopt.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { checkoutDir } from '../workspace/inspect.js';
 import { planRepositories } from '../workspace/plan.js';
 
-import type { StageSummary, SyncInput, SyncItem, SyncOutput, SyncStage } from './types.js';
+import type { StageSummary, SyncInput, SyncItem, SyncOutput } from './types.js';
 
 export class Sync {
   constructor(private readonly deps: WorkspaceDeps) {}
 
   async execute(input: SyncInput): Promise<SyncOutput> {
-    const only = input.only;
-    const empty: SyncOutput = {
+    requireUsableManifest(this.deps.ctx.manifest);
+    const wanted = selectedStages(input);
+    const stages: Record<string, StageSummary | 'not_implemented'> = {};
+    const details: Record<string, Readonly<Record<string, unknown>>> = {};
+    const checks: PreparationCheck[] = [];
+    let items: readonly SyncItem[] = [];
+    const output = (): SyncOutput => ({
       operation: input.dryRun ? 'preview' : 'apply',
-      preparation_complete: input.dryRun ? null : true,
-      items: [],
-      summary: { done: 0, skipped: 0, failed: 0, unreadable: 0 },
-      stages: {},
-    };
-    const services = input.stages?.['services'];
-    const prepare =
-      services &&
-      (only === undefined ||
-        only === 'services' ||
-        (Array.isArray(only) && only.includes('services')))
-        ? await services()
-        : undefined;
-    let repos = empty;
-    let repositoriesInspected = false;
-    const prepared = prepare
-      ? {
-          stages: { services: prepare.summary },
-          stage_details: { services: prepare.details ?? {} },
+      preparation: workspacePreparation(
+        this.deps,
+        wanted,
+        checks,
+        input.dryRun,
+        {},
+        syncRecovery(this.deps, input, wanted),
+      ),
+      items,
+      summary: repositorySummary(items),
+      stages,
+      stage_details: details,
+    });
+    const ordered = wanted;
+    for (const [index, stage] of ordered.entries()) {
+      try {
+        if (stage === 'repos') {
+          items = await this.repos(input);
+          checks.push(...repositoryChecks(items));
+          continue;
         }
-      : { stages: {}, stage_details: {} };
-    try {
-      repos =
-        only === undefined || (typeof only === 'string' ? only === 'repos' : only.includes('repos'))
-          ? await this.repos(input)
-          : empty;
-      repositoriesInspected = true;
-      const later = await this.laterStages(input);
-      const output = {
-        ...repos,
-        stages: { ...prepared.stages, ...later.stages },
-        ...(prepare || later.stage_details
-          ? { stage_details: { ...prepared.stage_details, ...later.stage_details } }
-          : {}),
-      };
-      return {
-        ...output,
-        operation: empty.operation,
-        preparation_complete: input.dryRun ? null : !hasPreparationIssue(output),
-      };
-    } catch (error) {
-      if (!prepare && !repositoriesInspected) throw error;
-      const partial = asDevkitError(error).partialResult as Partial<SyncOutput> | undefined;
-      throw withPartialResult(error, {
-        ...repos,
-        ...partial,
-        operation: empty.operation,
-        preparation_complete: input.dryRun ? null : false,
-        stages: { ...prepared.stages, ...partial?.stages },
-        stage_details: { ...prepared.stage_details, ...partial?.stage_details },
-      });
+        const run = input.stages?.[stage];
+        if (!run) {
+          stages[stage] = 'not_implemented';
+          checks.push(preparationCheck(stage, 'unknown', `The ${stage} stage is unavailable`));
+          continue;
+        }
+        const result = await run();
+        stages[stage] = result.summary;
+        if (result.details) details[stage] = result.details;
+        checks.push(...result.checks);
+        if (input.only !== undefined) checks.push(...(result.operationChecks ?? []));
+      } catch (error) {
+        if (stage === 'repos' && index === 0 && items.length === 0) throw error;
+        const failure = asDevkitError(error);
+        stages[stage] = { status: 'failed' };
+        details[stage] = { ...failure.partialResult, failure: toEnvelope(failure).error };
+        checks.push(
+          preparationCheck(stage, 'blocked', failure.message, {
+            code: failure.code,
+            failure: toEnvelope(failure).error,
+            required: input.only !== undefined || !['hooks', 'mcp'].includes(stage),
+          }),
+        );
+        if (input.only === undefined && ['hooks', 'mcp'].includes(stage)) continue;
+        markPending(ordered.slice(index + 1), stage, stages, checks);
+        throw withPartialResult(error, output());
+      }
     }
+    return output();
   }
 
-  private async repos(input: SyncInput): Promise<SyncOutput> {
+  private async repos(input: SyncInput): Promise<readonly SyncItem[]> {
     const total = this.deps.ctx.workspace.repos.length;
     let phase = 'preflight';
     let completed = 0;
@@ -101,7 +110,7 @@ export class Sync {
           completed += 1;
         },
       });
-      if (input.dryRun) return finish(plan.map((item) => ({ ...item, result: 'planned' })));
+      if (input.dryRun) return plan.map((item) => ({ ...item, result: 'planned' as const }));
       if (plan.some(needsRepositoryWrite)) assertWritable(input.posture, 'sync');
       phase = 'apply';
       completed = 0;
@@ -120,57 +129,15 @@ export class Sync {
       clearInterval(heartbeat);
       progress();
     }
-    const output = finish(items);
-    if (output.summary.failed > 0) {
+    const summary = repositorySummary(items);
+    if (summary.failed > 0) {
       this.deps.reporter.notice({
         code: 'SYNC_PARTIAL',
-        message: `${output.summary.failed} repositor${output.summary.failed === 1 ? 'y' : 'ies'} could not be synced; see the failed rows`,
+        message: `${summary.failed} repositor${summary.failed === 1 ? 'y' : 'ies'} could not be synced; see the failed rows`,
         nextSteps: ['fx status', 'fx sync'],
       });
     }
-    return output;
-  }
-
-  private async laterStages(
-    input: SyncInput,
-  ): Promise<Pick<SyncOutput, 'stages' | 'stage_details'>> {
-    const wanted = (stage: Exclude<SyncStage, 'repos'>): boolean =>
-      input.only === undefined ||
-      (typeof input.only === 'string' ? input.only === stage : input.only.includes(stage));
-    const stages: Record<string, StageSummary | 'not_implemented'> = {};
-    const details: Record<string, Readonly<Record<string, unknown>>> = {};
-    const selected = typeof input.only === 'string' ? [input.only] : (input.only ?? []);
-    for (const stage of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
-      if (stage === 'repos' || stage === 'services') continue;
-      if (!wanted(stage)) continue;
-      const run = input.stages?.[stage];
-      if (run === undefined) {
-        stages[stage] = 'not_implemented';
-      } else {
-        try {
-          const result = await run();
-          stages[stage] = result.summary;
-          if (result.details !== undefined) details[stage] = result.details;
-        } catch (error) {
-          stages[stage] = { status: 'failed' };
-          details[stage] = {
-            ...asDevkitError(error).partialResult,
-            failure: toEnvelope(asDevkitError(error)).error,
-          };
-          for (const pending of new Set([...Object.keys(input.stages ?? {}), ...selected])) {
-            if (
-              pending !== 'repos' &&
-              pending !== 'services' &&
-              wanted(pending) &&
-              stages[pending] === undefined
-            )
-              stages[pending] = { status: 'not_started' };
-          }
-          throw withPartialResult(error, { stages, stage_details: details });
-        }
-      }
-    }
-    return { stages, ...(Object.keys(details).length === 0 ? {} : { stage_details: details }) };
+    return items;
   }
 
   private async apply(item: PlanItem): Promise<SyncItem> {
@@ -213,23 +180,38 @@ export class Sync {
   }
 }
 
-function finish(items: readonly SyncItem[]): SyncOutput {
+function repositorySummary(items: readonly SyncItem[]): SyncOutput['summary'] {
   const count = (result: SyncItem['result']): number =>
-    items.filter((i) => i.result === result).length;
+    items.filter((item) => item.result === result).length;
   return {
-    operation: items.some((item) => item.result === 'planned') ? 'preview' : 'apply',
-    preparation_complete: items.some((item) => item.result === 'planned')
-      ? null
-      : !hasPreparationIssue(items),
-    items,
-    summary: {
-      done: count('done'),
-      skipped: count('skipped'),
-      failed: count('failed'),
-      unreadable: items.filter((i) => i.action === 'unreadable').length,
-    },
-    stages: {},
+    done: count('done'),
+    skipped: count('skipped'),
+    failed: count('failed'),
+    unreadable: items.filter((item) => item.action === 'unreadable').length,
   };
+}
+
+function repositoryChecks(items: readonly SyncItem[]): PreparationCheck[] {
+  return items
+    .filter((item) => item.action !== 'skip_unpicked')
+    .map((item) => {
+      const ready =
+        item.result !== 'failed' &&
+        item.outcome !== 'diverged' &&
+        ['clone', 'fast_forward', 'skip_manifest'].includes(item.action);
+      let state: PreparationCheck['state'] = ready ? 'ready' : 'blocked';
+      if (item.result === 'planned') state = 'unknown';
+      return preparationCheck(
+        `repo:${item.name}`,
+        state,
+        item.error ?? item.reason ?? item.result,
+        {
+          resource: item.name,
+          owner: item.action === 'unreadable' ? 'external' : 'user',
+          ...(item.failure ? { failure: item.failure, code: item.failure.code } : {}),
+        },
+      );
+    });
 }
 
 function needsRepositoryWrite(item: PlanItem): boolean {
@@ -239,4 +221,52 @@ function needsRepositoryWrite(item: PlanItem): boolean {
     item.origin !== undefined ||
     item.upstream_to_add !== undefined
   );
+}
+
+function selectedStages(input: SyncInput): string[] {
+  let requested = input.only ?? ['repos', ...Object.keys(input.stages ?? {})];
+  if (typeof requested === 'string') requested = [requested];
+  const wanted = new Set(requested);
+  return [
+    ...new Set(['services', 'setup', 'repos', ...Object.keys(input.stages ?? {}), ...requested]),
+  ].filter((stage) => wanted.has(stage));
+}
+
+function syncRecovery(
+  deps: WorkspaceDeps,
+  input: SyncInput,
+  stages: readonly string[],
+): PreparationAction | undefined {
+  if (input.initializing) return undefined;
+  return {
+    id: 'resume-sync',
+    description: 'Retry the selected synchronization after resolving blockers',
+    argv: [
+      'fx',
+      'sync',
+      '--workspace',
+      deps.ctx.name,
+      '--no-refresh-manifest',
+      ...(input.only === undefined ? [] : ['--only', stages.join(',')]),
+    ],
+    cwd: deps.ctx.root,
+    actor: 'agent',
+    requires_approval: input.dryRun,
+  };
+}
+
+function markPending(
+  pending: readonly string[],
+  failedStage: string,
+  stages: Record<string, StageSummary | 'not_implemented'>,
+  checks: PreparationCheck[],
+): void {
+  for (const stage of pending) {
+    stages[stage] = { status: 'not_started' };
+    checks.push(
+      preparationCheck(stage, 'blocked', `Not started after ${failedStage} failed`, {
+        required: !['hooks', 'mcp'].includes(stage),
+      }),
+    );
+  }
 }

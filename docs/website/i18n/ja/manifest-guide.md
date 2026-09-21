@@ -36,11 +36,11 @@ tools.yaml で宣言するのは、どの結び付けもそのツールをもた
 
 ## 初期化時にチームツールをインストールする {#install-a-team-tool-during-initialization}
 
-fx 0.1.1 以降では、`manifest/tools.yaml` で初期化時のインストールを指定できます。
+fx 0.4.0 以降では、`manifest/tools.yaml` で初期化時のインストールを指定できます。
 
 ```yaml
-schema_version: 2
-min_cli: '0.1.1'
+schema_version: 3
+min_cli: '0.4.0'
 tools:
   - name: example-team-tool
     install_on_init: true
@@ -50,7 +50,7 @@ tools:
 新しいマシンにすべて入れたいチームは `defaults` に一度だけ書けます。個々のエントリで `false` に戻せます。
 
 ```yaml
-schema_version: 2
+schema_version: 3
 defaults:
   install_on_init: true
 tools:
@@ -61,6 +61,30 @@ tools:
 上記のパッケージ名と実行名は架空です。Registry と認証は利用者の npm 設定を使います。`fx init` は `install_on_init: true` の有効なツールが見つからない場合だけ、リポジトリと Skill の同期前にインストールします。実行前にインストールとバージョン確認の正確なコマンドを承認します。既存のツールは最低バージョン未満でも保持され、更新は `fx tool update` で行います。通常の `fx sync` はパッケージをインストールせず、初期化もサービスにログインしません。
 
 成功時の `tool_install` に実行結果が入ります。dry-run はソースを取得・保存せず、インストーラーを実行しないため、`tool_install` と `sync` は null です。読み取り専用ではインストールできません。インストールまたはバージョン確認に失敗すると `INIT_TOOL_INSTALL_FAILED` になります。登録済みの場合もあるため、npm のアクセスや PATH を修復し、同じディレクトリとソースで再実行してください。
+
+## ローカル準備と個人のログイン {#local-preparation-and-personal-sign-in}
+
+ツール文書は schema 3 を使い、run 手順ごとに目的を宣言します。
+
+```yaml
+schema_version: 3
+tools:
+  - name: example-team-tool
+    required: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+    install_on_init: true
+    setup:
+      - id: local
+        kind: run
+        phase: prepare
+        title: Prepare local files
+        run: [prepare]
+        verify: { file: ~/.example-tool/ready }
+```
+
+`prepare` は正確なコマンドの承認後、初期化中に非対話で実行されます。`authenticate` は init では既存の認証状態だけを確認し、不足時は利用者へ引き継ぎます。manual/file は検証と引き継ぎのみです。検証済みの操作は省略し、`init --resume` は残りを続けます。独自の実行ファイルを宣言しただけでは認証は要求されません。必要なら `auth` を明示します。
+
+無効な項目は準備を停止し、要件から黙って除外しません。通常のソース AGENTS.md で十分です。fx は不足する案内領域を生成先へ追加し、作者の本文と既存領域の位置を保持します。曖昧なマーカーはソースの管理者が修正します。
 
 ## 最小の宣言 {#start-with-a-small-declaration}
 
@@ -99,8 +123,7 @@ cd work
 fx manifest validate --strict
 fx manifest lint
 fx manifest providers
-fx login --list
-fx doctor
+fx init --resume --workspace work
 ```
 
 init の各同期段階と handoff を確認してください。有効なマニフェストだけではリポジトリへのアクセス、ツールの準備、ホストの有効化は証明できません。

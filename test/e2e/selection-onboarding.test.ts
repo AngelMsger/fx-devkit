@@ -37,7 +37,7 @@ function fixture() {
   };
   writeFileSync(
     path.join(source, 'manifest/tools.yaml'),
-    `schema_version: 2\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
+    `schema_version: 3\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
   );
   const env = { FX_HOME: home, FX_AGENTS: '' };
   const init = ['init', root, '--from', source, '--details', '--format', 'json'];
@@ -56,7 +56,7 @@ describe('selection and first initialization', () => {
       manifest: 'not_written',
       registered: false,
       written: false,
-      preparation_complete: null,
+      preparation: { state: 'planned' },
       plan: {
         source_inspected: true,
         selection: { mode: 'explicit', repos: ['api'], validated: true },

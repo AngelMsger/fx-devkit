@@ -89,12 +89,17 @@ not provider-specific application branches.
   assembled from installer/package data, never supplied as shell code.
 - Manual/file setup steps belong to the user and are followed by verification.
   Authorized local preparation may be assisted, but acknowledgement alone never
-  establishes readiness. `doctor --fix` is limited to run steps and managed
+  establishes readiness. `doctor --fix` is limited to local prepare steps and managed
   projections; report repair attempts separately from subsequent verification.
-- `doctor` and `release` exit zero even with failing findings. `ok` means no
-  failure findings; `complete` means no requested check lacks coverage. Neither
-  alone proves readiness. A platform that cannot be checked yields a warning
-  and handoff, not an invented success.
+- Init/sync/doctor share `preparation.state` and explicit scope. Ready returns zero;
+  incomplete required work returns 12 with all blockers and executable next actions.
+  Optional native activation stays separate. Doctor's coverage is diagnostic coverage;
+  workspace registration availability is not preparation readiness. Release retains
+  its independent `ok`/`complete` checklist and exit-zero report contract.
+- Tools schema 3 run steps declare `phase: prepare` or `phase: authenticate`.
+  Init and doctor --fix execute only authorized local prepare steps, verify before
+  and after, and leave personal authentication/manual files to the person.
+  Init --resume uses the managed source and current selection, never reimports it.
 
 The [runtime contract](docs/design/runtime.md) owns output, deadlines and trust
 semantics; [setup](docs/design/setup.md) owns readiness selection and verification.
@@ -126,7 +131,8 @@ own branches and histories.
   doctor never uninstall packages or adopt unrecorded PATH tools. Keep installation
   origin separate from definition provenance; updating external tools never transfers
   ownership. Legacy evidence remains unknown rather than inferred.
-- Only marked guides, owned Skill links/copies and receipted host resources are
+- Source prose is preserved; missing regions are appended to generated target guides.
+  Only marked guides, owned Skill links/copies and receipted host resources are
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery
   journals rather than guessing through unrecognized state.

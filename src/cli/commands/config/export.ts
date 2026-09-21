@@ -5,7 +5,6 @@ import { FxCommand } from '../../base.js';
 import { writeIntent } from '../../flags.js';
 
 export default class ConfigExportCommand extends FxCommand {
-  static override announcesSkill = false;
   static override description =
     "Write the personal state worth carrying to another machine: config.yaml and each workspace's local.yaml; never trust records, cache or credentials";
   static override examples = [

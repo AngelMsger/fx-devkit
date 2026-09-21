@@ -2,7 +2,7 @@
 
 fx をインストールし、チームのマニフェストを接続してリポジトリやツール、エージェントを利用します。
 
-[未リリースの変更](../CHANGELOG.md#未リリース)は現在のソースを説明しており、インストール済みパッケージにはまだ含まれない場合があります。実行中の `fx <command> --help` と bundled Skill を確認してください。同じバージョン表記だけでは変更の公開を確認できません。
+リリースごとの変更は[変更履歴](../CHANGELOG.md)を参照してください。インストール済みの実行ファイルが対応する機能は、`fx <command> --help` と同梱の Skill で確認できます。
 
 目的に合わせて読み始めてください：
 
@@ -67,39 +67,24 @@ PowerShell の実行ポリシーが `.ps1` shim をブロックする場合は�
 
 ## クイックスタート {#quick-start}
 
-プレースホルダーをチームから提供された実際の値に置き換えてください。
-
-新規ワークスペースは既定ですべての共有リポジトリを選択します。最初のダウンロードを絞る場合は、[名前を選び](#choose-repositories-before-downloading)、両方の init コマンドに `--repos <name,...>` を追加してください。
+必要なのは、チームから渡されたマニフェストの場所と、ワークスペースを作るディレクトリです。Agent に「fx を使い、このマニフェストからこのディレクトリにワークスペースを準備して」と依頼できます。自分で操作する場合は、まず計画を確認して実行します。
 
 ```sh
-fx init ./work --name work --from <manifest-repository> --dry-run
-fx init ./work --name work --from <manifest-repository>
-cd work
-fx login --list
-fx login
-fx doctor
+fx init ./work --from <manifest-repository> --dry-run
+fx init ./work --from <manifest-repository>
 ```
 
-`init` はまず、マニフェストで `install_on_init` を指定した有効かつ未インストールのツールを、コマンドの承認後にインストールします。その後、リポジトリと選択した Agent リソースを同期します。既存のツールは保持されます。
+fx はソースを検証し、承認済みのローカルツールと設定を準備して、選択したリポジトリと Agent 用のガイド・Skill を配置します。名前は既存の登録と重複しないよう自動で決まり、既存のファイルと完了済みの作業は保持されます。新しいコマンドを承認する前に、表示された引数を確認してください。
 
-`init` はリポジトリと選択済みエージェントのリソースも同期します。登録に成功しても、すべての同期段階が成功したとは限りません。失敗した項目を調べ、権限や設定の問題を解消してから該当段階を再実行してください。
-
-既存ディレクトリは自動的に取り込まれます。`--adopt` は互換性のために残っています。不慣れなワークスペースでは、先に `--dry-run` で計画を確認します。
-
-`origin` だけが存在し、その URL が宣言された upstream と完全一致する場合、sync は `upstream` を追加します。`origin`、現在のブランチ、ローカルファイルは保持します。プレビューの `upstream_to_add` と結果の `upstream_added` は予定と実際の効果を区別し、競合する remote は変更しません。
+**Ready to work** と表示されたら作業を始められます。個人のログイン、権限、承認が必要な場合は、残る対応がまとめて表示されます。対応後は、返された再開コマンドを使います。
 
 ```sh
-fx sync --dry-run
-fx sync
-fx status
-fx repo list
-fx where <repo> --env <environment>
-fx can <capability> --env <environment>
+fx init --resume --workspace work
 ```
 
-`where` は座標とコマンドを表示するだけで、実行しません。`can` と `doctor` は現在の準備状態を確認します。設定、認証、アクセスが不足する場合は handoff に従ってください。レポートの生成成功だけでは準備完了を意味しません。`ok`、`complete`、個々の結果を確認します。
+再開時は現在の状態を検証し、完了済みの準備を省略します。ディレクトリのソースを再取り込みしたり、既存の checkout を作り直したりしません。内部ステージや診断コマンドの組み合わせを覚える必要はありません。
 
-`repo pick/unpick` と `env pick/unpick` でこのマシンの対象を絞れます。`fx config set agents claude-code,codex` でエージェントを選択し、未設定なら自動検出します。`fx sync --only docs,skills` はそのリソースだけを更新します。
+新しいワークスペースでは共有リポジトリをすべて選択します。初回のダウンロードを絞る場合は[リポジトリを選び](#choose-repositories-before-downloading)、初回のプレビューと実行に `--repos` を加えます。既存ディレクトリも自動で採用されます。日常の更新は `fx sync`、リポジトリの状態確認は `fx status` を使います。
 
 ## ワークスペースの確認と管理 {#find-and-manage-workspaces}
 
@@ -225,7 +210,7 @@ fx skill status
 
 明示的な install は認識済みコピーを呼び出した CLI の版に揃え、同版の修復や新しい版の置換も行います。init/sync は同版を再利用し、新しい版を下げません。外部所有の内容の置換には確認とバックアップが必要です。削除しても Agent 選択は変わらず、後の sync で再インストールされる場合があります。
 
-インストール、版の一致、読み込み宣言は別の事実です。bundled Skill を読んでから `FX_SKILL_LOADED=1` と `FX_SKILL_VERSION=<bundled_skill_version>` を設定します。宣言だけでは実際の読了を証明できません。導入用コマンドは通知を出さず、他の非 TTY コマンドは版が一致するまで案内を出します。`FX_SKILL_NOTICE=0` で抑制できます。
+`skill status` はインストール版と `activation: unverified` を返します。ファイルの存在だけではホストによる読み込みを証明できません。必要なときに同梱ガイドを読み、通常のコマンドでは Skill の読み込み宣言は不要です。
 
 チーム Skill は manifest の `skills/` にあり、init/sync が選択ホストへリンクし、ルート AGENTS.md に一覧を生成します。ワークスペースルートから起動してください。子リポジトリでの検出は保証されません。`fx sync --only docs,skills` で更新します。共有リンク経由で fx 同梱 Skill をインストールせず、ユーザー用コピーか独立ディレクトリを使います。
 
@@ -252,39 +237,39 @@ fx skill status
 
 正確な構文は `--help` と[生成された CLI リファレンス](cli/README.md)が基準です。
 
-## コーディングエージェント向け {#for-coding-agents}
+## コーディング Agent 向け {#for-coding-agents}
 
-`fx self info --format json` で現在の bundled Skill を特定して読み、`FX_SKILL_LOADED=1` と一致する `FX_SKILL_VERSION` を宣言します。`fx skill show` でも読めます。[同梱 Skill](../skills/fx-workspace/SKILL.md)がタスクの入口を示します。
+`fx self info --format json` から始めます。初期化では返された `initialization_guide` を読み、同じ実行ファイルを使い続けます。Skill 読み込み済みの環境変数は不要です。[完全な Skill](../skills/fx-workspace/SKILL.md) はその他のタスクを説明します。
 
-`--format json` を使い、stdout の結果と stderr の通知・進捗・エラーを分けて解析します。集合は `{items, has_more, next?}` です。`--no-input` は入力待ちを禁止し、`--quiet` は通知と進捗を抑えます。
+`--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
 
-`init`、`sync`、`doctor`、`release` は要約を既定とし、件数、例外、復旧手順を保持します。`omitted` は省略数です。`--details` は完全な結果、明示的な `--fields` は完全な結果からの抽出で、`--verbose` は別途診断を制御します。明示的な `--fields` は全形式で完全なレポートから抽出します。JSON/NDJSON は1つのオブジェクト、human は選択したキーと値を出力します。ドットパスは平坦なキーを維持します。例えば `fx sync --fields operation,preparation_complete,items,summary` はステージ詳細を含みません。フィールド未指定の human/NDJSON は従来どおりです。事実照会は項目ごとに抽出し、コレクションのメタデータを保持します。
+| 結果               | 完了の判定                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `init/sync/doctor` | `preparation.state` は `planned`、`ready`、`incomplete`。対象は `preparation.scope` の範囲です。 |
+| `release`          | `ok`、`complete` と確認項目を読みます。公開やデプロイは行いません。                              |
+| `can`              | 対象能力の `status` と引き継ぎを読みます。                                                       |
 
-init/sync の最後の通知にも、選択範囲の準備が完了したかを表示します。`preparation_complete` が false なら、クローンが成功しても準備未完了と報告し、残る障害を明示してください。文書の失敗時は sync の `stage_details.docs.files`、init の `sync.stage_details.docs.files` を確認します。`action` は計画、`result` は完了、失敗、未開始を区別します。競合を解消して再試行すると、変更のない文書は省略されます。外部文書の置換には承認が必要で、元のオブジェクトは一意の同階層バックアップに保存されます。
+準備完了の終了コードは 0、未完了は 12 です。プレビューは計画だけです。設定や実行のエラーは元の分類コードを保持し、部分的な stdout を返す場合もあります。`doctor.coverage` は診断の確認範囲を別に示します。任意のホスト機能の有効化が未検証でも必須作業は阻害しません。ファイルの存在だけでは有効化を証明できません。
 
-| 結果             | 確認するフィールド                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| `init/sync`      | `operation` と `preparation_complete`。プレビューは `null`。実行では今回選択・要求した準備だけを判定します。 |
-| `doctor/release` | `ok` は失敗項目なし、`complete` は要求した確認に未確認の範囲なしを意味します。警告も確認します。             |
-| `can`            | `status` と `handoff`。準備完了は個別のリモート照会の成功を保証しません。                                    |
+Init は承認済みのローカル準備を実行し、完了した手順も結果に保持します。認証が未完了でも、準備を繰り返さないでください。
 
-終了コード 0 のレポートにも失敗項目があり得ます。init/sync の非ゼロ終了にも部分的な stdout が残る場合があります。未コミットの変更、分岐、ブロック、失敗、未検証の有効化があれば準備は未完了です。未選択の資源は影響しません。`release` は確認用で、パッケージ公開やサービスのデプロイをしません。
+`--workspace` は登録名または登録済みのルートディレクトリを受け付けます。`--details` はどのコマンドでも使え、情報照会はもともと完全な結果を返します。出力を保存して解析する場合は、タスクで許可されたディレクトリを使ってください。読み取り専用設定はシェルのリダイレクトを制御しません。
 
-書き込み前に出力形式を選びます。承認済みの同期では、一度だけ完全な結果を保存します：
+まず `preparation.next` を読み、プレビューの確認、準備完了後の元タスクの続行、Agent の操作、または前提条件の引き継ぎを選びます。`next_actions` は Agent の操作のみです。個人の操作はブロッカー内の `actor: user` に残り、条件が変わってから `resume` を実行します。
 
-```sh
-fx sync --format json --details > sync-result.json
-```
+`preparation.blockers` をまとめて確認します。`next_actions` には正確な argv、cwd、任意の env 座標、承認条件があり、再開時にこれらを保持します。`resume` は登録済みワークスペースを再開します。既存の承認は維持され、新しい引数列は確認が必要です。登録や clone だけで成功と判断したり、詳細を得るため書き込みを繰り返したり、個人の認証情報をマニフェストへコピーしたりしないでください。
 
-その後は同じファイルを解析します。JSON を切り詰めたり、詳細取得のために書き込みを繰り返したりしません。部分結果と stderr のエラーを併せて読みます。[応答の契約](../skills/fx-workspace/references/commands.md)を参照してください。
+ファイル競合の結果は `stage_details.docs.files`（init では `sync` 配下）に残ります。外部ファイルの置換は承認を必要とし、同じ階層にバックアップを保持します。[応答契約](../skills/fx-workspace/references/commands.md)も参照してください。
 
-## 0.2.0 への移行 {#migrating-to-020}
+## 0.4.0 への移行 {#migrating-to-040}
 
-- ワークフローの JSON は要約が既定です。正常項目や証拠が必要なスクリプトは `--details` を追加してください。明示的な `--fields` は完全な結果から抽出します。
-- 空の Agent 選択は「選択なし」です。自動検出への復帰は [Agent 選択](#agent-selection)を参照してください。
-- 現在の bundled Skill を読んでから `FX_SKILL_VERSION` を宣言します。従来の真偽値だけでは版を確認できません。
+- ツール文書は `schema_version: 3` を使います。`kind: run` に `phase: prepare`（非対話のローカル準備）または `phase: authenticate`（個人のログイン）を宣言します。旧形式はワークスペースへの変更前に移行エラーを返し、スクリプトの目的を推測しません。
+- Skill 読み込みハンドシェイクと `skill_notice` 設定を廃止しました。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` は使用しません。loaded/version_verified の代わりにインストール版と `activation` を確認してください。
+- `preparation.state` が `preparation_complete` に代わります。doctor の最上位 `ok/complete` は準備結果と診断 `coverage` に置き換わり、release は従来の契約を保持します。準備未完了は終了コード 12 です。
+- ワークスペースの一覧は、登録を読み取れることを `registration_status: available` で示します。準備完了の判定ではありません。
+- `init --resume --workspace <name>` は管理済みソースと既存の選択を使います。通常のソースガイドに fx マーカーは不要です。不足領域を生成先へ補い、共有ソースは保持します。
 
-結果の解釈は[エージェント向け説明](#for-coding-agents)を参照してください。
+形式は[マニフェストガイド](manifest-guide.md)を参照してください。
 
 ## 設定 {#configuration}
 
@@ -322,25 +307,13 @@ Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホ�
 
 ## 初期化と復旧結果の読み方 {#reading-initialization-and-recovery-results}
 
-init は登録後に別の段階で失敗することがあります。非ゼロ終了でも部分 stdout を読み、原因を解決してから同じ名前・ソース・ディレクトリで再試行します。同じ実体ディレクトリへのシンボリックリンクは使えますが、別のディレクトリは競合です。
+結果に含まれる再開操作に従います。新しいソースが未受理なら完全な再試行コマンドを使い、受理済みなら管理済みソースと既存の選択で再開します。登録やファイルの書き込みは実行済みの効果であり、完了は `preparation.state` と障害項目で判断します。
 
-| 証拠                                | 意味                                                                                            |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `registered` / `written`            | 登録が存在するか／今回ローカルに書き込んだか。完了は別途 `preparation_complete` で確認します。  |
-| `failed_phase`、`phases`、`failure` | 停止した段階と復旧手順。                                                                        |
-| `sync.stages`、`sync.stage_details` | init の同期結果。sync コマンドでは `sync` 接頭辞を外します。                                    |
-| `tool_install`                      | インストール試行。`code: null` は成功ではなく、インストール後の版確認が失敗する場合もあります。 |
-| `observed`                          | Skill 失敗後のディスク状態。失敗した書き込みが既に変更を加えた可能性があります。                |
+ローカルのプレビューはディレクトリ、stdin、Git のコミット済み内容を調べます。新しいリモートソースは取得まで `source_inspected: false` です。既知のガイド競合と予定コマンドを先に表示し、プレビューだけでは信頼を付与しません。通常のソースガイドから生成先へ不足領域を補い、共有本文は保持します。曖昧なマーカーは管理者が修正します。
 
-`SKILL_WRITE_DENIED` では拒否されたパスを調べます。FX_HOME の変更では共有ロックは移動しません。`fx sync --only repos,docs --no-refresh-manifest` でリポジトリとガイドの作業を続けられますが、Skill の修復ではありません。条件が変わらない失敗を繰り返したり、コマンドの信頼を迂回したりしません。
+部分失敗でも、完了済みのリポジトリ、ローカル準備、利用者のファイルは保持されます。前提条件へ対応してから返された操作で続けます。既存のインストールと検証済みの手順は省略します。相対ファイルはワークスペースのルートを基準とします。空白や Unicode を含むディレクトリにも名前を自動生成するため、返された識別子を使ってください。
 
-`INIT_PREPARED` はインストールやクローン前に計画を示します。init の dry-run はローカルディレクトリ、stdin、ローカル Git のコミット済み内容を検査し、リポジトリの操作を実行せずに表示します。新しいリモートソースは取得せず、`source_inspected: false` でその境界を示します。指定したリポジトリ選択も未検証です。先に内容を確認する場合は、プレビューの案内に従いローカル checkout を検査してください。計画と実際の状態は分離され、`registered` は現在の登録状態を示します。予定や今回の新規登録だけを意味しません。stderr の進捗はハートビートであり転送率や ETA ではありません。完全な JSON は `--details` を指定します。
-
-Git マニフェストの更新とプレビューは、変更済み・未追跡のファイル、および Git で無視されても fx が読むソースファイルを保持します。このソース専用の保護は業務 checkout の同期方針を変えません。
-
-通常の再試行ではリポジトリの読み取り可否を再確認します。以前は存在しなかったリポジトリを古い負のキャッシュで遮断し続けません。
-
-ツール、ログイン、更新の問題は[サポート](support.md#troubleshooting)を参照してください。`no_access` は環境が未選択という意味で、リモート ACL の拒否ではありません。Git 転送の認証情報と任意のコードホスト API 確認は独立しています。
+`SKILL_WRITE_DENIED` では対象パスを確認します。FX_HOME を変えても共通ロックは移動しません。`fx sync --only repos,docs --no-refresh-manifest` で可能な作業を続けられますが、Skill の修復完了とは別です。外部ファイルの置換には承認とバックアップが必要です。Git ソースの更新はローカル変更を保護し、通常の再試行はリポジトリの可読性を再確認します。[サポート](support.md#troubleshooting)も参照してください。
 
 ### 人の操作後にログインを再開する {#resume-login-after-a-handoff}
 

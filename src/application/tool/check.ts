@@ -1,5 +1,6 @@
 // Compare installed tools with declared requirements and report readiness.
 
+import { asDevkitError, toEnvelope, type ErrorEnvelope } from '../../domain/errors.js';
 import { atLeast } from '../../domain/semver.js';
 import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { Process } from '../../ports/process.js';
@@ -11,6 +12,7 @@ import { probeToolVersion } from './version.js';
 export type ToolState = 'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown';
 
 export interface ToolStatus {
+  readonly failure?: ErrorEnvelope['error'];
   readonly name: string;
   readonly required: boolean;
   readonly enabled: boolean;
@@ -24,6 +26,7 @@ export interface ToolStatus {
 }
 
 export interface ToolCheckInput {
+  readonly continueOnError?: boolean;
   readonly tools: readonly ResolvedTool[];
   readonly names?: readonly string[] | undefined;
   // Present when the toolchain came from a workspace.
@@ -39,7 +42,25 @@ export class ToolCheck {
       commandShell: input.trust?.commandShell,
     });
     const rows: ToolStatus[] = [];
-    for (const tool of selected) rows.push(await this.check(tool, input.trust));
+    for (const tool of selected) {
+      try {
+        rows.push(await this.check(tool, input.trust));
+      } catch (error) {
+        if (!input.continueOnError) throw error;
+        rows.push({
+          name: tool.name,
+          required: tool.required,
+          enabled: tool.enabled,
+          state: 'unknown',
+          installed: null,
+          min_version: tool.minVersion ?? null,
+          binary: tool.binary,
+          install: null,
+          docs: tool.docs ?? null,
+          failure: toEnvelope(asDevkitError(error)).error,
+        });
+      }
+    }
     return rows;
   }
 
@@ -61,6 +82,7 @@ export class ToolCheck {
     if (base.binary_path === null) return { ...base, state: 'missing', installed: null };
     if (trust !== undefined) {
       const probe = {
+        tool: tool.name,
         workspace: trust.workspace,
         commandShell: trust.commandShell,
         vector: [tool.binary, ...tool.versionArgs],

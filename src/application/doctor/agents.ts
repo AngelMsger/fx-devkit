@@ -1,5 +1,5 @@
-// Skills are never a failure: an agent without them still works, it just
-// does not know fx.
+// Check required Skill projections for enabled agents. Installation evidence does
+// not establish that the host has activated a Skill.
 
 import { SkillList } from '../skill/list.js';
 import type { SkillDeps } from '../skill/targets.js';
@@ -17,8 +17,13 @@ export async function checkAgents(deps: WorkspaceDeps, skills: SkillDeps): Promi
       const id = `${agent}:${row.name}`;
       if (state === 'installed') findings.push(finding('agents', id, 'ok', 'installed'));
       else if (state === 'foreign')
-        findings.push(finding('agents', id, 'warn', 'a directory fx did not create is in the way'));
-      else findings.push(finding('agents', id, 'warn', state, { fix }));
+        findings.push(
+          finding('agents', id, 'warn', 'a directory fx did not create is in the way', {
+            required: true,
+            fix,
+          }),
+        );
+      else findings.push(finding('agents', id, 'warn', state, { fix, required: true }));
     }
   }
   if (findings.length === 0)

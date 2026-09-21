@@ -16,11 +16,17 @@ describe('runtime registry coordinates', () => {
       `${packageName.split('/')[0]}:registry=https://project.example.com/\n`,
     );
     const userconfig = path.join(root, 'user.npmrc');
+    const globalconfig = path.join(root, 'global.npmrc');
+    writeFileSync(globalconfig, '');
     writeFileSync(
       userconfig,
       `${packageName.split('/')[0]}:registry=https://npm.example.com/team/\nregistry=https://registry.npmjs.org/\n`,
     );
-    const env = { FX_REGISTRY: undefined, NPM_CONFIG_USERCONFIG: userconfig };
+    const env = {
+      FX_REGISTRY: undefined,
+      npm_config_userconfig: userconfig,
+      npm_config_globalconfig: globalconfig,
+    };
     const info = fx(['self', 'info', '--format', 'json'], env, project);
     expect(info.status, info.stderr).toBe(0);
     expect(info.json()).toMatchObject({

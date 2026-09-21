@@ -65,7 +65,6 @@ function stage(defaultWorkspace?: string) {
       FX_HOME: home,
       FX_AGENTS: '',
       FX_HOOKS: '0',
-      FX_SKILL_NOTICE: '0',
       FX_UPDATE_CHECK: '0',
       FX_COMMAND_SHELL: 'posix',
     },
@@ -166,7 +165,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
       }
       expect(
         fx(['workspace', 'show', 'alpha', '--format', 'json'], s.env, s.base).json(),
-      ).toMatchObject({ source: s.sources.alpha, status: 'ready' });
+      ).toMatchObject({ source: s.sources.alpha, registration_status: 'available' });
     },
   );
 
@@ -268,7 +267,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
       writeFileSync(
         path.join(manifestDirOf(s.home, name), 'manifest/tools.yaml'),
         stringify({
-          schema_version: 2,
+          schema_version: 3,
           tools: [
             {
               name: 'jenkins-cli',
@@ -324,7 +323,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
     writeFileSync(
       path.join(manifestDirOf(s.home, 'alpha'), 'manifest/tools.yaml'),
       stringify({
-        schema_version: 2,
+        schema_version: 3,
         tools: [
           {
             name: 'fixture-tool',

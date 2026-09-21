@@ -37,7 +37,7 @@ Declare a tool there when no binding brings it — a tool the team runs on its o
 or one fx does not know:
 
 ```yaml
-schema_version: 2
+schema_version: 3
 tools:
   - name: example-team-tool
     install: [{ via: npm, spec: '@example/team-tool' }]
@@ -64,11 +64,11 @@ compatibility baseline. Version floors do not pin npm installations to that exac
 
 ## Install a team tool during initialization
 
-With fx 0.1.1 or newer, a team can opt a tool into installation during `fx init`:
+A team can opt a tool into installation during `fx init`:
 
 ```yaml
-schema_version: 2
-min_cli: '0.1.1'
+schema_version: 3
+min_cli: '0.4.0'
 tools:
   - name: example-team-tool
     install_on_init: true
@@ -79,7 +79,7 @@ A team that installs everything on a new machine sets the flag once under
 `defaults`, and an entry opts out of it:
 
 ```yaml
-schema_version: 2
+schema_version: 3
 defaults:
   install_on_init: true
 tools:
@@ -100,6 +100,37 @@ not materialize the manifest or run installers; `tool_install` and `sync` are nu
 until execution. Read-only mode blocks installation. If installation or version
 verification fails, init reports `INIT_TOOL_INSTALL_FAILED`; registration may
 already exist, so resolve npm access or PATH and retry the same directory/source.
+
+## Local preparation and personal sign-in
+
+Tools documents use schema 3. Every run step declares its purpose explicitly:
+
+```yaml
+schema_version: 3
+tools:
+  - name: example-team-tool
+    required: true
+    install: [{ via: npm, spec: '@example/team-tool' }]
+    install_on_init: true
+    setup:
+      - id: local
+        kind: run
+        phase: prepare
+        title: Prepare local files
+        run: [prepare]
+        verify: { file: ~/.example-tool/ready }
+```
+
+`prepare` runs non-interactively during initialization after exact-command approval.
+`authenticate` is verified during init but left for personal sign-in when missing.
+Manual/file steps are checked and handed off. Existing successful checks skip the
+action; `init --resume` continues unfinished work. Declaring a custom executable
+does not imply that it has an authentication command; declare `auth` when needed.
+
+Invalid entries stop preparation rather than silently removing requirements.
+An ordinary source AGENTS.md is sufficient: fx appends missing discovery regions
+to the generated target guide while preserving source prose and existing region
+positions. Ambiguous marker pairs must be corrected by the source maintainer.
 
 ## Start with a small declaration
 
@@ -147,8 +178,7 @@ cd work
 fx manifest validate --strict
 fx manifest lint
 fx manifest providers
-fx login --list
-fx doctor
+fx init --resume --workspace work
 ```
 
 Inspect init's synchronization results and resolve any setup handoffs. A valid

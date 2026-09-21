@@ -5,6 +5,23 @@ The planner is pure; application workflows decide when to ask, check or execute,
 and ports own those effects. Readiness describes prerequisites for a later query,
 not proof that every repository or remote resource is accessible.
 
+## Initialization execution policy
+
+Tools schema 3 requires each run step to declare phase prepare or authenticate.
+Prepare steps are bounded, non-interactive local actions; authenticate steps remain
+personal sign-in. Init verifies before every action, executes only approved local
+preparation, and returns all human or authorization blockers together. A blocked
+prerequisite prevents its dependants; independent local steps continue. Completed
+checks are reverified on continuation rather than inferred from an acknowledgment.
+Doctor --fix uses this same local-only policy. Explicit login remains the entry
+for interactive authentication.
+
+A custom executable declaration does not synthesize authentication from the bundled
+catalog's default vector. Standalone auth must be explicitly declared; bound
+providers retain their own authentication recipes. Relative verification files
+resolve from the workspace root; ~ resolves from the user's home. The root is
+created after validation/registration and before local setup starts.
+
 ## Manifest verification alternatives
 
 Team setup checks use the same declared command/JSON, file and provider verification
@@ -119,12 +136,11 @@ explicit write mode with a recording response, described in
 [probe recording](probe-recording.md). It does not turn readiness into blanket
 permission to execute printed commands.
 
-Doctor and release separate severity from coverage. `ok` means no failed finding;
-`complete` means no requested check has incomplete evidence. Deliberate exclusions
-are not applicable, and a checked advisory warning need not make a report
-incomplete. Doctor's repair attempts are separate from its fresh check results.
-The [Agent command guide](../../skills/fx-workspace/references/commands.md) owns
-wire fields and recovery instructions.
+Init, sync and doctor use the preparation contract in [runtime](runtime.md).
+Doctor retains per-finding severity and coverage, with an aggregate coverage label;
+required unknown checks block, optional unknown checks remain warnings. Explicit
+tool selections are required within that query's scope. Release retains its
+independent ok/complete checklist semantics.
 
 ## Coordinate composition
 
@@ -140,7 +156,7 @@ is already `not_covered` are all `not_covered`.
 
 ## Initialization tool installation
 
-Tools may opt in with `install_on_init: true` (default false, fx ≥0.1.1). The
+Tools may opt in with `install_on_init: true` (default false). The
 application installs only missing enabled opt-ins after materializing, validating
 and registering the source, before repository/resource sync. Installer vectors
 come from `ToolInstall`; every installation and post-install probe vector is
@@ -148,7 +164,8 @@ approved through workspace trust before any package manager runs. Selection neve
 implicitly upgrades an existing binary or logs in to a companion service.
 
 `init --dry-run` retains its non-materializing preview: `tool_install: null` and
-`sync: null` mean these effects have not been planned from the source yet. Actual
+`sync: null` mean no effects were executed; inspected sources include their planned
+vectors under plan.resources. Actual
 success returns `tool_install` records. Missing installers, trust refusal, failed
 installs and unverified/below-minimum installed versions stop init with an error;
 the source registration may already exist and the same invocation can be retried.
@@ -207,12 +224,12 @@ Source overlap checks precede standalone writes and repeat inside the lease,
 including canonical paths reached through team links. Partial failures retain
 per-target outcomes and observations. Dry-run is allowed under read-only posture.
 
-Discovery runs locally before workspace resolution for non-TTY business commands.
-Existing FX_SKILL_LOADED and FX_SKILL_NOTICE settings remain compatible. Bootstrap commands such as self info and
-all Skill commands are quiet; init still receives version guidance; Skill commands also skip network update probes.
-Skill status reports declared loading, declared version, version_verified,
-embedded_version and installs separately; each copy retains its version/alignment. `show` is raw text in all
-formats. Other results retain fx's human default and structured collection contract.
+Self info and Skill commands provide explicit local discovery; business commands
+do not scan global Skill directories or require a loaded-version declaration.
+Skill commands skip network update probes. Skill status reports embedded_version,
+installs and activation: unverified; each copy retains its version/alignment.
+Show is raw text in every format. Other results retain the human default and
+structured collection contract.
 
 The team-skills generated guide region is rendered from current manifest Skill
 frontmatter. Application reads metadata; domain templates render escaped text.

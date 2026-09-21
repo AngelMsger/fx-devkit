@@ -1,6 +1,5 @@
-// The toolchain document: the bundled defaults/tools.yaml and the team's
-// manifest/tools.yaml share this shape; the team file is a patch over the bundled one
-// (see overlay.ts), so every field is optional here except a tool's name.
+// Bundled tools and team patches share this schema. Tool fields may be omitted
+// for inheritance; nested declarations retain their own required fields.
 
 import * as z from 'zod';
 
@@ -59,7 +58,13 @@ export const verifyCheck = z
         .optional()
         .describe('a JSON result that must also match; exit zero alone is otherwise sufficient'),
     }),
-    z.strictObject({ file: z.string().describe('a path that must exist') }),
+    z.strictObject({
+      file: z
+        .string()
+        .describe(
+          'a path that must exist; relative to the workspace root, with ~ referring to the user home',
+        ),
+    }),
     z.strictObject({
       provider: z.literal('whoami').describe('ask the bound provider who the user is'),
     }),
@@ -73,6 +78,12 @@ export const setupStep = z
       .enum(['run', 'manual', 'file'])
       .describe(
         'run: fx executes it; manual: a person does it; file: a person puts a file in place',
+      ),
+    phase: z
+      .enum(['prepare', 'authenticate'])
+      .optional()
+      .describe(
+        'Required for run steps: prepare is non-interactive local setup; authenticate requires personal sign-in',
       ),
     title: z.string().describe('one line shown before the step'),
     open: z.string().optional().describe('URL the person is pointed at'),

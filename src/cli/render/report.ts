@@ -1,8 +1,7 @@
 // Compact workflow reports at the display boundary. Execution and error envelopes
 // retain their full data; omitted counters describe filtering, never pagination.
 
-import { hasPreparationIssue } from '../../domain/preparation.js';
-import type { Notice } from '../../ports/reporter.js';
+import { hasExceptionalEvidence } from './exceptional.js';
 
 // The commands whose result is a workflow report. The registry checks that each
 // of them is a command that exists.
@@ -21,6 +20,7 @@ const COLLECTIONS = new Set([
   'installations',
 ]);
 const RECOVERY = new Set([
+  'preparation',
   'failure',
   'error',
   'handoff',
@@ -30,6 +30,14 @@ const RECOVERY = new Set([
   'warnings',
   'problems',
   'errors',
+]);
+// Initialization must show what was prepared, so callers can verify the task
+// without rediscovering every repository, guide and Skill through separate commands.
+const INITIALIZATION_EFFECTS = new Set([
+  'sync.items',
+  'sync.stage_details.docs.files',
+  'sync.stage_details.skills.links',
+  'sync.stage_details.skills.fx',
 ]);
 
 export function reportCommand(id: string | undefined): ReportCommand | undefined {
@@ -42,11 +50,6 @@ export function compactReport(value: object): object {
   return { ...result, output_mode: 'summary', omitted };
 }
 
-export function compactNotice(notice: Notice): Notice {
-  if (notice.code !== 'INIT_PREPARED' || notice.data === undefined) return notice;
-  return { ...notice, data: compactReport(notice.data) as Readonly<Record<string, unknown>> };
-}
-
 function compactObject(
   value: object,
   omitted: Record<string, number>,
@@ -55,23 +58,39 @@ function compactObject(
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, item]) => {
       const at = prefix ? `${prefix}.${key}` : key;
+      if (
+        value &&
+        'operation' in value &&
+        value.operation === 'apply' &&
+        ['prepared', 'plan'].includes(key)
+      ) {
+        omitted[at] = 1;
+        return [];
+      }
       if (key === 'evidence') {
         omitted[at] = (omitted[at] ?? 0) + 1;
         return [];
       }
       if (
         RECOVERY.has(key) ||
+        (key === 'setup' && prefix.endsWith('stage_details')) ||
         (key === 'plan' && 'operation' in value && value.operation === 'preview')
       )
         return [[key, item]];
       if (Array.isArray(item) && COLLECTIONS.has(key)) {
-        const visible = key === 'files' && 'failure' in value ? item : item.filter(exceptional);
+        const keepAll = INITIALIZATION_EFFECTS.has(at) || (key === 'files' && 'failure' in value);
+        const visible = keepAll ? item.filter(selectedEffect) : item.filter(exceptional);
         omitted[at] = (omitted[at] ?? 0) + item.length - visible.length;
         return [[key, visible.map((row: unknown) => compactValue(row, omitted, at))]];
       }
       return [[key, compactValue(item, omitted, at)]];
     }),
   );
+}
+
+function selectedEffect(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || !('action' in value)) return true;
+  return value.action !== 'skip_unpicked' && value.action !== 'skip_manifest';
 }
 
 function compactValue(value: unknown, omitted: Record<string, number>, prefix: string): unknown {
@@ -82,7 +101,7 @@ function compactValue(value: unknown, omitted: Record<string, number>, prefix: s
 }
 
 function exceptional(value: unknown): boolean {
-  if (hasPreparationIssue(value)) return true;
+  if (hasExceptionalEvidence(value)) return true;
   if (typeof value !== 'object' || value === null) return true;
   const row = value as Record<string, unknown>;
   return (

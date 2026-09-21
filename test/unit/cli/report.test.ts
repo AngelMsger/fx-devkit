@@ -37,7 +37,7 @@ const failure = toEnvelope(
 const vector = ['sample-cli', 'skill', 'install', '--dir', '/home/example/skills'];
 const report = {
   operation: 'apply',
-  preparation_complete: false,
+  preparation: { state: 'incomplete' },
   registered: true,
   written: true,
   failed_phase: 'sync',
@@ -52,10 +52,18 @@ const report = {
         reason: 'not selected on this machine; select the repository before synchronizing it',
       })),
       { name: 'protected', action: 'skip_dirty', result: 'skipped', reason: 'keep local edits' },
+      { name: 'api', action: 'clone', result: 'done' },
     ],
-    summary: { done: 0, failed: 0, skipped: 71 },
+    summary: { done: 1, failed: 0, skipped: 71 },
     stages: { skills: { status: 'failed' }, hooks: { status: 'not_started' } },
     stage_details: {
+      setup: {
+        items: [
+          { id: 'sample.local', tool: 'sample', kind: 'run', result: 'done' },
+          { id: 'sample.auth', tool: 'sample', kind: 'run', result: 'handoff' },
+        ],
+        problems: [],
+      },
       skills: { tools: [{ tool: 'sample', vector, status: 'failed', failure }] },
       docs: {
         failure,
@@ -87,11 +95,11 @@ describe('workflow JSON summaries', () => {
     const result = JSON.parse(summary.out());
     expect(result).toMatchObject({
       operation: 'apply',
-      preparation_complete: false,
+      preparation: { state: 'incomplete' },
       failed_phase: 'sync',
       omitted: { 'sync.items': 70 },
       sync: {
-        items: [report.sync.items[70]],
+        items: [report.sync.items[70], report.sync.items[71]],
         stages: report.sync.stages,
         stage_details: report.sync.stage_details,
       },
@@ -99,14 +107,14 @@ describe('workflow JSON summaries', () => {
     });
     expect(JSON.parse(details.out())).toEqual(report);
     expect(Buffer.byteLength(summary.out())).toBeLessThan(Buffer.byteLength(details.out()) * 0.3);
-    expect(report.sync.items).toHaveLength(71);
+    expect(report.sync.items).toHaveLength(72);
   });
 
   it('keeps every warning and failure while omitting successful findings and large evidence', () => {
     const t = render({ report: 'doctor' });
     t.renderer.record({
-      ok: false,
-      complete: false,
+      preparation: { state: 'incomplete' },
+      coverage: 'incomplete',
       summary: { ok: 1, warn: 1, fail: 1 },
       findings: [
         { id: 'done', level: 'ok', coverage: 'checked' },
@@ -128,8 +136,8 @@ describe('workflow JSON summaries', () => {
     });
     const out = JSON.parse(t.out());
     expect(out).toMatchObject({
-      ok: false,
-      complete: false,
+      preparation: { state: 'incomplete' },
+      coverage: 'incomplete',
       omitted: { findings: 1, 'findings.evidence': 2 },
     });
     expect(out.findings).toHaveLength(2);
@@ -140,7 +148,7 @@ describe('workflow JSON summaries', () => {
   it('projects explicit fields from the full result and leaves NDJSON and fact queries full', () => {
     const projected = render({ fields: ['sync.items.name'] });
     projected.renderer.record(report);
-    expect(JSON.parse(projected.out())['sync.items.name']).toHaveLength(71);
+    expect(JSON.parse(projected.out())['sync.items.name']).toHaveLength(72);
     const ndjson = render({}, 'ndjson');
     ndjson.renderer.record(report);
     expect(JSON.parse(ndjson.out())).toEqual(report);
@@ -149,26 +157,8 @@ describe('workflow JSON summaries', () => {
     expect(JSON.parse(facts.out())).toEqual(report);
   });
 
-  it('compacts initialization plans but retains pending vectors and untouched error envelopes', () => {
-    const t = render();
-    t.renderer.notice({
-      code: 'INIT_PREPARED',
-      message: 'planned',
-      data: {
-        plan: {
-          skills: {
-            tools: [
-              { tool: 'none', vector: null, note: 'no selected agents' },
-              { tool: 'sample', origin: 'patch', status: 'planned', vector },
-            ],
-          },
-        },
-      },
-    });
-    const notice = JSON.parse(t.err())._notice;
-    expect(notice.data.plan.skills.tools).toEqual([
-      { tool: 'sample', origin: 'patch', status: 'planned', vector },
-    ]);
+  it('retains error recovery even when a report uses field projection', () => {
+    const t = render({ fields: ['preparation.state'] });
     const error = new DevkitError('permission', 'SKILL_WRITE_DENIED', 'denied', {
       nextSteps: failure.next_steps,
     });
@@ -188,7 +178,7 @@ describe('workflow JSON summaries', () => {
     expect(JSON.parse(t.out())).toMatchObject({
       items: [report.sync.items[70]],
       has_more: false,
-      omitted: { items: 70 },
+      omitted: { items: 71 },
       stages: report.sync.stages,
     });
   });

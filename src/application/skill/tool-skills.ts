@@ -98,6 +98,7 @@ export async function trustAll(
     }
     try {
       await trust.gate.ensure({
+        tool: item.tool,
         workspace: trust.workspace,
         vector: item.vector,
         label: `${item.tool} skill install`,

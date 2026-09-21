@@ -9,6 +9,7 @@ export const OPENOBSERVE_RECIPES: readonly SetupRecipe[] = [
     tool: 'openobserve-cli',
     perEnv: true,
     kind: 'run',
+    phase: 'authenticate',
     title: 'Add the OpenObserve context "{context}" for {env}',
     instructions:
       'The wizard asks for the server URL, organization and credentials of the {env} OpenObserve.',

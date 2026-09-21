@@ -3,6 +3,12 @@
 // one that never reached its source.
 
 import { asDevkitError, DevkitError, toEnvelope, withPartialResult } from '../../domain/errors.js';
+import {
+  preparation,
+  preparationCheck,
+  type Preparation,
+  type PreparationAction,
+} from '../../domain/preparation.js';
 import { shellLine } from '../../domain/shell.js';
 import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { WorkspaceEntry } from '../../ports/stores.js';
@@ -13,21 +19,16 @@ import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'];
 
-export function nameTaken(
-  name: string,
-  root: string,
-  existing: WorkspaceEntry,
-  source: ManifestSource,
-): DevkitError {
+export function nameTaken(name: string, root: string, existing: WorkspaceEntry): DevkitError {
   return new DevkitError(
     'conflict',
     'WORKSPACE_NAME_TAKEN',
     `Workspace "${name}" is already registered at ${existing.root}`,
     {
-      hint: 'If the directory moved, relocate its existing identity; otherwise initialize the registered directory.',
+      hint: 'The existing workspace is unchanged. Omit --name to let fx choose an available registration name.',
       nextSteps: [
-        shellLine(['fx', 'workspace', 'relocate', name, root]),
-        shellLine(['fx', 'init', existing.root, '--name', name, '--from', source.description]),
+        shellLine(['fx', 'workspace', 'show', name]),
+        `Retry initialization at ${root} without --name or with an unused name, keeping the original source and repository selection.`,
       ],
     },
   );
@@ -69,18 +70,16 @@ export function initializationSourceError(
     retry: [
       'fx',
       'init',
-      output.root,
-      '--name',
-      output.name,
-      '--from',
-      input.source.description,
-      ...selection,
+      ...(input.resume
+        ? ['--resume', '--workspace', output.name]
+        : [output.root, '--name', output.name, '--from', input.source.description, ...selection]),
       '--dry-run',
     ],
   });
 }
 
 export interface InitProgress {
+  readonly cwd: string;
   readonly phase: string;
   readonly registered: boolean;
   readonly materialized: boolean;
@@ -95,35 +94,101 @@ export function initFailure(
 ): DevkitError {
   const failure = asDevkitError(error);
   const { phase, registered, materialized, prepared, toolInstall } = progress;
-  const failedAt = PHASES.indexOf(phase);
+  const resumable =
+    registered && (output.plan.manifest_action === 'keep' || ['tools', 'sync'].includes(phase));
+  const phases = phaseResults(progress);
+  const install = failure.partialResult as
+    { tool_install?: readonly ToolInstallOutput[] } | undefined;
+  const observed = (failure.partialResult as { preparation?: Preparation } | undefined)
+    ?.preparation;
+  const priorChecks = observed
+    ? [
+        ...observed.completed.map((id) =>
+          preparationCheck(id, 'ready', 'Completed before the failure'),
+        ),
+        ...observed.blockers,
+        ...observed.warnings,
+      ]
+    : [];
+  const recovery = initializationRecovery(output, progress, resumable);
+  const result = preparation({
+    scope: observed?.scope ?? output.preparation.scope,
+    checks: [
+      ...priorChecks,
+      preparationCheck(phase, 'blocked', failure.message, {
+        code: failure.code,
+        failure: toEnvelope(failure).error,
+        owner: phase === 'validation' ? 'maintainer' : 'user',
+      }),
+    ],
+    resume: recovery,
+  });
+  return withPartialResult(failure, {
+    ...output,
+    preparation: result,
+    manifest: materialized ? output.manifest : 'not_written',
+    registered,
+    written: materialized,
+    prepared,
+    tool_install: toolInstall ?? install?.tool_install ?? null,
+    sync: synchronizationResult(failure, phase),
+    phases,
+    failed_phase: phase,
+    failure: toEnvelope(failure).error,
+    ...(phase === 'validation' ? { validation: failure.partialResult } : {}),
+    next_steps: resumable
+      ? [...failure.nextSteps, shellLine(['fx', 'init', '--resume', '--workspace', output.name])]
+      : [
+          'Correct the reported source problem and retry the same init command.',
+          ...failure.nextSteps,
+        ],
+  });
+}
+
+function initializationRecovery(
+  output: InitOutput,
+  progress: InitProgress,
+  resumable: boolean,
+): PreparationAction {
+  if (resumable)
+    return {
+      id: 'resume-initialization',
+      description: 'Continue preparing this workspace',
+      argv: ['fx', 'init', '--resume', '--workspace', output.name],
+      cwd: progress.cwd,
+      actor: 'agent',
+      requires_approval: false,
+    };
+  let selection: string[] = [];
+  if (output.plan.selection.repos) selection = ['--repos', output.plan.selection.repos.join(',')];
+  if (output.plan.selection.mode === 'none') selection = ['--no-repos'];
+  return {
+    id: 'retry-initialization',
+    description: 'Retry after correcting the source',
+    argv: ['fx', 'init', output.root, '--name', output.name, '--from', output.source, ...selection],
+    cwd: progress.cwd,
+    actor: 'agent',
+    requires_approval: false,
+  };
+}
+
+function phaseResults(progress: InitProgress): Record<string, string> {
+  const failedAt = PHASES.indexOf(progress.phase);
   const phases = Object.fromEntries(
     PHASES.map((name, index) => {
       if (index < failedAt) return [name, 'done'];
       return [name, index === failedAt ? 'failed' : 'not_started'];
     }),
   );
-  const install = failure.partialResult as
-    { tool_install?: readonly ToolInstallOutput[] } | undefined;
-  return withPartialResult(failure, {
-    ...output,
-    preparation_complete: false,
-    manifest: materialized ? output.manifest : 'not_written',
-    registered,
-    written: materialized,
-    prepared,
-    tool_install: toolInstall ?? install?.tool_install ?? null,
-    sync: phase === 'sync' ? (failure.partialResult ?? null) : null,
-    phases,
-    failed_phase: phase,
-    failure: toEnvelope(failure).error,
-    next_steps: registered
-      ? [
-          ...failure.nextSteps,
-          `Inspect remaining stages with fx status --workspace ${output.name} --format json.`,
-        ]
-      : [
-          'Correct the reported source problem and retry the same init command.',
-          ...failure.nextSteps,
-        ],
-  });
+  if (!progress.materialized)
+    phases['manifest'] = progress.phase === 'manifest' ? 'failed' : 'not_started';
+  return phases;
+}
+
+// Init owns the single preparation verdict; nested synchronization retains only its evidence.
+function synchronizationResult(failure: DevkitError, phase: string): object | null {
+  if (phase !== 'sync' || !failure.partialResult) return null;
+  return Object.fromEntries(
+    Object.entries(failure.partialResult).filter(([key]) => key !== 'preparation'),
+  );
 }

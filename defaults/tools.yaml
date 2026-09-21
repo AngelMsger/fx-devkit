@@ -9,7 +9,7 @@
 # else stays in the catalog, unselected. The commands below are fx's own, so
 # no one confirms them by hand; a field a patch overrides becomes the team's
 # and is confirmed again.
-schema_version: 2
+schema_version: 3
 defaults:
   version_args: [--version]
   install: [{ via: npm }]

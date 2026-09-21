@@ -1,5 +1,4 @@
 // Init drives a fake npm and private executable directory; no real packages are installed.
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -8,7 +7,7 @@ import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, tempDir, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, repository, tempDir, userHome } from './harness.js';
 
 function fixture() {
   const root = tempDir('fx-init-tools-');
@@ -31,7 +30,7 @@ function fixture() {
   );
   const host = path.join(root, 'host', 'team');
   mkdirSync(host, { recursive: true });
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', 'main', path.join(host, 'sample.git')]);
+  repository(host, 'sample', { 'README.md': 'Synthetic tool workspace' });
   const source = path.join(root, 'source');
   const manifest = path.join(source, 'manifest');
   mkdirSync(manifest, { recursive: true });
@@ -50,7 +49,7 @@ repos: [{name: sample, desc: Fixture}]
   };
   writeFileSync(
     path.join(manifest, 'tools.yaml'),
-    `schema_version: 2
+    `schema_version: 3
 tools:
 ${baseline.tools.map((t) => `  - {name: ${t.name}, enabled: false}`).join('\n')}
   - name: fixture-init-tool
@@ -116,7 +115,7 @@ describe('manifest opt-in during workspace initialization', () => {
       f.env,
       f.workspace,
     );
-    expect(sync.status, sync.stderr).toBe(0);
+    expect(sync.status, sync.stderr).toBe(12);
     expect(JSON.parse(readFileSync(f.receipt, 'utf8'))).toHaveLength(1);
     // Confirm the harness used its isolated user directory, not a real host Skill path.
     expect(userHome).toContain('fx-user-home-');

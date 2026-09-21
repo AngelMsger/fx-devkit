@@ -2,7 +2,6 @@
 // a companion tool, a temporary FX_HOME holds trust and config, and every
 // Skill copy lands in a temporary --dir rather than a real agent's directory.
 
-import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -19,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { pathKey } from '../../src/domain/path.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, tempDir, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, repository, tempDir, userHome } from './harness.js';
 
 const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
@@ -36,9 +35,8 @@ function stage(): Stage {
   writeNodeShim(shims, 'fake-tool', 'console.log("fake-tool v1.2.3 (fixture)");');
 
   const host = path.join(base, 'host', 'fx');
-  const bare = path.join(host, 'a.git');
   mkdirSync(host, { recursive: true });
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', 'main', bare]);
+  repository(host, 'a', { 'README.md': 'Synthetic tool workspace' });
 
   const manifestDir = path.join(base, 'src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
@@ -59,7 +57,7 @@ function stage(): Stage {
   writeFileSync(
     path.join(manifestDir, 'tools.yaml'),
     [
-      'schema_version: 2',
+      'schema_version: 3',
       'tools:',
       "  - { name: fake-tool, min_version: '1.0.0', install: [{ via: manual }], skill: { command: [] } }",
       '',
@@ -97,13 +95,13 @@ interface Items<T> {
 describe('doctor checks a tool with trust-on-first-use', () => {
   it('keeps trusting the initial vector, then asks once when its arguments change', () => {
     const s = stage();
-    const check = (...extra: string[]) => {
+    const check = (expectedExit = 0, ...extra: string[]) => {
       const run = fx(
         ['doctor', '--details', '--tool', 'fake-tool', '--format', 'json', ...extra],
         s.env,
         s.ws,
       );
-      expect(run.status, run.stderr).toBe(0);
+      expect(run.status, run.stderr).toBe(expectedExit);
       return (run.json() as { findings: ToolFinding[] }).findings.find(
         (f) => f.group === 'tools' && f.id === 'fake-tool',
       );
@@ -114,13 +112,13 @@ describe('doctor checks a tool with trust-on-first-use', () => {
     writeFileSync(
       s.toolsFile,
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'tools:',
         "  - { name: fake-tool, min_version: '1.0.0', version_args: [--version, --short], install: [{ via: manual }] }",
         '',
       ].join('\n'),
     );
-    const untrusted = check();
+    const untrusted = check(12);
     expect(untrusted).toMatchObject({
       level: 'warn',
       fix: 'fx doctor --tool fake-tool --workspace ws',
@@ -144,7 +142,7 @@ describe('doctor checks a tool with trust-on-first-use', () => {
     });
     expect(readFileSync(path.join(s.env['FX_HOME'], 'trust.yaml'), 'utf8')).toBe(before);
 
-    expect(check('--yes')).toMatchObject({ level: 'ok' });
+    expect(check(0, '--yes')).toMatchObject({ level: 'ok' });
     const trustFile = readFileSync(path.join(s.env['FX_HOME'], 'trust.yaml'), 'utf8');
     expect(trustFile).toContain('ws:');
     expect(trustFile).toMatch(/[0-9a-f]{64}/);
@@ -216,7 +214,7 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
     );
     writeFileSync(
       s.toolsFile,
-      'schema_version: 2\ntools:\n  - name: fake-tool\n    install: [{via: manual}]\n    skill: {command: [skill, install]}\n',
+      'schema_version: 3\ntools:\n  - name: fake-tool\n    install: [{via: manual}]\n    skill: {command: [skill, install]}\n',
     );
     const result = fx(
       ['sync', '--details', '--only', 'skills', '--yes', '--format', 'json'],

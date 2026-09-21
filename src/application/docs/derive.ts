@@ -3,7 +3,7 @@
 import path from 'node:path';
 
 import { derive, isDerived } from '../../domain/docs/derived.js';
-import { renderRegions } from '../../domain/docs/regions.js';
+import { completeRegions } from '../../domain/docs/regions.js';
 import { agentsSkeleton, CLAUDE_POINTER } from '../../domain/docs/skeleton.js';
 import { renderAll } from '../../domain/docs/templates.js';
 import type { LoginDeps } from '../login/deps.js';
@@ -32,7 +32,7 @@ export class DeriveDocs {
     const { ctx, fs, reporter } = this.deps;
     const origin = path.join(ctx.manifestDir, 'AGENTS.md');
     const source = (await fs.readText(origin)) ?? agentsSkeleton(ctx.name);
-    const rendered = renderRegions(
+    const rendered = completeRegions(
       source,
       renderAll(await templateInputOf(ctx.context, this.login, fs)),
     );

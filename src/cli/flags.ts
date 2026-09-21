@@ -26,10 +26,15 @@ export const globalFlags = {
     description: 'comma-separated dot paths to keep in the output, e.g. name,obs.svc',
     helpGroup: 'GLOBAL',
   }),
+  details: Flags.boolean({
+    default: false,
+    description: 'include all report details; fact queries already return their full result',
+    helpGroup: 'GLOBAL',
+  }),
   workspace: Flags.string({
     env: 'FX_WORKSPACE',
     description:
-      'select a workspace: containing cwd, then default_workspace when omitted; global commands still cover this FX_HOME',
+      'select a registered name or root directory; otherwise use cwd then default_workspace; global commands still cover this FX_HOME',
     helpGroup: 'GLOBAL',
   }),
   'no-input': Flags.boolean({
@@ -67,12 +72,6 @@ export const globalFlags = {
 export const dryRunFlag = Flags.boolean({
   default: false,
   description: 'print the plan instead of applying it',
-});
-
-export const detailsFlag = Flags.boolean({
-  default: false,
-  description:
-    'include all workflow report details in JSON; explicit --fields projects the full result',
 });
 
 export const jobsFlag = Flags.integer({

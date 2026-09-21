@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FamilyCli } from '../../../../src/adapters/family/cli.js';
+import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
 import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login } from '../../../../src/application/login/run.js';
@@ -29,7 +30,7 @@ providers:
 
 // The opt-in CLIs a case binds; a workspace has to name one before fx checks it.
 function vendorTools(names: readonly string[]): string {
-  return ['schema_version: 2', 'tools:', ...names.map((name) => `  - {name: ${name}}`)].join('\n');
+  return ['schema_version: 3', 'tools:', ...names.map((name) => `  - {name: ${name}}`)].join('\n');
 }
 
 async function fixture(
@@ -236,9 +237,21 @@ describe('native preparation', () => {
   });
 
   it('does not call an old CLI with an unsupported preset command', async () => {
-    const { h, operation, plan } = await fixture();
+    const { h, operation, plan, login } = await fixture();
     h.process.clear().always({ code: 0, stdout: '0.19.1', stderr: '' });
-    expect((await operation.execute(plan.steps[0]!, false)).detail).toContain('outdated');
+    const blocked = await operation.execute(plan.steps[0]!, false);
+    expect(blocked.detail).toContain('outdated');
+    expect(blocked.actions?.[0]?.argv).toContain('update');
+    for (const apply of [false, true]) {
+      const preparation = await prepareWorkspaceSetup(h.deps, login, {
+        apply,
+        dryRun: false,
+        posture: { readOnly: false, source: 'default' },
+      });
+      expect(
+        preparation.checks.find((check) => check.resource === plan.steps[0]!.id)?.actions,
+      ).toEqual(blocked.actions);
+    }
     expect(h.process.calls.every((call) => call.vector.includes('--version'))).toBe(true);
   });
 
@@ -314,7 +327,9 @@ envs:
       dryRun: false,
       posture: { readOnly: false, source: 'default' },
       jobs: 1,
-      stages: { services: async () => ({ summary: { configured: 1 }, details: { items: [] } }) },
+      stages: {
+        services: async () => ({ checks: [], summary: { configured: 1 }, details: { items: [] } }),
+      },
     });
     await expect(promise).rejects.toMatchObject({
       partialResult: { stages: { services: { configured: 1 } } },
@@ -402,7 +417,7 @@ envs: {dev: {platforms: {errors: {}}}}
     });
     const stage = async () => {
       order.push('services');
-      return { summary: { configured: 1 } };
+      return { checks: [], summary: { configured: 1 } };
     };
     const input = {
       dryRun: true,

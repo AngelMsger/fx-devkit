@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { freshHome, fx } from './harness.js';
 
 describe('explicit empty agent selection through the CLI', () => {
-  it('checks the declared Skill version on init without requiring global installation', () => {
+  it('initializes without requiring a Skill-loaded declaration or global installation', () => {
     const base = freshHome();
     const env = {
       FX_HOME: freshHome(),
@@ -34,22 +34,15 @@ describe('explicit empty agent selection through the CLI', () => {
     ];
     const unverified = fx(args, env);
     expect(unverified.status).toBe(0);
-    expect(unverified.stderr).toContain('SKILL_VERSION_UNVERIFIED');
-    expect(fx(args, { ...env, FX_SKILL_VERSION: '0.0.0' }).stderr).toContain(
-      'SKILL_VERSION_MISMATCH',
-    );
-    expect(fx(args, { ...env, FX_SKILL_VERSION: info.bundled_skill_version }).stderr).not.toContain(
-      'SKILL_',
-    );
+    expect(unverified.stderr).not.toContain('SKILL_');
     expect(fx([...args, '--quiet'], env).stderr).toBe('');
     const status = fx(['skill', 'status', '--dir', path.join(base, 'skills'), '--format', 'json'], {
       ...env,
       FX_SKILL_VERSION: info.bundled_skill_version,
     });
     expect(status.json()).toMatchObject({
-      loaded: true,
-      version_verified: true,
-      loaded_version: info.bundled_skill_version,
+      activation: 'unverified',
+      embedded_version: info.bundled_skill_version,
     });
     expect(existsSync(path.join(base, 'skills'))).toBe(false);
     expect(existsSync(path.join(base, 'workspace'))).toBe(false);
@@ -95,7 +88,7 @@ describe('explicit empty agent selection through the CLI', () => {
       operation: 'apply',
       registered: true,
       written: true,
-      preparation_complete: expect.any(Boolean),
+      preparation: { state: 'ready' },
     });
     for (const agent of ['.agents', '.codex', '.claude', '.grok'])
       expect(existsSync(path.join(root, agent))).toBe(false);
@@ -107,10 +100,13 @@ describe('explicit empty agent selection through the CLI', () => {
     expect(docs.status, docs.stderr).toBe(0);
     expect(docs.json()).toMatchObject({
       operation: 'apply',
-      preparation_complete: true,
+      preparation: { state: 'ready' },
       output_mode: 'summary',
     });
     const preview = fx(['sync', '--only', 'docs', '--dry-run', '--format', 'json'], env, root);
-    expect(preview.json()).toMatchObject({ operation: 'preview', preparation_complete: null });
+    expect(preview.json()).toMatchObject({
+      operation: 'preview',
+      preparation: { state: 'planned' },
+    });
   });
 });

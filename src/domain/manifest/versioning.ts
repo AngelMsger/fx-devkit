@@ -10,7 +10,7 @@ import type { Kind, Negotiation, NegotiationFailure } from './types.js';
 export const SUPPORTED: Record<Exclude<Kind, 'local'>, readonly number[]> = {
   workspace: [1, 2],
   environments: [1, 2],
-  tools: [2],
+  tools: [3],
   harness: [2],
   members: [1],
 };
@@ -72,8 +72,17 @@ export function negotiationError(
           ...UPGRADE_STEPS,
         ]
       : UPGRADE_STEPS;
+  const toolsMigration = kind === 'tools' && n.failure === 'schema_too_old';
   return new DevkitError('config', code, message, {
-    hint: 'The manifest and this fx release disagree about the document format.',
-    nextSteps,
+    hint: toolsMigration
+      ? 'Use schema_version: 3 in tools.yaml. Each kind: run setup step needs phase: prepare for local non-interactive setup or phase: authenticate for personal sign-in.'
+      : 'The manifest and this fx release disagree about the document format.',
+    nextSteps: toolsMigration
+      ? [
+          'fx manifest schema --kind tools',
+          'fx manifest explain --kind tools "tools[].setup[].phase"',
+          'Update the source declaration and retry the original initialization.',
+        ]
+      : nextSteps,
   });
 }

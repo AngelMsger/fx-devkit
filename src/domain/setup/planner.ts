@@ -83,7 +83,7 @@ export function planSetup(input: PlanInput): SetupPlan {
   // A provider owns its readiness recipe; bundled defaults alone do not enroll an unused tool.
   for (const tool of tools.values()) {
     const authConfig = tool.auth;
-    const teamOwnsAuth = tool.origins.binary === 'patch' || tool.origins.auth === 'patch';
+    const teamOwnsAuth = tool.origins.auth === 'patch';
     if (authConfig === undefined || !teamOwnsAuth || providerTools.has(tool.name)) continue;
     const auth = fromAuth(tool, authConfig);
     const alreadyCovered = drafts.some(
@@ -158,6 +158,7 @@ function fromRecipe(
     tool: tool.name,
     ...(env === undefined ? {} : { env }),
     kind: recipe.kind,
+    ...(recipe.phase ? { phase: recipe.phase } : {}),
     title: substitute(recipe.title, vars).text,
     ...(run === undefined ? {} : { run }),
     ...(recipe.instructions === undefined
@@ -178,6 +179,7 @@ function fromTeam(tool: ResolvedTool, step: ResolvedTool['setup'][number]): Setu
     id: stepId(tool.name, step.id),
     tool: tool.name,
     kind: step.kind,
+    ...(step.phase ? { phase: step.phase } : {}),
     title: step.title,
     ...(step.run === undefined ? {} : { run: withBinary(step.run) }),
     ...(step.instructions === undefined ? {} : { instructions: step.instructions }),

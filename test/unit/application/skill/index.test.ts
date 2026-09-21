@@ -7,6 +7,7 @@ import { replacementFor } from '../../../../src/application/safety/replace-files
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { SkillList } from '../../../../src/application/skill/list.js';
 import { SkillStage } from '../../../../src/application/skill/stage.js';
+import { skillChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
@@ -76,7 +77,7 @@ describe('SkillStage partial execution', () => {
   it('does not call a missing companion or call its skipped Skill preparation complete', async () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
-      'schema_version: 2\ndefaults: {install: [{via: manual}], skill: {command: [skill, install]}}\ntools: [{name: absent}]',
+      'schema_version: 3\ndefaults: {install: [{via: manual}], skill: {command: [skill, install]}}\ntools: [{name: absent}]',
       undefined,
       { cliVersion: '1.0.0' },
     );
@@ -93,11 +94,18 @@ describe('SkillStage partial execution', () => {
             posture: writable,
             toolchain: resolveTools(loaded.doc, loaded.provenance),
           });
-          return { summary, details };
+          return {
+            summary,
+            details,
+            checks: skillChecks(
+              { summary, ...details },
+              new Set(details.tools.map((tool) => tool.tool)),
+            ),
+          };
         },
       },
     });
-    expect(result.preparation_complete).toBe(false);
+    expect(result.preparation.state).toBe('incomplete');
     expect(result.stage_details?.skills?.tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ failure: expect.objectContaining({ code: 'TOOL_MISSING' }) }),
@@ -109,7 +117,7 @@ describe('SkillStage partial execution', () => {
     async (code) => {
       const { h, skills } = await setup();
       const loaded = loadTools(
-        'schema_version: 2\ndefaults: { install: [{via: manual}], skill: { command: [skill, install] } }\ntools: [{name: alpha}, {name: beta}, {name: gamma}]',
+        'schema_version: 3\ndefaults: { install: [{via: manual}], skill: { command: [skill, install] } }\ntools: [{name: alpha}, {name: beta}, {name: gamma}]',
         undefined,
         { cliVersion: '1.0.0' },
       );
@@ -141,7 +149,14 @@ describe('SkillStage partial execution', () => {
                 posture: writable,
                 toolchain: resolveTools(loaded.doc, loaded.provenance),
               });
-              return { summary, details };
+              return {
+                summary,
+                details,
+                checks: skillChecks(
+                  { summary, ...details },
+                  new Set(details.tools.map((tool) => tool.tool)),
+                ),
+              };
             },
             hooks: async () => {
               throw new Error('must not run');
@@ -341,7 +356,7 @@ describe('SkillStage: the fx copy and the tools', () => {
     const { h, skills } = await setup();
     const cursor = new FakeAgentHost('cursor', true);
     const loaded = loadTools(
-      'schema_version: 2\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], dir_flag: --dir } }\ntools: [{ name: alpha }]',
+      'schema_version: 3\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], dir_flag: --dir } }\ntools: [{ name: alpha }]',
       undefined,
       { cliVersion: '1.0.0' },
     );
@@ -369,8 +384,8 @@ describe('SkillStage: the fx copy and the tools', () => {
   it('keeps legacy agent targeting when a patch supplies agent_flag over directory defaults', async () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
-      'schema_version: 2\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], dir_flag: --dir } }\ntools: [{ name: alpha }]',
-      'schema_version: 2\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], agent_flag: --for } }\ntools: [{ name: alpha }]',
+      'schema_version: 3\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], dir_flag: --dir } }\ntools: [{ name: alpha }]',
+      'schema_version: 3\ndefaults: { install: [{ via: manual }], skill: { command: [skill, install], agent_flag: --for } }\ntools: [{ name: alpha }]',
       { cliVersion: '1.0.0' },
     );
     h.process.binaries.add('alpha');
@@ -433,14 +448,14 @@ describe('SkillStage: the fx copy and the tools', () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'defaults: { install: [{ via: npm }], skill: { command: [skill, install], agent_flag: --agent } }',
         'tools:',
         '  - name: alpha',
         '  - name: beta',
         '    skill: { command: [] }',
       ].join('\n'),
-      'schema_version: 2\ntools: [{ name: alpha, skill: { command: [skill, add], agent_flag: --for } }]',
+      'schema_version: 3\ntools: [{ name: alpha, skill: { command: [skill, add], agent_flag: --for } }]',
       { cliVersion: '1.0.0' },
     );
     const tools = resolveTools(loaded.doc, loaded.provenance);
@@ -511,11 +526,11 @@ describe('SkillStage: the fx copy and the tools', () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'defaults: { install: [{ via: npm }], skill: { command: [skill, install] } }',
         'tools: [{ name: alpha }]',
       ].join('\n'),
-      'schema_version: 2\ntools: [{ name: alpha, binary: surprise }]',
+      'schema_version: 3\ntools: [{ name: alpha, binary: surprise }]',
       { cliVersion: '1.0.0' },
     );
     h.process.binaries.add('surprise');
@@ -568,14 +583,14 @@ describe('SkillStage: independent local effects and command trust', () => {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'defaults: { install: [{ via: npm }], skill: { command: [skill, install] } }',
         'tools:',
         '  - name: alpha',
         '  - name: gamma',
       ].join('\n'),
       [
-        'schema_version: 2',
+        'schema_version: 3',
         'tools:',
         '  - { name: alpha, skill: { command: [skill, add] } }',
         '  - { name: gamma, skill: { command: [skill, add] } }',

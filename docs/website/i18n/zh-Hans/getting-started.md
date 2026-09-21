@@ -2,7 +2,7 @@
 
 安装 fx，连接团队 manifest，并管理仓库、工具与编码 Agent。
 
-[未发布变更](../CHANGELOG.md#未发布)描述当前源码，安装包可能尚未包含这些功能。请查看当前可执行文件的 `fx <command> --help` 和 bundled Skill；版本标签相同不等于源码改动已经发布。
+各版本的变更见[更新日志](../CHANGELOG.md)。请查看已安装版本的 `fx <command> --help` 和随包 Skill，确认当前可执行文件支持的功能。
 
 按任务选择阅读入口：
 
@@ -67,39 +67,24 @@ PowerShell 执行策略阻止 `.ps1` shim 时，可使用 `npm.cmd` 和 `fx.cmd`
 
 ## 快速上手 {#quick-start}
 
-先将占位符替换为团队提供的实际来源：
-
-新工作区默认选择全部共享仓库。如需限定首次下载范围，先[选择仓库名称](#choose-repositories-before-downloading)，再给两条 init 命令都加上 `--repos <name,...>`。
+你只需要团队提供的 manifest 来源，以及工作区要放的目录。可以直接告诉 Agent：“请用 fx 根据这个 manifest，把工作区准备到这个目录。”自己操作终端时，先预览再执行：
 
 ```sh
-fx init ./work --name work --from <manifest-repository> --dry-run
-fx init ./work --name work --from <manifest-repository>
-cd work
-fx login --list
-fx login
-fx doctor
+fx init ./work --from <manifest-repository> --dry-run
+fx init ./work --from <manifest-repository>
 ```
 
-`init` 会先在命令信任确认后安装 manifest 中显式标记 `install_on_init`、已启用且缺失的工具，再同步仓库和所选 Agent 资源。已有工具安装会保留。
+fx 会检查来源，完成已授权的本地工具与配置准备，克隆所选仓库，并准备 Agent 指南和 Skill。工作区名称自动生成并避开已有注册，已有文件和已完成的工作会保留。批准新命令前，请检查展示的准确参数。
 
-注册成功不代表所有同步阶段成功，请检查失败条目并在解决权限或设置问题后重试相关阶段。
-
-已有目录会自动纳入管理，`--adopt` 仅为兼容保留。对陌生工作区先使用 `--dry-run` 查看计划。
-
-只有 `origin` 且其 URL 与声明的 upstream 完全匹配时，sync 会添加 `upstream`，保留 `origin`、当前分支和本地文件。预览的 `upstream_to_add` 与结果的 `upstream_added` 分别说明计划和实际效果；冲突的 remote 保持不变。
+看到 **Ready to work** 即可开始工作。若需要个人登录、权限或批准，fx 会集中列出剩余事项。处理后使用返回的继续命令：
 
 ```sh
-fx sync --dry-run
-fx sync
-fx status
-fx repo list
-fx where <repo> --env <environment>
-fx can <capability> --env <environment>
+fx init --resume --workspace work
 ```
 
-`where` 输出坐标和命令，但不会执行这些命令。`can` 和 `doctor` 检查当前就绪状态。缺少设置、认证或权限时，按 handoff 处理。报告生成成功不等于准备完成：同时阅读 `ok`、`complete` 和各项结果。
+续跑会验证当前状态并跳过已完成的准备，不会重新导入目录来源或重建已有仓库。无需自行选择内部阶段或再组合一套诊断命令。
 
-使用 `repo pick/unpick`、`env pick/unpick` 限定本机关注范围。`fx config set agents claude-code,codex` 选择 Agent；未配置时自动检测。`fx sync --only docs,skills` 只刷新对应资源。
+新工作区默认选择全部共享仓库。需要减少首次下载时，先[选择仓库](#choose-repositories-before-downloading)，给初始预览和执行都加 `--repos`。已有目录自动纳入管理。日常更新使用 `fx sync`，查看仓库状态使用 `fx status`。
 
 ## 发现和管理工作区 {#find-and-manage-workspaces}
 
@@ -225,7 +210,7 @@ fx skill status
 
 显式 install 将已识别副本刷新到调用 CLI 的版本，包括同版修复和替换较新副本；init/sync 同版复用且不降级。外来内容替换需要确认和备份。卸载不改变 Agent 选择，后续 sync 可能再次安装。
 
-安装、版本匹配与声明加载是不同事实。读取 bundled Skill 后设置 `FX_SKILL_LOADED=1` 和 `FX_SKILL_VERSION=<bundled_skill_version>`；声明本身不能证明实际阅读。引导命令保持安静，其余非 TTY 命令会在版本未匹配时给出非阻断提示，可用 `FX_SKILL_NOTICE=0` 关闭。
+`skill status` 报告安装版本与 `activation: unverified`。文件已安装不代表宿主已加载。按需读取随包指南，普通命令无需声明 Skill 已加载。
 
 团队 Skill 位于 manifest 的 `skills/`，由 init/sync 链接到所选宿主，并在根 AGENTS.md 生成目录。请从工作区根启动，子仓库中的发现行为没有保证。用 `fx sync --only docs,skills` 刷新；不要通过团队共享链接安装 fx 伴生 Skill，应使用用户副本或独立目录。
 
@@ -254,37 +239,37 @@ fx skill status
 
 ## 给编码 Agent {#for-coding-agents}
 
-先执行 `fx self info --format json`，读取返回的 bundled Skill 或 `fx skill show`，再声明 `FX_SKILL_LOADED=1` 和匹配的 `FX_SKILL_VERSION`。[内置 Skill](../skills/fx-workspace/SKILL.md) 提供任务路由。
+先执行 `fx self info --format json`。初始化任务读取返回的 `initialization_guide`，并持续使用同一准确入口；无需声明已加载 Skill 的环境变量。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任务的路由。
 
-使用 `--format json`，将 stdout 结果与 stderr 通知、进度和错误分开解析。集合采用 `{items, has_more, next?}`；`--no-input` 不等待输入，`--quiet` 抑制通知和进度。
+用 `--format json` 分开保存 stdout 结果与 stderr 进度、通知和错误。默认结果保留准备结论和全部阻塞项，`--details` 展开阶段证据。human 默认先显示任务结论和下一步。显式 `--fields` 从完整报告提取字段，点路径保留为扁平键，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
-`init`、`sync`、`doctor`、`release` 默认输出摘要，保留计数、异常和恢复动作，`omitted` 统计省略项。`--details` 返回完整结果，显式 `--fields` 从完整结果投影；`--verbose` 独立控制诊断。显式 `--fields` 在所有格式中均投影完整报告：JSON/NDJSON 输出一个对象，human 输出选中的键值。点路径保留为扁平键。例如 `fx sync --fields operation,preparation_complete,items,summary` 不包含阶段明细。未指定字段时，human/NDJSON 默认行为不变；事实查询仍按条目投影并保留集合元数据。
+| 结果               | 完成判定                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `init/sync/doctor` | `preparation.state` 为 `planned`、`ready` 或 `incomplete`，仅针对 `preparation.scope`。 |
+| `release`          | 读取 `ok`、`complete` 和检查项；此命令不发布或部署。                                    |
+| `can`              | 读取目标能力的 `status` 和接手指引。                                                    |
 
-init/sync 的末尾提示也会说明所选范围是否准备完成。`preparation_complete` 为 false 时，即使克隆成功，仍应报告准备未完成并列出阻塞项。文档失败时，sync 查看 `stage_details.docs.files`，init 查看 `sync.stage_details.docs.files`：`action` 是计划，`result` 区分已完成、失败和未开始。解决冲突后重试会跳过未变化文档；替换外来内容需要批准，并将原对象保存在唯一的同级备份中。
+准备就绪退出 0，未完成退出 12；预览只是计划。配置或执行异常保留原分类退出码，也可能返回部分 stdout。`doctor.coverage` 单独描述诊断覆盖；可选宿主激活未验证不会阻塞必需工作，文件存在也不证明激活。
 
-| 结果             | 判读字段                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| `init/sync`      | `operation` 与 `preparation_complete`。预览为 `null`；执行只判断本次选择且请求的准备工作。 |
-| `doctor/release` | `ok` 表示没有失败项；`complete` 表示没有缺少覆盖的请求项。仍需检查警告。                   |
-| `can`            | `status` 和 `handoff`。准备就绪不保证某次远端查询成功。                                    |
+Init 会自行执行已授权的本地准备。结果保留已完成步骤；认证未完成时，不要重复这些步骤。
 
-报告可能退出零但仍有失败项，init/sync 的非零退出也可能伴随部分 stdout。脏仓库、分叉、阻塞、失败或未验证的激活会使准备不完整；未选资源不影响判定。`release` 只检查仓库，不发布包或部署服务。
+`--workspace` 可接收已注册的名称或根目录路径。`--details` 可统一用于各命令；事实查询本来就返回完整结果。若需保存输出进行分析，请使用任务授权目录；只读姿态无法控制 shell 重定向。
 
-在写入前选择输出视图。对已授权的同步，一次保存完整结果：
+先读 `preparation.next`：审阅预览、准备完成后继续原任务、执行 Agent 动作，或等待人工条件补齐。`next_actions` 只包含 Agent 可处理的动作；个人操作保留在阻塞项内并标为 `actor: user`。条件变化后才运行 `resume`。
 
-```sh
-fx sync --format json --details > sync-result.json
-```
+一次阅读全部 `preparation.blockers`。`next_actions` 提供准确 argv、cwd、可选 env 坐标和审批要求；续跑时保留这些值，`resume` 继续已注册工作区。已有授权继续有效，新向量仍需审阅。不要凭注册或克隆推断成功，不要为获取明细重复写入，也不要将个人凭据放入 manifest。
 
-随后解析同一文件，不截断 JSON，也不为补取明细重复写操作。一起判读部分结果和 stderr 错误，详见[响应契约](../skills/fx-workspace/references/commands.md)。
+文件冲突的逐项结果保留在 `stage_details.docs.files`（init 中位于 `sync` 下）。替换外来内容需要批准，并保留同级备份。详见[响应契约](../skills/fx-workspace/references/commands.md)。
 
-## 迁移到 0.2.0 {#migrating-to-020}
+## 迁移到 0.4.0 {#migrating-to-040}
 
-- 工作流 JSON 默认输出摘要；需要正常条目或证据的脚本请加 `--details`，显式 `--fields` 仍从完整结果投影。
-- 显式空 Agent 选择表示不选择任何宿主；恢复检测见[Agent 选择](#agent-selection)。
-- 读取当前 bundled Skill 后声明 `FX_SKILL_VERSION`，仅旧布尔变量不能核对版本。
+- 工具文档使用 `schema_version: 3`。`kind: run` 必须声明 `phase: prepare`（本地非交互准备）或 `phase: authenticate`（个人登录）。旧格式在产生工作区效果前报出迁移问题，fx 不猜测脚本用途。
+- 已移除 Skill 加载握手及 `skill_notice` 配置。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；请改读安装版本和 `activation`，不要再读取 loaded/version_verified。
+- `preparation.state` 替代 `preparation_complete`。doctor 的顶层 `ok/complete` 改为准备结果和诊断 `coverage`；release 保留原契约。准备未完成退出 12。
+- 工作区发现使用 `registration_status: available` 表示注册可读，不代表准备完成。
+- `init --resume --workspace <name>` 使用托管来源和现有选择继续。普通源指南无需 fx 标记：缺少的区域会补入生成的目标指南，共享源保持不变。
 
-具体判读方式见[给编码 Agent](#for-coding-agents)。
+配置格式见 [manifest 指南](manifest-guide.md)。
 
 ## 配置 {#configuration}
 
@@ -322,25 +307,13 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 ## 判读初始化与恢复结果 {#reading-initialization-and-recovery-results}
 
-init 可能先完成注册，再在后续阶段失败。即使退出码非零，也要读取部分 stdout；解决原因后，以相同名称、来源和目录重试。同一物理目录的符号链接别名可接受，不同目录仍是冲突。
+按结果返回的继续操作处理。新来源尚未被接受时，使用完整的原始重试命令；否则续跑读取托管来源和现有选择。注册与文件写入只是已发生的效果，完成判定看 `preparation.state` 和阻塞项。
 
-| 证据                                | 含义                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| `registered` / `written`            | 注册是否存在／本次是否写入本地状态；仍须单独检查 `preparation_complete`。 |
-| `failed_phase`、`phases`、`failure` | 初始化停止的位置与恢复步骤。                                              |
-| `sync.stages`、`sync.stage_details` | init 的同步结果；sync 命令去掉 `sync` 前缀。                              |
-| `tool_install`                      | 安装尝试；`code: null` 不代表成功，安装成功后也可能版本检查失败。         |
-| `observed`                          | Skill 失败后的磁盘状态，失败写入也可能已经改变目标。                      |
+本地预览检查目录、stdin 或 Git 已提交内容；新的远端来源在获取前保持 `source_inspected: false`。已知指南冲突与计划命令会先展示，预览不授予信任。普通源指南会在生成的目标中补齐 fx 区域，保留共享源正文；模糊标记交给维护者修正。
 
-`SKILL_WRITE_DENIED` 应先检查被拒绝的路径；修改 FX_HOME 不会移动共享锁。可用 `fx sync --only repos,docs --no-refresh-manifest` 继续本地仓库和指南工作，但不代表 Skill 已修复。访问条件未改变时不要重复重试，也不要绕过命令信任。
+部分失败会保留已完成仓库、本地准备和用户文件。补齐列出的前置条件后，按返回动作继续；已有安装和通过验证的步骤会跳过。相对验证文件以工作区根为基准。含空格或 Unicode 的目录会自动生成名称，直接使用返回的身份即可。
 
-`INIT_PREPARED` 在安装与克隆前展示计划。init 的 dry-run 会检查本地目录、stdin 和本地 Git 的已提交内容，并列出仓库动作而不执行。新的远端来源不会在 dry-run 中被拉取；`source_inspected: false` 表明此边界，所请求的仓库选择仍未验证。需要先查看来源内容时，按预览提示检查本地 checkout。计划与实际状态分别报告，`registered` 表示注册当前确实存在，不再表示计划注册或本次新建。stderr 进度是心跳，不是传输百分比或 ETA；完整 JSON 使用 `--details`。
-
-Git manifest 的刷新与预览会保留已修改、未跟踪，以及虽被 Git 忽略但 fx 会读取的来源文件。这一来源保护规则不改变业务 checkout 的同步策略。
-
-正常重试会重新探测仓库可读性；之前缺失的仓库不会被旧的负缓存持续阻断。
-
-工具、登录与更新问题见[支持](support.md#troubleshooting)。`no_access` 表示环境未被选中，不是远端 ACL 拒绝。Git 传输凭证与可选代码托管 API 检查相互独立。
+遇到 `SKILL_WRITE_DENIED` 先处理被拒绝的路径；改变 FX_HOME 不会移动全局锁。可用 `fx sync --only repos,docs --no-refresh-manifest` 继续允许的工作，但不能声称 Skill 已修复。外来文件替换仍需批准并保留备份。Git 来源刷新保留本地修改，普通重试重新检查仓库可读性。详见[支持](support.md#troubleshooting)。
 
 ### 人工接手后恢复登录 {#resume-login-after-a-handoff}
 

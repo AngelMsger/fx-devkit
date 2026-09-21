@@ -15,9 +15,10 @@ export function syncNotices(out: SyncOutput, dryRun: boolean): Notice[] {
   const { done, skipped, failed, unreadable } = out.summary;
   let preparation = 'Preparation preview';
   if (!dryRun)
-    preparation = out.preparation_complete
-      ? 'Preparation complete for the selected stages'
-      : 'Preparation incomplete';
+    preparation =
+      out.preparation.state === 'ready'
+        ? 'Preparation complete for the selected stages'
+        : 'Preparation incomplete';
   return [
     ...stages,
     {

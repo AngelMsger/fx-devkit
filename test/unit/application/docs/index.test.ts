@@ -161,13 +161,8 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(CLAUDE)).toBe(derive(CLAUDE_POINTER, ORIGIN));
     expect(await s.h.fs.exists(ORIGIN)).toBe(true);
     expect(s.h.fs.writes).toEqual([AGENTS, CLAUDE]);
-    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toMatchObject([
-      { message: expect.stringContaining(ORIGIN) },
-      { message: expect.stringContaining(ORIGIN) },
-      { message: expect.stringContaining(ORIGIN) },
-      { message: expect.stringContaining(ORIGIN) },
-      { message: expect.stringContaining(ORIGIN) },
-    ]);
+    expect(out.files[0]?.added).toHaveLength(5);
+    expect(await s.h.fs.readText(ORIGIN)).toBe(prose);
     const again = await s.derive.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged', 'unchanged']);
     expect(await s.derive.execute({ ...write, check: true })).toBeDefined();

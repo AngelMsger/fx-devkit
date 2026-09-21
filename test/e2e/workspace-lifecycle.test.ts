@@ -29,7 +29,7 @@ function setup() {
     path.join(source, 'manifest/workspace.yaml'),
     readFileSync(path.resolve('test/fixtures/manifest/v1-minimal/workspace.yaml'), 'utf8'),
   );
-  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0', FX_SKILL_NOTICE: '0' };
+  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0' };
   cpSync(source, manifestDirOf(home, 'alpha'), { recursive: true });
   writeFileSync(
     path.join(home, 'config.yaml'),
@@ -60,16 +60,16 @@ describe('workspace discovery and lifecycle', () => {
   it('discovers degraded registrations and returns global self facts with selected identity', () => {
     const s = setup();
     expect(s.run(['workspace', 'list']).json()).toMatchObject({
-      items: [{ name: 'alpha', status: 'ready', selection: 'default' }],
+      items: [{ name: 'alpha', registration_status: 'available', selection: 'default' }],
     });
     rmSync(path.join(manifestDirOf(s.home, 'alpha'), 'manifest/workspace.yaml'));
     expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
-      status: 'missing',
+      registration_status: 'missing',
       source: s.source,
     });
     expect(s.run(['self', 'info']).json()).toMatchObject({
       version: expect.any(String),
-      workspace: { name: 'alpha', status: 'missing' },
+      workspace: { name: 'alpha', registration_status: 'missing' },
     });
     const failure = s.run(['status', '--workspace', 'alpha']);
     expect(failure.error()).toMatchObject({
@@ -77,9 +77,13 @@ describe('workspace discovery and lifecycle', () => {
       next_steps: expect.arrayContaining([`fx init '${s.root}' --name alpha --from ${s.source}`]),
     });
     rmSync(manifestDirOf(s.home, 'alpha'), { recursive: true });
-    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({ status: 'unprepared' });
+    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
+      registration_status: 'unprepared',
+    });
     rmSync(s.root, { recursive: true });
-    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({ status: 'root_missing' });
+    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
+      registration_status: 'root_missing',
+    });
     expect(s.run(['status', '--workspace', 'alpha']).error()).toMatchObject({
       code: 'WORKSPACE_ROOT_MISSING',
     });
@@ -266,7 +270,9 @@ describe('workspace resource ownership', () => {
     expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).toHaveProperty('personal');
     expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).not.toHaveProperty('fx-exclusive');
     expect(existsSync(source)).toBe(true);
-    expect(s.run(['workspace', 'show', 'beta']).json()).toMatchObject({ status: 'ready' });
+    expect(s.run(['workspace', 'show', 'beta']).json()).toMatchObject({
+      registration_status: 'available',
+    });
     const second = s.run(['workspace', 'unregister', 'beta']);
     expect(second.status, second.stderr).toBe(0);
     expect(JSON.parse(readFileSync(file, 'utf8')).mcpServers).toEqual({
@@ -293,7 +299,9 @@ describe('workspace public mutation serialization', () => {
       ])
         expect(s.run(args).error()).toMatchObject({ code: 'LOCK_BUSY' });
       expect(existsSync(local) ? readFileSync(local, 'utf8') : null).toBe(before);
-      expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({ status: 'ready' });
+      expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
+        registration_status: 'available',
+      });
       expect(
         s.run(['repo', 'unpick', 'fx-example-api', '--workspace', 'alpha', '--dry-run']).status,
       ).toBe(0);
@@ -321,7 +329,9 @@ describe('workspace review regressions', () => {
     expect(existsSync(path.join(outside, 'skills'))).toBe(true);
     expect(existsSync(skills)).toBe(true);
     expect(existsSync(path.join(s.root, 'AGENTS.md'))).toBe(true);
-    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({ status: 'ready' });
+    expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
+      registration_status: 'available',
+    });
   });
 
   it('creates no state or lock directories for read-only initialization and lifecycle requests', () => {
@@ -329,7 +339,7 @@ describe('workspace review regressions', () => {
     const home = path.join(base, 'uncreated-state');
     const root = path.join(base, 'uncreated-workspace');
     const source = path.resolve('test/fixtures/manifest/v1-minimal');
-    const env = { FX_HOME: home, FX_READ_ONLY: '1', FX_SKILL_NOTICE: '0', FX_AGENTS: '' };
+    const env = { FX_HOME: home, FX_READ_ONLY: '1', FX_AGENTS: '' };
     const init = fx(
       ['init', root, '--name', 'readonly', '--from', source, '--format', 'json'],
       env,

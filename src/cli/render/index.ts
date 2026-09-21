@@ -9,20 +9,17 @@ import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
 import { unmatchedFields, project } from './fields.js';
 import { humanDiagnostic, humanList, humanNotice, humanProgress, humanRecord } from './human.js';
-import { compactNotice, compactReport, type ReportCommand } from './report.js';
+import { compactReport, type ReportCommand } from './report.js';
 
 export { parseFields, project } from './fields.js';
 export { FORMATS, type Format } from '../../domain/format.js';
 
-// `trailer` is what a report says about the whole list (a summary, stage
-// outcomes): part of the envelope in json, one closing line in ndjson, and
-// the command's own notices in human output.
 export interface ListOptions {
   readonly hasMore?: boolean;
   readonly next?: string;
-  // Column order is declared beside the row type, so adding a field is one
-  // decision in one module instead of a silent omission from the table.
   readonly columns?: readonly string[];
+  // Merged into the JSON envelope, emitted as a final NDJSON record, or shown
+  // below the human table. Notices use the separate diagnostic stream.
   readonly trailer?: Readonly<Record<string, unknown>>;
   // A human findings table may display only one part of the workflow report.
   readonly fullReport?: object;
@@ -75,7 +72,7 @@ export function createRenderer(
     !options.details &&
     options.fields === undefined;
   const shape = (value: unknown): unknown => shapeResult(value, options, io);
-  const shared = diagnosticRenderer(format, io, options, compact);
+  const shared = diagnosticRenderer(format, io, options);
   return {
     ...shared,
     record: (value, opts = {}) => {
@@ -160,7 +157,6 @@ function diagnosticRenderer(
   format: Format,
   io: RenderIo,
   options: RenderOptions,
-  compact: boolean,
 ): Pick<Renderer, 'emit' | 'error' | 'notice' | 'progress'> {
   return {
     emit: (event: DiagnosticEvent) => {
@@ -173,12 +169,7 @@ function diagnosticRenderer(
     error: (err: DevkitError) => line(io.err, JSON.stringify(toEnvelope(err))),
     notice: (notice: Notice) => {
       if (options.quiet) return;
-      line(
-        io.err,
-        format === 'human'
-          ? humanNotice(notice)
-          : JSON.stringify({ _notice: compact ? compactNotice(notice) : notice }),
-      );
+      line(io.err, format === 'human' ? humanNotice(notice) : JSON.stringify({ _notice: notice }));
     },
     progress: (event: ProgressEvent) => {
       if (options.quiet) return;

@@ -5,7 +5,7 @@ import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
 import { extractSemver } from '../../../../src/domain/toolchain/version.js';
 
 const bundled = [
-  'schema_version: 2',
+  'schema_version: 3',
   'defaults:',
   '  version_args: [--version]',
   '  npm_scope: "@example"',
@@ -29,13 +29,13 @@ const cli = { cliVersion: '1.0.0' };
 describe('resolveTools', () => {
   it('retains a quarantined base diagnostic unless the overlay repairs that entry', () => {
     const base =
-      'schema_version: 2\ntools: [{name: good, install: [{via: npm}]}, {name: bad, required: nope}]';
-    const patched = loadTools(base, 'schema_version: 2\ntools: [{name: good, desc: changed}]', cli);
+      'schema_version: 3\ntools: [{name: good, install: [{via: npm}]}, {name: bad, required: nope}]';
+    const patched = loadTools(base, 'schema_version: 3\ntools: [{name: good, desc: changed}]', cli);
     expect(patched.dropped.map((entry) => entry.name)).toContain('bad');
     expect(patched.problems.length).toBeGreaterThan(0);
     const fixed = loadTools(
       base,
-      'schema_version: 2\ntools: [{name: bad, required: false, install: [{via: npm}]}]',
+      'schema_version: 3\ntools: [{name: bad, required: false, install: [{via: npm}]}]',
       cli,
     );
     expect(fixed.dropped).toEqual([]);
@@ -79,7 +79,7 @@ describe('resolveTools', () => {
 
   it('falls back to --version when neither the entry nor defaults say', () => {
     const loaded = loadTools(
-      'schema_version: 2\ndefaults: { install: [{ via: manual }] }\ntools: [{ name: solo }]',
+      'schema_version: 3\ndefaults: { install: [{ via: manual }] }\ntools: [{ name: solo }]',
       undefined,
       cli,
     );
@@ -88,7 +88,7 @@ describe('resolveTools', () => {
 
   it('marks the fields a patch changed as patch-origin, including inherited defaults', () => {
     const patch = [
-      'schema_version: 2',
+      'schema_version: 3',
       'defaults: { auth: { command: [whoami] } }',
       'tools:',
       '  - name: alpha',

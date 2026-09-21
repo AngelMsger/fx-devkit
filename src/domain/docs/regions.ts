@@ -1,6 +1,7 @@
-// Generated regions inside a hand-written document. Between a begin and an end marker the
-// text is fx's; everything else is a person's and is never touched. A region the document
-// lacks is reported rather than inserted, because where it goes is the author's decision.
+// Replace fx-owned regions while preserving author text. Source rendering reports
+// missing regions; generated workspace guides may append them through completeRegions.
+
+import { DevkitError } from '../errors.js';
 
 export const begin = (name: string): string => `<!-- fx:begin ${name} -->`;
 export const end = (name: string): string => `<!-- fx:end ${name} -->`;
@@ -10,11 +11,55 @@ export interface RenderedRegions {
   readonly replaced: readonly string[];
   readonly missing: readonly string[];
   readonly unknown: readonly string[];
+  readonly added?: readonly string[];
 }
 
 const MARKER = /<!-- fx:begin ([a-z0-9-]+) -->/g;
 const BOUNDARY = /<!-- fx:(begin|end) ([a-z0-9-]+) -->/g;
 const RETIRED = new Set(['rules']);
+
+export function completeRegions(
+  doc: string,
+  regions: Readonly<Record<string, string>>,
+): RenderedRegions {
+  const seen = new Set<string>();
+  let opening: string | undefined;
+  for (const marker of doc.matchAll(BOUNDARY)) {
+    const name = marker[2]!;
+    if (marker[1] === 'begin') {
+      if (opening !== undefined || seen.has(name)) throw invalidRegions(name);
+      opening = name;
+      seen.add(name);
+    } else {
+      if (opening !== name) throw invalidRegions(name);
+      opening = undefined;
+    }
+  }
+  if (opening !== undefined) throw invalidRegions(opening);
+  const rendered = renderRegions(doc, regions);
+  const added = rendered.missing;
+  const suffix = added.map((name) => region(name, regions[name]!)).join('\n\n');
+  return {
+    ...rendered,
+    text: suffix
+      ? `${rendered.text}${rendered.text.endsWith('\n') ? '\n' : '\n\n'}${suffix}\n`
+      : rendered.text,
+    missing: [],
+    added,
+  };
+}
+
+function invalidRegions(name: string): DevkitError {
+  return new DevkitError(
+    'conflict',
+    'DOCS_REGIONS_INVALID',
+    `The guide has ambiguous fx markers near ${name}`,
+    {
+      hint: 'Nested, duplicate and unclosed regions are preserved rather than rewritten.',
+      nextSteps: ['Repair the marker pairs in the source AGENTS.md, then retry initialization.'],
+    },
+  );
+}
 
 export function renderRegions(
   doc: string,

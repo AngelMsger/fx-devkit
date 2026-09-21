@@ -65,7 +65,6 @@ describe('fx config', () => {
       'format',
       'agents',
       'read_only',
-      'skill_notice',
       'update_check',
     ]);
     // The harness fixes command presentation and disables update checks through the environment.
@@ -75,15 +74,6 @@ describe('fx config', () => {
       ['format', 'flag'],
       ['update_check', 'env'],
     ]);
-  });
-
-  it('round-trips every registered key through the store', () => {
-    const env = { FX_HOME: freshHome() };
-    expect(fx(['config', 'set', 'skill_notice', 'false'], env).status).toBe(0);
-    const list = fx(['config', 'list', '--format', 'json'], env);
-    expect(list.status, list.stderr).toBe(0);
-    const items = (list.json() as { items: { key: string; value: string | null }[] }).items;
-    expect(items.find((i) => i.key === 'skill_notice')?.value).toBe('false');
   });
 
   it('sets, explains and unsets a key in one home', () => {

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
 import type { DoctorExtension } from '../../../../src/application/doctor/types.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
@@ -42,6 +43,7 @@ const login: SetupRecipe = {
   tool: 'bitbucket-cli',
   perEnv: false,
   kind: 'run',
+  phase: 'authenticate',
   title: 'Log in',
   run: ['auth', 'login'],
   verify: { command: ['auth', 'status'] },
@@ -194,12 +196,15 @@ async function stage(
     ])
       h.process.binaries.add(binary);
     await h.fs.writeText(`${HOME}/.kube/dev`, 'k');
-    await h.fs.link(
-      path.join(MANIFEST_DIR, 'skills', 'review'),
-      path.join(agents[0]!.skillsDir('global'), 'review'),
-    );
+    await h.fs.link(path.join(MANIFEST_DIR, 'skills'), agents[0]!.skillsDir('project', ROOT));
     await h.fs.copyDir(bundledSkill.dir, path.join(agents[0]!.skillsDir('global'), 'fx-workspace'));
   }
+  if (options.healthy)
+    await new DeriveDocs(h.deps, setup).execute({
+      check: false,
+      dryRun: false,
+      posture: { readOnly: false, source: 'default' },
+    });
   return s;
 }
 
@@ -246,7 +251,7 @@ describe('Doctor', () => {
       workspace: `schema_version: 2\nproviders: {code-host: {provider: nonesuch, vars: {host: /host}}}\ndefaults: {branch: dev, upstream_project: fx}\nprojects: {fx: {label: Platform, contact: '#platform'}}\nrepos: [{name: fx-example-api}]\n`,
     });
     const report = await s.doctor.execute(check);
-    expect(report).toMatchObject({ ok: false, complete: false });
+    expect(report).toMatchObject({ preparation: { state: 'incomplete' }, coverage: 'incomplete' });
     expect(report.findings).toContainEqual(
       expect.objectContaining({
         group: 'manifest',
@@ -269,7 +274,7 @@ describe('Doctor', () => {
       providers: providerCatalog().map((facts) => ({ ...facts, tools: ['unknown-companion'] })),
     });
     const report = await s.doctor.execute(check);
-    expect(report).toMatchObject({ ok: false, complete: false });
+    expect(report).toMatchObject({ preparation: { state: 'incomplete' }, coverage: 'incomplete' });
     expect(report.findings).toContainEqual(
       expect.objectContaining({
         group: 'tools',
@@ -369,7 +374,7 @@ describe('Doctor', () => {
     ]);
     expect(by('tools')).toEqual([
       ['bitbucket-cli', 'fail'],
-      ['jira-cli', 'warn'],
+      ['jira-cli', 'fail'],
       ['kubectl', 'fail'],
     ]);
     expect(by('login')).toEqual([
@@ -387,7 +392,7 @@ describe('Doctor', () => {
     ).toBe(true);
     expect(by('manifest')).toContainEqual(['upstream', 'ok']);
     expect(by('self')).toEqual([['version', 'ok']]);
-    expect(report.ok).toBe(false);
+    expect(report.preparation.state).toBe('incomplete');
     const login = report.findings.find((f) => f.id === 'bitbucket-cli.login');
     expect(login?.fix).toBe('fx login bitbucket-cli --workspace fx');
     expect(login?.handoff?.user_steps[0]?.command).toEqual(['bitbucket-cli', 'auth', 'login']);
@@ -417,7 +422,7 @@ describe('Doctor', () => {
       level: 'warn',
       fix: 'fx sync --workspace fx',
     });
-    expect(report.ok).toBe(true);
+    expect(report.preparation.state).toBe('ready');
     s.registry.set(new Error('503'));
     const again = await s.doctor.execute(check);
     expect(again.findings.find((f) => f.id === 'version')).toMatchObject({
@@ -458,11 +463,11 @@ describe('Doctor', () => {
     const s = await stage({ healthy: true });
     const report = await s.doctor.execute(check);
     expect(report.findings.filter((f) => f.level === 'fail')).toEqual([]);
-    expect(report.ok).toBe(true);
+    expect(report.preparation.state).toBe('ready');
     expect(report.summary.ok).toBeGreaterThan(5);
   });
 
-  it('with --fix, runs the run-type steps and the Skill links before diagnosing, never the manual ones', async () => {
+  it('with --fix, repairs owned Skills but leaves personal authentication and operator files for the user', async () => {
     const s = await stage({ yes: true });
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'k');
     const report = await s.doctor.execute({
@@ -471,12 +476,10 @@ describe('Doctor', () => {
       tools: ['bitbucket-cli', 'kubectl'],
       envs: ['dev'],
     });
-    expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')?.level).toBe('ok');
+    expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')?.level).toBe('fail');
     expect(report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev')?.level).toBe('fail');
     expect(report.findings.find((f) => f.id === 'claude-code:review')?.level).toBe('ok');
-    expect(
-      s.h.process.calls.some((c) => c.vector[2] === 'login' && c.options.interactive === false),
-    ).toBe(true);
+    expect(s.h.process.calls.some((c) => c.vector[2] === 'login')).toBe(false);
     expect(s.prompter.questions).toEqual([]);
 
     const dry = await stage({ yes: true });

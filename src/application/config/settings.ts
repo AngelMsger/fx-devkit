@@ -22,7 +22,6 @@ export interface Settings {
   readonly agents: readonly string[] | undefined;
   readonly hooks: boolean;
   readonly readOnly: boolean;
-  readonly skillNotice: boolean;
   readonly updateCheck: boolean;
 }
 
@@ -41,7 +40,6 @@ export function readSettings(input: SettingsInput): Settings {
     agents: list('agents'),
     hooks: flag('hooks'),
     readOnly: flag('read_only'),
-    skillNotice: flag('skill_notice'),
     updateCheck: flag('update_check'),
   };
 }

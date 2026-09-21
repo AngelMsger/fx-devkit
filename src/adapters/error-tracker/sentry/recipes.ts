@@ -11,6 +11,7 @@ export const SENTRY_RECIPES: readonly SetupRecipe[] = [
     tool: BINARY,
     perEnv: false,
     kind: 'run',
+    phase: 'authenticate',
     title: 'Log in to Sentry',
     open: 'https://{host}/settings/account/api/auth-tokens/',
     instructions:

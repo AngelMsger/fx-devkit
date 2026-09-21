@@ -2,7 +2,7 @@
 
 安裝 fx，連接團隊 manifest，並管理儲存庫、工具與編碼 Agent。
 
-[尚未發佈的變更](../CHANGELOG.md#尚未發佈)描述目前原始碼，已安裝套件可能尚未包含這些功能。請查看目前執行檔的 `fx <command> --help` 與 bundled Skill；版本標籤相同不代表原始碼變更已發佈。
+各版本的變更見[更新日誌](../CHANGELOG.md)。請查看已安裝版本的 `fx <command> --help` 與隨附 Skill，確認目前執行檔支援的功能。
 
 依任務選擇閱讀入口：
 
@@ -67,39 +67,24 @@ PowerShell 執行原則阻止 `.ps1` shim 時，可使用 `npm.cmd` 和 `fx.cmd`
 
 ## 快速上手 {#quick-start}
 
-先將預留位置替換為團隊提供的實際來源：
-
-新工作區預設選擇全部共享儲存庫。如需限制首次下載範圍，先[選擇儲存庫名稱](#choose-repositories-before-downloading)，再為兩條 init 命令都加上 `--repos <name,...>`。
+只需要團隊提供的 manifest 來源，以及工作區要放置的目錄。可以直接告訴 Agent：「請用 fx 根據這個 manifest，把工作區準備到這個目錄。」自行操作終端時，先預覽再執行：
 
 ```sh
-fx init ./work --name work --from <manifest-repository> --dry-run
-fx init ./work --name work --from <manifest-repository>
-cd work
-fx login --list
-fx login
-fx doctor
+fx init ./work --from <manifest-repository> --dry-run
+fx init ./work --from <manifest-repository>
 ```
 
-`init` 會先在命令信任確認後安裝 manifest 中明確標記 `install_on_init`、已啟用且缺少的工具，再同步儲存庫和所選 Agent 資源。既有工具安裝會保留。
+fx 會檢查來源，完成已授權的本機工具與設定準備，複製選取的儲存庫，並準備 Agent 指南和 Skill。工作區名稱自動產生並避開既有註冊，既有檔案與已完成工作會保留。批准新命令前，請檢查顯示的完整參數。
 
-註冊成功不代表所有同步階段成功，請檢查失敗項目，並在解決權限或設定問題後重試相關階段。
-
-既有目錄會自動納入管理，`--adopt` 僅為相容性保留。對不熟悉的工作區，先使用 `--dry-run` 查看計畫。
-
-只有 `origin` 且其 URL 與宣告的 upstream 完全相符時，sync 會新增 `upstream`，保留 `origin`、目前分支和本機檔案。預覽的 `upstream_to_add` 與結果的 `upstream_added` 分別說明計畫和實際效果；衝突的 remote 保持不變。
+看到 **Ready to work** 即可開始工作。若需要個人登入、權限或批准，fx 會集中列出剩餘事項。處理後使用傳回的繼續命令：
 
 ```sh
-fx sync --dry-run
-fx sync
-fx status
-fx repo list
-fx where <repo> --env <environment>
-fx can <capability> --env <environment>
+fx init --resume --workspace work
 ```
 
-`where` 輸出座標和命令，但不會執行這些命令。`can` 和 `doctor` 檢查目前的就緒狀態。缺少設定、驗證或權限時，依 handoff 處理。報告產生成功不等於準備完成：同時閱讀 `ok`、`complete` 和各項結果。
+續跑會驗證目前狀態並略過已完成準備，不會重新匯入目錄來源或重建既有儲存庫。無需自行選擇內部階段或組合診斷命令。
 
-使用 `repo pick/unpick`、`env pick/unpick` 限定本機關注範圍。`fx config set agents claude-code,codex` 選擇 Agent；未設定時自動偵測。`fx sync --only docs,skills` 只更新對應資源。
+新工作區預設選取全部共享儲存庫。需要縮小首次下載範圍時，先[選擇儲存庫](#choose-repositories-before-downloading)，在初始預覽和執行都加上 `--repos`。既有目錄會自動納入管理。日常更新使用 `fx sync`，查看儲存庫狀態使用 `fx status`。
 
 ## 探索與管理工作區 {#find-and-manage-workspaces}
 
@@ -225,7 +210,7 @@ fx skill status
 
 明確執行 install 會將已識別副本更新為呼叫 CLI 的版本，包括同版修復和取代較新副本；init/sync 同版重用且不降級。取代外來內容需要確認和備份。解除安裝不改變 Agent 選擇，後續 sync 可能再次安裝。
 
-安裝、版本符合與宣告載入是不同事實。讀取 bundled Skill 後設定 `FX_SKILL_LOADED=1` 和 `FX_SKILL_VERSION=<bundled_skill_version>`；宣告本身不能證明實際閱讀。引導命令保持安靜，其餘非 TTY 命令在版本不符時提供非阻斷提示，可用 `FX_SKILL_NOTICE=0` 關閉。
+`skill status` 報告安裝版本與 `activation: unverified`。檔案已安裝不代表宿主已載入。按需閱讀隨包指南，一般命令無需宣告 Skill 已載入。
 
 團隊 Skill 位於 manifest 的 `skills/`，由 init/sync 連結到所選宿主，並在根 AGENTS.md 產生目錄。請從工作區根啟動，子儲存庫的探索行為沒有保證。使用 `fx sync --only docs,skills` 更新；不要透過團隊共用連結安裝 fx 伴生 Skill，應使用使用者副本或獨立目錄。
 
@@ -254,37 +239,37 @@ fx skill status
 
 ## 給編碼 Agent {#for-coding-agents}
 
-先執行 `fx self info --format json`，讀取傳回的 bundled Skill 或 `fx skill show`，再宣告 `FX_SKILL_LOADED=1` 和符合版本的 `FX_SKILL_VERSION`。[內建 Skill](../skills/fx-workspace/SKILL.md) 提供任務路由。
+先執行 `fx self info --format json`。初始化任務讀取傳回的 `initialization_guide`，並持續使用同一準確入口；無需宣告已載入 Skill 的環境變數。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任務的路由。
 
-使用 `--format json`，分開解析 stdout 結果與 stderr 通知、進度和錯誤。集合採用 `{items, has_more, next?}`；`--no-input` 不等待輸入，`--quiet` 抑制通知和進度。
+使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
-`init`、`sync`、`doctor`、`release` 預設輸出摘要，保留計數、異常與復原操作，`omitted` 統計省略項目。`--details` 傳回完整結果，明確的 `--fields` 從完整結果投影；`--verbose` 獨立控制診斷。明確的 `--fields` 在所有格式中均投影完整報告：JSON/NDJSON 輸出一個物件，human 輸出選取的鍵值。點路徑保留為扁平鍵。例如 `fx sync --fields operation,preparation_complete,items,summary` 不包含階段明細。未指定欄位時，human/NDJSON 預設行為不變；事實查詢仍按項目投影並保留集合中繼資料。
+| 結果               | 完成判定                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `init/sync/doctor` | `preparation.state` 為 `planned`、`ready` 或 `incomplete`，僅針對 `preparation.scope`。 |
+| `release`          | 讀取 `ok`、`complete` 與檢查項目；此命令不發佈或部署。                                  |
+| `can`              | 讀取目標能力的 `status` 和接手指引。                                                    |
 
-init/sync 的結尾提示也會說明所選範圍是否準備完成。`preparation_complete` 為 false 時，即使複製成功，仍應回報準備未完成並列出阻塞項。文件失敗時，sync 查看 `stage_details.docs.files`，init 查看 `sync.stage_details.docs.files`：`action` 是計畫，`result` 區分已完成、失敗與尚未開始。解決衝突後重試會略過未變更文件；取代外來內容需要批准，並將原物件保存在唯一的同層備份中。
+準備就緒結束代碼為 0，未完成為 12；預覽只是計畫。設定或執行異常保留原分類結束代碼，也可能傳回部分 stdout。`doctor.coverage` 單獨描述診斷涵蓋範圍；選用宿主啟用未驗證不會阻塞必要工作，檔案存在也不證明啟用。
 
-| 結果             | 判讀欄位                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| `init/sync`      | `operation` 與 `preparation_complete`。預覽為 `null`；執行只判斷本次選擇並請求的準備工作。 |
-| `doctor/release` | `ok` 表示沒有失敗項目；`complete` 表示沒有缺少涵蓋的請求項目。仍需查看警告。               |
-| `can`            | `status` 與 `handoff`。準備就緒不保證某次遠端查詢成功。                                    |
+Init 會自行執行已授權的本地準備。結果保留已完成步驟；認證未完成時，不要重複這些步驟。
 
-報告可能結束代碼為零卻仍有失敗項目，init/sync 的非零結束也可能伴隨部分 stdout。未提交的變更、分叉、阻塞、失敗或未驗證的啟用會使準備不完整；未選資源不影響判定。`release` 只檢查儲存庫，不發佈套件或部署服務。
+`--workspace` 可接收已註冊的名稱或根目錄路徑。`--details` 可一致用於各命令；事實查詢原本就回傳完整結果。若需儲存輸出進行分析，請使用任務授權目錄；唯讀姿態無法控制 shell 重新導向。
 
-寫入前先選擇輸出檢視。對已授權的同步，一次儲存完整結果：
+先讀 `preparation.next`：審閱預覽、準備完成後繼續原任務、執行 Agent 動作，或等待人工條件補齊。`next_actions` 只包含 Agent 可處理的動作；個人操作保留在阻塞項內並標為 `actor: user`。條件變化後才執行 `resume`。
 
-```sh
-fx sync --format json --details > sync-result.json
-```
+一次閱讀全部 `preparation.blockers`。`next_actions` 提供準確 argv、cwd、可選 env 座標及批准要求；續跑時保留這些值，`resume` 繼續已註冊工作區。既有授權持續有效，新向量仍須審閱。不要憑註冊或複製推斷成功，不要為取得明細重複寫入，也不要將個人憑據放入 manifest。
 
-之後解析同一檔案，不截斷 JSON，也不為取得明細重複寫入。一起判讀部分結果與 stderr 錯誤，詳見[回應契約](../skills/fx-workspace/references/commands.md)。
+檔案衝突的逐項結果保留在 `stage_details.docs.files`（init 中位於 `sync` 下）。取代外來內容需要批准，並保留同層備份。詳見[回應契約](../skills/fx-workspace/references/commands.md)。
 
-## 遷移至 0.2.0 {#migrating-to-020}
+## 遷移到 0.4.0 {#migrating-to-040}
 
-- 工作流 JSON 預設輸出摘要；需要正常項目或證據的腳本請加 `--details`，明確指定的 `--fields` 仍從完整結果投影。
-- 明確的空 Agent 選擇表示不選取宿主；恢復偵測見[Agent 選擇](#agent-selection)。
-- 讀取目前 bundled Skill 後宣告 `FX_SKILL_VERSION`，只有舊布林變數不足以核對版本。
+- 工具文件使用 `schema_version: 3`。`kind: run` 必須宣告 `phase: prepare`（本機非互動準備）或 `phase: authenticate`（個人登入）。舊格式在產生工作區效果前回報遷移問題，fx 不猜測腳本用途。
+- 已移除 Skill 載入握手及 `skill_notice` 設定。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；請改讀安裝版本和 `activation`，不要再讀取 loaded/version_verified。
+- `preparation.state` 取代 `preparation_complete`。doctor 的頂層 `ok/complete` 改為準備結果與診斷 `coverage`；release 保留原契約。準備未完成結束代碼為 12。
+- 工作區發現使用 `registration_status: available` 表示註冊可讀，不代表準備完成。
+- `init --resume --workspace <name>` 使用託管來源與現有選擇繼續。普通來源指南無需 fx 標記：缺少的區域會補入產生的目標指南，共享來源保持不變。
 
-判讀方式見[給編碼 Agent](#for-coding-agents)。
+設定格式見 [manifest 指南](manifest-guide.md)。
 
 ## 設定 {#configuration}
 
@@ -322,25 +307,13 @@ Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill�
 
 ## 判讀初始化與復原結果 {#reading-initialization-and-recovery-results}
 
-init 可能先完成註冊，再在後續階段失敗。即使結束代碼非零，也要讀取部分 stdout；解決原因後，以相同名稱、來源和目錄重試。同一實體目錄的符號連結別名可接受，不同目錄仍屬衝突。
+依結果傳回的繼續操作處理。新來源尚未接受時，使用完整的原始重試命令；否則續跑讀取託管來源與現有選擇。註冊和檔案寫入只是已發生的效果，完成判定看 `preparation.state` 與阻塞項。
 
-| 證據                                | 含義                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| `registered` / `written`            | 註冊是否存在／本次是否寫入本機狀態；仍須另行檢查 `preparation_complete`。 |
-| `failed_phase`、`phases`、`failure` | 初始化停止的位置與復原步驟。                                              |
-| `sync.stages`、`sync.stage_details` | init 的同步結果；sync 命令去掉 `sync` 前綴。                              |
-| `tool_install`                      | 安裝嘗試；`code: null` 不代表成功，安裝成功後也可能版本檢查失敗。         |
-| `observed`                          | Skill 失敗後的磁碟狀態，失敗寫入也可能已改變目標。                        |
+本機預覽檢查目錄、stdin 或 Git 已提交內容；新遠端來源在取得前保持 `source_inspected: false`。已知指南衝突與計畫命令會先顯示，預覽不授予信任。普通來源指南會在產生的目標中補齊 fx 區域，保留共享來源正文；模糊標記由維護者修正。
 
-遇到 `SKILL_WRITE_DENIED` 應先檢查被拒絕的路徑；修改 FX_HOME 不會移動共用鎖。可用 `fx sync --only repos,docs --no-refresh-manifest` 繼續本機儲存庫與指南工作，但不代表 Skill 已修復。存取條件未改變時不要重試，也不要繞過命令信任。
+部分失敗會保留已完成儲存庫、本機準備和使用者檔案。補齊列出的前置條件後，依傳回操作繼續；既有安裝與已驗證步驟會略過。相對驗證檔案以工作區根為基準。含空格或 Unicode 的目錄會自動產生名稱，直接使用傳回的身分即可。
 
-`INIT_PREPARED` 在安裝與複製前展示計畫。init 的 dry-run 會檢查本機目錄、stdin 與本機 Git 已提交的內容，並列出儲存庫動作而不執行。新的遠端來源不會在 dry-run 中擷取；`source_inspected: false` 表明此邊界，要求的儲存庫選擇仍未驗證。需要先查看來源內容時，依預覽提示檢查本機 checkout。計畫與實際狀態分別回報，`registered` 表示註冊目前確實存在，不再表示計畫註冊或本次新增。stderr 進度是心跳，不是傳輸百分比或 ETA；完整 JSON 使用 `--details`。
-
-Git manifest 的更新與預覽會保留已修改、未追蹤，以及雖被 Git 忽略但 fx 會讀取的來源檔案。此來源保護規則不改變業務 checkout 的同步策略。
-
-正常重試會重新探測儲存庫可讀性；先前遺失的儲存庫不會被舊的負快取持續阻擋。
-
-工具、登入與更新問題見[支援](support.md#troubleshooting)。`no_access` 表示環境未被選取，不是遠端 ACL 拒絕。Git 傳輸憑證與選用的程式碼託管 API 檢查互相獨立。
+遇到 `SKILL_WRITE_DENIED` 先處理被拒絕的路徑；改變 FX_HOME 不會移動全域鎖。可用 `fx sync --only repos,docs --no-refresh-manifest` 繼續允許的工作，但不能宣稱 Skill 已修復。外來檔案置換仍須批准並保留備份。Git 來源刷新保留本機修改，正常重試重新檢查儲存庫可讀性。詳見[支援](support.md#troubleshooting)。
 
 ### 人工接手後恢復登入 {#resume-login-after-a-handoff}
 

@@ -9,6 +9,7 @@ export const BITBUCKET_RECIPES: readonly SetupRecipe[] = [
     tool: 'bitbucket-cli',
     perEnv: false,
     kind: 'run',
+    phase: 'authenticate',
     title: 'Store a Bitbucket access token',
     open: '{web}/plugins/servlet/access-tokens/manage',
     instructions:

@@ -31,7 +31,7 @@ describe('toolchainOf', () => {
     const h = await harness({
       workspace: workspace(local),
       files: {
-        [`${MANIFEST_DIR}/manifest/tools.yaml`]: 'schema_version: 2\ntools: [{ name: lark-cli }]\n',
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]: 'schema_version: 3\ntools: [{ name: lark-cli }]\n',
       },
     });
     const toolchain = toolchainOf(h.ctx);
@@ -53,7 +53,7 @@ describe('toolchainOf', () => {
       workspace: workspace('code-host: {provider: bitbucket-cli, vars: {host: /host}}'),
       files: {
         [`${MANIFEST_DIR}/manifest/tools.yaml`]:
-          'schema_version: 2\ntools: [{ name: bitbucket-cli }]\n',
+          'schema_version: 3\ntools: [{ name: bitbucket-cli }]\n',
       },
     });
     // Removing the declaration would change nothing, so the binding is the honest answer.
@@ -87,7 +87,7 @@ describe('toolchainOf', () => {
       workspace: workspace(`${local}, worklog: {provider: fx-worklog-cli}`),
       files: {
         [`${MANIFEST_DIR}/manifest/tools.yaml`]:
-          'schema_version: 2\ntools: [{ name: fx-worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]\n',
+          'schema_version: 3\ntools: [{ name: fx-worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]\n',
       },
     });
     expect(toolchainOf(h.ctx).sources.get('fx-worklog-cli')).toEqual({
@@ -99,7 +99,7 @@ describe('toolchainOf', () => {
   it('derives a provider only the manifest defines from the tool it declares', async () => {
     const files = {
       [`${MANIFEST_DIR}/manifest/tools.yaml`]:
-        'schema_version: 2\ntools: [{ name: worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]\n',
+        'schema_version: 3\ntools: [{ name: worklog-cli, install: [{ via: npm, spec: "@example/worklog-cli" }] }]\n',
     };
     const h = await harness({
       workspace: workspace(`${local}, issue-tracker: {provider: worklog-cli}`),

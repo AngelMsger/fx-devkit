@@ -24,3 +24,7 @@ export function bundledToolsText(): string {
 export function bundledSkillDir(): string {
   return fileURLToPath(new URL('../../skills/fx-workspace', import.meta.url));
 }
+
+export function fxExecutable(): readonly string[] {
+  return [process.execPath, fileURLToPath(new URL('../../bin/fx.js', import.meta.url))];
+}

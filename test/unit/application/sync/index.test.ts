@@ -25,10 +25,11 @@ describe('Sync', () => {
         only: ['services', 'docs', 'tools'],
         stages: {
           services: async () => ({
+            checks: [],
             summary: { configured: 1 },
             details: { items: [{ status: 'configured' }] },
           }),
-          docs: async () => ({ summary: { created: 2 } }),
+          docs: async () => ({ checks: [], summary: { created: 2 } }),
           tools: async () => {
             throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'review the tool probe');
           },
@@ -38,7 +39,7 @@ describe('Sync', () => {
       code: 'VECTOR_UNTRUSTED',
       partialResult: {
         operation: 'apply',
-        preparation_complete: false,
+        preparation: { state: 'incomplete' },
         stages: { services: { configured: 1 }, docs: { created: 2 }, tools: { status: 'failed' } },
       },
     });
@@ -135,11 +136,11 @@ describe('Sync', () => {
       new Sync(h.deps).execute({
         ...run,
         stages: {
-          docs: async () => ({ summary: { created: 1 } }),
+          docs: async () => ({ checks: [], summary: { created: 1 } }),
           skills: async () => {
             throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
           },
-          hooks: async () => ({ summary: { created: 1 } }),
+          hooks: async () => ({ checks: [], summary: { created: 1 } }),
         },
       }),
     ).rejects.toMatchObject({
@@ -162,7 +163,7 @@ describe('Sync', () => {
       ...run,
       only: 'skills',
       stages: {
-        skills: async () => ({ summary: { tools_failed: 1 }, details }),
+        skills: async () => ({ checks: [], summary: { tools_failed: 1 }, details }),
       },
     });
     expect(out.stages).toEqual({ skills: { tools_failed: 1 } });
@@ -178,11 +179,11 @@ describe('Sync', () => {
       stages: {
         docs: async () => {
           calls.push('docs');
-          return { summary: { ok: 1 } };
+          return { checks: [], summary: { ok: 1 } };
         },
         sample: async () => {
           calls.push('sample');
-          return { summary: { ok: 2 } };
+          return { checks: [], summary: { ok: 2 } };
         },
         tools: async () => {
           throw new Error('unselected');
@@ -262,7 +263,7 @@ describe('Sync', () => {
       local: { scope: { repos: [] } },
     });
     const result = await new Sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
-    expect(result).toMatchObject({ operation: 'preview', preparation_complete: null });
+    expect(result).toMatchObject({ operation: 'preview', preparation: { state: 'planned' } });
     expect(result.items.every((item) => item.action === 'skip_unpicked')).toBe(true);
     expect(h.git.calls).toEqual([]);
     expect(h.codeHost.probes).toEqual([]);

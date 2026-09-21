@@ -1,7 +1,8 @@
-// Aggregate diagnostic findings without turning a failed check into a command
-// failure. Coverage is independent of severity; callers may still fail to run.
+// Aggregate diagnostic severity and coverage. Workflows decide preparation
+// readiness and exit status separately from this report's ok/complete flags.
 
 import type { HandoffEnvelope } from './errors.js';
+import type { PreparationAction } from './preparation.js';
 
 // Checked means evidence was obtained; incomplete means it was unavailable.
 // Not applicable excludes a check without claiming it passed.
@@ -12,6 +13,8 @@ export type Level = 'ok' | 'warn' | 'fail';
 export type Evidence = Readonly<Record<string, unknown>>;
 
 export interface Finding<G extends string = string> {
+  readonly required?: boolean;
+  readonly actions?: readonly PreparationAction[];
   readonly group: G;
   readonly id: string;
   readonly level: Level;
@@ -30,6 +33,8 @@ export interface Report<G extends string = string> {
 }
 
 export interface FindingExtra {
+  readonly required?: boolean | undefined;
+  readonly actions?: readonly PreparationAction[] | undefined;
   readonly coverage?: Coverage | undefined;
   readonly fix?: string | undefined;
   readonly handoff?: HandoffEnvelope | undefined;
@@ -52,6 +57,8 @@ export function finding<G extends string>(
     ...(extra.fix === undefined ? {} : { fix: extra.fix }),
     ...(extra.handoff === undefined ? {} : { handoff: extra.handoff }),
     ...(extra.evidence === undefined ? {} : { evidence: extra.evidence }),
+    ...(extra.required === undefined ? {} : { required: extra.required }),
+    ...(extra.actions === undefined ? {} : { actions: extra.actions }),
   };
 }
 
@@ -70,7 +77,6 @@ export function orderBy<G extends string>(
   return groups.flatMap((group) => findings.filter((f) => f.group === group));
 }
 
-// Only a failure makes the report not ok: a warning is something to know.
 export function report<G extends string>(
   groups: readonly G[],
   findings: readonly Finding<G>[],

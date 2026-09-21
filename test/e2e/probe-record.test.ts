@@ -19,7 +19,6 @@ function fixture() {
     JSON.stringify({
       default_workspace: 'test',
       workspaces: { test: { root, source: '-' } },
-      skill_notice: false,
     }),
   );
   writeFileSync(

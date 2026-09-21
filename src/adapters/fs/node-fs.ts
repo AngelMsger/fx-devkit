@@ -15,6 +15,9 @@ import type { Lock } from '../../ports/lock.js';
 import { replaceDirectory } from './directory-replacement.js';
 
 export class NodeFs implements FileSystem {
+  async ensureDir(directory: string): Promise<void> {
+    await fs.mkdir(directory, { recursive: true });
+  }
   constructor(private readonly lock?: Lock) {}
   async readBytes(file: string): Promise<Uint8Array | undefined> {
     try {

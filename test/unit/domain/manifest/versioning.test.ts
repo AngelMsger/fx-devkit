@@ -54,11 +54,11 @@ describe('negotiate', () => {
     });
   });
 
-  it('supports schema 1 and 2 for workspace and environments, 2 for tools and harness, 1 for members', () => {
+  it('supports schema 1 and 2 for workspace and environments, 3 for tools and 2 for harness, 1 for members', () => {
     expect(SUPPORTED).toEqual({
       workspace: [1, 2],
       environments: [1, 2],
-      tools: [2],
+      tools: [3],
       harness: [2],
       members: [1],
     });

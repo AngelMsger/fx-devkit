@@ -40,7 +40,7 @@ const rows = [
 ];
 const trailer = {
   operation: 'preview',
-  preparation_complete: null,
+  preparation: { state: 'planned' },
   summary: { done: 0 },
   stages: { docs: { planned: 2 } },
   stage_details: { tools: [{ coordinate: 'https://hidden.example.com/synthetic-detail' }] },
@@ -52,13 +52,13 @@ describe('workflow field projection', () => {
     (format) => {
       const target = output(format, {
         report: 'sync',
-        fields: ['operation', 'preparation_complete', 'items', 'summary'],
+        fields: ['operation', 'preparation', 'items', 'summary'],
         details: true,
       });
       target.renderer.list(rows, { trailer });
       expect(target.json()).toEqual({
         operation: 'preview',
-        preparation_complete: null,
+        preparation: { state: 'planned' },
         items: rows,
         summary: { done: 0 },
       });

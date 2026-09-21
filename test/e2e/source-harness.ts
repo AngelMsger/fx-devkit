@@ -42,7 +42,6 @@ export function sourceFixture() {
     JSON.stringify({
       default_workspace: 'test',
       workspaces: { test: { root: workspace, source: upstream.bare } },
-      skill_notice: false,
     }),
   );
   const script = `#!${process.execPath}

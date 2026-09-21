@@ -8,6 +8,7 @@ export const JENKINS_RECIPES: readonly SetupRecipe[] = [
     tool: 'jenkins-cli',
     perEnv: false,
     kind: 'run',
+    phase: 'authenticate',
     title: 'Log in to Jenkins',
     instructions:
       'Prompts for your user name and an API token (Jenkins: your profile → Configure → API Token).',

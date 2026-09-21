@@ -62,12 +62,23 @@ describe('resolveWorkspace', () => {
     expect(reporter.codes()).toEqual([]);
   });
 
-  it('prefers an explicit --workspace name and rejects an unknown one with a suggestion', async () => {
+  it('selects an explicit registered name or root without falling back on a miss', async () => {
     const { located } = await resolve({ name: 'other' });
     expect(located.root).toBe(path.normalize(path.resolve('/ws/other')));
+    expect((await resolve({ name: path.resolve('/ws/other') })).located).toMatchObject({
+      name: 'other',
+      selection: 'explicit',
+      manifestDir: manifestDirFor('other'),
+    });
     await expect(resolve({ name: 'othr' })).rejects.toMatchObject({
       code: 'WORKSPACE_UNKNOWN',
       hint: expect.stringContaining('other'),
+    });
+    await expect(resolve({ name: path.resolve('/unregistered') })).rejects.toMatchObject({
+      code: 'WORKSPACE_UNKNOWN',
+    });
+    await expect(resolve({ name: 'constructor' })).rejects.toMatchObject({
+      code: 'WORKSPACE_UNKNOWN',
     });
   });
 
@@ -84,6 +95,21 @@ describe('resolveWorkspace', () => {
   it('follows symbolic links before comparing, on cwd and on the roots alike', async () => {
     const { located } = await resolve({ cwd: path.resolve('/link/fx/deep'), fs: new LinkedFs() });
     expect(located.name).toBe('fx');
+    expect(
+      (await resolve({ name: path.resolve('/link/fx'), fs: new LinkedFs() })).located.name,
+    ).toBe('fx');
+    await expect(
+      resolve({
+        name: path.resolve('/link/fx'),
+        fs: new LinkedFs(),
+        config: new FakeConfigStore({
+          workspaces: {
+            fx: { root: path.resolve('/ws/fx') },
+            alias: { root: path.resolve('/link/fx') },
+          },
+        }),
+      }),
+    ).rejects.toMatchObject({ code: 'WORKSPACE_ROOT_AMBIGUOUS' });
     const aliased = new FakeConfigStore({
       workspaces: {
         outer: { root: path.resolve('/a-much-longer-alias') },

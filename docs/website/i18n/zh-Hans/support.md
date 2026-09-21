@@ -2,17 +2,17 @@
 
 ## 排查问题 {#troubleshooting}
 
-先运行 `fx doctor --format json`。针对某项能力，使用 `fx can <capability> --env <environment> --format json`。按报告中的 handoff 处理，不要反复重试缺少访问权限的命令。
+初始化中断时，先处理结果中列出的阻塞项，再使用返回的继续命令：
 
-- 缺少工具：用 `fx tool show <tool>` 查看安装要求。
-- 缺少认证：用 `fx login --list` 查看步骤，然后进入对应登录流程。
-- 环境未被选中：检查 `fx env list`，仅在需要时将它纳入工作区。
-- manifest 无效：运行 `fx manifest validate --strict`，并用 `fx manifest explain '<field>'` 查询问题字段。
-- 同步部分失败：查看仓库条目和资源阶段的错误，解决后用 `fx sync --only <stage>` 重试相关操作。
+```sh
+fx init --resume --workspace <name>
+```
 
-报告退出码为零不证明已就绪。请阅读 `ok`、`complete`、各项结果和恢复信息。
+已经完成的工作会保留。个人登录和操作员文件由对应人员完成。已有工作区可用 `fx doctor --format json` 查看当前准备状态和具体动作；单项能力使用 `fx can <capability>`。
 
-工作区解析或 manifest 加载失败时，先运行 `fx workspace list`、`fx workspace show <name>` 和 `fx self info`，保留查看注册与安装事实的能力。目录移动后使用 `workspace relocate` 修正根路径；manifest 缺失时按记录来源重新准备。必需工作区文档缺失或无效时，`manifest validate --strict` 会判定失败；可选且未声明的文档允许缺失。
+`preparation.state` 为 `ready` 或 `incomplete`，未完成退出 12。`doctor.coverage` 单独表示诊断覆盖；release 仍使用 `ok/complete`。非零退出也要解析部分 stdout。
+
+来源错误会标出文件和字段。工具 schema 3 要求 run 步骤明确区分本地准备与个人认证。新输入尚未被接受时，修好来源后使用返回的完整重试命令；已经接受的初始化使用托管来源续跑。`fx workspace list` 和 `fx self info` 可用于发现。目录移动后用 `workspace relocate`；个人凭据始终留在配套工具中。
 
 ## 更新 {#updates}
 

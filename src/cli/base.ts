@@ -3,6 +3,8 @@
 // it is the single error boundary: whatever escapes a command leaves as a
 // JSON envelope on stderr and a category exit code.
 
+import path from 'node:path';
+
 import { Command, Errors } from '@oclif/core';
 
 import { readSettings } from '../application/config/settings.js';
@@ -14,7 +16,6 @@ import { resolveManifestDir } from '../application/manifest/locate.js';
 import { resolvePosture, type WritePosture } from '../application/safety/posture.js';
 import { replacementFor } from '../application/safety/replace-files.js';
 import { TrustGate } from '../application/safety/trust.js';
-import { SKILL_LOADED_ENV, SKILL_VERSION_ENV, skillNotice } from '../application/skill/notice.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync/types.js';
 import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
@@ -23,6 +24,7 @@ import { beginWorkspaceCommand } from '../application/workspace/command-operatio
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { WorkspaceContext } from '../application/workspace-context.js';
+import { fxExecutable } from '../composition/bundled.js';
 import { CommandWiring } from '../composition/command-wiring.js';
 import {
   createContainer,
@@ -35,12 +37,14 @@ import { updateChecks, type UpdateChecks } from '../composition/update.js';
 import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
+import type { Preparation, PreparationAction, PreparationCheck } from '../domain/preparation.js';
 import type { Report } from '../domain/report.js';
 import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
 import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
+import { preparationText } from './preparation-view.js';
 import {
   createRenderer,
   parseFields,
@@ -56,11 +60,6 @@ import { workspaceWriteMode } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
-  // The handshake offers fx's own companion Skill to an agent that has not
-  // loaded it. A command that manages fx itself declares itself out of it,
-  // because its caller is already working on the thing being offered.
-  static announcesSkill = true;
-
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(DEFAULT_FORMAT, processIo());
   private reportSink: SinkReporter | undefined;
@@ -75,8 +74,6 @@ export abstract class FxCommand extends Command {
   private workspaceName: string | undefined;
   private configUser: string | undefined;
   private configAgentList: readonly string[] | undefined;
-  private skillNoticeOn = true;
-  private skillNoticeSent = false;
   // Off until init has read the configuration; a command that failed before
   // then must not go looking upstream.
   private updateCheckOn = false;
@@ -94,10 +91,8 @@ export abstract class FxCommand extends Command {
     return `fx ${(this.id ?? '').replaceAll(':', ' ')}`.trim();
   }
 
-  // The order here is load-bearing: the resolved format decides the renderer, an
-  // unconnected diagnostic channel drops what it is handed, and the handshake
-  // needs the settings. The workspace lease is acquired last, so a command that
-  // cannot take it has already told its caller how to read the failure.
+  // Resolve and connect output before acquiring the workspace lease so lock
+  // failures use the requested format and retain diagnostics.
   protected override async init(): Promise<void> {
     await super.init();
     const spec = this.constructor as typeof FxCommand & { flags?: object; args?: object };
@@ -111,7 +106,6 @@ export abstract class FxCommand extends Command {
     this.commandShell = resolveCommandShell(settings.commandShell, process.platform === 'win32');
     this.configUser = settings.user;
     this.configAgentList = settings.agents;
-    this.skillNoticeOn = settings.skillNotice;
     this.updateCheckOn = settings.updateCheck;
     const format = settings.format;
     if (format !== undefined && !isFormat(format)) {
@@ -136,7 +130,6 @@ export abstract class FxCommand extends Command {
     this.yes = flags.yes;
     this.workspaceName = flags.workspace;
     this.posture = resolvePosture({ allowWrites: flags['allow-writes'], env: process.env, file });
-    await this.handshake();
     const mode = workspaceWriteMode(this.id, flags);
     if (mode !== null && !this.posture.readOnly) {
       const operation = await beginWorkspaceCommand(
@@ -178,6 +171,66 @@ export abstract class FxCommand extends Command {
     else this.renderer.record(report);
   }
 
+  protected renderPreparation<T extends { readonly preparation: Preparation }>(
+    value: T,
+    exitIncomplete = true,
+  ): void {
+    const bind = (action: PreparationAction): PreparationAction => this.bindRecoveryAction(action);
+    const bindCheck = (check: PreparationCheck): PreparationCheck => ({
+      ...check,
+      ...(check.actions ? { actions: check.actions.map(bind) } : {}),
+    });
+    const preparation: Preparation = {
+      ...value.preparation,
+      next_actions: value.preparation.next_actions.map(bind),
+      resume: value.preparation.resume ? bind(value.preparation.resume) : null,
+      blockers: value.preparation.blockers.map(bindCheck),
+      warnings: value.preparation.warnings.map(bindCheck),
+      unchecked: value.preparation.unchecked.map(bindCheck),
+    };
+    const result = { ...value, preparation };
+    if (this.format === 'human' && !this.renderOptions.fields) {
+      this.renderer.text(
+        preparationText(result, this.commandShell, process.env.FX_HOME !== undefined),
+      );
+      if (this.renderOptions.details || this.renderOptions.verbose) this.renderer.record(result);
+    } else this.renderer.record(result);
+    if (preparation.state === 'incomplete' && exitIncomplete) {
+      const error = new DevkitError(
+        'incomplete',
+        'PREPARATION_INCOMPLETE',
+        'Required workspace preparation is unfinished',
+        {
+          nextSteps: [
+            preparation.next.message,
+            'Use preparation.next_actions for Agent work; preparation.resume continues after the blockers change.',
+          ],
+        },
+      );
+      this.renderer.error(error);
+      invocation.trace?.failed(error);
+      this.exit(exitCodeFor('incomplete'));
+    }
+  }
+
+  private bindRecoveryAction(action: PreparationAction): PreparationAction {
+    if (action.argv[0] !== 'fx') return action;
+    return {
+      ...action,
+      argv: [
+        ...fxExecutable(),
+        ...action.argv.slice(1),
+        ...(this.format === 'human' ? [] : ['--format', this.format]),
+      ],
+      env: {
+        FX_HOME: path.resolve(this.container.fxHome),
+        HOME: path.resolve(this.container.userHome),
+        USERPROFILE: path.resolve(this.container.userHome),
+        ...(process.env.FX_AGENTS !== undefined ? { FX_AGENTS: process.env.FX_AGENTS } : {}),
+      },
+    };
+  }
+
   protected async workspaceDeps(): Promise<WorkspaceDeps> {
     const deps = workspaceDeps(
       this.container,
@@ -186,26 +239,7 @@ export abstract class FxCommand extends Command {
       this.config.version,
       this.configUser,
     );
-    await this.handshake();
     return { ...deps, commandShell: this.commandShell };
-  }
-
-  // Discovery is local and available before a workspace exists.
-  private async handshake(): Promise<void> {
-    if (this.skillNoticeSent || this.quietOn || process.stderr.isTTY) return;
-    if (!(this.constructor as typeof FxCommand).announcesSkill) return;
-    this.skillNoticeSent = true;
-    const notice = await skillNotice(this.container.fs, this.skillDeps(), {
-      format: this.format,
-      terminal: false,
-      loaded: process.env[SKILL_LOADED_ENV] === '1',
-      loadedVersion: process.env[SKILL_VERSION_ENV],
-      enabled: this.skillNoticeOn,
-      cliVersion: this.config.version,
-    });
-    // Its own renderer: the handshake is addressed to the non-interactive caller
-    // that reached here, not to the format the command was asked for.
-    if (notice !== undefined) createRenderer('json', processIo()).notice(notice);
   }
 
   protected harnessInput(): HarnessCommandInput {
@@ -380,7 +414,11 @@ export abstract class FxCommand extends Command {
         phase: 'error boundary',
         cause_chain: causeChain(failure),
       });
-    if (failure.partialResult !== undefined) this.renderer.record(failure.partialResult);
+    if (failure.partialResult !== undefined) {
+      if ('preparation' in failure.partialResult)
+        this.renderPreparation(failure.partialResult as { preparation: Preparation }, false);
+      else this.renderer.record(failure.partialResult);
+    }
     this.renderer.error(failure);
     return this.exit(exitCodeFor(failure.category));
   }

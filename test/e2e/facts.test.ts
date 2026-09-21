@@ -119,7 +119,8 @@ function stage(): Stage {
     PATH: [shims, tools, ...systemPath()].join(path.delimiter),
   };
   const boot = fx(['init', ws, '--from', path.dirname(manifestDir), '--format', 'json'], env);
-  expect(boot.status, boot.stderr).toBe(0);
+  expect(boot.status, boot.stderr).toBe(12);
+  expect(boot.json()).toMatchObject({ preparation: { state: 'incomplete' }, registered: true });
   return { ws, shims, env };
 }
 
@@ -156,7 +157,7 @@ interface CanAnswer {
   readonly alternatives: string[];
 }
 
-describe('facts: where, member, can, derived docs, skill handshake', () => {
+describe('facts: where, member, can, derived docs', () => {
   it('keeps unpicked alias discovery and typo recovery available through the built CLI', () => {
     const s = stage();
     const json = ['--format', 'json'];
@@ -407,20 +408,8 @@ describe('facts: where, member, can, derived docs, skill handshake', () => {
       fix: 'Move the file aside, then fx sync --only docs --workspace ws',
     });
 
-    const agentEnv = { ...s.env, FX_AGENTS: 'claude-code' };
-    const unloaded = fx(['repo', 'list', ...json], agentEnv, s.ws);
-    expect(unloaded.stderr).toMatch(/SKILL_(MISSING|OUTDATED|AVAILABLE)/);
-    expect(
-      fx(
-        ['repo', 'list', ...json],
-        {
-          ...agentEnv,
-          FX_SKILL_LOADED: '1',
-          FX_SKILL_VERSION: JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')).version,
-        },
-        s.ws,
-      ).stderr,
-    ).not.toContain('SKILL_');
-    expect(fx(['repo', 'list'], agentEnv, s.ws).stderr).toContain('SKILL_MISSING');
+    const query = fx(['repo', 'list', ...json], { ...s.env, FX_AGENTS: 'claude-code' }, s.ws);
+    expect(query.status, query.stderr).toBe(0);
+    expect(query.stderr).not.toMatch(/SKILL_(MISSING|OUTDATED|AVAILABLE|VERSION_)/);
   });
 });

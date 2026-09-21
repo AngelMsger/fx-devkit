@@ -173,7 +173,7 @@ describe('ValidateManifest', () => {
 
   it('keeps the schema path when a tools document has the wrong root shape', async () => {
     const fs = workspace('v1-minimal');
-    await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 2\ntools: nope\n');
+    await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 3\ntools: nope\n');
     const report = await new ValidateManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
@@ -221,6 +221,7 @@ describe('LintManifest', () => {
         tool: 'file-access',
         perEnv: true,
         kind: 'run',
+        phase: 'prepare',
         title: 'Automatic',
         instructions: '{setup.automatic}',
         run: ['check'],
@@ -280,7 +281,7 @@ describe('LintManifest', () => {
     const fs = workspace('v1-minimal');
     await fs.writeText(
       path.resolve('/w/manifest/tools.yaml'),
-      'schema_version: 2\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
+      'schema_version: 3\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
     );
     const findings = await new LintManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
@@ -292,7 +293,7 @@ describe('LintManifest', () => {
 
   it('reports an invalid tools document and skips semantic tool lint', async () => {
     const fs = workspace('v1-minimal');
-    await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 2\ntools: nope\n');
+    await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 3\ntools: nope\n');
     const findings = await new LintManifest(fs, bundled).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,

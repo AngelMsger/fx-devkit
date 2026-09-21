@@ -57,6 +57,7 @@ const login: SetupRecipe = {
   tool: 'bitbucket-cli',
   perEnv: false,
   kind: 'run',
+  phase: 'authenticate',
   title: 'Log in',
   open: '{web}/tokens',
   run: ['auth', 'login'],

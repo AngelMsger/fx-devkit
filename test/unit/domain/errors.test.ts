@@ -22,6 +22,7 @@ describe('DevkitError', () => {
       server: 9,
       parse: 10,
       conflict: 11,
+      incomplete: 12,
     };
     expect(Object.fromEntries(CATEGORIES.map((c) => [c, exitCodeFor(c)]))).toEqual(expected);
   });

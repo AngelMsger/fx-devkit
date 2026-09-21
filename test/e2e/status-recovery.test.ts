@@ -86,7 +86,10 @@ describe('status and recovery journeys', () => {
       s.env,
       s.root,
     );
-    expect(conflict.json()).toMatchObject({ preparation_complete: false, summary: { failed: 1 } });
+    expect(conflict.json()).toMatchObject({
+      preparation: { state: 'incomplete' },
+      summary: { failed: 1 },
+    });
     expect(readFileSync(local, 'utf8')).toBe('my uncommitted file\n');
   });
 
@@ -95,9 +98,9 @@ describe('status and recovery journeys', () => {
     const hidden = `${s.repo.bare}.hidden`;
     renameSync(s.repo.bare, hidden);
     const initial = s.init();
-    expect(initial.status, initial.stderr).toBe(0);
+    expect(initial.status, initial.stderr).toBe(12);
     expect(initial.json()).toMatchObject({
-      preparation_complete: false,
+      preparation: { state: 'incomplete' },
       sync: { summary: { unreadable: 1 } },
     });
     expect(existsSync(path.join(s.root, 'api'))).toBe(false);
@@ -105,7 +108,7 @@ describe('status and recovery journeys', () => {
     const retry = fx(['sync', '--only', 'repos', '--details', '--format', 'json'], s.env, s.root);
     expect(retry.status, retry.stderr).toBe(0);
     expect(retry.json()).toMatchObject({
-      preparation_complete: true,
+      preparation: { state: 'ready' },
       items: [{ name: 'api', action: 'clone', result: 'done' }],
     });
     expect(readFileSync(path.join(s.root, 'api/README'), 'utf8')).toBe('initial\n');
@@ -146,10 +149,10 @@ describe('status and recovery journeys', () => {
     const original = readFileSync(workspaceFile, 'utf8');
     writeFileSync(workspaceFile, original.replace('provider: local-git', 'provider: unknown-host'));
     const workspace = fx(['doctor', '--details', '--format', 'json'], s.env, s.root);
-    expect(workspace.status, workspace.stderr).toBe(0);
+    expect(workspace.status, workspace.stderr).toBe(12);
     expect(workspace.json()).toMatchObject({
-      ok: false,
-      complete: false,
+      preparation: { state: 'incomplete' },
+      coverage: 'incomplete',
       findings: expect.arrayContaining([
         expect.objectContaining({
           id: 'provider:code-host',
@@ -163,14 +166,23 @@ describe('status and recovery journeys', () => {
       path.join(manifest, 'environments.yaml'),
       'schema_version: 2\nplatforms: {build: {provider: unknown-build, capability: ci}}\nenvs: {dev: {}, prod: {platforms: {build: {}}}}\n',
     );
+    const guides = fx(
+      ['sync', '--only', 'docs', '--no-refresh-manifest', '--format', 'json'],
+      s.env,
+      s.root,
+    );
+    expect(guides.status, guides.stderr).toBe(0);
     const inactive = fx(['doctor', '--env', 'dev', '--details', '--format', 'json'], s.env, s.root);
     expect(inactive.status, inactive.stderr).toBe(0);
-    expect(inactive.json()).toMatchObject({ ok: true, complete: true });
+    expect(inactive.json()).toMatchObject({
+      preparation: { state: 'ready' },
+      coverage: 'complete',
+    });
     const active = fx(['doctor', '--env', 'prod', '--details', '--format', 'json'], s.env, s.root);
-    expect(active.status, active.stderr).toBe(0);
+    expect(active.status, active.stderr).toBe(12);
     expect(active.json()).toMatchObject({
-      ok: false,
-      complete: false,
+      preparation: { state: 'incomplete' },
+      coverage: 'incomplete',
       findings: expect.arrayContaining([
         expect.objectContaining({ id: 'provider:ci:build', level: 'fail', coverage: 'incomplete' }),
       ]),
@@ -183,7 +195,7 @@ describe('status and recovery journeys', () => {
     const manifest = path.join(manifestDirOf(s.env.FX_HOME, 'sample'), 'manifest');
     writeFileSync(
       path.join(manifest, 'tools.yaml'),
-      'schema_version: 2\ntools: [{name: jenkins-cli, required: false}]\n',
+      'schema_version: 3\ntools: [{name: jenkins-cli, required: false}]\n',
     );
     const result = fx(
       ['doctor', '--details', '--format', 'json'],
@@ -210,10 +222,10 @@ describe('status and recovery journeys', () => {
     const result = fx(['doctor', '--details', '--format', 'json'], s.env, s.root);
     expect(result.status, result.stderr).toBe(0);
     const report = result.json() as {
-      ok: boolean;
+      preparation: { state: string };
       findings: { group: string; id: string; level: string }[];
     };
-    expect(report.ok).toBe(true);
+    expect(report.preparation.state).toBe('ready');
     expect(report.findings.filter((finding) => finding.group === 'tools')).toEqual([]);
     expect(report.findings.filter((finding) => finding.group === 'login')).toEqual([]);
   });

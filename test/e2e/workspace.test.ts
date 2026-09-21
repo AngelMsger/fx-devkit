@@ -141,7 +141,7 @@ describe('workspace end to end', () => {
 
     writeFileSync(path.join(s.ws, 'a', 'README'), 'edited\n');
     const first = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
-    expect(first.status).toBe(0);
+    expect(first.status).toBe(12);
     expect(
       (first.json() as { items: { name: string; action: string; result: string }[] }).items,
     ).toEqual([

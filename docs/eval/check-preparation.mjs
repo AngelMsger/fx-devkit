@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 const init = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 if (
   init.operation !== 'apply' ||
-  init.preparation_complete !== true ||
-  !init.written ||
+  init.preparation?.state !== 'ready' ||
+  !init.registered ||
   !init.sync
 ) {
   console.error(

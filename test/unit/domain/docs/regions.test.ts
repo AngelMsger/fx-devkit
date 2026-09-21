@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderRegions } from '../../../../src/domain/docs/regions.js';
+import { completeRegions, renderRegions } from '../../../../src/domain/docs/regions.js';
 import { agentsSkeleton } from '../../../../src/domain/docs/skeleton.js';
 import { REGIONS } from '../../../../src/domain/docs/templates.js';
 
@@ -22,6 +22,19 @@ const doc = [
 ].join('\n');
 
 describe('renderRegions', () => {
+  it('completes a generated guide without changing author prose and refuses ambiguous boundaries', () => {
+    const completed = completeRegions(doc, { a: 'new a', b: 'new b' });
+    expect(completed.text).toContain(doc.replace('old a', 'new a'));
+    expect(completed.added).toEqual(['b']);
+    expect(completed.missing).toEqual([]);
+    expect(completeRegions(completed.text, { a: 'new a', b: 'new b' }).text).toBe(completed.text);
+    for (const malformed of [
+      '<!-- fx:begin a -->',
+      '<!-- fx:begin a --><!-- fx:begin b --><!-- fx:end b --><!-- fx:end a -->',
+      '<!-- fx:begin a --><!-- fx:end a --><!-- fx:begin a --><!-- fx:end a -->',
+    ])
+      expect(() => completeRegions(malformed, { a: 'new a' })).toThrow('ambiguous');
+  });
   it('removes retired rules blocks, reports them as unknown, and preserves custom blocks and prose', () => {
     const retired = '<!-- fx:begin rules -->\nold generated rules\n<!-- fx:end rules -->';
     const input = `${retired}\n${doc}\n${retired}\n`;

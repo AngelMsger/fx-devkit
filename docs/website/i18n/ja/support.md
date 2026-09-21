@@ -2,17 +2,17 @@
 
 ## トラブルシューティング {#troubleshooting}
 
-まず `fx doctor --format json` を実行します。特定の能力については `fx can <capability> --env <environment> --format json` を使ってください。アクセス不足のまま繰り返さず、結果の handoff に従います。
+初期化が中断したら、表示された障害へ対応し、返された再開コマンドを使います。
 
-- ツールがない場合：`fx tool show <tool>` でインストール要件を確認します。
-- 認証が不足する場合：`fx login --list` で手順を確認し、対応するログインを行います。
-- 環境が未選択の場合：`fx env list` を確認し、必要な環境だけを選びます。
-- マニフェストが無効な場合：`fx manifest validate --strict` と `fx manifest explain '<field>'` で問題のフィールドを確認します。
-- 同期が部分的に失敗した場合：リポジトリとリソース段階のエラーを解消し、`fx sync --only <stage>` で該当操作を再実行します。
+```sh
+fx init --resume --workspace <name>
+```
 
-レポートの終了コード 0 は準備完了の証明ではありません。`ok`、`complete`、個々の結果、復旧情報を確認してください。
+完了済みの作業は保持されます。個人のログインや操作員のファイルは、その担当者が用意します。既存のワークスペースでは `fx doctor --format json` が現在の準備状態と具体的な操作を返します。個別の能力は `fx can <capability>` で確認します。
 
-ワークスペースの解決や manifest の読み込みに失敗した場合は、`fx workspace list`、`fx workspace show <name>`、`fx self info` から始めます。正常でなくても登録とインストールの既知情報を確認できます。移動後のルートは `workspace relocate` で修正し、manifest がない場合は記録されたソースから準備し直します。必須の workspace 文書がない、または無効な場合は `manifest validate --strict` が検証失敗を報告します。未宣言の任意文書はなくても構いません。
+`preparation.state` は `ready` または `incomplete` で、未完了は終了コード 12 です。`doctor.coverage` は診断の確認範囲を別に示します。release は `ok/complete` を使い続けます。非ゼロ終了でも部分的な stdout を読み取ってください。
+
+ソースのエラーにはファイルとフィールドが示されます。ツール schema 3 では、run 手順をローカル準備と個人認証に分類します。新しい入力がまだ受理されていない場合は、ソース修正後に完全な再試行コマンドを使います。受理済みの初期化は管理済みソースで再開します。`fx workspace list` と `fx self info` も利用できます。ルートを移動した場合は `workspace relocate` を使い、認証情報は各連携ツールに保持します。
 
 ## 更新 {#updates}
 
