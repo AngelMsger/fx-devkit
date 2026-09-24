@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+## 0.5.0 (2026-09-24)
+
+### Added
+
+- Reuse verified native companion logins in canonical team contexts before
+  requiring personal authentication; retain native setup errors and verification
+  details. Updated family CLI release floors require their auth reuse command.
+
 ## 0.4.0 (2026-09-21)
 
 - Remove the self-reported Skill-loaded handshake and its notice setting; keep explicit installation/version discovery and unverified host activation.

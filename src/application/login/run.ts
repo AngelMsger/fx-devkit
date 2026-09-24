@@ -17,6 +17,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 import { buildPlan } from './collect.js';
+import { setupCommandFailure } from './command-failure.js';
 import type { LoginDeps } from './deps.js';
 import { handoffStep, loginCommand } from './handoff.js';
 import { ensureScopeEnvs } from './scope-envs.js';
@@ -108,14 +109,19 @@ export class Login {
     for (const [index, step] of plan.steps.entries()) {
       try {
         const outcome = await this.attempt(step, input, undone);
-        if (outcome === 'handoff') {
+        if (outcome === 'handoff' || outcome.result === 'handoff') {
           pending.push(step);
           rows.push(
-            row(step, {
-              result: 'handoff',
-              detail: 'Human input or authorization required',
-              handoff: handoffStep(step),
-            }),
+            row(
+              step,
+              outcome === 'handoff'
+                ? {
+                    result: 'handoff',
+                    detail: 'Human input or authorization required',
+                    handoff: handoffStep(step),
+                  }
+                : outcome,
+            ),
           );
         } else rows.push(row(step, outcome));
         if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
@@ -194,11 +200,12 @@ export class Login {
     const before = await this.verifier.verify(step, { dryRun: input.dryRun });
     if (before.ok) return { result: 'verified', detail: before.detail };
     if (input.mode === 'prepare' && (step.kind !== 'run' || step.phase !== 'prepare'))
-      return 'handoff';
+      return { result: 'handoff', detail: before.detail, handoff: handoffStep(step) };
     if (step.kind === 'run') return this.runStep(step, input, before.detail);
     if (input.skipManual) return { result: 'skipped', detail: '--skip-manual' };
     if (input.dryRun) return { result: 'would_ask', detail: before.detail };
-    if (input.noInput) return 'handoff';
+    if (input.noInput)
+      return { result: 'handoff', detail: before.detail, handoff: handoffStep(step) };
     return this.manualStep(step, input);
   }
 
@@ -249,7 +256,8 @@ export class Login {
     });
     if (run.code !== 0) {
       this.deps.reporter.progress({ id: step.id, state: 'fail', detail: `exit ${run.code}` });
-      return { result: 'failed', detail: `${vector.join(' ')} exited ${run.code}` };
+      const failure = setupCommandFailure(run.stderr, run.code);
+      return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
     }
     return this.settle(step, why);
   }

@@ -17,7 +17,7 @@ export const openobserveCliProvider: ProviderDescriptor<LogStore> = {
     authSchemes: ['basic', 'token', 'session'],
   },
   tools: ['openobserve-cli'],
-  service: (settings) => familyService('openobserve-cli', settings, 'authenticated', '0.13.0'),
+  service: (settings) => familyService('openobserve-cli', settings, '0.14.0', 'authenticated'),
   recipes: OPENOBSERVE_RECIPES,
   vars: [],
   envVars: [

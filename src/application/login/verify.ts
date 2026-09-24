@@ -23,7 +23,9 @@ export interface VerifyOptions {
   readonly dryRun?: boolean;
 }
 
-const CHECK_TIMEOUT_MS = 5000;
+// Identity and access checks may contact a remote service or unlock native storage.
+// Local binary and public-setting probes retain their separate short deadlines.
+const CHECK_TIMEOUT_MS = 30_000;
 
 export class Verifier {
   constructor(

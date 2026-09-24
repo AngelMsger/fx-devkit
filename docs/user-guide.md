@@ -600,3 +600,12 @@ Inspect `hook list` for supported and unverified states. In the tested Grok 1.0.
 host, project hooks require a Git root; normal directory trust does not enable them
 at a plain workspace root. Use explicit `fx sync --only docs,skills`, and keep the
 workspace root a plain directory. Host execution approval remains independent of fx.
+
+### Reuse a login you already have
+
+Initialization keeps the team's context names. Compatible companion CLIs match
+an existing login to the same service and reuse its identity before asking you
+to sign in. Tokens stay in the companion's credential store, and your current
+context and existing identities are preserved. If several identities match,
+choose a source with the companion's `auth reuse --from-context` command; network
+or keychain failures are diagnosed separately from missing credentials.

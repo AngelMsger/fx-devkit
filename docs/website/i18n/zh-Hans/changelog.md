@@ -1,5 +1,11 @@
 # 更新日志
 
+## [Unreleased]
+
+## 0.5.0 (2026-09-24)
+
+- 在请求个人授权前，将已验证的配套 CLI 登录复用到统一团队 context；保留原生准备错误和验证细节。配套 CLI 的最低版本要求已更新，需要支持 auth reuse。
+
 ## 0.4.0 (2026-09-21)
 
 - 已移除 Skill 加载握手及 `skill_notice` 配置。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；请改读安装版本和 `activation`，不要再读取 loaded/version_verified。

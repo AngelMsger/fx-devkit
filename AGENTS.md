@@ -334,3 +334,11 @@ Use Conventional Commits and include an issue reference when one is available
 and appropriate for public history (for example, `fix: handle missing configuration`).
 Check the final diff and preserve unrelated work. Push only to the verified
 `origin`, and only within the user's authorized task scope.
+
+## Existing-login reuse
+
+Keep team context names and public service setup separate from native identity
+association. Family adapters run the companion's verified `auth reuse` preparation
+before credential readiness. An unavailable reuse result is not authentication
+proof; a failed reuse blocks dependent sign-in. Never read/copy native secrets or
+add a parallel identity store in fx. Keep native error recovery in setup reports.

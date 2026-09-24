@@ -67,7 +67,7 @@ async function fixture(
     },
   };
   h.process.binaries.add('bitbucket-cli');
-  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.20.1', stderr: '' });
+  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.24.0', stderr: '' });
   const plan = buildPlan(h.deps, login, { scopeEnvs: undefined });
   return { h, login, trust, plan, operation: new ServiceOperation(h.deps, login) };
 }
@@ -105,7 +105,7 @@ describe('public service declarations', () => {
     const { h, plan } = await fixture();
     expect(h.ctx.bindings[0]?.vars['host']).toBe('ssh://git@git.example.com');
     expect(plan.problems).toEqual([]);
-    expect(plan.steps[1]?.run).toEqual([
+    expect(plan.steps.find((step) => step.id.includes('.credential'))?.run).toEqual([
       'bitbucket-cli',
       '--use-context',
       'team',
@@ -199,7 +199,7 @@ describe('native preparation', () => {
     const calls: readonly string[][] = [];
     vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
       (calls as string[][]).push([...vector]);
-      if (vector.includes('--version')) return { code: 0, stdout: '0.20.1', stderr: '' };
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
       if (!vector.includes('--dry-run')) configured = true;
       return { code: 0, stdout: JSON.stringify({ changed: !configured }), stderr: '' };
     });
@@ -342,8 +342,8 @@ envs:
       envs: ['prod'],
       scopeEnvs: undefined,
     });
-    expect(plan.steps).toHaveLength(2);
-    expect(plan.steps[1]?.run).toEqual([
+    expect(plan.steps).toHaveLength(3);
+    expect(plan.steps.find((step) => step.id.includes('.credential'))?.run).toEqual([
       'openobserve-cli',
       '--use-context',
       'prod',
@@ -357,7 +357,7 @@ envs:
       'login',
       '--browser',
     ]);
-    expect(plan.steps[1]?.verify).toEqual({
+    expect(plan.steps.find((step) => step.id.includes('.credential'))?.verify).toEqual({
       command: [
         'openobserve-cli',
         '--use-context',
@@ -431,5 +431,123 @@ envs: {dev: {platforms: {errors: {}}}}
     order.length = 0;
     await new Sync(h.deps).execute({ ...input, only: 'repos' });
     expect(order).not.toContain('services');
+  });
+});
+
+describe('existing login reuse during initialization', () => {
+  it.each([true, false])(
+    'uses native identity reuse before deciding whether sign-in is needed (candidate=%s)',
+    async (candidate) => {
+      const { h, login } = await fixture();
+      let associated = false;
+      const run = vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+        if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+        if (vector.includes('set-context'))
+          return { code: 0, stdout: '{"changed":false}', stderr: '' };
+        if (vector.includes('reuse')) {
+          const changed = candidate && !associated;
+          if (!vector.includes('--dry-run') && changed) associated = true;
+          return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+        }
+        if (vector.includes('status'))
+          return { code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' };
+        throw new Error('Initialization must never invoke personal login');
+      });
+      const first = await new Login(h.deps, login).execute({
+        mode: 'prepare',
+        dryRun: false,
+        noInput: true,
+        skipManual: false,
+        posture: login.trust.posture,
+      });
+      expect(first.items.find((item) => item.id === 'bitbucket-cli.reuse')?.result).toBe(
+        candidate ? 'done' : 'verified',
+      );
+      expect(first.items.find((item) => item.id === 'bitbucket-cli.credential')?.result).toBe(
+        candidate ? 'verified' : 'handoff',
+      );
+      const writes = () =>
+        run.mock.calls.filter(
+          ([vector]) => vector.includes('reuse') && !vector.includes('--dry-run'),
+        );
+      expect(writes()).toHaveLength(candidate ? 1 : 0);
+      await new Login(h.deps, login).execute({
+        mode: 'prepare',
+        dryRun: false,
+        noInput: true,
+        skipManual: false,
+        posture: login.trust.posture,
+      });
+      expect(writes()).toHaveLength(candidate ? 1 : 0);
+      expect(run.mock.calls.some(([vector]) => vector.includes('login'))).toBe(false);
+    },
+  );
+
+  it('retains native reuse failure and blocks dependent login instead of requesting a new credential', async () => {
+    const { h, login } = await fixture();
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      if (vector.includes('set-context'))
+        return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('reuse') && vector.includes('--dry-run'))
+        return { code: 0, stdout: '{"changed":true}', stderr: '' };
+      if (vector.includes('reuse'))
+        return {
+          code: 3,
+          stdout: '',
+          stderr: JSON.stringify({
+            error: {
+              category: 'config',
+              code: 'CREDENTIAL_STORE_INACCESSIBLE',
+              message: 'Host keychain is unavailable',
+              hint: 'Retry on the host',
+              next_steps: ['Retry with host keychain access'],
+            },
+          }),
+        };
+      throw new Error('A failed reuse must not trigger a login');
+    });
+    const result = await new Login(h.deps, login).execute({
+      mode: 'prepare',
+      dryRun: false,
+      noInput: true,
+      skipManual: false,
+      posture: login.trust.posture,
+    });
+    expect(result.items.find((item) => item.id === 'bitbucket-cli.reuse')).toMatchObject({
+      result: 'failed',
+      detail: 'Host keychain is unavailable',
+      failure: { code: 'CREDENTIAL_STORE_INACCESSIBLE' },
+      next_steps: ['Retry with host keychain access'],
+    });
+    expect(result.items.find((item) => item.id === 'bitbucket-cli.credential')?.result).toBe(
+      'blocked',
+    );
+  });
+
+  it('does not associate an identity in dry-run', async () => {
+    const { h, login, operation, plan } = await fixture();
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      if (vector.includes('set-context'))
+        return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('reuse') && vector.includes('--dry-run'))
+        return { code: 0, stdout: '{"changed":true}', stderr: '' };
+      throw new Error('Preview performed an unexpected mutation');
+    });
+    await operation.execute(plan.steps[0]!, false);
+    await new Verifier(h.deps, login).verify(
+      plan.steps.find((step) => step.id.endsWith('.reuse'))!,
+    );
+    const result = await new Login(h.deps, login).execute({
+      mode: 'prepare',
+      dryRun: true,
+      noInput: true,
+      skipManual: false,
+      posture: login.trust.posture,
+    });
+    expect(result.items.find((item) => item.id === 'bitbucket-cli.reuse')?.result).toBe(
+      'would_run',
+    );
   });
 });

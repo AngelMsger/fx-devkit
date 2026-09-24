@@ -17,7 +17,7 @@ export const jenkinsCliProvider: ProviderDescriptor<Ci> = {
     authSchemes: ['token', 'basic'],
   },
   tools: [BINARY],
-  service: (settings) => familyService('jenkins-cli', settings, 'authenticated', '0.9.0'),
+  service: (settings) => familyService('jenkins-cli', settings, '0.10.0', 'authenticated'),
   recipes: JENKINS_RECIPES,
   vars: [
     { name: 'host', desc: 'Jenkins host name', required: false },

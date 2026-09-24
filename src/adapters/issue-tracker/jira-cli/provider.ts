@@ -21,7 +21,7 @@ export const jiraCliProvider: ProviderDescriptor<Coordinate> = {
     { name: 'base_url', desc: 'verified Jira site URL', required: true },
     { name: 'project', desc: 'project key', required: true },
   ],
-  service: (settings) => familyService('jira-cli', settings),
+  service: (settings) => familyService('jira-cli', settings, '0.7.0'),
   recipes: [
     {
       id: 'access',

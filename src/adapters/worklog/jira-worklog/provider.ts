@@ -32,7 +32,7 @@ export const jiraWorklogProvider: ProviderDescriptor<Coordinate> = {
     { name: 'base_url', desc: 'verified Jira site URL', required: true },
     { name: 'project', desc: 'project key whose worklogs are read', required: true },
   ],
-  service: (settings) => familyService('jira-cli', settings),
+  service: (settings) => familyService('jira-cli', settings, '0.7.0'),
   recipes: [
     {
       id: 'worklog-access',

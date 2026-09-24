@@ -185,7 +185,7 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
     authSchemes: ['pat', 'basic'],
   },
   tools: [BINARY],
-  service: (settings) => familyService('bitbucket-cli', settings),
+  service: (settings) => familyService('bitbucket-cli', settings, '0.24.0'),
   recipes: BITBUCKET_RECIPES,
   vars: [
     { name: 'host', desc: 'git clone prefix, e.g. ssh://git@git.example.com', required: true },

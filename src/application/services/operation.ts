@@ -55,7 +55,7 @@ export class ServiceOperation {
         return {
           ...base,
           status: 'blocked',
-          detail: `${step.tool} is ${version?.state ?? 'unknown'}; requires ${preparation.minVersion} for public service settings`,
+          detail: `${step.tool} is ${version?.state ?? 'unknown'}; requires ${version?.min_version ?? preparation.minVersion} for public service settings`,
           ...(version
             ? {
                 actions:
