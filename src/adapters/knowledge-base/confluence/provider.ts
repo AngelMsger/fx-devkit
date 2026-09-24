@@ -32,7 +32,7 @@ export const confluenceProvider: ProviderDescriptor<Coordinate> = {
     { name: 'space', desc: 'space key', required: true },
   ],
   service: (settings) => {
-    const service = familyService('confluence-cli', settings);
+    const service = familyService('confluence-cli', settings, '0.21.0');
     return {
       ...service,
       recipes: [

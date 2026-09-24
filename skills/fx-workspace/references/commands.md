@@ -429,3 +429,13 @@ replacing it. If another writer changed it, the path is not a regular file, or
 its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
 content. Inspect the real source path and retry with `--dry-run`; do not remove
 locks or overwrite another edit. An identical edit reports `written: false`.
+
+### Existing logins and canonical contexts
+
+Updated family companions provide `auth reuse --dry-run` and `auth reuse` for
+associating a verified existing identity with the manifest's named context. Init
+invokes this native preparation automatically before personal authentication.
+It never copies secrets or changes a populated destination identity. Multiple
+identities require `--from-context` after native `config contexts` discovery.
+Keep the final auth check: `unavailable` or `unchanged` does not establish login.
+Treat keychain/network/scope failures as their own recovery, not a login request.

@@ -284,3 +284,30 @@ it. Shared declarations use a fixed public field allowlist; unknown service keys
 are fatal before permissive unknown-field stripping. Errors report paths and public
 conflicts, never the rejected credential value. Native conflict recovery is explicit
 and does not confer permission to overwrite.
+
+## Existing-login reuse
+
+Family service preparation retains the manifest's canonical context name. After
+public setup, a separate `phase: prepare` recipe invokes native `auth reuse`. Its
+preview performs read-only matching/verification; `changed: true` authorizes a
+planned association, and a subsequent unchanged preview verifies completion.
+An unavailable candidate is a no-change result, not proof of authentication.
+The independent credential recipe still checks auth status and handles personal
+sign-in. It depends on reuse, so ambiguous identity, inaccessible storage or failed
+verification cannot fall through to an unnecessary login.
+
+Native tools own service matching, credential access and config updates. fx never
+reads or serializes secrets and does not add a second identity registry. Existing
+identities/current-context settings remain native and unchanged. The companion
+release floors in defaults/tools.yaml must ship before an fx release requiring
+this command; compatible installations are preserved. Release-order validation
+must cover a prepared destination with an existing login under another name.
+
+Setup rows retain native failure category, code, hint and recovery commands. A
+human handoff retains the failed verification detail instead of replacing it with
+a generic request for authorization. No unchanged preparation is replayed merely
+to obtain a different report view.
+
+Authentication/access verification has a bounded 30-second command budget for
+native storage and network checks; binary/version and public-configuration probes
+keep their separate short budgets. Outer lifecycle deadlines still take precedence.

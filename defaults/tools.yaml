@@ -18,26 +18,26 @@ defaults:
 tools:
   - name: bitbucket-cli
     desc: Repositories, forks, pull requests and code review on Bitbucket
-    min_version: '0.17.0'
+    min_version: '0.24.0'
     install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
     docs: https://github.com/AngelMsger/bitbucket-cli
   - name: confluence-cli
-    min_version: '0.17.0'
+    min_version: '0.21.0'
     desc: Pages, spaces and comments in Confluence
     install: [{ via: npm, spec: '@angelmsger/confluence-cli' }]
     docs: https://github.com/AngelMsger/confluence-cli
   - name: jenkins-cli
-    min_version: '0.6.2'
+    min_version: '0.10.0'
     desc: Jobs, builds and console output in Jenkins
     install: [{ via: npm, spec: '@angelmsger/jenkins-cli' }]
     docs: https://github.com/AngelMsger/jenkins-cli
   - name: openobserve-cli
-    min_version: '0.11.2'
+    min_version: '0.14.0'
     desc: Logs, metrics and traces in OpenObserve
     install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
     docs: https://github.com/AngelMsger/openobserve-cli
   - name: jira-cli
-    min_version: '0.6.0'
+    min_version: '0.7.0'
     desc: Issues, comments, transitions and worklogs in Jira
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli

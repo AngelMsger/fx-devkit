@@ -1,5 +1,11 @@
 # 変更履歴
 
+## [Unreleased]
+
+## 0.5.0 (2026-09-24)
+
+- 個人認証を要求する前に、検証済みの CLI ログインを共通のチーム context で再利用します。元の準備エラーと検証の詳細を保持し、auth reuse に対応する CLI の最低バージョンを指定します。
+
 ## 0.4.0 (2026-09-21)
 
 - Skill 読み込みハンドシェイクと `skill_notice` 設定を廃止しました。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` は使用しません。loaded/version_verified の代わりにインストール版と `activation` を確認してください。
