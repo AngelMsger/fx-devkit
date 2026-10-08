@@ -49,7 +49,7 @@ tools:
   - name: sentry
     min_version: '0.44.1'
     desc: Issues, events and releases in Sentry
-    install: [{ via: manual }]
+    install: [{ via: npm, spec: sentry }]
     skill: { command: [] }
     auth: { command: [auth, status] }
     docs: https://cli.sentry.dev/getting-started/installation/

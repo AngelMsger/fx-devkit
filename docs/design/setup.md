@@ -325,3 +325,10 @@ to obtain a different report view.
 Authentication/access verification has a bounded 30-second command budget for
 native storage and network checks; binary/version and public-configuration probes
 keep their separate short budgets. Outer lifecycle deadlines still take precedence.
+
+## Terminal handoff
+
+Human preparation output includes the required user actions and their commands,
+followed by the continuation command. Identical user commands appear once. Agent
+actions remain separate; displaying personal sign-in never executes it. Structured
+output retains all per-step evidence, including the workspace and recovery vectors.

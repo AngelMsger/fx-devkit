@@ -145,6 +145,10 @@ hosting use `fx can code-host`.
 `select` replaces a collection, `pick/unpick` add/remove names, `--all` follows
 future shared additions and `--none` selects nothing. Initial `--repos` or
 `--no-repos` applies before cloning; an init retry without them preserves selection.
+The manifest catalog includes repositories that are not on disk. When a task needs
+one, inspect it with `repo show`, follow its workspace-scoped `next_steps` to pick
+and sync it, and continue the original task in the returned path. Do not ask the
+user to learn selection commands or manually clone a known shared repository.
 Inspect preview coverage: remote source contents may be uninspected. `status --dirty`
 includes untracked files; `dirty` itself keeps its tracked-change meaning and
 `uncommitted` combines both. Use the reported workspace and empty reason.

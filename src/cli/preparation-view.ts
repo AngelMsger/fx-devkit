@@ -1,5 +1,5 @@
 // A task-oriented terminal view; structured reports remain the machine interface.
-import type { Preparation } from '../domain/preparation.js';
+import type { Preparation, PreparationAction } from '../domain/preparation.js';
 import { shellEnvironmentLine, shellLine, type ResolvedShell } from '../domain/shell.js';
 
 export function preparationText(
@@ -29,11 +29,23 @@ export function preparationText(
       `Setup already verified: ${verified.map((item) => String(item['title'])).join(', ')}`,
     );
   lines.push(...preparation.blockers.map((check) => `- ${check.message}`));
-  const next = preparation.next_actions[0];
-  if (next)
-    lines.push(
-      `Next: ${includeEnvironment && next.env ? shellEnvironmentLine(next.argv, next.env, shell) : shellLine(next.argv, shell)}`,
-    );
+  const command = (action: PreparationAction): string =>
+    includeEnvironment && action.env
+      ? shellEnvironmentLine(action.argv, action.env, shell)
+      : shellLine(action.argv, shell);
+  const userActions = preparation.blockers.flatMap((check) =>
+    (check.actions ?? []).filter((action) => action.actor === 'user'),
+  );
+  const shown = new Set<string>();
+  for (const action of userActions) {
+    const line = command(action);
+    if (shown.has(line)) continue;
+    shown.add(line);
+    lines.push(`Your next step: ${action.description}`, `Run in your terminal: ${line}`);
+  }
+  for (const action of preparation.next_actions) lines.push(`Next: ${command(action)}`);
+  if (preparation.resume)
+    lines.push(`After resolving the items above, continue: ${command(preparation.resume)}`);
   return lines.join('\n') + '\n';
 }
 

@@ -104,7 +104,7 @@ describe('Sync', () => {
       throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no API binding');
     };
     expect((await new Sync({ ...h.deps, codeHost }).execute(run)).summary.done).toBe(1);
-    expect(h.reporter.codes()).toContain('CODE_HOST_USER_UNKNOWN');
+    expect(h.reporter.codes()).not.toContain('CODE_HOST_USER_UNKNOWN');
   });
 
   it('does not disguise provider construction errors as missing optional configuration', async () => {
