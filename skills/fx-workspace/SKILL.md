@@ -1,6 +1,6 @@
 ---
 name: fx-workspace
-version: 0.6.0
+version: 0.7.0
 description: 'Use only when the user explicitly asks for the fx workspace CLI or manifest, or the current task is inside an fx-managed workspace or routed by its fx-derived AGENTS.md. Drive workspace init and sync, repository status and selection, manifest validation and editing, companion tools and login, doctor, agent Skills, repository ownership, environment coordinates and readiness through can/where, and release checks across dependencies, branches, builds and errors. Do not use for generic Sentry, OpenObserve, Jenkins, Kubernetes, logs, errors or builds outside an fx-managed workspace.'
 metadata:
   requires:

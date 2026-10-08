@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.7.0 (2026-10-08)
+
 - 把 `.workbench/` 定为不属于任何仓库的产物的落点。派生指南新增 `workspace-layout` 区域说明规则；`fx doctor` 在 `root` 组报告根目录下没有归属的条目；`fx status` 以 `stray_entries` 返回它们；会话启动上下文带出最近一次观测。fx 不会写入工作台。
 
 ## 0.6.0 (2026-10-08)
