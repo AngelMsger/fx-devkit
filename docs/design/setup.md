@@ -154,6 +154,12 @@ Absence is an answer rather than a blank coordinate. An environment that does no
 declare the platform, a repository marked uncovered and an entry whose confidence
 is already `not_covered` are all `not_covered`.
 
+A metrics coordinate is a scrape job, and the provider default is a PromQL
+selector whose braces are not placeholders: only `{name}` forms the manifest
+vocabulary allows are substituted or reported missing. Metrics declare no probe.
+A selector that matches nothing succeeds, so no read-only query separates a
+missing job from a silent one, and only definite outcomes may change confidence.
+
 ## Initialization tool installation
 
 Tools may opt in with `install_on_init: true` (default false). The
@@ -302,6 +308,14 @@ identities/current-context settings remain native and unchanged. The companion
 release floors in defaults/tools.yaml must ship before an fx release requiring
 this command; compatible installations are preserved. Release-order validation
 must cover a prepared destination with an existing login under another name.
+
+A service declared with `auth_scheme: none` has no identity to reuse or obtain,
+and the companion refuses a login for it. Its provider replaces both recipes
+with one manual access step verified by the status command's JSON answer, since
+that command exits zero when the server does not respond. The check carries the
+companion's own request timeout, shorter than fx's check deadline, so a server
+that never answers is a verdict rather than an abandoned check. The step asks
+for network access and never requests a credential.
 
 Setup rows retain native failure category, code, hint and recovery commands. A
 human handoff retains the failed verification detail instead of replacing it with

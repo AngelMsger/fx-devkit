@@ -45,6 +45,26 @@ describe('serviceRules', () => {
     ]);
   });
 
+  it.each([
+    ['prometheus-cli', []],
+    [
+      'jenkins-cli',
+      [`${path}.auth_scheme: authentication method is not supported by this provider`],
+    ],
+  ])(
+    'lets only a provider that says so declare a service without sign-in: %s',
+    (provider, found) => {
+      const service = {
+        base_url: 'https://metrics.example.com',
+        context: 'test',
+        auth_scheme: 'none',
+      } as const;
+      expect(messages(serviceRules({ providers, provider, service, vars: {}, path }))).toEqual(
+        found,
+      );
+    },
+  );
+
   it('reports a provider that declares no service settings at all', () => {
     expect(
       messages(

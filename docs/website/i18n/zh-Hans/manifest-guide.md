@@ -207,6 +207,25 @@ fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
 ```
 
+指标平台的写法相同。它的坐标变量是 `job`，即服务的抓取 job。只有 job 名称确实遵循某个模式时才声明模板；否则把逐个核实过的 job 记在对应仓库的 `obs.overrides.<platform>.<env>.vars` 下，没有登记的仓库不会得到命令，而不是一个猜出来的选择器。
+
+```yaml
+platforms:
+  metrics:
+    provider: prometheus-cli
+    capability: metrics
+envs:
+  test:
+    platforms:
+      metrics:
+        service:
+          base_url: https://metrics.example.com
+          context: test
+          auth_scheme: none
+        vars: { job: 'example-{svc}' }
+        confidence: unverified
+```
+
 ## 在 AGENTS.md 中声明团队 Skill
 
 每个团队 Skill 放在 `skills/<name>/SKILL.md`，frontmatter 提供 `name` 和 `description`。在源 AGENTS.md 中需要目录的位置加入：
@@ -222,8 +241,8 @@ fx doctor --tool openobserve-cli --format json
 
 ## 公共服务预设 {#public-service-presets}
 
-fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.2.0'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Sentry 只接受 `base_url` 和 `org`。未写 `provider` 的 platform 按其名称推导出的 provider 校验，与 `fx manifest providers` 显示的一致。
+fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项声明可选 `service`；相应文件须设置 `min_cli: '0.2.0'`。环境覆盖继承平台设置。`base_url` 是含部署路径的完整 HTTP(S) URL，SSH 克隆地址单独保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可设置 `flavor`；OpenObserve 必须声明 `org`；这四种配套工具须声明 `auth_scheme`，可选公共凭证获取页面 `credential_url`。Prometheus 同样须声明 `auth_scheme`，并接受 `none`，用于无需登录的服务：就绪与否取决于服务是否应答，不会要求登录；只有前置网关要求时才使用 `basic` 或 `bearer`。Sentry 只接受 `base_url` 和 `org`。未写 `provider` 的 platform 按其名称推导出的 provider 校验，与 `fx manifest providers` 显示的一致。
 
 相同预设可共享本地目标，同一目标的不同预设会阻止配置。冲突的旧 vars 应删除，避免两个来源。用户名、邮箱、密码、PAT/API Token 值、Cookie 和浏览器会话不可分发；每人通过自己的 CLI 获取并保存凭证。额外 service 字段在非严格模式下也校验失败；URL 中的凭证会被拒绝且不会回显。
 
-预设要求 Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0，需在 tools.yaml 设置版本下限。init、显式 sync 和 login 使用受信任命令准备配置；`fx sync --only services --dry-run` 预览。非空冲突不会自动覆盖或切换激活项；Sentry 公共工作区默认值遵循同样的保留原则。
+预设要求 Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0、Prometheus ≥0.2.0，需在 tools.yaml 设置版本下限。init、显式 sync 和 login 使用受信任命令准备配置；`fx sync --only services --dry-run` 预览。非空冲突不会自动覆盖或切换激活项；Sentry 公共工作区默认值遵循同样的保留原则。

@@ -26,6 +26,7 @@ describe('the capability table', () => {
       'knowledge-base',
       'im',
       'calendar',
+      'meeting',
       'task',
       'worklog',
     ]);

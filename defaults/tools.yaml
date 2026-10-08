@@ -36,6 +36,11 @@ tools:
     desc: Logs, metrics and traces in OpenObserve
     install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
     docs: https://github.com/AngelMsger/openobserve-cli
+  - name: prometheus-cli
+    min_version: '0.2.0'
+    desc: PromQL queries, series discovery, scrape targets and alerts in Prometheus
+    install: [{ via: npm, spec: '@angelmsger/prometheus-cli' }]
+    docs: https://github.com/AngelMsger/prometheus-cli
   - name: jira-cli
     min_version: '0.7.0'
     desc: Issues, comments, transitions and worklogs in Jira
@@ -76,3 +81,10 @@ tools:
     install: [{ via: npm, spec: '@wecom/cli' }]
     skill: { command: [] }
     auth: { command: [] }
+  - name: tmeet
+    min_version: '1.0.18'
+    desc: Tencent Meeting meetings, recordings, minutes and transcripts
+    install: [{ via: npm, spec: '@tencentcloud/tmeet' }]
+    skill: { command: [] }
+    auth: { command: [] }
+    docs: https://github.com/TencentCloud/tencentmeeting-cli

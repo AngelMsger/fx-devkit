@@ -154,7 +154,9 @@ fx manifest schema --kind tools
 
 capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provider 透過配套 CLI 實作。manifest 繫結能力、提供者和環境座標。`can` 查詢就緒狀態，`where` 查詢座標，`release` 查詢宣告的發佈檢查項目。
 
-工作區級能力一次繫結：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`task`、`worklog`；環境級能力按平台實例繫結：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。`fx manifest providers` 列出已繫結的內容和每個能力可選的 provider。fx 命名但尚無實作的能力（例如 `metrics`）可以被描述與查詢，繫結它需要 provider，在此之前它保持未繫結。
+工作區級能力一次繫結：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`meeting`、`task`、`worklog`；環境級能力按平台實例繫結：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。`fx manifest providers` 列出已繫結的內容和每個能力可選的 provider。`calendar` 是行程與忙閒所在；`meeting` 是承載線上會議及其錄製、紀要的會議系統，在一個產品排行程、在另一個產品開會的團隊兩者都繫結。
+
+`metrics` 由 `prometheus-cli` 提供。它的座標是服務的抓取 job：`where` 輸出一條 `up{job="..."}` 查詢，回傳該服務各抓取目標的標籤集合，可作為撰寫後續選擇器的起點。選擇器比對不到任何序列時查詢仍然成功，因此指標不提供存在性探測，`where --probe` 對它回報 `unknown`，不作猜測。
 
 `tool list/show` 顯示工具需求，`tool install/update` 使用宣告的安裝程式，`login` 引導設定。驗證由各工具負責。manifest 提供的執行向量需要信任；向量改變後需要重新確認。口頭確認手動步驟不能取代驗證成功。
 

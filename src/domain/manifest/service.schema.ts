@@ -33,9 +33,11 @@ export const serviceSchema = z
       .describe('service deployment flavor'),
     org: identifier.optional().describe('shared organization slug'),
     auth_scheme: z
-      .enum(['pat', 'basic', 'token', 'session'])
+      .enum(['none', 'pat', 'basic', 'token', 'bearer', 'session'])
       .optional()
-      .describe('authentication method only; each member obtains their own credential'),
+      .describe(
+        'authentication method only, `none` where the service takes no sign-in; each member obtains their own credential',
+      ),
     credential_url: publicUrl
       .optional()
       .describe('public page explaining where members obtain credentials'),

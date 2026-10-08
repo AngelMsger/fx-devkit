@@ -12,6 +12,7 @@ import {
 import { bitbucketCliProvider } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import { sentryProvider } from '../../../src/adapters/error-tracker/sentry/provider.js';
 import { openobserveCliProvider } from '../../../src/adapters/log-store/openobserve-cli/provider.js';
+import { prometheusCliProvider } from '../../../src/adapters/metrics/prometheus-cli/provider.js';
 import { placeholders } from '../../../src/domain/template.js';
 import type { Platform } from '../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
@@ -20,6 +21,7 @@ const PROVIDERS: readonly ProviderDescriptor<unknown>[] = [
   bitbucketCliProvider,
   sentryProvider,
   openobserveCliProvider,
+  prometheusCliProvider,
   jenkinsCliProvider,
   kubectlProvider,
 ];
