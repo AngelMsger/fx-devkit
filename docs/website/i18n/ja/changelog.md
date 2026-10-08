@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.6.0 (2026-10-08)
+
 - `metrics` を実装しました。`prometheus-cli` provider を追加し、この CLI を同梱カタログに加えています。サービスの座標は scrape job です。`where` は宣言されたサーバーに固定した `up{job="..."}` クエリを出力します。何にも一致しないセレクターでも成功するため、probe は提供しません。
 - service 宣言の `auth_scheme` で `none` と `bearer` を受け付けます。サインイン不要と宣言されたサーバーは応答の有無で準備完了を判定し、ログインを要求しません。
 - オンライン会議、録画、議事録を保持する会議システムを表すワークスペース能力 `meeting` を追加しました。`tmeet` で動作する `tencent-meeting` provider を提供し、`tmeet` を同梱カタログに加えています。`calendar` は予定と空き時間を扱います。

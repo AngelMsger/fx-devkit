@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.6.0 (2026-10-08)
+
 - `metrics` 能力有了实现：新增 `prometheus-cli` provider，并把该配套工具加入内置目录。服务的坐标是它的抓取 job；`where` 输出指向所声明服务的 `up{job="..."}` 查询，且不提供探测，因为匹配不到任何序列的选择器同样会成功。
 - service 声明的 `auth_scheme` 接受 `none` 与 `bearer`。声明为无需登录的服务以是否应答判定就绪，不会被要求登录。
 - 新增工作区能力 `meeting`，指承载在线会议、录制与纪要的会议系统；提供由 `tmeet` 驱动的 `tencent-meeting` provider，`tmeet` 已加入内置目录。`calendar` 保留日程与忙闲。
