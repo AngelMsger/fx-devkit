@@ -202,11 +202,11 @@ Runtime Registry discovery follows npm's effective user/global scope and default
 configuration, with `FX_REGISTRY` as an optional override. Project npmrc cannot
 redirect global self-update. Publication still requires an explicit private
 coordinate or Jenkins Managed npmrc; package metadata carries no Registry. Keep the
-shared registry policy and version grammar as the checked JavaScript
-implementations used by scripts and compiled adapters, so a release gate that
-runs before the build decides the same way fx does. Delivery scripts belong to
-the type-checked project and the full rule set; JavaScript opts in per file
-with `// @ts-check`, because generated output is in the same program.
+shared registry policy, version grammar and boundary scanner as the checked
+JavaScript implementations used by scripts and compiled code, so a gate that runs
+before the build decides the same way fx does and no script loads its logic from
+build output. Delivery scripts belong to the type-checked project and the full
+rule set; JavaScript opts in per file with `// @ts-check`.
 Publishing uses `scripts/publish.mjs`; the lifecycle guard
 rejects direct publication. Package file lists own scanner coverage. Remotes,
 tags and publication remain separate task effects; see the
