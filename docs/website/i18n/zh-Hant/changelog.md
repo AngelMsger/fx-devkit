@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 將 `.workbench/` 定為不屬於任何儲存庫的產出的存放位置。派生指南新增 `workspace-layout` 區域說明規則；`fx doctor` 在 `root` 群組回報根目錄下沒有歸屬的項目；`fx status` 以 `stray_entries` 回傳它們；工作階段啟動內容帶出最近一次觀測。fx 不會寫入工作台。
+
 ## 0.6.0 (2026-10-08)
 
 - `metrics` 能力有了實作：新增 `prometheus-cli` provider，並將該配套工具加入內建目錄。服務的座標是它的抓取 job；`where` 輸出指向所宣告服務的 `up{job="..."}` 查詢，且不提供探測，因為比對不到任何序列的選擇器同樣會成功。

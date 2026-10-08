@@ -239,6 +239,15 @@ envs:
 
 文件寫入前會比較規劃時的快照。`DOCS_WRITE_CONFLICT` 表示並行編輯或不安全路徑已被保留；檢查路徑，父目錄為連結時使用實際目錄，再預覽並重試。檔案列的 `action` 表示計畫，`result` 為 `planned`、`done`、`skipped`、`failed` 或 `not_started`。非零結束前可能已有檔案寫入成功，請先讀取 stdout 的 `files`（sync 中為 `stage_details.docs.files`，init 中為 `sync.stage_details.docs.files`）；重試會略過未變更檔案。獲准取代外來內容時，原檔案、目錄或連結本身會移至未占用的同層 `.fx-backup[-N]`，既有備份保持不變。
 
+## 在 AGENTS.md 放置工作區配置規則
+
+`workspace-layout` 區域告訴 Agent 不屬於任何儲存庫的產出放在哪裡：工作區根目錄的 `.workbench/`。派生至工作區的指南一律包含此區域，來源指南沒有標記時附加在末尾。將標記加在其他工作區規則旁邊，即可讓它出現在該處：
+
+```markdown
+<!-- fx:begin workspace-layout -->
+<!-- fx:end workspace-layout -->
+```
+
 ## 公共服務預設 {#public-service-presets}
 
 fx 0.2.0 支援在工作區 provider、platform 預設值及環境覆寫項宣告可選的 `service`；對應文件需設定 `min_cli: '0.2.0'`。環境覆寫繼承平台設定。`base_url` 是包含部署路徑的完整 HTTP(S) URL，SSH 複製位址分開保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可設定 `flavor`；OpenObserve 必須宣告 `org`；四種配套工具須宣告 `auth_scheme`，可選公共憑證取得頁面 `credential_url`。Prometheus 同樣須宣告 `auth_scheme`，並接受 `none`，用於無需登入的服務：就緒與否取決於服務是否回應，不會要求登入；只有前置閘道要求時才使用 `basic` 或 `bearer`。Sentry 只接受 `base_url` 與 `org`。未寫 `provider` 的 platform 依其名稱推導出的 provider 驗證，與 `fx manifest providers` 顯示的一致。

@@ -131,6 +131,8 @@ fx env select --all
 
 `fx status` 标明工作区并展示未跟踪文件数。`fx status --dirty` 同时查找已跟踪文件的修改与新建的未跟踪文件。JSON 保留 `dirty` 表示已跟踪文件或索引修改，新增 `uncommitted` 表示任一类未提交工作。被忽略文件不计入未跟踪工作。空结果解释是未选择仓库，还是没有仓库匹配筛选。
 
+工作区根目录不是 Git 仓库，因此 `fx status` 还会返回 `stray_entries`：根目录下既不是 checkout、派生指南、Agent 或服务配置，也不是工作台的文件和目录。`fx doctor` 在 `root` 组里逐项列出，级别为警告，不影响就绪判定。
+
 sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
 
 ## 核心概念 {#concepts}
@@ -138,6 +140,8 @@ sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改
 ### 工作区和 manifest {#the-workspace-and-the-manifest}
 
 工作区是注册过的普通目录，内含独立 checkout 和受管理的 Agent 资源。manifest 源位于 `~/.fx/workspaces/<name>/source`，fx 不会在受管理的工作区根目录运行 Git。同步不会通过切分支、reset 或 stash 覆盖脏工作区、分叉状态或其他分支上的工作。
+
+不属于任何仓库的产物放在工作区根目录的 `.workbench/` 下：每个任务一个带日期的目录，存放报告、计划和证据；`worktrees/` 放 `git worktree add` 的目标；`tmp/` 放随时可以丢弃的内容。派生指南向 Agent 说明同样的规则。fx 不会写入该目录。
 
 workspace、environments、tools 和 members 文档保存共享事实；可选 harness 文档描述 MCP 和规则。用以下命令查看字段：
 

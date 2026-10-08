@@ -28,4 +28,8 @@ export class FakeAgentHost implements AgentHost {
       ? path.join(this.base, this.id, 'skills')
       : path.join(projectRoot ?? path.resolve('/ws'), `.${this.id}`, 'skills');
   }
+
+  projectPaths(): readonly string[] {
+    return [`.${this.id}/skills`];
+  }
 }

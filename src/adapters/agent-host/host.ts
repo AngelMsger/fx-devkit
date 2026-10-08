@@ -66,4 +66,15 @@ export class SpecAgentHost implements AgentHost {
       ? path.join(this.deps.home, this.spec.homeSub, 'skills')
       : path.join(projectRoot ?? '.', this.spec.projectSkills);
   }
+
+  projectPaths(): readonly string[] {
+    const { hooks, mcp, rules } = this.spec;
+    return [
+      this.spec.projectSkills,
+      ...this.spec.projectMarkers,
+      ...(hooks === undefined ? [] : [hooks.projectPath]),
+      ...(mcp?.status === 'supported' ? [mcp.projectPath] : []),
+      ...(rules === undefined ? [] : [rules.projectPath]),
+    ];
+  }
 }

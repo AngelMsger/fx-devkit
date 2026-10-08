@@ -135,6 +135,7 @@ describe('harness reconciliation', () => {
       hooks: null,
       detect: async () => true,
       skillsDir: () => '.fixture/skills',
+      projectPaths: () => ['.fixture/skills'],
     };
     const run = new ReconcileHarness({ ...f.deps, hosts: [original, alias] });
     await run.execute({ ...input, selected: ['claude-code', 'fixture'] });
@@ -156,6 +157,7 @@ describe('harness reconciliation', () => {
       hooks: null,
       detect: async () => true,
       skillsDir: () => '.fixture/skills',
+      projectPaths: () => ['.fixture/skills'],
     };
     const result = await new ReconcileHarness({ ...f.deps, hosts: [host] }).execute({
       ...input,

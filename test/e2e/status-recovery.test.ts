@@ -229,4 +229,47 @@ describe('status and recovery journeys', () => {
     expect(report.findings.filter((finding) => finding.group === 'tools')).toEqual([]);
     expect(report.findings.filter((finding) => finding.group === 'login')).toEqual([]);
   });
+
+  it('reports what sits at the root outside the workbench, as Git would an untracked file', () => {
+    const s = stage();
+    const init = s.init();
+    expect(init.status, init.stderr).toBe(0);
+    expect(readFileSync(path.join(s.root, 'AGENTS.md'), 'utf8')).toContain(
+      '<!-- fx:begin workspace-layout -->',
+    );
+    const strays = (): string[] => {
+      const result = fx(['status', '--format', 'json'], s.env, s.root);
+      expect(result.status, result.stderr).toBe(0);
+      return (result.json() as { stray_entries: string[] }).stray_entries;
+    };
+    const doctor = () => {
+      const result = fx(['doctor', '--details', '--format', 'json'], s.env, s.root);
+      const report = result.json() as {
+        preparation: { state: string };
+        findings: { group: string; id: string; level: string; fix?: string }[];
+      };
+      return {
+        status: result.status,
+        state: report.preparation.state,
+        root: report.findings.filter((finding) => finding.group === 'root'),
+      };
+    };
+    mkdirSync(path.join(s.root, '.workbench/tmp'), { recursive: true });
+    writeFileSync(path.join(s.root, '.workbench/tmp/dump.json'), '{}\n');
+    expect(strays()).toEqual([]);
+    const clean = doctor();
+    expect(clean.root).toMatchObject([{ id: 'entries', level: 'ok' }]);
+
+    writeFileSync(path.join(s.root, 'demo.html'), '<html>\n');
+    mkdirSync(path.join(s.root, 'fork'));
+    git(['init', '-q'], path.join(s.root, 'fork'));
+    expect(strays()).toEqual(['demo.html', 'fork']);
+    const cluttered = doctor();
+    expect(cluttered.root).toMatchObject([
+      { id: 'demo.html', level: 'warn' },
+      { id: 'fork', level: 'warn', fix: expect.stringContaining('repo add fork') },
+    ]);
+    expect(cluttered.root[0]?.fix).toBeUndefined();
+    expect([cluttered.status, cluttered.state]).toEqual([clean.status, clean.state]);
+  });
 });

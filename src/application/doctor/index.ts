@@ -22,6 +22,7 @@ import { checkInstallations } from './installations.js';
 import { checkLogin } from './login.js';
 import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
+import { checkRoot } from './root.js';
 import { checkSelf } from './self.js';
 import { checkTools } from './tools.js';
 import {
@@ -63,6 +64,7 @@ export class Doctor {
     const groups = await Promise.all([
       toolScope.problems,
       checkRepos(this.deps),
+      checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
       checkInstallations(this.doctor.inventory, input.tools),
       checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }),
       checkLogin(this.deps, this.doctor.login, {

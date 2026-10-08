@@ -11,12 +11,14 @@ import {
 import type { Binding, PlatformBinding } from '../manifest/providers.js';
 import type { Environments, Workspace } from '../manifest/types.js';
 import type { ResolvedTool } from '../toolchain/resolve.js';
+import { WORKBENCH_DIR } from '../workspace/root-entries.js';
 
 export const REGIONS = [
   'project-index',
   'capabilities',
   'environments',
   'ask-fx',
+  'workspace-layout',
   'team-skills',
 ] as const;
 export type Region = (typeof REGIONS)[number];
@@ -43,6 +45,7 @@ export function renderAll(input: TemplateInput): Record<Region, string> {
     capabilities: capabilities(input),
     environments: environments(input.environments),
     'ask-fx': askFx(),
+    'workspace-layout': workspaceLayout(),
     'team-skills': teamSkillIndex(input.teamSkills ?? []),
   };
 }
@@ -181,6 +184,27 @@ export function askFx(): string {
     '| What environments exist | `fx env list`; `fx env show <env>` |',
     '',
     'For a non-ready answer or `LOGIN_REQUIRED`, follow the Skill recovery flow: inspect the cause, perform authorized local installation/setup, hand off only necessary human interaction, then re-check the same capability and resume the original task. A handoff is guidance, not authorization: preserve read-only posture and exact-command trust; do not repeat an unchanged failure or overwrite existing configuration without approval and backup.',
+  ].join('\n');
+}
+
+export function workspaceLayout(): string {
+  const bench = WORKBENCH_DIR;
+  return [
+    '## Workspace layout',
+    '',
+    `The workspace root holds repository checkouts and fx-managed agent resources, nothing else. It is not a Git repository, so nothing there reports or ignores a new file. Everything a task produces outside a repository goes under \`${bench}/\` at the workspace root.`,
+    '',
+    '| Path | Holds | Lifetime |',
+    '| --- | --- | --- |',
+    `| \`${bench}/<YYYY-MM-DD>-<topic>/\` | One directory per task: reports, plans, evidence, demos, one-off scripts | Kept. Never renamed or moved once something cites it |`,
+    `| \`${bench}/worktrees/<repo>-<topic>/\` | Targets of \`git worktree add\` for a repository | Until the branch lands; then \`git worktree remove\` |`,
+    `| \`${bench}/tmp/\` | Anything reproducible or bulky: downloads, clones, sandbox roots, dependency trees, raw dumps | Disposable at any time |`,
+    '',
+    '- Date a task directory by the day the task started and keep using it across sessions.',
+    "- Files needed only within one session belong in the agent's own scratch directory or the system temporary directory.",
+    `- Cite \`${bench}/\` paths relative to the workspace root. Never cite anything under \`tmp/\` from memory, documents or reports.`,
+    '- Work with its own source and lifecycle is a repository: create it, then `fx repo add <path>`.',
+    '- Do not create other files or directories at the workspace root. `fx doctor` lists the ones that are there.',
   ].join('\n');
 }
 

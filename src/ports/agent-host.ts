@@ -14,4 +14,6 @@ export interface AgentHost {
   readonly rules: RulesSupport | null;
   detect(scope?: SkillScope, projectRoot?: string): Promise<boolean>;
   skillsDir(scope: SkillScope, projectRoot?: string): string;
+  // Every project-relative path the host reads, whether or not fx writes it.
+  projectPaths(): readonly string[];
 }

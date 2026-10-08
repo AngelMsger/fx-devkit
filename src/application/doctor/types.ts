@@ -6,7 +6,7 @@ import type { Finding as ReportFinding, Report } from '../../domain/report.js';
 import { finding as anyFinding, type FindingExtra } from '../../domain/report.js';
 import type { WritePosture } from '../safety/posture.js';
 
-export const GROUPS = ['repos', 'tools', 'login', 'agents', 'manifest', 'self'] as const;
+export const GROUPS = ['repos', 'root', 'tools', 'login', 'agents', 'manifest', 'self'] as const;
 export type Group = string;
 
 export type { Level } from '../../domain/report.js';
