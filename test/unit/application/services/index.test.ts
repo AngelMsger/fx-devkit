@@ -434,6 +434,59 @@ envs: {dev: {platforms: {errors: {}}}}
   });
 });
 
+describe('a service without sign-in', () => {
+  const metrics = (scheme: string): string => `schema_version: 2
+platforms:
+  metrics: {provider: prometheus-cli, capability: metrics}
+envs:
+  test:
+    platforms:
+      metrics: {service: {base_url: 'https://metrics.example.com', context: test, auth_scheme: ${scheme}}}
+`;
+  const scope = [
+    'prometheus-cli',
+    '--use-context',
+    'test',
+    '--base-url',
+    'https://metrics.example.com',
+    '--auth-scheme',
+  ];
+
+  it('is judged by whether the server answers, and is never handed a login', async () => {
+    const { h, login } = await fixture({
+      environments: metrics('none'),
+      tools: ['prometheus-cli'],
+    });
+    const plan = buildPlan(h.deps, login, { tools: ['prometheus-cli'], scopeEnvs: undefined });
+    expect(plan.problems).toEqual([]);
+    expect(plan.steps.map((step) => [step.id, step.kind, step.run?.slice(-2)])).toEqual([
+      ['prometheus-cli.service@test', 'run', ['--format', 'json']],
+      ['prometheus-cli.access@test', 'manual', undefined],
+    ]);
+    const status = [...scope, 'none', '--timeout', '10s', 'auth', 'status', '--format', 'json'];
+    const answer = { code: 0, stdout: '{"authenticated":false}', stderr: '' };
+    h.process.on(status, answer);
+    const verifier = new Verifier(h.deps, login);
+    expect((await verifier.verify(plan.steps[1]!)).ok).toBe(false);
+    answer.stdout = '{"authenticated":true}';
+    expect((await verifier.verify(plan.steps[1]!)).ok).toBe(true);
+  });
+
+  it('keeps reuse and personal login for a server behind a gateway', async () => {
+    const { h, login } = await fixture({
+      environments: metrics('bearer'),
+      tools: ['prometheus-cli'],
+    });
+    const plan = buildPlan(h.deps, login, { tools: ['prometheus-cli'], scopeEnvs: undefined });
+    expect(plan.steps.map((step) => step.id)).toEqual([
+      'prometheus-cli.service@test',
+      'prometheus-cli.reuse@test',
+      'prometheus-cli.credential@test',
+    ]);
+    expect(plan.steps[2]?.run).toEqual([...scope, 'bearer', 'auth', 'login']);
+  });
+});
+
 describe('existing login reuse during initialization', () => {
   it.each([true, false])(
     'uses native identity reuse before deciding whether sign-in is needed (candidate=%s)',

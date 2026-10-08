@@ -135,6 +135,7 @@ Match the returned row by `capability`, not by a platform name from another mani
 | ---------------------------- | --------------- |
 | Runtime errors               | `error-tracker` |
 | Service logs                 | `log-store`     |
+| Service metrics              | `metrics`       |
 | Builds and console output    | `ci`            |
 | Read-only cluster inspection | `cluster`       |
 

@@ -207,6 +207,25 @@ fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
 ```
 
+メトリクスの platform も同じ形です。座標の変数は `job`、つまりサービスの scrape job です。job 名が実際に規則に従う場合だけテンプレートを宣言します。そうでなければ、確認済みの job をリポジトリごとに `obs.overrides.<platform>.<env>.vars` へ記録します。記録のないリポジトリには、推測したセレクターではなく、コマンドなしの結果が返ります。
+
+```yaml
+platforms:
+  metrics:
+    provider: prometheus-cli
+    capability: metrics
+envs:
+  test:
+    platforms:
+      metrics:
+        service:
+          base_url: https://metrics.example.com
+          context: test
+          auth_scheme: none
+        vars: { job: 'example-{svc}' }
+        confidence: unverified
+```
+
 ## AGENTS.md にチーム Skill を宣言する
 
 各 Skill を `skills/<name>/SKILL.md` に置き、frontmatter に `name` と `description` を記述します。ソースの AGENTS.md の希望する位置に次の領域を追加します。
@@ -222,8 +241,8 @@ fx doctor --tool openobserve-cli --format json
 
 ## 公開サービスプリセット {#public-service-presets}
 
-fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Sentry は `base_url` と `org` のみ受け付けます。`provider` を書かない platform は、その名前が示す provider の宣言で検証します（`fx manifest providers` が表示するものと同じです）。
+fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Prometheus も `auth_scheme` が必須で、サインイン不要のサーバーには `none` を指定できます。その場合はサーバーが応答するかどうかで準備完了を判定し、ログインは要求しません。`basic` と `bearer` は前段のゲートウェイが要求する場合だけ使います。Sentry は `base_url` と `org` のみ受け付けます。`provider` を書かない platform は、その名前が示す provider の宣言で検証します（`fx manifest providers` が表示するものと同じです）。
 
 同じプリセットは同じローカル保存先を共有できますが、異なる設定を同じ保存先に宣言すると準備がブロックされます。矛盾する旧 vars は削除して設定元を一つにします。ユーザー名、メールアドレス、パスワード、PAT/API Token の値、Cookie、ブラウザーセッションは配布できません。各メンバーが自分の CLI で取得・保存します。余分な service フィールドは非 strict モードでも検証に失敗し、URL 内の認証情報は値を表示せず拒否します。
 
-必要なバージョンは Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0 です。tools.yaml に下限を指定します。init、明示的 sync、login は信頼済みコマンドで準備し、`fx sync --only services --dry-run` でプレビューできます。空でない既存値の競合は自動上書きせず、有効な context も自動変更しません。Sentry の公開ワークスペース設定にも同じ保持方針を適用します。
+必要なバージョンは Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0、Prometheus ≥0.2.0 です。tools.yaml に下限を指定します。init、明示的 sync、login は信頼済みコマンドで準備し、`fx sync --only services --dry-run` でプレビューできます。空でない既存値の競合は自動上書きせず、有効な context も自動変更しません。Sentry の公開ワークスペース設定にも同じ保持方針を適用します。

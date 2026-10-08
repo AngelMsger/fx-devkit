@@ -10,11 +10,7 @@ export function familyService(
   statusField = 'configured',
 ): ServiceDefinition {
   const flags = serviceFlags(settings);
-  const scope = [
-    '--use-context',
-    settings.context?.toLowerCase() ?? '',
-    ...serviceFlags(settings, false),
-  ];
+  const scope = serviceScope(settings);
   const browser = settings.auth_scheme === 'session' ? ['--browser'] : [];
   return {
     preparation: {
@@ -50,6 +46,11 @@ export function familyService(
       },
     ],
   };
+}
+
+// What pins one companion invocation to the declared service instead of the active context.
+export function serviceScope(settings: ServiceSettings): string[] {
+  return ['--use-context', settings.context?.toLowerCase() ?? '', ...serviceFlags(settings, false)];
 }
 
 // The same public-field selection is used by setup, login and live query guards.

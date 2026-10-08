@@ -298,6 +298,29 @@ fx where example-api --env test --format json
 fx doctor --tool openobserve-cli --format json
 ```
 
+A metrics platform follows the same shape. Its coordinate variable is `job`, the
+scrape job of the service. Declare a pattern only where job names really follow
+one; otherwise record each verified job on its repository under
+`obs.overrides.<platform>.<env>.vars`, and a repository without one gets no
+command instead of a guessed selector.
+
+```yaml
+platforms:
+  metrics:
+    provider: prometheus-cli
+    capability: metrics
+envs:
+  test:
+    platforms:
+      metrics:
+        service:
+          base_url: https://metrics.example.com
+          context: test
+          auth_scheme: none
+        vars: { job: 'example-{svc}' }
+        confidence: unverified
+```
+
 ## Declaring team Skills in AGENTS.md
 
 Keep each team Skill at `skills/<name>/SKILL.md`, with frontmatter `name` and
@@ -350,6 +373,9 @@ providers:
 clone coordinates separate. `context` selects a native CLI context. Bitbucket and
 Confluence also accept `flavor`; OpenObserve requires `org`; family companions
 require `auth_scheme` and optionally accept a public `credential_url` page.
+Prometheus accepts `auth_scheme: none` for a server that takes no sign-in: its
+readiness is whether the server answers, and no login is requested. Use `basic`
+or `bearer` only where a gateway in front of it requires one.
 Sentry accepts only `base_url` and `org`. A platform that names no `provider` is
 checked against the provider its own name implies, the same one `fx manifest
 providers` reports for it. Identical declarations can share a local
@@ -363,7 +389,8 @@ CLI. Unknown service fields fail validation even outside strict mode; credential
 in service URLs are rejected without echoing the value.
 
 Minimum companion versions for native presets: Bitbucket/Confluence 0.20.0,
-Jenkins 0.9.0, OpenObserve 0.13.0. Declare matching `tools.yaml` version floors.
+Jenkins 0.9.0, OpenObserve 0.13.0, Prometheus 0.2.0. Declare matching
+`tools.yaml` version floors.
 `fx init`, explicit `fx sync` and `fx login` prepare service settings through
 trusted commands; `fx sync --only services --dry-run` previews. Existing non-empty
 conflicts are reported, never automatically overwritten or activated. Sentry uses

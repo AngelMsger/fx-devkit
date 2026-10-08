@@ -232,11 +232,18 @@ to providers and environment-specific coordinates. Use `can` for readiness,
 `where` for service coordinates, and `release` for the declared release checklist.
 
 A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
-`calendar`, `task` and `worklog` once; an environment binds `error-tracker`,
-`log-store`, `metrics`, `ci` and `cluster` per platform instance. `fx manifest
-providers` lists what is bound and what each capability accepts. A capability
-fx names but implements for nobody, such as `metrics`, can still be described
-and read: binding it needs a provider, and until one exists it is unbound.
+`calendar`, `meeting`, `task` and `worklog` once; an environment binds
+`error-tracker`, `log-store`, `metrics`, `ci` and `cluster` per platform
+instance. `fx manifest providers` lists what is bound and what each capability
+accepts. `calendar` is where schedules and availability live; `meeting` is the
+conferencing system that holds online meetings, their recordings and minutes,
+so a team that schedules in one product and meets in another binds both.
+
+`metrics` is served by `prometheus-cli`. Its coordinate is a service's scrape
+job: `where` prints an `up{job="..."}` query that returns the label set of that
+service's targets, the starting point for writing further selectors. A selector
+that matches nothing still succeeds, so metrics offer no existence probe and
+`where --probe` reports `unknown` for them rather than a guess.
 
 ### Companion tools and trust
 

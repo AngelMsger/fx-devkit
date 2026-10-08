@@ -7,6 +7,7 @@ import { TemplatePlatform } from '../../../src/adapters/platform/template-platfo
 import { Where } from '../../../src/application/where.js';
 import { describeProvider } from '../../../src/composition/registry.js';
 import type { LocalLayer } from '../../../src/domain/manifest/types.js';
+import type { Platform } from '../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
 import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
@@ -128,6 +129,58 @@ describe('Where', () => {
       });
     },
   );
+
+  it('prints a PromQL selector for a registered scrape job and never guesses or probes one', async () => {
+    const prometheus = describeProvider('prometheus-cli')!;
+    const h = await harness({
+      workspace: [
+        'schema_version: 2',
+        'defaults: { branch: dev }',
+        'repos:',
+        '  - name: fx-example-api',
+        '    upstream: https://git.example.com/fx/fx-example-api.git',
+        '    obs: { overrides: { metrics: { test: { vars: { job: example-api } } } } }',
+        '  - name: fx-example-auth',
+        '    upstream: https://git.example.com/fx/fx-example-auth.git',
+      ].join('\n'),
+      files: {
+        [`${MANIFEST_DIR}/manifest/environments.yaml`]: [
+          'schema_version: 2',
+          'platforms:',
+          '  metrics: { provider: prometheus-cli, capability: metrics }',
+          'envs:',
+          '  test:',
+          '    platforms:',
+          '      metrics:',
+          '        service: { base_url: "https://metrics.example.com", context: test, auth_scheme: none }',
+        ].join('\n'),
+      },
+      platforms: { 'prometheus-cli': prometheus.create({} as never, {}) as Platform },
+    });
+    const where = new Where(h.deps, fakeLoginDeps({ 'prometheus-cli': prometheus }));
+    const lookup = { env: 'test', platform: 'metrics', check: false } as const;
+    const [registered] = await where.execute({ repo: 'fx-example-api', probe: true, ...lookup });
+    expect(registered).toMatchObject({
+      label: 'Prometheus job example-api',
+      command:
+        'prometheus-cli query instant --use-context test --query \'up{job="example-api"}\' --base-url https://metrics.example.com --auth-scheme none',
+      outcome: 'unknown',
+      probed: null,
+      suggested_confidence: null,
+      detail: 'prometheus-cli offers no probe',
+    });
+    const [unregistered] = await where.execute({
+      repo: 'fx-example-auth',
+      probe: false,
+      ...lookup,
+    });
+    expect(unregistered).toMatchObject({
+      status: 'located',
+      command: null,
+      notes: ['Missing coordinate variables: job'],
+    });
+    expect(h.process.calls).toEqual([]);
+  });
 
   it('does not dispatch a probe containing an unresolved coordinate variable', async () => {
     const s = await stage();

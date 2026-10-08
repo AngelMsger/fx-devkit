@@ -133,6 +133,28 @@ describe('workspace reference providers', () => {
     expect(s.h.localStore.writes).toEqual([]);
   });
 
+  it('requires a Tencent Meeting query to succeed, since its status command exits zero when signed out', async () => {
+    const s = await stage('meeting', 'tencent-meeting', {});
+    const query = ['tmeet', 'meeting', 'list', '--page-size', '1'];
+    const result = { code: 1, stdout: '', stderr: 'Error: user config is empty' };
+    s.h.process.on(query, result);
+    expect(await s.can.execute({ target: 'meeting' })).toMatchObject({
+      status: 'unconfigured',
+      handoff: { user_steps: [{ command: ['tmeet', 'auth', 'login'] }] },
+    });
+    Object.assign(result, { code: 0, stdout: '{"message":"success"}', stderr: '' });
+    expect(await s.can.execute({ target: 'meeting' })).toMatchObject({
+      status: 'ready',
+      entry: { command: 'tmeet meeting list' },
+    });
+    expect(
+      s.h.process.calls.every(
+        (c) => c.vector[1] === '--version' || JSON.stringify(c.vector) === JSON.stringify(query),
+      ),
+    ).toBe(true);
+    expect(s.h.localStore.writes).toEqual([]);
+  });
+
   it('rejects missing variables and unknown providers before readiness can be claimed', async () => {
     const missing = await stage('issue-tracker', 'feishu-project', { project_key: ' ' });
     await expect(missing.can.execute({ target: 'issue-tracker' })).rejects.toMatchObject({

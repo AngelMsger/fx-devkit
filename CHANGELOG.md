@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- Implement `metrics` with a `prometheus-cli` provider and add the companion to
+  the bundled catalog. A service's coordinate is its scrape job; `where` prints
+  an `up{job="..."}` query pinned to the declared server and offers no probe,
+  because a selector that matches nothing still succeeds.
+- Accept `auth_scheme: none` and `bearer` in a service declaration. A server
+  declared without sign-in is ready when it answers and is never handed a login.
+- Add the workspace capability `meeting` for the conferencing system that holds
+  online meetings, recordings and minutes, with a `tencent-meeting` provider
+  driven by `tmeet`, now in the bundled catalog. `calendar` keeps schedules and
+  availability.
+
 ## 0.5.0 (2026-09-24)
 
 ### Added
