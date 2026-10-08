@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.6.0 (2026-10-08)
+
 ### Added
 
 - Implement `metrics` with a `prometheus-cli` provider and add the companion to

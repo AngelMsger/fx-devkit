@@ -19,7 +19,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7080a44c1159a8a67500a9de2ea32cef4c3081a60e2a9f822fc96a27aa652b58"
+      "source_sha256": "5688189556ec8f118b118575fe7d8229674cfb6fa0433f5f4bb7779924f55ba9"
     }
   },
   "zh-Hans": {
@@ -42,7 +42,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7080a44c1159a8a67500a9de2ea32cef4c3081a60e2a9f822fc96a27aa652b58"
+      "source_sha256": "5688189556ec8f118b118575fe7d8229674cfb6fa0433f5f4bb7779924f55ba9"
     }
   },
   "zh-Hant": {
@@ -65,7 +65,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7080a44c1159a8a67500a9de2ea32cef4c3081a60e2a9f822fc96a27aa652b58"
+      "source_sha256": "5688189556ec8f118b118575fe7d8229674cfb6fa0433f5f4bb7779924f55ba9"
     }
   }
 }
