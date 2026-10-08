@@ -22,6 +22,7 @@ export interface AutomaticSyncDeps {
   readonly refresh: () => Promise<readonly HookObservation[]>;
   readonly docs: (lease: Lease) => Promise<readonly HookObservation[]>;
   readonly skills: () => Promise<readonly HookObservation[]>;
+  readonly root: () => Promise<readonly HookObservation[]>;
   readonly self?: () => Promise<readonly HookObservation[]>;
   readonly checks: () => Promise<readonly HookObservation[]>;
 }
@@ -82,6 +83,13 @@ export class AutomaticSync {
 
   private phases(lease: Lease, refreshing: boolean): readonly Phase[] {
     return [
+      // Local and read-only, so it answers before any phase that can stall.
+      {
+        name: 'root',
+        run: this.deps.root,
+        code: 'ROOT_CHECK_FAILED',
+        command: 'fx doctor',
+      },
       ...(refreshing
         ? [
             {

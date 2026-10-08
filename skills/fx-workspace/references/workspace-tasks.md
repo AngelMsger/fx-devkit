@@ -162,6 +162,9 @@ It never checks out, resets, stashes, merges or rebases. Dirty or diverged work 
 reported as `skip_dirty` / `skip_diverged`; inspect repository and resource outcomes.
 
 The workspace root is a plain directory. Do not initialize or run Git there.
+Write output that belongs to no repository under `.workbench/` as the derived
+guide's workspace layout describes, not at the root; `status` returns what is
+left there as `stray_entries`.
 The manifest checkout is `~/.fx/workspaces/<name>/source`; `repo list` identifies
 it with `origin: manifest`. Sync refreshes it only on a clean default branch;
 `MANIFEST_REFRESH_KEPT` means the current branch or changes were preserved.

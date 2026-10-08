@@ -195,6 +195,11 @@ adds `uncommitted` for either kind of work. Ignored files are not untracked
 work. An empty result explains whether no repositories are selected or no
 selected repositories match the filter.
 
+The workspace root is not a Git repository, so `fx status` also returns
+`stray_entries`: files and directories at the root that are not a checkout, a
+derived guide, agent or service configuration, or the workbench. `fx doctor`
+lists each one in its `root` group as a warning that does not affect readiness.
+
 Sync preserves working files and branches. Read the planned action: tracked
 modifications can cause `skip_dirty`, while a checkout on another branch can
 update only the tracked branch reference. A status report does not itself run
@@ -209,6 +214,11 @@ managed agent resources. The manifest lives separately under
 `~/.fx/workspaces/<name>/source`. fx never runs Git at the managed workspace root.
 Sync preserves dirty, diverged and off-branch work rather than checking out,
 resetting or stashing it.
+
+Output that belongs to no repository goes under `.workbench/` at the workspace
+root: one dated directory per task for reports, plans and evidence,
+`worktrees/` for `git worktree add` targets, and `tmp/` for anything disposable.
+The derived guide gives agents the same rules. fx never writes inside it.
 
 The manifest's workspace, environments, tools and members documents describe
 shared facts; optional harness declarations describe MCP resources and rules.

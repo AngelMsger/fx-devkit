@@ -80,7 +80,8 @@ explicit scope and follows future shared entries; `--none` stores an empty set.
 `pick/unpick` retain additive/removal semantics. Selection output reports modes
 and next steps; repository selection is separate from downloading via sync.
 
-`status` keeps `{items, has_more}` and adds workspace/root/selection context.
+`status` keeps `{items, has_more}` and adds workspace/root/selection context,
+with `stray_entries` naming root entries that nothing accounts for.
 Items preserve `dirty` as tracked changes and add `uncommitted` for tracked or
 untracked work. Human output includes untracked counts; `--dirty` filters on all
 uncommitted work. Empty results distinguish no declarations, no selected repos
@@ -144,8 +145,9 @@ optional host activation can remain unverified. An incomplete verdict exits 12.
 checklist was produced. Findings carry group, id, level, coverage, message, fix and
 handoff; full results also carry evidence. For `can`, inspect its capability status.
 
-Doctor groups are `repos`, `tools`, `login`, `agents`, `manifest`, `self`,
-`hooks`, `mcp` and `rules`. `manifest:docs` checks derived guides;
+Doctor groups are `repos`, `root`, `tools`, `login`, `agents`, `manifest`, `self`,
+`hooks`, `mcp` and `rules`. `root` lists entries at the workspace root that nothing
+accounts for; they warn without affecting preparation. `manifest:docs` checks derived guides;
 `manifest:upstream` checks source updates; `self:version` checks published CLI
 updates. A development build needs no update; an unavailable registry produces
 a warning, with a handoff when configuration is missing.

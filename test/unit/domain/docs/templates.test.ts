@@ -62,5 +62,6 @@ describe.each(['v2-full', 'v1-real-shape'])('templates on %s', (fixture) => {
     expect(regions.environments).toContain('fx where');
     expect(regions).not.toHaveProperty('rules');
     expect(regions['ask-fx']).toContain('LOGIN_REQUIRED');
+    expect(regions['workspace-layout']).toContain('`.workbench/tmp/`');
   });
 });

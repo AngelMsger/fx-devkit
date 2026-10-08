@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { Status, type StatusInput } from '../../application/status.js';
+import { strayRootEntries } from '../../application/workspace/root-entries.js';
 import { shellLine } from '../../domain/shell.js';
 import { FxCommand } from '../base.js';
 import { jobsFlag, writeIntent } from '../flags.js';
@@ -43,6 +44,10 @@ export default class StatusCommand extends FxCommand {
     const selected = deps.ctx.workspace.repos.length;
     const declared = deps.ctx.manifest.workspace.result.doc.repos.length;
     const emptyReason = statusEmptyReason(rows.length, selected, declared, flags.dirty);
+    const strays = await strayRootEntries(deps, {
+      hosts: this.skillDeps().hosts,
+      login: this.loginDeps(),
+    });
     this.renderer.list(rows, {
       columns: [
         'name',
@@ -60,6 +65,7 @@ export default class StatusCommand extends FxCommand {
         root: deps.ctx.root,
         selection: deps.ctx.selection,
         selected_repositories: selected,
+        stray_entries: strays.map((entry) => entry.name),
         ...(emptyReason === null
           ? {}
           : {

@@ -3,6 +3,7 @@
 // because the hook stores evidence a later command reads, not a report.
 
 import type { HookObservation } from '../../domain/harness/state.js';
+import { strayDigest } from '../../domain/workspace/root-entries.js';
 import type { Clock } from '../../ports/clock.js';
 import type { Lease } from '../../ports/lock.js';
 import type { ManifestSource } from '../../ports/manifest-source.js';
@@ -21,6 +22,7 @@ import { toolchainOf } from '../tool/toolchain.js';
 import type { FxUpdateCheck } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { strayRootEntries } from '../workspace/root-entries.js';
 
 import type { AutomaticSyncDeps } from './automatic-sync.js';
 
@@ -50,7 +52,7 @@ export interface BackgroundDeps {
 
 export type BackgroundPhases = Pick<
   AutomaticSyncDeps,
-  'refresh' | 'docs' | 'skills' | 'self' | 'checks'
+  'refresh' | 'docs' | 'skills' | 'root' | 'self' | 'checks'
 >;
 
 export function backgroundPhases(deps: BackgroundDeps): BackgroundPhases {
@@ -58,6 +60,7 @@ export function backgroundPhases(deps: BackgroundDeps): BackgroundPhases {
     refresh: () => refreshManifest(deps),
     docs: (lease) => deriveDocs(deps, lease),
     skills: () => projectSkills(deps),
+    root: () => inspectRoot(deps),
     self: () => checkSelf(deps),
     checks: () => checkServices(deps),
   };
@@ -134,6 +137,19 @@ async function projectSkills(deps: BackgroundDeps): Promise<readonly HookObserva
   if (result.tools.some((tool) => tool.code !== null && tool.code !== 0))
     observations.push(observed('SKILL_SYNC_FAILED', 'fx sync --only skills'));
   return observations.length ? observations : [observed('SKILLS_CHECKED', 'fx agent skills')];
+}
+
+async function inspectRoot(deps: BackgroundDeps): Promise<readonly HookObservation[]> {
+  const observed = observer(deps, 'root');
+  const strays = await strayRootEntries(await deps.context(), {
+    hosts: deps.skills(undefined).hosts,
+    login: deps.login,
+  });
+  return [
+    strays.length === 0
+      ? observed('ROOT_ACCOUNTED')
+      : { ...observed('ROOT_STRAY', 'fx doctor'), detail: strayDigest(strays) },
+  ];
 }
 
 async function checkSelf(deps: BackgroundDeps): Promise<readonly HookObservation[]> {

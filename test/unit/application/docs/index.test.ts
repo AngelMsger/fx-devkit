@@ -9,6 +9,7 @@ import { replacementFor } from '../../../../src/application/safety/replace-files
 import { derive, isDerived } from '../../../../src/domain/docs/derived.js';
 import { begin, end } from '../../../../src/domain/docs/regions.js';
 import { CLAUDE_POINTER } from '../../../../src/domain/docs/skeleton.js';
+import { REGIONS } from '../../../../src/domain/docs/templates.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { MANIFEST_DIR, ROOT, harness } from '../../../fakes/workspace.js';
 
@@ -108,7 +109,14 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
       action: 'updated',
       replaced: [],
       unknown: ['rules'],
-      missing: ['project-index', 'capabilities', 'environments', 'ask-fx', 'team-skills'],
+      missing: [
+        'project-index',
+        'capabilities',
+        'environments',
+        'ask-fx',
+        'workspace-layout',
+        'team-skills',
+      ],
     });
     expect(out.files[1]?.action).toBe('unchanged');
     const text = (await s.h.fs.readText(ORIGIN)) ?? '';
@@ -118,7 +126,9 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(s.h.reporter.codes()).toContain('DOCS_REGION_UNKNOWN');
     expect(text).not.toContain('fx:begin project-index');
     expect(await s.h.fs.readText(ORIGIN_CLAUDE)).toBe('keep');
-    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(5);
+    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(
+      REGIONS.length,
+    );
   });
 
   it('objects under --check when stale, writes nothing under --dry-run or --out', async () => {
@@ -161,7 +171,7 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(CLAUDE)).toBe(derive(CLAUDE_POINTER, ORIGIN));
     expect(await s.h.fs.exists(ORIGIN)).toBe(true);
     expect(s.h.fs.writes).toEqual([AGENTS, CLAUDE]);
-    expect(out.files[0]?.added).toHaveLength(5);
+    expect(out.files[0]?.added).toHaveLength(REGIONS.length);
     expect(await s.h.fs.readText(ORIGIN)).toBe(prose);
     const again = await s.derive.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged', 'unchanged']);

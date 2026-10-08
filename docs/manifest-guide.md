@@ -351,6 +351,18 @@ resuming. Retrying skips unchanged files. Approved foreign replacement moves the
 original file, directory or link itself to an unused `.fx-backup[-N]` sibling;
 existing backups remain intact.
 
+## Placing workspace layout rules in AGENTS.md
+
+The `workspace-layout` region tells agents where output that belongs to no
+repository goes: `.workbench/` at the workspace root. A workspace-derived guide
+always carries it, appended at the end when the source has no markers. Add the
+markers beside your other workspace rules to place it there instead:
+
+```markdown
+<!-- fx:begin workspace-layout -->
+<!-- fx:end workspace-layout -->
+```
+
 ## Public service presets
 
 fx 0.2.0 supports optional `service` to workspace provider bindings, platform defaults

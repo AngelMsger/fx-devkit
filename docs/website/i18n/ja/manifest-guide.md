@@ -239,6 +239,15 @@ envs:
 
 文書の書き込み前に、計画時のファイルスナップショットと比較します。`DOCS_WRITE_CONFLICT` は並行編集または安全に置換できないパスを保持したことを示します。パスを確認し、親がリンクなら実際のディレクトリを使って、プレビュー後に再試行してください。各行の `action` は計画、`result` は `planned`、`done`、`skipped`、`failed`、`not_started` です。非ゼロ終了前に一部の書き込みが完了している場合があるため、stdout の `files`（sync では `stage_details.docs.files`、init では `sync.stage_details.docs.files`）を確認してください。再試行では変更のないファイルを省略します。承認済みの外部文書の置換では、元のファイル、ディレクトリ、リンク自体を未使用の同階層 `.fx-backup[-N]` に移動し、既存のバックアップを保持します。
 
+## AGENTS.md にワークスペース構成の規則を配置する
+
+`workspace-layout` 領域は、どのリポジトリにも属さない成果物の置き場所、つまりワークスペースルートの `.workbench/` をエージェントに伝えます。ワークスペースに派生したガイドには必ず含まれ、ソースガイドにマーカーがない場合は末尾に追加されます。ほかのワークスペース規則の近くにマーカーを置くと、その位置に生成されます。
+
+```markdown
+<!-- fx:begin workspace-layout -->
+<!-- fx:end workspace-layout -->
+```
+
 ## 公開サービスプリセット {#public-service-presets}
 
 fx 0.2.0 ではワークスペース provider、platform のデフォルト、環境別上書きに任意の `service` を宣言できます。利用するドキュメントに `min_cli: '0.2.0'` を指定します。環境別設定は platform から継承します。`base_url` はデプロイパスを含む完全な HTTP(S) URL です。SSH のクローン先とは分けます。`context` は対応 CLI の名前付き context です。Bitbucket/Confluence は `flavor` を指定でき、OpenObserve は `org` が必須です。4 種の対応 CLI は `auth_scheme` が必須で、公開取得ページ `credential_url` は任意です。Prometheus も `auth_scheme` が必須で、サインイン不要のサーバーには `none` を指定できます。その場合はサーバーが応答するかどうかで準備完了を判定し、ログインは要求しません。`basic` と `bearer` は前段のゲートウェイが要求する場合だけ使います。Sentry は `base_url` と `org` のみ受け付けます。`provider` を書かない platform は、その名前が示す provider の宣言で検証します（`fx manifest providers` が表示するものと同じです）。

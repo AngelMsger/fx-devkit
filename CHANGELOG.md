@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Name `.workbench/` as the place for output that belongs to no repository. The
+  derived guide gains a `workspace-layout` region with its rules, `fx doctor`
+  reports root entries that nothing accounts for in a `root` group, `fx status`
+  returns them as `stray_entries`, and the session-start context carries the
+  latest observation. fx never writes inside the workbench.
+
 ## 0.6.0 (2026-10-08)
 
 ### Added

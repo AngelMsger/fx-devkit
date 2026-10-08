@@ -60,6 +60,7 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | --------------------------------------------------- | ------------------------------------------------------------------ |
 | [Runtime and commands](runtime.md)                  | Output, configuration, trust and process lifetimes                 |
 | [Workspace identity](workspace-management.md)       | Registry discovery, relocation, source rebinding and owned cleanup |
+| [Root layout](root-layout.md)                       | The workbench, accounted root entries and stray reporting          |
 | [Initialization and selection](init-selection.md)   | Scope modes, first-clone selection and truthful source previews    |
 | [Status and recovery](status-recovery.md)           | Uncommitted work, validation and live repository readiness         |
 | [Setup and readiness](setup.md)                     | Selector validation, stable step identities and evidence semantics |

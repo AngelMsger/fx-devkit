@@ -156,13 +156,17 @@ own branches and histories.
 - Shared coordinates live in the private manifest. Generated guides carry routes
   and references, not duplicated addresses, versions or people. Maintained team
   rules remain prose; malformed/unknown generated regions are preserved.
+- `.workbench/` at the root belongs to the person and their agents. fx names it in
+  the derived guide and recognizes it when inspecting the root; it never creates,
+  moves or removes anything there. Stray root entries are reported, never repaired.
 - `where` prints coordinates; it does not execute them. Provider query ports are
   read-only. Generated kubectl vectors are confined to `get`, `describe`, `logs`,
   `top`, `auth can-i` and `config get-contexts`.
 
 See [lifecycle](docs/design/lifecycle.md), [harness](docs/design/harness.md),
-[import](docs/design/import.md) and [source contributions](docs/design/source-contributions.md)
-for their complete behavioral contracts.
+[import](docs/design/import.md), [root layout](docs/design/root-layout.md) and
+[source contributions](docs/design/source-contributions.md) for their complete
+behavioral contracts.
 
 ## Sensitive data and distribution
 

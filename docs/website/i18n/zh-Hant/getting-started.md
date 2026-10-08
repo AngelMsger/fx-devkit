@@ -131,6 +131,8 @@ fx env select --all
 
 `fx status` 標明工作區並顯示未追蹤檔案數。`fx status --dirty` 同時查找已追蹤檔案的修改與新建的未追蹤檔案。JSON 保留 `dirty` 表示已追蹤檔案或索引修改，新增 `uncommitted` 表示任一類未提交工作。被忽略檔案不計入未追蹤工作。空結果說明是未選擇儲存庫，還是沒有儲存庫符合篩選。
 
+工作區根目錄不是 Git 儲存庫，因此 `fx status` 還會回傳 `stray_entries`：根目錄下既不是 checkout、派生指南、Agent 或服務設定，也不是工作台的檔案與目錄。`fx doctor` 在 `root` 群組中逐項列出，等級為警告，不影響就緒判定。
+
 sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
 
 ## 核心概念 {#concepts}
@@ -138,6 +140,8 @@ sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改
 ### 工作區和 manifest {#the-workspace-and-the-manifest}
 
 工作區是已註冊的普通目錄，包含獨立 checkout 和受管理的 Agent 資源。manifest 來源位於 `~/.fx/workspaces/<name>/source`，fx 不會在受管理的工作區根目錄執行 Git。同步不會透過切換分支、reset 或 stash 覆蓋未提交變更、分歧狀態或其他分支上的工作。
+
+不屬於任何儲存庫的產出放在工作區根目錄的 `.workbench/` 下：每個任務一個帶日期的目錄，存放報告、計畫與證據；`worktrees/` 放 `git worktree add` 的目標；`tmp/` 放隨時可以捨棄的內容。派生指南向 Agent 說明相同的規則。fx 不會寫入該目錄。
 
 workspace、environments、tools 和 members 文件儲存共用資訊；選用的 harness 文件描述 MCP 和規則。使用以下命令查看欄位：
 
