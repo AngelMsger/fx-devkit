@@ -1,11 +1,11 @@
 // @ts-check
-// Checks built artefacts through the same boundary scanner as contributions.
-// Build first; missing inputs or scanner code cannot count as a passing check.
+// Checks built artefacts through the same boundary scanner as contributions,
+// loaded from source. Build first; a missing target cannot count as a passing check.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { scanBoundary } from '../dist/domain/boundary/scan.js';
+import { scanBoundary } from '../src/domain/boundary/scan.js';
 
 const TEXT = /\.(?:js|mjs|cjs|ts|json|map|yaml|yml|md|txt)$/;
 const SKIP = new Set(['node_modules', '.git']);

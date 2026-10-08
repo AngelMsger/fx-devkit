@@ -1,25 +1,27 @@
+// @ts-check
 // Boundary findings identify locations, never matched values. Private manifest
 // addresses are permitted; credential and personnel protections apply everywhere.
+// JavaScript, because the package check loads the scanner without a build.
 
-export interface BoundaryInput {
-  readonly text: string;
-  readonly policy: 'manifest' | 'distributable';
-  readonly internalHosts?: readonly string[];
-  readonly syntax?: 'code' | 'text';
-}
+/**
+ * @typedef {{
+ *   readonly text: string,
+ *   readonly policy: 'manifest' | 'distributable',
+ *   readonly internalHosts?: readonly string[],
+ *   readonly syntax?: 'code' | 'text',
+ * }} BoundaryInput
+ */
 
-export interface BoundaryFinding {
-  readonly rule: 'credential' | 'personnel' | 'email' | 'internal-address';
-  readonly line: number;
-  readonly column: number;
-}
+/**
+ * @typedef {{
+ *   readonly rule: 'credential' | 'personnel' | 'email' | 'internal-address',
+ *   readonly line: number,
+ *   readonly column: number,
+ * }} BoundaryFinding
+ */
 
-interface BoundaryRule {
-  readonly rule: BoundaryFinding['rule'];
-  readonly pattern: RegExp;
-}
-
-const RULES: readonly BoundaryRule[] = [
+/** @type {readonly { readonly rule: BoundaryFinding['rule'], readonly pattern: RegExp }[]} */
+const RULES = [
   {
     rule: 'personnel',
     pattern: /^[ \t]*(?:["']?sensitive["']?:[ \t]*true\b|["']?people["']?:[ \t]*(?=\[|\{|$))/gm,
@@ -40,8 +42,13 @@ const RULES: readonly BoundaryRule[] = [
   { rule: 'credential', pattern: /\b(?:Bearer|Basic)\s+[A-Za-z0-9+/_=.-]{8,}/g },
 ];
 
-export function scanBoundary(input: BoundaryInput): readonly BoundaryFinding[] {
-  const findings: BoundaryFinding[] = [];
+/**
+ * @param {BoundaryInput} input
+ * @returns {readonly BoundaryFinding[]}
+ */
+export function scanBoundary(input) {
+  /** @type {BoundaryFinding[]} */
+  const findings = [];
   for (const definition of RULES) {
     for (const match of input.text.matchAll(new RegExp(definition.pattern))) {
       if (match[2] !== undefined && isPlaceholder(match[2])) continue;
@@ -56,19 +63,32 @@ export function scanBoundary(input: BoundaryInput): readonly BoundaryFinding[] {
   );
 }
 
-function isExampleEmail(value: string): boolean {
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isExampleEmail(value) {
   return /@(?:[a-z0-9-]+\.)*example\.(?:com|org|net)$/i.test(value);
 }
 
-function isPlaceholder(value: string): boolean {
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isPlaceholder(value) {
   const plain = value.replace(/["']$/, '');
   return /^(?:\$\{[^}]+\}|\$[A-Z_][A-Z0-9_]*|<[^>]+>|null|undefined|true|false)$/u.test(plain);
 }
 
-function scanAddresses(input: BoundaryInput): BoundaryFinding[] {
+/**
+ * @param {BoundaryInput} input
+ * @returns {BoundaryFinding[]}
+ */
+function scanAddresses(input) {
   const matches = input.text.matchAll(/\b(?:[a-z0-9-]+\.)+[a-z0-9-]+\b/gi);
   const known = new Set((input.internalHosts ?? []).map((host) => host.toLowerCase()));
-  const findings: BoundaryFinding[] = [];
+  /** @type {BoundaryFinding[]} */
+  const findings = [];
   for (const match of matches) {
     const host = match[0].toLowerCase();
     if (input.syntax === 'code' && !isAddressLiteral(input.text, match.index, host.length))
@@ -79,7 +99,11 @@ function scanAddresses(input: BoundaryInput): BoundaryFinding[] {
   return findings;
 }
 
-function isPrivateIp(host: string): boolean {
+/**
+ * @param {string} host
+ * @returns {boolean}
+ */
+function isPrivateIp(host) {
   const octets = host.split('.');
   if (
     octets.length !== 4 ||
@@ -92,12 +116,24 @@ function isPrivateIp(host: string): boolean {
   );
 }
 
-function at(text: string, offset: number, rule: BoundaryFinding['rule']): BoundaryFinding {
+/**
+ * @param {string} text
+ * @param {number} offset
+ * @param {BoundaryFinding['rule']} rule
+ * @returns {BoundaryFinding}
+ */
+function at(text, offset, rule) {
   const before = text.slice(0, offset);
   return { rule, line: before.split('\n').length, column: offset - before.lastIndexOf('\n') };
 }
 
-function isAddressLiteral(text: string, start: number, length: number): boolean {
+/**
+ * @param {string} text
+ * @param {number} start
+ * @param {number} length
+ * @returns {boolean}
+ */
+function isAddressLiteral(text, start, length) {
   const before = text.slice(Math.max(0, start - 3), start);
   const after = text[start + length];
   return (
@@ -106,7 +142,11 @@ function isAddressLiteral(text: string, start: number, length: number): boolean 
   );
 }
 
-export function containsCommandCredentials(vector: readonly string[]): boolean {
+/**
+ * @param {readonly string[]} vector
+ * @returns {boolean}
+ */
+export function containsCommandCredentials(vector) {
   const literals = [
     vector.join(' '),
     ...vector.flatMap((arg, index) =>

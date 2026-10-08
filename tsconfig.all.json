@@ -1,7 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  // Generated output is imported by a delivery script but is not ours to check,
-  // so JavaScript opts in per file with `// @ts-check` instead of wholesale.
+  // JavaScript opts in per file with `// @ts-check` instead of wholesale.
   "compilerOptions": { "rootDir": ".", "noEmit": true, "checkJs": false },
   "include": ["src", "test", "scripts", "vitest.config.ts"]
 }
