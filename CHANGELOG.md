@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.7.0 (2026-10-08)
+
 ### Added
 
 - Name `.workbench/` as the place for output that belongs to no repository. The

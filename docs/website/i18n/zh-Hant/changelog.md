@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.7.0 (2026-10-08)
+
 - 將 `.workbench/` 定為不屬於任何儲存庫的產出的存放位置。派生指南新增 `workspace-layout` 區域說明規則；`fx doctor` 在 `root` 群組回報根目錄下沒有歸屬的項目；`fx status` 以 `stray_entries` 回傳它們；工作階段啟動內容帶出最近一次觀測。fx 不會寫入工作台。
 
 ## 0.6.0 (2026-10-08)
