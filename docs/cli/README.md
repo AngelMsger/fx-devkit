@@ -185,11 +185,13 @@ fx status --fetch --dirty
 
 Whether a capability or tool can be used right now; when not, what a person must do first
 
+Without a target, list every capability a manifest binds and what serves it in this workspace. The list reads bindings only; it does not check readiness.
+
 Arguments:
 
 | Argument | Required | Description |
 |---|---|---|
-| `target` | yes | a capability (e.g. log-store) or a tool name |
+| `target` | no | a capability (e.g. log-store) or a tool name; omit to list capabilities |
 
 Flags:
 
@@ -201,6 +203,7 @@ Flags:
 Examples:
 
 ```bash
+fx can --format json
 fx can log-store --env test --format json
 fx can cluster --env test
 fx can bitbucket-cli

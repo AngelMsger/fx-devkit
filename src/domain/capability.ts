@@ -55,6 +55,12 @@ export function capabilitiesInScope(scope: CapabilityScope): Capability[] {
   return CAPABILITIES.filter((c) => CAPABILITY_INFO[c].scope === scope);
 }
 
+// The capabilities a manifest binds, and so the only ones worth asking about: an
+// internal one has no binding to report.
+export function bindableCapabilities(): Capability[] {
+  return CAPABILITIES.filter((c) => CAPABILITY_INFO[c].scope !== 'internal');
+}
+
 // A manifest may name a responsibility this fx does not implement. The name is kept as
 // written so reports quote the document; `knownCapability` is the one place that tells
 // the two apart, and callers that only print or compare need neither.

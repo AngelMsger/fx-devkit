@@ -442,6 +442,44 @@ describe('Can', () => {
     await expect(s.can.execute({ target: 'im' })).rejects.toMatchObject({
       code: 'CAPABILITY_UNBOUND',
     });
+    await expect(
+      s.can.execute({ target: 'installr' }),
+      'internal names are not offered',
+    ).rejects.toMatchObject({
+      code: 'CAN_UNKNOWN',
+      hint: expect.not.stringContaining('installer'),
+      nextSteps: ['fx can --workspace fx', 'fx tool list --workspace fx'],
+    });
+  });
+
+  it('lists what can be asked about without a target, bound or not', async () => {
+    const s = await stage();
+    const rows = s.can.list({});
+    expect(rows.map((row) => row.scope)).not.toContain('internal');
+    expect(rows).toContainEqual({
+      capability: 'code-host',
+      scope: 'workspace',
+      platform: null,
+      provider: 'bitbucket-cli',
+      tool: 'bitbucket-cli',
+      desc: 'where repositories, forks and pull requests live',
+    });
+    expect(rows).toContainEqual(
+      expect.objectContaining({ capability: 'im', provider: null, tool: null }),
+    );
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        capability: 'ci',
+        scope: 'environment',
+        platform: 'jenkins',
+        provider: 'jenkins-cli',
+        tool: 'jenkins-cli',
+      }),
+    );
+    expect(rows, 'an environment capability no platform serves').toContainEqual(
+      expect.objectContaining({ capability: 'metrics', platform: null, provider: null }),
+    );
+    expect(() => s.can.list({ env: 'dev' })).toThrow(expect.objectContaining({ code: 'BAD_FLAG' }));
   });
 
   it('requires a standalone tool auth check to pass before calling it ready', async () => {

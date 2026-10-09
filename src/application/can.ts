@@ -1,7 +1,19 @@
-// Report readiness and recovery for a resolved capability or tool.
+// Report readiness and recovery for a resolved capability or tool; without a
+// target, list what there is to ask about.
 
+import {
+  CAPABILITY_INFO,
+  bindableCapabilities,
+  type Capability,
+  type CapabilityScope,
+} from '../domain/capability.js';
 import { DevkitError } from '../domain/errors.js';
-import { servesCapability } from '../domain/manifest/providers.js';
+import {
+  bindingOf,
+  servesCapability,
+  type Binding,
+  type PlatformBinding,
+} from '../domain/manifest/providers.js';
 import { shellLine } from '../domain/shell.js';
 
 import type { LoginDeps } from './login/deps.js';
@@ -28,6 +40,24 @@ export interface CanResult extends Verdict {
   };
 }
 
+export interface CapabilityRow {
+  readonly capability: Capability;
+  readonly scope: CapabilityScope;
+  readonly platform: string | null;
+  readonly provider: string | null;
+  readonly tool: string | null;
+  readonly desc: string;
+}
+
+export const CAPABILITY_COLUMNS = [
+  'capability',
+  'scope',
+  'platform',
+  'provider',
+  'tool',
+  'desc',
+] as const;
+
 export class Can {
   constructor(
     private readonly deps: WorkspaceDeps,
@@ -51,6 +81,36 @@ export class Can {
       ...(entry === undefined ? {} : { entry }),
       ...(await readiness.judge(target, env)),
     };
+  }
+
+  // Every capability a manifest binds and what serves it here. Bindings only: a row
+  // names who would answer, and asking about that capability says whether they can.
+  list(input: Omit<CanInput, 'target'>): CapabilityRow[] {
+    if (input.agent || input.env)
+      throw new DevkitError('usage', 'BAD_FLAG', '--env and --agent need a target', {
+        hint: 'Without a target, can lists the capabilities of the whole workspace.',
+        nextSteps: [workspaceCommand(this.deps, 'can'), 'fx can --help'],
+      });
+    const readiness = new Readiness(this.deps, this.login);
+    return bindableCapabilities().flatMap((capability) =>
+      this.bindingsOf(capability).map((binding) => ({
+        capability,
+        scope: CAPABILITY_INFO[capability].scope,
+        platform: 'platform' in binding ? binding.platform : null,
+        provider: binding.provider,
+        tool: readiness.targetOf(binding)?.tool?.name ?? null,
+        desc: CAPABILITY_INFO[capability].desc,
+      })),
+    );
+  }
+
+  // One binding for a workspace-scoped capability, one per platform instance for an
+  // environment-scoped one; nothing bound still reads as a row without a provider.
+  private bindingsOf(capability: Capability): readonly (Binding | PlatformBinding)[] {
+    const { bindings, platforms } = this.deps.ctx;
+    if (CAPABILITY_INFO[capability].scope === 'workspace') return [bindingOf(bindings, capability)];
+    const instances = platforms.filter((binding) => binding.capability === capability);
+    return instances.length > 0 ? instances : [bindingOf([], capability)];
   }
 
   // A provider fx does not implement is still usable when the manifest describes a tool of

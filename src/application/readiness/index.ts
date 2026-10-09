@@ -4,7 +4,7 @@
 // remembered per tool, because one command judges many targets.
 
 import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
-import type { PlatformBinding } from '../../domain/manifest/providers.js';
+import type { Binding, PlatformBinding } from '../../domain/manifest/providers.js';
 import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
@@ -46,7 +46,7 @@ export class Readiness {
     return resolveTarget(this.deps, this.login, name, env);
   }
 
-  targetOf(binding: PlatformBinding): Target | null {
+  targetOf(binding: Binding | PlatformBinding): Target | null {
     return targetOfBinding(this.deps, this.login, binding);
   }
 

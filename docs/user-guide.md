@@ -259,7 +259,8 @@ to providers and environment-specific coordinates. Use `can` for readiness,
 A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
 `calendar`, `meeting`, `task` and `worklog` once; an environment binds
 `error-tracker`, `log-store`, `metrics`, `ci` and `cluster` per platform
-instance. `fx manifest providers` lists what is bound and what each capability
+instance. `fx can` without a target lists them with what serves each one in this
+workspace; `fx manifest providers` lists what is bound and what each capability
 accepts. `calendar` is where schedules and availability live; `meeting` is the
 conferencing system that holds online meetings, their recordings and minutes,
 so a team that schedules in one product and meets in another binds both.

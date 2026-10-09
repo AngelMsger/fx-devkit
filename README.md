@@ -115,6 +115,7 @@ For everyday updates use `fx sync`; `fx status` shows repository state. To work 
 | Select repositories            | `fx repo pick <name...>` / `fx repo unpick <name...>` |
 | Select environments            | `fx env pick <name...>` / `fx env unpick <name...>`   |
 | Find a service                 | `fx where <repo> --env <environment>`                 |
+| List capabilities              | `fx can`                                              |
 | Check a capability             | `fx can <capability> --env <environment>`             |
 | Refresh guides and Skills      | `fx sync --only docs,skills`                          |
 | Inspect release checks         | `fx release --format json`                            |
