@@ -46,7 +46,7 @@ export class FamilyCli {
       '--format',
       'json',
       ...(this.context === undefined ? [] : ['--use-context', this.context]),
-      ...(this.service ? serviceFlags(this.service, false) : []),
+      ...(this.service ? serviceFlags(this.service) : []),
     ];
     const result = await this.process.run([this.binary, ...global, ...args], {
       timeoutMs: options.timeoutMs,

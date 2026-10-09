@@ -115,8 +115,6 @@ describe('public service declarations', () => {
       'https://git.example.com/deploy',
       '--flavor',
       'datacenter',
-      '--auth-scheme',
-      'pat',
       'auth',
       'login',
     ]);
@@ -273,6 +271,51 @@ describe('native preparation', () => {
     expect(h.process.calls.every((call) => call.vector.includes('--version'))).toBe(true);
   });
 
+  it('accepts a context that serves the declared service whatever it signs in with', async () => {
+    const { h, operation, plan } = await fixture();
+    const calls: string[][] = [];
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      calls.push([...vector]);
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      // The companion reports a change only when asked to switch how the context signs in.
+      const changed = vector.includes('--auth-scheme');
+      return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+    });
+    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('unchanged');
+    expect(calls.filter((vector) => vector.includes('set-context'))).toEqual([
+      [
+        'bitbucket-cli',
+        'config',
+        'set-context',
+        'team',
+        '--base-url',
+        'https://git.example.com/deploy',
+        '--flavor',
+        'datacenter',
+        '--format',
+        'json',
+        '--dry-run',
+      ],
+    ]);
+  });
+
+  it('creates a missing context the way the declaration proposes to sign in', async () => {
+    const { h, operation, plan } = await fixture();
+    let created = false;
+    const applied: string[][] = [];
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      if (!vector.includes('--dry-run')) {
+        applied.push([...vector]);
+        created = true;
+      }
+      return { code: 0, stdout: JSON.stringify({ changed: !created }), stderr: '' };
+    });
+    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('configured');
+    expect(applied).toHaveLength(1);
+    expect(applied[0]).toEqual(expect.arrayContaining(['--auth-scheme', 'pat']));
+  });
+
   it('does not modify settings under read-only posture', async () => {
     const { h, operation, plan } = await fixture({ readOnly: true });
     h.process.on(['bitbucket-cli', 'config'], {
@@ -381,8 +424,6 @@ envs:
       'https://logs.example.com',
       '--org',
       'default',
-      '--auth-scheme',
-      'session',
       'auth',
       'login',
       '--browser',
@@ -396,8 +437,6 @@ envs:
         'https://logs.example.com',
         '--org',
         'default',
-        '--auth-scheme',
-        'session',
         'auth',
         'status',
         '--format',
@@ -479,7 +518,6 @@ envs:
     'test',
     '--base-url',
     'https://metrics.example.com',
-    '--auth-scheme',
   ];
 
   it('is judged by whether the server answers, and is never handed a login', async () => {
@@ -493,7 +531,7 @@ envs:
       ['prometheus-cli.service@test', 'run', ['--format', 'json']],
       ['prometheus-cli.access@test', 'manual', undefined],
     ]);
-    const status = [...scope, 'none', '--timeout', '10s', 'auth', 'status', '--format', 'json'];
+    const status = [...scope, '--timeout', '10s', 'auth', 'status', '--format', 'json'];
     const answer = { code: 0, stdout: '{"authenticated":false}', stderr: '' };
     h.process.on(status, answer);
     const verifier = new Verifier(h.deps, login);
@@ -513,7 +551,7 @@ envs:
       'prometheus-cli.reuse@test',
       'prometheus-cli.credential@test',
     ]);
-    expect(plan.steps[2]?.run).toEqual([...scope, 'bearer', 'auth', 'login']);
+    expect(plan.steps[2]?.run).toEqual([...scope, 'auth', 'login']);
   });
 });
 

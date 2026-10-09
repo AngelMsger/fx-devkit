@@ -9,22 +9,24 @@ export function familyService(
   minVersion: string,
   statusField = 'configured',
 ): ServiceDefinition {
-  const flags = serviceFlags(settings);
+  const context = settings.context?.toLowerCase() ?? '';
   const scope = serviceScope(settings);
   const browser = settings.auth_scheme === 'session' ? ['--browser'] : [];
+  const preset = (flags: readonly string[]): string[] => [
+    'config',
+    'set-context',
+    context,
+    ...flags,
+    '--format',
+    'json',
+  ];
   return {
     preparation: {
       kind: 'command',
-      resource: settings.context?.toLowerCase() ?? '',
+      resource: context,
       minVersion,
-      command: [
-        'config',
-        'set-context',
-        settings.context?.toLowerCase() ?? '',
-        ...flags,
-        '--format',
-        'json',
-      ],
+      command: preset([...serviceFlags(settings), ...signInFlags(settings)]),
+      agrees: preset(serviceFlags(settings)),
     },
     recipes: [
       reuseRecipe(tool, scope),
@@ -50,21 +52,24 @@ export function familyService(
 
 // What pins one companion invocation to the declared service instead of the active context.
 export function serviceScope(settings: ServiceSettings): string[] {
-  return ['--use-context', settings.context?.toLowerCase() ?? '', ...serviceFlags(settings, false)];
+  return ['--use-context', settings.context?.toLowerCase() ?? '', ...serviceFlags(settings)];
 }
 
-// The same public-field selection is used by setup, login and live query guards.
-export function serviceFlags(
-  settings: Readonly<Record<string, string | undefined>>,
-  includeGuide = true,
-): string[] {
-  const keys = [
-    'base_url',
-    'flavor',
-    'org',
-    'auth_scheme',
-    ...(includeGuide ? ['credential_url'] : []),
-  ];
+type Settings = Readonly<Record<string, string | undefined>>;
+
+// Where the service is. Setup, login and live query guards hold a context to this and to
+// nothing else: a person who can reach the declared service is ready however they signed in.
+export function serviceFlags(settings: Settings): string[] {
+  return flagsOf(settings, ['base_url', 'flavor', 'org']);
+}
+
+// How a declaration proposes to sign in. It shapes a context fx creates and the sign-in
+// fx offers; a context that already serves the declared service keeps its own.
+export function signInFlags(settings: Settings): string[] {
+  return flagsOf(settings, ['auth_scheme', 'credential_url']);
+}
+
+function flagsOf(settings: Settings, keys: readonly string[]): string[] {
   return keys.flatMap((key) =>
     settings[key] === undefined ? [] : [`--${key.replaceAll('_', '-')}`, settings[key]],
   );
@@ -83,7 +88,7 @@ function reuseRecipe(tool: string, scope: readonly string[]): SetupRecipe {
     run: [...scope, 'auth', 'reuse', '--format', 'json'],
     verify: {
       command: [...scope, 'auth', 'reuse', '--dry-run', '--format', 'json'],
-      json: { path: 'changed', equals: false },
+      json: { path: 'changed', equals: false, unmet: 'an existing login can be reused' },
     },
   };
 }

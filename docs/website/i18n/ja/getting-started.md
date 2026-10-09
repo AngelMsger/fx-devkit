@@ -184,7 +184,7 @@ init/sync も同じ関連ツールを対象とします。任意ツールの不�
 
 ### 共有サービス設定と個人の認証情報 {#shared-service-settings-and-personal-credentials}
 
-manifest の `service` は URL、context、組織、認証方式などの公開接続設定を宣言します。`init`、明示的な `sync`、`login` が対応 CLI 自身のコマンドで準備し、バックグラウンド hook は確認だけを行います。`fx sync --only services --dry-run` でプレビューします。
+manifest の `service` は URL、context、組織、認証方式などの公開接続設定を宣言します。`init`、明示的な `sync`、`login` が対応 CLI 自身のコマンドで準備し、バックグラウンド hook は確認だけを行います。宣言した認証方式は、fx が context を新しく作るときの既定値にすぎません。自分の context が宣言されたサービスにすでに到達できるなら、どの方式でサインインしていても準備完了として扱われます。`fx sync --only services --dry-run` でプレビューします。
 
 設定と認証は別です。各メンバーが対応 CLI で自分の認証情報を取得・保存します。競合する既存設定は保持して報告し、sync は個人のログインを行いません。Sentry はワークスペースの `.sentryclirc` に公開デフォルトのみを書き、外部所有のファイルは保持します。
 

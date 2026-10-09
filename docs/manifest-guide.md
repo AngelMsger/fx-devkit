@@ -384,6 +384,9 @@ providers:
 clone coordinates separate. `context` selects a native CLI context. Bitbucket and
 Confluence also accept `flavor`; OpenObserve requires `org`; family companions
 require `auth_scheme` and optionally accept a public `credential_url` page.
+`auth_scheme` is how fx creates a missing context and which sign-in `fx login`
+offers; it is not a condition of readiness. A member whose context for the same
+`base_url` signs in another way is ready as they are.
 Prometheus accepts `auth_scheme: none` for a server that takes no sign-in: its
 readiness is whether the server answers, and no login is requested. Use `basic`
 or `bearer` only where a gateway in front of it requires one.

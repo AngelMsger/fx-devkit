@@ -99,6 +99,7 @@ function commandVerdict(
   const unmet =
     verify.json !== undefined && !matchesJson(result.stdout, verify.json)
       ? (statedReason(result.stdout, verify.json) ??
+        verify.json.unmet ??
         `expected ${verify.json.path} to be ${String(verify.json.equals)}`)
       : undefined;
   if (result.code === 0)

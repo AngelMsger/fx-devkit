@@ -4,8 +4,10 @@
 export interface JsonExpectation {
   readonly path: string;
   readonly equals: string | number | boolean | null;
-  // A bundled recipe may name the field in which the same response says why.
+  // A bundled recipe may name the field in which the same response says why,
+  // and say in its own words what an unmet expectation means.
   readonly reason?: string;
+  readonly unmet?: string;
 }
 
 export type SetupCheck =
@@ -19,7 +21,11 @@ export type ServicePreparation =
       readonly kind: 'command';
       readonly resource: string;
       readonly minVersion: string;
+      // Creates the context the way the declaration proposes.
       readonly command: readonly string[];
+      // Its dry run tells whether an existing context already serves the declared
+      // service, whatever else it was set up with.
+      readonly agrees: readonly string[];
     }
   | {
       readonly kind: 'file';

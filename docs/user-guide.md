@@ -309,6 +309,8 @@ The bundled Sentry tool can be installed with npm (`sentry`), including during i
 A manifest can declare public `service` settings such as URLs, contexts,
 organizations and authentication methods. `init`, explicit `sync` and `login`
 prepare them through the companions' own commands; background hooks only check.
+The declared authentication method is the default for a context fx creates. If your
+own context already reaches the declared service, it is ready however you signed in.
 Preview service changes with `fx sync --only services --dry-run`.
 
 Configuration and authentication are separate. Each member obtains and stores

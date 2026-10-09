@@ -6,6 +6,8 @@
 - 完了できなかったチェックにサインインを求めなくなりました。対応 CLI のチェックがタイムアウトした場合は、再チェックだけを案内します。
 - 同梱の対応 CLI が示す未準備の理由をそのまま表示します。たとえば `OpenObserve returned HTTP 401` や、サインイン不要のサーバーへのリクエスト失敗です。`expected authenticated to be true` だけの表示ではなくなりました。
 - fx 自身が更新できる Skill のコピーには `fx doctor --fix` を案内します。
+- 宣言されたサービスに到達できる対応 CLI の context は、所有者がどの方式でサインインしていても受け入れます。`service` 宣言の `auth_scheme` は、fx が context を作る方法と `fx login` が案内するサインイン方式だけを決めます。準備、チェック、クエリは宣言された URL、flavor、組織だけを確認し、`--auth-scheme` を渡さなくなりました。
+- fx が意味を把握しているチェックでは、満たされなかった内容をそのまま示します。`fx doctor --fix` で関連付けられる既存のログインには `an existing login can be reused` を、WeCom の 3 つのチェックにはレスポンスのエラーコードで判定したうえで `the WeCom API returned an error` を表示します。
 
 ## 0.9.0 (2026-10-09)
 

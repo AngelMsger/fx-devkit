@@ -69,3 +69,22 @@ it('quotes the reason a recipe declares, and nothing else from the response', as
   });
   expect(result).toEqual({ ok: false, detail: 'service returned HTTP 401' });
 });
+
+it('says what an unmet expectation means when the recipe states it', async () => {
+  const h = await harness();
+  h.process.on(['check'], { code: 0, stdout: '{"changed":true}', stderr: '' });
+  const result = await new Verifier(h.deps, fakeLoginDeps({})).verify({
+    id: 'tool.reuse',
+    tool: 'check',
+    kind: 'run',
+    title: 'Reuse',
+    verify: {
+      command: ['check'],
+      json: { path: 'changed', equals: false, unmet: 'an existing login can be reused' },
+    },
+    requires: [],
+    origin: 'base',
+    required: false,
+  });
+  expect(result).toEqual({ ok: false, detail: 'an existing login can be reused' });
+});

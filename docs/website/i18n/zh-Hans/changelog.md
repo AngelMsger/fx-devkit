@@ -6,6 +6,8 @@
 - 没能完成的检查不再要求登录。配套工具的检查超时后只提示重新检查。
 - 直接引用内置配套工具给出的未就绪原因，例如 `OpenObserve returned HTTP 401`，或对无需登录的服务请求失败，不再只显示 `expected authenticated to be true`。
 - 对 fx 自己能更新的 Skill 副本给出 `fx doctor --fix`。
+- 配套工具的 context 只要能访问声明的服务，无论其所有者用哪种方式登录都被接受。`service` 声明里的 `auth_scheme` 现在只决定 fx 如何新建 context 以及 `fx login` 提供哪种登录方式；准备、检查和查询只核对声明的 URL、flavor 和组织，不再传递 `--auth-scheme`。
+- 在 fx 知道含义的地方直接说明配套工具检查未通过意味着什么：`fx doctor --fix` 可以关联的已有登录显示 `an existing login can be reused`；企业微信的三项检查统一按响应里的错误码判断，未通过时显示 `the WeCom API returned an error`。
 
 ## 0.9.0 (2026-10-09)
 

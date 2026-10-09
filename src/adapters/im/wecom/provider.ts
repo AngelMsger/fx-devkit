@@ -21,7 +21,10 @@ export const wecomProvider: ProviderDescriptor<Coordinate> = {
       title: 'Authorize WeCom session discovery',
       instructions:
         'Use the wecomcli-shared Skill to authorize wecom-cli. Session discovery is limited to the authorized bot and does not establish access to every team conversation.',
-      verify: { command: SESSIONS, json: { path: 'errcode', equals: 0 } },
+      verify: {
+        command: SESSIONS,
+        json: { path: 'errcode', equals: 0, unmet: 'the WeCom API returned an error' },
+      },
     },
   ],
   create: () => ({
