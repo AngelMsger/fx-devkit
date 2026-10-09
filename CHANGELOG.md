@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.8.0 (2026-10-09)
+
 ### Changed
 
 - Run the commands fx defines for bundled tools without asking for trust,
