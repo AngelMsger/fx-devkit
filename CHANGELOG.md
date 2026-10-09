@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.7.1 (2026-10-09)
+
 ### Added
 
 - Return `next_steps` from `fx repo show` that select and synchronize a shared
