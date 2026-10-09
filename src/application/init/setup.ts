@@ -1,25 +1,25 @@
-// Initialization performs local preparation; synchronization only verifies it.
-// Personal sign-in and operator-owned files always remain explicit handoffs.
+// Initialization and every explicit sync perform local preparation, so a login the
+// person already has is associated without anyone asking for it. Personal sign-in and
+// operator-owned files always remain explicit handoffs.
 import path from 'node:path';
 
 import { preparationCheck, type PreparationAction } from '../../domain/preparation.js';
-import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
-import { checkLogin } from '../doctor/login.js';
+import type { SetupStep } from '../../domain/setup/types.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
 import { expandHome } from '../login/verify.js';
-import { findingCheck, resumeAction, verifyAction } from '../preparation.js';
+import { resumeAction, verifyAction } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { StageResult } from '../sync/types.js';
-import { Tally } from '../tally.js';
-import { workspaceToolScope, type WorkspaceToolScope } from '../tool/scope.js';
+import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export async function prepareWorkspaceSetup(
   deps: WorkspaceDeps,
   login: LoginDeps,
   input: {
-    readonly apply: boolean;
+    // Initialization hands an unfinished step back to itself; a later sync to doctor.
+    readonly initializing: boolean;
     readonly dryRun: boolean;
     readonly posture: WritePosture;
   },
@@ -27,7 +27,6 @@ export async function prepareWorkspaceSetup(
   const scope = workspaceToolScope(deps.ctx, {});
   const useCase = new Login(deps, login);
   const plan = await useCase.plan({ tools: scope.configuredNames });
-  if (!input.apply) return verifyWorkspaceSetup(deps, login, scope, plan);
   const output = await useCase.execute({
     tools: scope.configuredNames,
     mode: 'prepare',
@@ -55,7 +54,7 @@ export async function prepareWorkspaceSetup(
                   item.actions ??
                   (step.phase !== 'prepare' && item.failure?.code === 'VECTOR_UNTRUSTED'
                     ? [verifyAction(deps, step.tool)]
-                    : setupActions(deps, step, login.home, true)),
+                    : setupActions(deps, step, login.home, input.initializing)),
               }),
           ...(item.failure ? { failure: item.failure, code: item.failure.code } : {}),
         });
@@ -66,35 +65,6 @@ export async function prepareWorkspaceSetup(
         }),
       ),
     ],
-  };
-}
-
-async function verifyWorkspaceSetup(
-  deps: WorkspaceDeps,
-  login: LoginDeps,
-  scope: WorkspaceToolScope,
-  plan: SetupPlan,
-): Promise<StageResult> {
-  const findings = await Tally.during(deps.activity, 'setup', (checks) =>
-    checkLogin(
-      deps,
-      login,
-      { tools: scope.configuredNames, requiredTools: scope.required, dryRun: true },
-      checks,
-    ),
-  );
-  return {
-    summary: { checked: findings.length },
-    details: { findings },
-    checks: findings.map((finding) => {
-      const step = plan.steps.find((step) => step.id === finding.id);
-      return {
-        ...findingCheck(finding, step ? scope.required.has(step.tool) : true),
-        ...(step && finding.level !== 'ok' && !finding.actions
-          ? { actions: setupActions(deps, step, login.home) }
-          : {}),
-      };
-    }),
   };
 }
 

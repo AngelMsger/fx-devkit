@@ -20,6 +20,10 @@
   `--auth-scheme`. An existing context that lacks one of those fields gains it
   without the declared method being named, which used to conflict with a context
   that signs in another way.
+- Associate a login a person already has on every explicit `fx sync`, not only
+  during `fx init`. Sync now applies local prepare-phase setup steps the way init
+  does, so an adoptable login no longer waits for someone to run `fx doctor --fix`;
+  personal sign-in still stays with the person, and background hooks only check.
 - Say what an unmet companion check means where fx knows it. A login that
   `fx doctor --fix` can associate reads `an existing login can be reused`, and
   the three WeCom checks, now all judged by the response's error code, read

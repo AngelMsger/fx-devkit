@@ -47,7 +47,7 @@ const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageRe
   services: (input) => prepareServices(input.deps, input.login, input.dryRun),
   setup: (input) =>
     prepareWorkspaceSetup(input.deps, input.login, {
-      apply: input.initialize ?? false,
+      initializing: input.initialize ?? false,
       dryRun: input.dryRun,
       posture: input.posture,
     }),

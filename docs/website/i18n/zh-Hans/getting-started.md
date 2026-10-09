@@ -186,7 +186,7 @@ init/sync 使用相同的相关工具范围。缺少可选工具仍会显示，�
 
 manifest 可声明 URL、context、组织和认证方式等公共 `service` 设置。`init`、显式 `sync` 和 `login` 通过配套工具自身的命令准备这些设置；后台 hook 只检查。声明的认证方式只是 fx 新建 context 时的默认值；你自己的 context 只要已经能访问声明的服务，无论用哪种方式登录都算就绪。使用 `fx sync --only services --dry-run` 预览。
 
-配置和认证分开进行。每位成员通过配套 CLI 获取并保存自己的凭证。已有冲突设置保留并报告；sync 不执行个人登录。Sentry 仅写入工作区 `.sentryclirc` 的公共默认值，保留外来文件。
+配置和认证分开进行。每位成员通过配套 CLI 获取并保存自己的凭证。已有冲突设置保留并报告；sync 不执行个人登录。但它每次运行都会把你在同一服务上已有的登录关联到工作区的 context，在别处登录之后不需要再记着做什么。Sentry 仅写入工作区 `.sentryclirc` 的公共默认值，保留外来文件。
 
 sync 的 `stages.services` 和 `stage_details.services.items` 表示阶段结果；init 在 `sync` 下嵌套这些字段。摘要保留阻塞与失败，`--details` 还包含成功条目。参见[服务预设](manifest-guide.md#public-service-presets)与[恢复参考](../skills/fx-workspace/references/commands.md#service-preparation)。
 

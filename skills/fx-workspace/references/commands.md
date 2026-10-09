@@ -437,7 +437,8 @@ locks or overwrite another edit. An identical edit reports `written: false`.
 
 Updated family companions provide `auth reuse --dry-run` and `auth reuse` for
 associating a verified existing identity with the manifest's named context. Init
-invokes this native preparation automatically before personal authentication.
+and every explicit `fx sync` invoke this native preparation automatically before
+personal authentication; do not run it by hand inside a workspace.
 It never copies secrets or changes a populated destination identity. Multiple
 identities require `--from-context` after native `config contexts` discovery.
 Keep the final auth check: `unavailable` or `unchanged` does not establish login.
