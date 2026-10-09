@@ -3,6 +3,7 @@
 
 import {
   asDevkitError,
+  checkNote,
   DevkitError,
   toEnvelope,
   withPartialResult,
@@ -64,6 +65,11 @@ type StepOutcome = Pick<
   'result' | 'detail' | 'failure' | 'next_steps' | 'handoff' | 'actions'
 >;
 
+interface PendingHandoff {
+  readonly step: SetupStep;
+  readonly handoff: HandoffStep;
+}
+
 export const LOGIN_STEP_COLUMNS = ['id', 'kind', 'result', 'detail'] as const;
 
 export interface LoginOutput {
@@ -105,7 +111,7 @@ export class Login {
 
   private async run(plan: SetupPlan, input: LoginInput, steps: Tally): Promise<LoginOutput> {
     const rows: StepRow[] = [];
-    const pending: SetupStep[] = [];
+    const pending: PendingHandoff[] = [];
     const undone = new Set<string>();
     const output = (): LoginOutput => ({
       items: rows,
@@ -116,23 +122,10 @@ export class Login {
     for (const [index, step] of plan.steps.entries()) {
       try {
         const outcome = await steps.unit(step.id, () => this.attempt(step, input, undone));
-        if (outcome === 'handoff' || outcome.result === 'handoff') {
-          pending.push(step);
-          rows.push(
-            row(
-              step,
-              outcome === 'handoff'
-                ? {
-                    result: 'handoff',
-                    detail: 'Human input or authorization required',
-                    handoff: handoffStep(step),
-                  }
-                : outcome,
-            ),
-          );
-        } else rows.push(row(step, outcome));
-        if (outcome === 'handoff' || (outcome.result !== 'verified' && outcome.result !== 'done'))
-          undone.add(step.id);
+        rows.push(row(step, outcome));
+        if (outcome.result === 'handoff')
+          pending.push({ step, handoff: outcome.handoff ?? handoffStep(step) });
+        if (outcome.result !== 'verified' && outcome.result !== 'done') undone.add(step.id);
       } catch (error) {
         const failure = toEnvelope(asDevkitError(error)).error;
         rows.push(
@@ -181,7 +174,7 @@ export class Login {
     step: SetupStep,
     input: LoginInput,
     undone: ReadonlySet<string>,
-  ): Promise<StepOutcome | 'handoff'> {
+  ): Promise<StepOutcome> {
     const blocker = step.requires.find((dep) => undone.has(dep));
     if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
     if (step.preparation) {
@@ -206,24 +199,30 @@ export class Login {
     }
     const before = await this.verifier.verify(step, { dryRun: input.dryRun });
     if (before.ok) return { result: 'verified', detail: before.detail };
+    // What the check just said travels with the step wherever it is handed over.
+    const handoff = handoffStep(step, { failed: before });
     if (input.mode === 'prepare' && (step.kind !== 'run' || step.phase !== 'prepare'))
-      return { result: 'handoff', detail: before.detail, handoff: handoffStep(step) };
-    if (step.kind === 'run') return this.runStep(step, input, before.detail);
+      return { result: 'handoff', detail: before.detail, handoff };
+    if (step.kind === 'run') return this.runStep(step, input, { why: before.detail, handoff });
     if (input.skipManual) return { result: 'skipped', detail: '--skip-manual' };
-    if (input.dryRun) return { result: 'would_ask', detail: before.detail };
-    if (input.noInput)
-      return { result: 'handoff', detail: before.detail, handoff: handoffStep(step) };
-    return this.manualStep(step, input);
+    if (input.dryRun) return { result: 'would_ask', detail: before.detail, handoff };
+    if (input.noInput) return { result: 'handoff', detail: before.detail, handoff };
+    return this.manualStep(step, input, handoff);
   }
 
   private async runStep(
     step: SetupStep,
     input: LoginInput,
-    why: string,
-  ): Promise<StepOutcome | 'handoff'> {
+    before: { readonly why: string; readonly handoff: HandoffStep },
+  ): Promise<StepOutcome> {
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    if (input.mode !== 'prepare' && input.noInput && !this.setup.trust.yes) return 'handoff';
+    if (input.mode !== 'prepare' && input.noInput && !this.setup.trust.yes)
+      return {
+        result: 'handoff',
+        detail: 'Human input or authorization required',
+        handoff: before.handoff,
+      };
     assertWritable(input.posture, `setup ${step.id}`);
     await this.setup.trust.gate.ensure({
       tool: step.tool,
@@ -246,7 +245,7 @@ export class Login {
     });
     if (!this.setup.trust.yes && input.mode !== 'prepare') {
       const go = await this.setup.prompter.confirm(
-        `${describe(step)}\nRun \`${vector.join(' ')}\`?`,
+        `${describe(before.handoff)}\nRun \`${vector.join(' ')}\`?`,
         {
           defaultYes: true,
         },
@@ -266,24 +265,23 @@ export class Login {
       const failure = setupCommandFailure(run.stderr, run.code);
       return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
     }
-    return this.settle(step, why);
+    return this.settle(step, before.why);
   }
 
   private async manualStep(
     step: SetupStep,
     input: LoginInput,
-  ): Promise<{ result: StepResult; detail: string | null }> {
+    handoff: HandoffStep,
+  ): Promise<StepOutcome> {
     assertWritable(input.posture, `setup ${step.id}`);
-    await this.setup.prompter.pause(`${describe(step)}\nPress Enter when done.`);
+    await this.setup.prompter.pause(`${describe(handoff)}\nPress Enter when done.`);
     const outcome = await this.settle(step, 'not verified');
     if (outcome.result === 'done') await this.acknowledge(step);
     return outcome;
   }
 
-  private async settle(
-    step: SetupStep,
-    why: string,
-  ): Promise<{ result: StepResult; detail: string | null }> {
+  // A step that still fails is read by its check afterwards, not by the one before it.
+  private async settle(step: SetupStep, why: string): Promise<StepOutcome> {
     const after = await this.verifier.verify(step);
     this.deps.reporter.progress({
       id: step.id,
@@ -292,7 +290,11 @@ export class Login {
     });
     return after.ok
       ? { result: 'done', detail: after.detail }
-      : { result: 'failed', detail: after.detail || why };
+      : {
+          result: 'failed',
+          detail: after.detail || why,
+          handoff: handoffStep(step, { failed: after }),
+        };
   }
 
   private async acknowledge(step: SetupStep): Promise<void> {
@@ -303,8 +305,10 @@ export class Login {
   }
 }
 
-export function describe(step: SetupStep): string {
+export function describe(step: HandoffStep): string {
   const lines = [`${step.title} (${step.id})`];
+  const check = checkNote(step);
+  if (check !== undefined) lines.push(check);
   if (step.instructions !== undefined) lines.push(step.instructions);
   if (step.open !== undefined) lines.push(`Open: ${step.open}`);
   if (step.expects !== undefined) lines.push(`Expected: ${step.expects.path}`);
@@ -312,15 +316,18 @@ export function describe(step: SetupStep): string {
 }
 
 function setupRequired(
-  pending: readonly SetupStep[],
+  pending: readonly PendingHandoff[],
   input: LoginInput,
   context: WorkspaceGuidance,
 ): DevkitError {
-  const command = loginCommand(pending, context);
+  const command = loginCommand(
+    pending.map((item) => item.step),
+    context,
+  );
   return new DevkitError(
     'config',
     'LOGIN_REQUIRED',
-    `${pending.length} setup step${pending.length === 1 ? '' : 's'} remain${pending.length === 1 ? 's' : ''}: ${pending.map((s) => s.id).join(', ')}`,
+    `${pending.length} setup step${pending.length === 1 ? '' : 's'} remain${pending.length === 1 ? 's' : ''}: ${pending.map((item) => item.step.id).join(', ')}`,
     {
       hint: input.noInput
         ? 'Review handoff.user_steps for authorized local preparation and human interaction; verify after input changes, then resume the original task.'
@@ -328,7 +335,7 @@ function setupRequired(
       nextSteps: [command, workspaceCommand(context, 'doctor')],
       handoff: {
         summary: `${pending.length} unfinished setup step${pending.length === 1 ? '' : 's'}`,
-        userSteps: pending.map(handoffStep),
+        userSteps: pending.map((item) => item.handoff),
         command,
         alternatives: [
           workspaceCommand(context, 'login', '--list'),

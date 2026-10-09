@@ -80,7 +80,7 @@ export class NodeProcess implements Process {
     if (options.signal?.aborted) throw hung(vector, ABORTED, GIVEN_UP);
     const env = mergeEnvironment(process.env, options.env);
     const resolved = await findExecutable(binary, { cwd: options.cwd, env });
-    if (!resolved) return { code: 127, stdout: '', stderr: `command not found: ${binary}\n` };
+    if (!resolved) return notStarted(binary);
     const runOptions = { ...options, env };
     return options.interactive === true
       ? this.runInteractive(resolved, args, runOptions)
@@ -133,10 +133,7 @@ export class NodeProcess implements Process {
       child.stdout!.on('data', (chunk: Buffer) => out.push(chunk));
       child.stderr!.on('data', (chunk: Buffer) => err.push(chunk));
       child.on('error', (error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT')
-          finish(() =>
-            resolve({ code: 127, stdout: '', stderr: `command not found: ${binary}\n` }),
-          );
+        if (error.code === 'ENOENT') finish(() => resolve(notStarted(binary)));
         else finish(() => reject(error));
       });
       child.on('close', (code) => {
@@ -161,8 +158,7 @@ export class NodeProcess implements Process {
         stdio: 'inherit',
       });
       child.on('error', (error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT')
-          resolve({ code: 127, stdout: '', stderr: `command not found: ${binary}\n` });
+        if (error.code === 'ENOENT') resolve(notStarted(binary));
         else reject(error);
       });
       child.on('close', (code) => resolve({ code: code ?? -1, stdout: '', stderr: '' }));
@@ -175,6 +171,10 @@ export class NodeProcess implements Process {
   ): Promise<string | undefined> {
     return findExecutable(binary, { ...options, env: mergeEnvironment(process.env, options.env) });
   }
+}
+
+function notStarted(binary: string): ProcessResult {
+  return { code: 127, stdout: '', stderr: `command not found: ${binary}\n`, notStarted: true };
 }
 
 function hung(vector: readonly string[], code: string, message: string): DevkitError {

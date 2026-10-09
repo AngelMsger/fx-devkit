@@ -5,20 +5,28 @@
 
 import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
 import type { PlatformBinding } from '../../domain/manifest/providers.js';
-import type { SetupStep } from '../../domain/setup/types.js';
+import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
-import { Verifier } from '../login/verify.js';
+import { gaveNoAnswer, Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
 import { ToolCheck } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
 import { resolveTarget, targetOfBinding } from './resolve.js';
-import type { PendingSteps, ReadyStatus, Target, ToolState, Verdict } from './types.js';
+import type {
+  PendingStep,
+  PendingSteps,
+  ReadyStatus,
+  Target,
+  ToolState,
+  UnfinishedCheck,
+  Verdict,
+} from './types.js';
 import { untrusted, versionUnknown } from './verdicts.js';
 
 export class Readiness {
@@ -43,29 +51,23 @@ export class Readiness {
   }
 
   async judge(target: Target, env: string | null): Promise<Verdict> {
-    const verdict = (status: ReadyStatus, extra: Partial<Verdict> = {}): Verdict => ({
-      status,
-      handoff: null,
-      alternatives: [this.command('doctor')],
-      ...extra,
-    });
     const coverage = this.coverage(target, env);
     if (coverage !== undefined)
-      return verdict('not_covered', {
+      return this.verdict('not_covered', {
         alternatives: [coverage, this.command('doctor')],
       });
     if (env !== null && !this.inScope(env))
-      return verdict('no_access', {
+      return this.verdict('no_access', {
         alternatives: [this.command('env', 'pick', env), this.command('doctor')],
       });
 
-    if (target.tool === null) return verdict('ready');
+    if (target.tool === null) return this.verdict('ready');
 
     const state = await this.toolState(target.tool);
     if (state === 'untrusted') return untrusted(this.deps, this.login, target.tool.name);
     if (state === 'unknown') return versionUnknown(this.deps, target.tool);
     if (state !== 'ok')
-      return verdict(
+      return this.verdict(
         (
           { outdated: 'outdated_tool', disabled: 'disabled_tool', missing: 'missing_tool' } as const
         )[state],
@@ -84,10 +86,20 @@ export class Readiness {
       );
 
     const setupEnv = target.binding !== null && 'platform' in target.binding ? env : null;
-    const pending = await this.pendingSteps(target.tool.name, setupEnv);
-    if (pending === 'untrusted') return untrusted(this.deps, this.login, target.tool.name);
+    return this.setupVerdict(target.tool.name, setupEnv);
+  }
+
+  private verdict(status: ReadyStatus, extra: Partial<Verdict> = {}): Verdict {
+    return { status, handoff: null, alternatives: [this.command('doctor')], ...extra };
+  }
+
+  // A step whose check failed is handed over, and outranks a check that could not finish:
+  // nobody is handed a sign-in for the latter, checking again is its only step.
+  private async setupVerdict(tool: string, env: string | null): Promise<Verdict> {
+    const pending = await this.pendingSteps(tool, env);
+    if (pending === 'untrusted') return untrusted(this.deps, this.login, tool);
     if ('problems' in pending)
-      return verdict('unconfigured', {
+      return this.verdict('unconfigured', {
         handoff: handoffEnvelope({
           summary: `Setup cannot be verified: ${pending.problems.join('; ')}`,
           userSteps: [],
@@ -95,25 +107,40 @@ export class Readiness {
           alternatives: [this.command('manifest', 'validate', '--strict')],
         }),
       });
-    if (pending.length > 0)
-      return verdict('unconfigured', {
+    const { steps, unfinished } = pending;
+    const unknown = unfinished.length === 0 ? {} : { unfinished };
+    if (steps.length > 0)
+      return this.verdict('unconfigured', {
+        ...unknown,
         handoff: handoffEnvelope({
-          summary: `${pending.length} setup step${pending.length === 1 ? '' : 's'} not done for ${target.tool.name}`,
-          userSteps: pending.map(handoffStep),
-          command: loginCommand(pending, this.deps),
+          summary: `${steps.length} setup step${steps.length === 1 ? '' : 's'} not done for ${tool}`,
+          userSteps: steps.map((item) => handoffStep(item.step, item.pending)),
+          command: loginCommand(
+            steps.map((item) => item.step),
+            this.deps,
+          ),
         }),
       });
-    return verdict('ready');
+    if (unfinished.length === 0) return this.verdict('ready');
+    return this.verdict('unknown', {
+      ...unknown,
+      handoff: handoffEnvelope({
+        summary: `Could not finish checking ${unfinished.map((check) => check.id).join(', ')}`,
+        userSteps: [],
+        command: this.command('doctor', '--tool', tool, ...(env === null ? [] : ['--env', env])),
+      }),
+    });
   }
 
+  // Why the environment does not cover the target, when it does not.
   private coverage(target: Target, env: string | null): string | undefined {
     if (env === null || target.binding === null || !('platform' in target.binding))
       return undefined;
     const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const spec = environments.envs[env];
     if (spec === undefined) throw envNotFound(this.deps, env, Object.keys(environments.envs));
-    if (spec.platforms?.[target.binding.platform] !== undefined) return undefined;
-    return spec.note ?? `${env} has no ${target.binding.platform}`;
+    const { platform } = target.binding;
+    return spec.platforms?.[platform] === undefined ? undeclaredPlatform(env, platform) : undefined;
   }
 
   private inScope(env: string): boolean {
@@ -171,19 +198,35 @@ export class Readiness {
     const problems = plan.problems.filter((p) => p.step.startsWith(`${tool}.`));
     if (problems.length > 0) return { problems: problems.map((p) => p.detail) };
     const verifier = new Verifier(this.deps, this.login);
-    const pending: SetupStep[] = [];
+    const steps: PendingStep[] = [];
+    const unfinished: UnfinishedCheck[] = [];
+    // A step waiting on an unfinished check is as unknown as that check is, whatever
+    // else it waits on.
+    const undone = new Set<string>();
+    const unknown = new Set<string>();
     for (const step of plan.steps) {
+      if (step.requires.some((id) => unknown.has(id))) {
+        unknown.add(step.id);
+        continue;
+      }
+      const blockedBy = step.requires.find((id) => undone.has(id));
+      if (blockedBy !== undefined) {
+        steps.push({ step, pending: { blockedBy } });
+        undone.add(step.id);
+        continue;
+      }
       try {
-        if (step.requires.some((id) => pending.some((item) => item.id === id))) {
-          pending.push(step);
-          continue;
-        }
-        if (!(await verifier.verify(step)).ok) pending.push(step);
+        const failed = await verifier.verify(step);
+        if (failed.ok) continue;
+        steps.push({ step, pending: { failed } });
+        undone.add(step.id);
       } catch (err) {
         if (isTrustRequired(err)) return 'untrusted';
-        throw err;
+        if (!(err instanceof DevkitError) || !gaveNoAnswer(err.code)) throw err;
+        unfinished.push({ id: step.id, code: err.code, message: err.message });
+        unknown.add(step.id);
       }
     }
-    return pending;
+    return { steps, unfinished };
   }
 }

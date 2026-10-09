@@ -366,7 +366,7 @@ describe('facts: where, member, can, derived docs', () => {
     });
     expect(can(['log-store', '--env', 'selfhosted'])).toMatchObject({
       status: 'not_covered',
-      alternatives: ['no central log store', 'fx doctor --workspace ws'],
+      alternatives: ['selfhosted declares no openobserve platform', 'fx doctor --workspace ws'],
     });
     expect(fx(['env', 'unpick', 'dev', ...json], s.env, s.ws).status).toBe(0);
     expect(can(['ci', '--env', 'dev'], { ...s.env, FAKE_JENKINS_OK: '0' })).toMatchObject({

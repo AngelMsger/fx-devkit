@@ -1,9 +1,11 @@
 // Repairs independently, retaining each attempt, then reports fresh evidence from every check.
 
 import { asDevkitError, toEnvelope } from '../../domain/errors.js';
+import type { PreparationCheck } from '../../domain/preparation.js';
 import { report } from '../../domain/report.js';
+import type { SetupPlan } from '../../domain/setup/types.js';
 import { DeriveDocs } from '../docs/derive.js';
-import { setupActions } from '../init/setup.js';
+import { handoffOf, setupActions } from '../init/setup.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
 import { validateSetupSelection } from '../login/selection.js';
@@ -121,17 +123,7 @@ export class Doctor {
       tools: toolScope.configuredNames,
       envs: input.envs,
     });
-    const checks = diagnostic.findings.map((item) => {
-      const step =
-        item.group === 'login' ? plan.steps.find((step) => step.id === item.id) : undefined;
-      const required = step ? toolScope.required.has(step.tool) : item.required;
-      return {
-        ...findingCheck(item, required),
-        ...(step && item.level !== 'ok' && !item.actions
-          ? { actions: setupActions(this.deps, step, this.doctor.login.home) }
-          : {}),
-      };
-    });
+    const checks = diagnostic.findings.map((item) => this.preparationCheck(item, plan, toolScope));
     return {
       findings: diagnostic.findings,
       summary: diagnostic.summary,
@@ -164,6 +156,23 @@ export class Doctor {
         },
       ),
       repairs,
+    };
+  }
+
+  // A setup step that did not pass offers the action its own handoff describes.
+  private preparationCheck(
+    item: Finding,
+    plan: SetupPlan,
+    toolScope: WorkspaceToolScope,
+  ): PreparationCheck {
+    const step =
+      item.group === 'login' ? plan.steps.find((step) => step.id === item.id) : undefined;
+    const check = findingCheck(item, step ? toolScope.required.has(step.tool) : item.required);
+    if (step === undefined || item.level === 'ok' || item.actions) return check;
+    const handoff = handoffOf(item, step);
+    return {
+      ...check,
+      actions: setupActions(this.deps, step, this.doctor.login.home, { handoff }),
     };
   }
 

@@ -337,6 +337,10 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 机器调用方在非零退出时也要同时读取部分 stdout 与 stderr 错误。已完成步骤仍保留；`handoff`、`blocked`、`failed`、`not_started` 区分后续工作。汇总、计划问题和步骤恢复字段见[登录响应契约](../skills/fx-workspace/references/commands.md#readiness-and-recovery)。
 
+交给人处理的步骤会说明它的检查得到了什么回答。步骤的 `check` 带有工具自己的信息；fx 能读懂失败原因时还会给出成因：未能建立认证、服务拒绝了权限，或连接未能建立。此时步骤的说明针对该成因给出处理办法，重新登录前请先阅读。多数检查不给出成因，这时以工具的信息和步骤的说明为准。
+
+没有得到回答的检查（工具没能启动，或超时）不会交给人处理。`can` 与 `where` 把它列在 `unfinished` 中，没有其他失败时返回 `unknown`；`login` 以该错误停止，并在 stdout 保留部分结果；`doctor` 把它报告为覆盖不完整的检查项。较早版本的 fx 没有这些字段；`fx doctor --tool <tool> --env <env>` 可查看单个工具给出的信息。
+
 ### Skill 所有权与宿主激活 {#skill-ownership-and-host-activation}
 
 用户级 fx Skill 跨工作区共享，并由用户级锁保护；团队链接属于各自工作区，配套安装器管理自己的版本行为。文件正确不证明宿主已激活。

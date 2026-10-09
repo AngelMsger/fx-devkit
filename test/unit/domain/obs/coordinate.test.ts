@@ -137,7 +137,7 @@ describe('locateRepo', () => {
     expect(weakest([])).toBe('derived');
   });
 
-  it('answers not_covered for an undeclared platform and for an uncovered repository, each with its note', () => {
+  it('answers not_covered for an undeclared platform in its own words, and for an uncovered repository with its note', () => {
     const none = locateRepo({
       repo: repo('fx-example-api'),
       env: 'selfhosted',
@@ -149,8 +149,17 @@ describe('locateRepo', () => {
       status: 'not_covered',
       command: null,
       confidence: 'not_covered',
-      notes: ['no central log store'],
+      notes: ['selfhosted declares no openobserve platform', 'no central log store'],
     });
+    // The environment's note explains one absence; it is never the reason for another.
+    const other = locateRepo({
+      repo: repo('fx-example-api'),
+      env: 'selfhosted',
+      platform: 'kube',
+      environments,
+      binding: binding('kube'),
+    });
+    expect(other.notes[0]).toBe('selfhosted declares no kube platform');
     const off = locateRepo({
       repo: repo('fx-example-legacy'),
       env: 'dev',

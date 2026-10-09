@@ -14,6 +14,15 @@ steps before continuing. For an existing workspace, `fx doctor --format json`
 reports current preparation and concrete recovery actions. `fx can <capability>`
 answers a specific capability question.
 
+When a capability is not ready, read what its check answered before signing in
+again. The pending step carries the tool's message and, where fx can tell, whether
+authentication was not established, a permission was refused or a connection could
+not be completed. A refused permission or a failed connection does not call for a
+sign-in. When no cause is named, go by the tool's message and the step's guidance
+rather than assuming either way. From `can` and `where`, a check that gave no answer
+reports `unknown`: repair the tool it names, or repeat the query after a timeout.
+`fx doctor --tool <tool> --env <env>` shows the same detail for one tool.
+
 `preparation.state` is `ready` or `incomplete`; incomplete preparation exits 12.
 `doctor.coverage` separately identifies missing diagnostic evidence. Release
 checks still use `ok` and `complete`. Parse partial stdout even after a nonzero exit.

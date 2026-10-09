@@ -6,6 +6,9 @@ export interface ProcessResult {
   readonly code: number;
   readonly stdout: string;
   readonly stderr: string;
+  // The executable could not be started. `code` is then the 127 a shell reports, which a
+  // program that did start may exit with as well, so only this says which it was.
+  readonly notStarted?: true;
 }
 
 export interface ProcessDiagnosticContext {

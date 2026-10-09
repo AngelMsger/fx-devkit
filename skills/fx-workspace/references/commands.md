@@ -99,12 +99,24 @@ relocation, rebinding and removal rather than editing an export to remove names.
 
 `fx can <capability|tool> [--env <env>]` — one record:
 
-| Field          | Meaning                                                                                                                                                                            |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `status`       | `ready`, `missing_tool`, `outdated_tool`, `disabled_tool`, `unconfigured`, `no_access`, `not_covered`, `unknown`                                                                   |
-| `tool`         | the companion tool the provider needs, or `null` when none is required; `provider` and `env` identify the target                                                                   |
-| `handoff`      | pending preparation or human interaction: `summary`, `user_steps[]` (`id`, `kind`, `title`, optional `instructions`, `open`, `command`, `expects.path`), `command`, `alternatives` |
-| `alternatives` | commands that answer part of the question without the tool                                                                                                                         |
+| Field          | Meaning                                                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`       | `ready`, `missing_tool`, `outdated_tool`, `disabled_tool`, `unconfigured`, `no_access`, `not_covered`, `unknown`                                                                            |
+| `tool`         | the companion tool the provider needs, or `null` when none is required; `provider` and `env` identify the target                                                                            |
+| `handoff`      | pending preparation or human interaction: `summary`, `user_steps[]` (`id`, `kind`, `title`, optional `instructions`, `open`, `command`, `expects.path`, `check`), `command`, `alternatives` |
+| `unfinished`   | present when a check gave no answer (its tool did not start, or it outlived its deadline): `id`, `code`, `message` for each. It says nothing about the target either way                    |
+| `alternatives` | commands that answer part of the question without the tool; for `not_covered`, the reason comes first                                                                                       |
+
+A step's `check` says why it is pending. `result: failed` carries the `detail` its
+tool gave and, when the bundled recipe can read it, a `cause`: `credential`
+(authentication was not established), `permission` (it answered no) or `network`
+(a connection could not be completed). The step's `instructions` and `open` then
+already say what resolves that cause. `result: blocked` names in `by` the step it
+waits on; act on that one first. A missing `cause` means the reason is not
+established, which is not evidence against a sign-in: most checks declare no causes.
+Read `detail` and the step's own guidance. A missing `check` comes from an older fx
+or a check that did not run; `fx doctor --tool <tool> [--env <env>]` shows the tool's
+message.
 
 A bound provider without a companion tool has no installation or login check;
 `ready` means preparation is complete, not that every repository query will succeed.
@@ -119,13 +131,20 @@ and environment, or inspect repository platforms through `where`.
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `status`                          | `located` or `not_covered` (the environment has no such platform, or the repository is deliberately uncovered) |
 | `ready`                           | the `fx can` status for this platform's tool in this environment; `null` under `--no-check`                    |
-| `handoff`                         | as in `fx can`, when `ready` is not `ready`                                                                    |
+| `handoff`, `unfinished`           | as in `fx can`, when `ready` is not `ready`                                                                    |
 | `command`                         | a shell line to show the person or run yourself once `ready` says so; `null` when not covered                  |
 | `url`                             | the page behind it, when the provider knows one                                                                |
 | `confidence`                      | `verified`, `derived`, `unverified`, `not_covered`, `not_found` — the weakest declared                         |
 | `notes`                           | caveats from the manifest, most specific first                                                                 |
 | `vars`                            | the merged variables, for composing another query                                                              |
 | `outcome`, `suggested_confidence` | with `--probe` (needs `--env`): what the platform said, read-only, and the confidence to record                |
+
+`located` means the manifest resolved a coordinate, not that the repository runs
+there; an undeclared `confidence` reads `derived`. `where` checks readiness against
+the service unless `--no-check` is given, and `--no-check` does not turn off an
+explicit `--probe`. Pass `--platform` to keep one platform's check from waiting on
+another's. A `not_covered` row states what the manifest covers: its first note is the
+reason, and a note of the environment may follow.
 
 `fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `accounts` (per system), `matched_by`, `via`.
 `fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact. Its `next_steps` use the canonical repository name and explicit workspace to select an unpicked repository and synchronize missing shared checkouts; inspection itself never changes selection or downloads files.
@@ -380,7 +399,7 @@ can stand in for every `fx` command below. Do not use `fx self update` to
 recover an executable that cannot start.
 
 1. **Diagnose the selected prerequisite.** Read status, `handoff.summary`,
-   `user_steps` and alternatives. Use `fx doctor --tool <tool>` and
+   `user_steps` with each step's `check`, `unfinished` and alternatives. Use `fx doctor --tool <tool>` and
    `fx login <tool> --env <env> --dry-run --no-input` for current checks;
    `--list` shows recipes without verifying them. Omit `--env` for an unscoped
    tool. Load the relevant companion Skill for provider-specific setup and
@@ -415,15 +434,15 @@ recover an executable that cannot start.
    or report a concrete blocker and the missing input. Do not loop logins or
    ask for the same authorization again.
 
-| Evidence                                                          | Next decision                                                                                                                                                                                                      |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `INSTALLER_UNAVAILABLE`, missing runtime or manager               | Read tool docs/local installation guidance, inspect PATH and available managers, perform authorized local install; ask only for unavailable source or required machine access.                                     |
-| Registry/package unavailable, install `error` or network failure  | Check the reported registry/package and connectivity; package publication is not guaranteed. Use a documented local source when available. Retry only after a relevant change or a bounded provider-directed wait. |
-| `unconfigured`, failed configuration/auth check                   | Inspect the companion's read-only status and scoped doctor details. Initialize only missing configuration; distinguish invalid credentials, network failure and missing permissions before starting login.         |
-| `no_access` from fx                                               | This means the environment is outside personal selection, not a remote permission verdict. Select it only within task scope; remote missing scope/forbidden requires the appropriate access decision.              |
-| `not_covered`, `CAPABILITY_UNBOUND`, unresolved recipe/coordinate | Inspect manifest providers/validation and maintain confirmed shared facts within scope. Do not substitute another environment or repeatedly ask for login.                                                         |
-| `TOOL_UNDECLARED`                                                 | The capability is bound and its provider is known; the tools document does not declare the companion the provider runs. Propose that declaration; do not rebind the capability or install the tool first.          |
-| `unknown`, parse error or unexpected failure                      | Inspect focused diagnostics and the companion Skill; preserve uncertainty, redact sensitive output, and report an actionable blocker if evidence cannot resolve it.                                                |
+| Evidence                                                          | Next decision                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INSTALLER_UNAVAILABLE`, missing runtime or manager               | Read tool docs/local installation guidance, inspect PATH and available managers, perform authorized local install; ask only for unavailable source or required machine access.                                                                                                                                                                                                                                                    |
+| Registry/package unavailable, install `error` or network failure  | Check the reported registry/package and connectivity; package publication is not guaranteed. Use a documented local source when available. Retry only after a relevant change or a bounded provider-directed wait.                                                                                                                                                                                                                |
+| `unconfigured`, failed configuration/auth check                   | Read `handoff.user_steps[].check` first. A recognized `permission` or `network` cause does not call for a sign-in. Few checks declare causes, so a missing `cause` is not evidence against a sign-in: keep diagnosing from `detail`, the tool's own error, the step's guidance and scoped doctor details, neither signing in automatically nor ruling out a sign-in the evidence supports. Initialize only missing configuration. |
+| `no_access` from fx                                               | This means the environment is outside personal selection, not a remote permission verdict. Select it only within task scope; remote missing scope/forbidden requires the appropriate access decision.                                                                                                                                                                                                                             |
+| `not_covered`, `CAPABILITY_UNBOUND`, unresolved recipe/coordinate | Inspect manifest providers/validation and maintain confirmed shared facts within scope. Do not substitute another environment or repeatedly ask for login.                                                                                                                                                                                                                                                                        |
+| `TOOL_UNDECLARED`                                                 | The capability is bound and its provider is known; the tools document does not declare the companion the provider runs. Propose that declaration; do not rebind the capability or install the tool first.                                                                                                                                                                                                                         |
+| `unknown`, parse error or unexpected failure                      | With `unfinished`, a check gave no answer: for `TOOL_MISSING` repair the tool, for `PROCESS_TIMEOUT` repeat the scoped query or the returned doctor command, and hand nobody a sign-in for either. Otherwise inspect focused diagnostics and the companion Skill; preserve uncertainty, redact sensitive output, and report an actionable blocker if evidence cannot resolve it.                                                  |
 
 ## Concurrent manifest edits
 

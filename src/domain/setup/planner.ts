@@ -9,6 +9,7 @@ import { substitute, substituteAll, type Vars } from '../template.js';
 import { commandOrigin, type ResolvedTool } from '../toolchain/resolve.js';
 
 import type {
+  FailureCase,
   PlanProblem,
   ServicePreparation,
   SetupCheck,
@@ -139,7 +140,7 @@ function fromRecipe(
   };
   const run = vector(recipe.run);
   const expects = text(recipe.expects?.path);
-  const verify = check(recipe.verify, vector, text);
+  const verify = check(recipe.verify, vector, text, (failure) => advised(failure, vars));
   if (missing.size > 0) {
     return {
       step: id,
@@ -215,14 +216,28 @@ function check(
   source: SetupCheck,
   vector: (parts: readonly string[]) => readonly string[] | undefined,
   text: (template: string) => string | undefined,
+  failure: (source: FailureCase) => FailureCase = (source) => source,
 ): SetupCheck {
   if ('command' in source)
     return {
       command: vector(source.command) ?? [],
       ...(source.json === undefined ? {} : { json: source.json }),
+      ...(source.failures === undefined ? {} : { failures: source.failures.map(failure) }),
     };
   if ('file' in source) return { file: text(source.file) ?? '' };
   return source;
+}
+
+// A failure case's guidance is advisory text like a step's own and degrades the same
+// way; its patterns are not templates and stay as written.
+function advised(source: FailureCase, vars: Vars): FailureCase {
+  const { open: page, ...rest } = source;
+  const open = substitute(page ?? '', vars);
+  return {
+    ...rest,
+    instructions: substitute(source.instructions, vars).text,
+    ...(page === undefined || open.missing.length > 0 ? {} : { open: open.text }),
+  };
 }
 
 // A stable step ID may be shared only by identical expanded definitions. Conflicts

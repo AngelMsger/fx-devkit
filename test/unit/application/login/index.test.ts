@@ -376,6 +376,71 @@ describe('Login', () => {
     ]);
   });
 
+  it('hands a step over with what its check answered, when it stops and when it only previews', async () => {
+    const s = await stage({ unavailable: true, yes: true });
+    await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
+    const input = { ...run, envs: ['test'], tools: ['kubectl'] };
+    const answered = { check: { result: 'failed', detail: 'forbidden' } };
+    const failure: unknown = await s.setup
+      .execute({ ...input, noInput: true })
+      .catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      code: 'LOGIN_REQUIRED',
+      handoff: { userSteps: [{ id: 'kubectl.access@test', ...answered }] },
+      partialResult: {
+        items: [
+          { id: 'kubectl.kubeconfig@test', result: 'verified' },
+          { id: 'kubectl.access@test', result: 'handoff', handoff: answered },
+        ],
+      },
+    });
+    const preview = await s.setup.execute({ ...input, dryRun: true });
+    expect(preview.items[1]).toMatchObject({ result: 'would_ask', handoff: answered });
+  });
+
+  it('reads a step a person finished by its check afterwards, having shown what it said before', async () => {
+    const s = await stage();
+    await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
+    const answers = ['forbidden', 'token expired'];
+    const original = s.h.process.run.bind(s.h.process);
+    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) =>
+      vector.includes('can-i')
+        ? { code: 1, stdout: '', stderr: answers.shift() ?? '' }
+        : original(vector, options),
+    );
+    const out = await s.setup.execute({ ...run, envs: ['test'], tools: ['kubectl'] });
+    expect(s.prompter.questions[0]).toContain('Check: forbidden');
+    expect(out.items[1]).toMatchObject({
+      id: 'kubectl.access@test',
+      result: 'failed',
+      detail: 'token expired',
+      handoff: { check: { result: 'failed', detail: 'token expired' } },
+    });
+  });
+
+  it('stops at a check whose tool could not start, without handing its step to anyone', async () => {
+    const s = await stage({ unavailable: true, yes: true });
+    await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
+    s.h.process
+      .clear()
+      .on(['kubectl'], { code: 127, stdout: '', stderr: 'command not found', notStarted: true });
+    const failure: unknown = await s.setup
+      .execute({ ...run, noInput: true, envs: ['test'], tools: ['kubectl'] })
+      .catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      code: 'TOOL_MISSING',
+      message: 'kubectl is not installed or not on PATH',
+      nextSteps: ['fx tool show kubectl --workspace fx', 'fx tool install kubectl --workspace fx'],
+      partialResult: {
+        items: [
+          { id: 'kubectl.kubeconfig@test', result: 'verified' },
+          { id: 'kubectl.access@test', result: 'failed', failure: { code: 'TOOL_MISSING' } },
+        ],
+      },
+    });
+    expect((failure as DevkitError).handoff).toBeUndefined();
+  });
+
   it('reports completed setup when a later permission probe times out', async () => {
     const s = await stage({ unavailable: true, yes: true });
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');

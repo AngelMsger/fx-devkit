@@ -1,7 +1,7 @@
 // The human layouts. Each says what a line means and leaves its appearance to the
 // display: a plain display yields the exact text a pipe, a file and CI receive.
 
-import type { ErrorEnvelope, HandoffEnvelope } from '../../domain/errors.js';
+import { checkNote, type ErrorEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { DiagnosticEvent } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
@@ -277,6 +277,7 @@ function handoffLines(handoff: HandoffEnvelope, display: Display, shell: Resolve
     `  ${display.paint('strong', handoff.summary)}`,
     ...handoff.user_steps.flatMap((step, i) => [
       `  ${i + 1}. ${step.title}`,
+      ...[checkNote(step)].flatMap((note) => (note === undefined ? [] : [detail(note)])),
       ...(step.instructions === undefined ? [] : [detail(step.instructions)]),
       ...(step.open === undefined ? [] : [detail(`Open: ${step.open}`)]),
       ...(step.command === undefined

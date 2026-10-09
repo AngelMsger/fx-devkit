@@ -25,6 +25,16 @@ describe('NodeProcess', () => {
     const result = await new NodeProcess().run(['definitely-not-a-binary-xyz', '--version']);
     expect(result.code).toBe(127);
     expect(result.stderr).toContain('definitely-not-a-binary-xyz');
+    expect(result.notStarted).toBe(true);
+  });
+
+  it('does not take a program that started and exited 127 for one that never started', async () => {
+    const result = await new NodeProcess().run([
+      node,
+      '-e',
+      'console.error("helper executable unavailable"); process.exit(127)',
+    ]);
+    expect(result).toEqual({ code: 127, stdout: '', stderr: 'helper executable unavailable\n' });
   });
 
   it('kills a process that exceeds its timeout', async () => {

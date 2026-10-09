@@ -46,7 +46,7 @@ export function locateRepo(input: LocateInput): ObsCoordinate {
     ]);
   }
   if (spec === undefined || onEnv === undefined)
-    return uncovered(base, [environments.envs[env]?.note ?? `${env} has no ${platform}`]);
+    return uncovered(base, [undeclaredPlatform(env, platform), environments.envs[env]?.note]);
   // `not_covered` on an entry is an answer, not a weak value: the pattern
   // would derive a coordinate that does not exist, so none is derived.
   if (override?.confidence === 'not_covered' || onEnv.confidence === 'not_covered') {
@@ -102,9 +102,15 @@ function commandLine(
     : shellLine(located.command, shell);
 }
 
+// An environment's note speaks for the whole environment, so it cannot be the reason
+// one platform is absent; the reason is said in words that hold for any platform.
+export function undeclaredPlatform(env: string, platform: string): string {
+  return `${env} declares no ${platform} platform`;
+}
+
 function uncovered(
   base: Omit<ObsCoordinate, 'status' | 'command' | 'url' | 'confidence' | 'notes' | 'vars'>,
-  notes: readonly string[],
+  notes: readonly (string | undefined)[],
 ): ObsCoordinate {
   return {
     ...base,

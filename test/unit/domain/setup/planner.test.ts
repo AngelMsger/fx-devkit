@@ -232,6 +232,45 @@ describe('planSetup', () => {
     ]);
   });
 
+  it('fills what a failure case tells a person, leaves its patterns as written, and never drops the step for it', () => {
+    const read: SetupRecipe = {
+      ...access,
+      requires: [],
+      verify: {
+        command: ['--context', '{context}', 'auth', 'can-i', 'get', 'pods'],
+        failures: [
+          {
+            cause: 'credential',
+            stderr: 'Unauthorized|token{2}',
+            instructions: 'Renew the credential in {kubeconfig} for {context}.',
+            open: '{setup.source}',
+          },
+          { cause: 'permission', stdout: '^no$', instructions: 'Ask {owner}.', open: '{wiki}' },
+        ],
+      },
+    };
+    const plan = planSetup({
+      tools: [tool('kubectl')],
+      recipes: [kube(read)],
+      providerTools: ['kubectl'],
+      environments,
+      scopeEnvs: ['dev'],
+    });
+    expect(plan.problems).toEqual([]);
+    expect(plan.steps[0]?.verify).toMatchObject({
+      failures: [
+        {
+          cause: 'credential',
+          stderr: 'Unauthorized|token{2}',
+          instructions: 'Renew the credential in ~/.kube/dev for dev.',
+          open: 'https://rancher.example.com/dev',
+        },
+        { cause: 'permission', stdout: '^no$', instructions: 'Ask {owner}.' },
+      ],
+    });
+    expect(plan.steps[0]?.verify).not.toHaveProperty('failures.1.open');
+  });
+
   it('makes one step of a workspace-scoped recipe, and includes the team steps from tools.yaml as patch', () => {
     const worklog = tool('worklog-cli', {
       binary: 'worklog',

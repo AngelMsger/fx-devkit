@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Say what a failed readiness check answered. Each pending step in a `can`, `where`,
+  `doctor` or `login` handoff now carries `check`: what the tool said, or the step
+  this one waits on. Where fx can read the failure it also names the cause, and the
+  step's instructions then say what resolves it.
+- Tell a cluster that did not establish authentication from one that answered no and
+  from one that could not be reached. A request the cluster took for nobody's now
+  leads to a step about the kubeconfig and its sign-in, with the page an updated
+  kubeconfig comes from, rather than a request to the cluster's owner for a role.
+- Check that a kubeconfig names its declared context without contacting the cluster,
+  and give each request of the cluster access check five seconds.
+- Answer `unknown` from `can` and `where` when a check gives no answer, because its
+  tool did not start or it outlived its deadline, and list it under `unfinished`.
+  `where` no longer fails for every platform of a repository because one of them did
+  not answer. `doctor` and `login` report a tool that did not start as a missing tool
+  in place of handing its step to a person.
+- Give `<env> declares no <platform> platform` as the reason an environment does not
+  cover a platform. The environment's note, which may be about another platform, is
+  no longer that reason.
+
 ## 0.9.1 (2026-10-09)
 
 ### Changed

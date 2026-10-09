@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
 import type { DoctorExtension } from '../../../../src/application/doctor/types.js';
@@ -459,6 +460,144 @@ describe('Doctor', () => {
     });
   });
 
+  it('tells a person what a failed check answered, in the finding and in the action it offers', async () => {
+    const s = await stage({
+      describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
+    });
+    s.h.process.binaries.add('kubectl');
+    const calls = s.h.process.run.bind(s.h.process);
+    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
+      if (vector.includes('get-contexts')) return { code: 0, stdout: 'dev', stderr: '' };
+      if (vector.includes('can-i'))
+        return { code: 1, stdout: '', stderr: 'error: You must be logged in (Unauthorized)' };
+      return calls(vector, options);
+    });
+    const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
+    expect(report.findings.find((f) => f.id === 'kubectl.access@dev')).toMatchObject({
+      message: 'error: You must be logged in (Unauthorized)',
+      handoff: {
+        user_steps: [
+          {
+            instructions: expect.stringContaining('Authentication was not established'),
+            check: { result: 'failed', cause: 'credential' },
+          },
+        ],
+      },
+    });
+    expect(
+      report.preparation.blockers.find((c) => c.id === 'login:kubectl.access@dev')?.actions,
+    ).toMatchObject([
+      { description: expect.stringContaining('Authentication was not established') },
+    ]);
+  });
+
+  it('names the file a step expects in the action it offers', async () => {
+    const s = await stage({
+      describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
+    });
+    const calls = s.h.process.run.bind(s.h.process);
+    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) =>
+      vector.includes('get-contexts')
+        ? { code: 1, stdout: '', stderr: 'error: context dev not found\n' }
+        : calls(vector, options),
+    );
+    const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
+    expect(
+      report.preparation.blockers.find((c) => c.id === 'login:kubectl.kubeconfig@dev')?.actions,
+    ).toMatchObject([
+      {
+        description: expect.stringContaining(
+          `Expected file: ${HOME}${path.sep}.kube${path.sep}dev.`,
+        ),
+      },
+    ]);
+  });
+
+  it('hands nobody a step whose tool could not start, and offers the tool as what to fix', async () => {
+    const s = await stage({
+      describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
+    });
+    const calls = s.h.process.run.bind(s.h.process);
+    const run = vi
+      .spyOn(s.h.process, 'run')
+      .mockImplementation(async (vector, options) =>
+        vector[0] === 'kubectl' && vector[1] !== 'version'
+          ? { code: 127, stdout: '', stderr: 'command not found: kubectl\n', notStarted: true }
+          : calls(vector, options),
+      );
+    const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
+    const finding = report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev');
+    expect(finding).toMatchObject({
+      coverage: 'incomplete',
+      message: 'kubectl is not installed or not on PATH',
+      fix: 'fx tool install kubectl --workspace fx',
+    });
+    expect(finding).not.toHaveProperty('handoff');
+    expect(run.mock.calls.some(([vector]) => vector.includes('can-i'))).toBe(false);
+
+    // The check is the agent's to unblock; the step behind it waits and is nobody's yet.
+    const inspect = {
+      actor: 'agent',
+      argv: ['fx', 'tool', 'install', 'kubectl', '--workspace', 'fx', '--dry-run'],
+      requires_approval: false,
+    };
+    const blockers = Object.fromEntries(report.preparation.blockers.map((c) => [c.id, c]));
+    expect(blockers['login:kubectl.kubeconfig@dev']).toMatchObject({
+      state: 'unknown',
+      owner: 'agent',
+      actions: [inspect],
+    });
+    expect(blockers['login:kubectl.access@dev']).toMatchObject({
+      state: 'unknown',
+      owner: 'agent',
+      message: 'Blocked by kubectl.kubeconfig@dev',
+      actions: [],
+    });
+    expect(report.preparation.next.kind).toBe('act');
+    expect(report.preparation.next_actions).toContainEqual(expect.objectContaining(inspect));
+    expect(
+      report.preparation.next_actions.filter((action) => action.argv.includes('login')),
+    ).toEqual([]);
+  });
+
+  it.each([[['role', 'token']], [['token', 'role']]])(
+    'hands nobody a step that waits on an unanswered check, whatever else it waits on: %j',
+    async (requires) => {
+      const manual = (id: string, needs: readonly string[] = []): SetupRecipe => ({
+        id,
+        tool: 'bitbucket-cli',
+        perEnv: false,
+        kind: 'manual',
+        title: `Confirm ${id}`,
+        verify: { command: ['check', id] },
+        requires: needs,
+      });
+      const recipes = [manual('role'), manual('token'), manual('quota', requires)];
+      const s = await stage({
+        describeProvider: (id) =>
+          id === 'bitbucket-cli' ? { ...DESCRIPTORS[id]!, recipes } : DESCRIPTORS[id],
+      });
+      const calls = s.h.process.run.bind(s.h.process);
+      vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
+        if (!vector.includes('check')) return calls(vector, options);
+        if (vector.includes('token'))
+          throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'bitbucket-cli did not finish');
+        return { code: 1, stdout: '', stderr: 'role missing' };
+      });
+      const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
+      const blockers = Object.fromEntries(report.preparation.blockers.map((c) => [c.id, c]));
+      // The failure that was established is still a person's; the step behind both is not.
+      expect(blockers['login:bitbucket-cli.role']).toMatchObject({
+        state: 'blocked',
+        owner: 'user',
+      });
+      expect(blockers['login:bitbucket-cli.quota']).toMatchObject({
+        state: 'unknown',
+        actions: [],
+      });
+    },
+  );
+
   it('asks nobody to sign in for a check that could not finish', async () => {
     const s = await stage({ healthy: true });
     const run = s.h.process.run.bind(s.h.process);
@@ -479,7 +618,16 @@ describe('Doctor', () => {
     });
     expect(
       report.preparation.blockers.find((c) => c.id === 'login:bitbucket-cli.login'),
-    ).toMatchObject({ state: 'unknown', actions: [] });
+    ).toMatchObject({
+      state: 'unknown',
+      actions: [
+        {
+          actor: 'agent',
+          argv: ['fx', 'doctor', '--tool', 'bitbucket-cli', '--workspace', 'fx'],
+          requires_approval: false,
+        },
+      ],
+    });
   });
 
   it('offers its own repair for a Skill copy it can bring up to date', async () => {

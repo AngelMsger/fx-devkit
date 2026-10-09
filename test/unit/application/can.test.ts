@@ -336,7 +336,7 @@ describe('Can', () => {
       status: 'not_covered',
       capability: 'log-store',
       provider: 'openobserve-cli',
-      alternatives: ['no central log store', 'fx doctor --workspace fx'],
+      alternatives: ['selfhosted declares no openobserve platform', 'fx doctor --workspace fx'],
     });
 
     const locked = await stage({ local: { scope: { envs: ['prod'] } } });

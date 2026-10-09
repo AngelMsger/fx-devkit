@@ -1,6 +1,7 @@
 // The shared structured failure and recovery contract; category determines the command exit code.
 
 import type { DiagnosticEvent } from './diagnostics.js';
+import type { CheckCause } from './setup/types.js';
 
 export const CATEGORIES = [
   'usage',
@@ -91,6 +92,18 @@ export interface HandoffStep {
   readonly open?: string;
   readonly command?: readonly string[];
   readonly expects?: { readonly path: string };
+  // Why the step is pending: what its check last answered, or the step it waits on.
+  readonly check?:
+    | { readonly result: 'failed'; readonly detail: string; readonly cause?: CheckCause }
+    | { readonly result: 'blocked'; readonly by: string };
+}
+
+// The line a person reads for a step's check: what it said, or what the step waits on.
+export function checkNote(step: HandoffStep): string | undefined {
+  if (step.check === undefined) return undefined;
+  return step.check.result === 'failed'
+    ? `Check: ${step.check.detail}`
+    : `Waits on ${step.check.by}`;
 }
 
 export interface Handoff {
