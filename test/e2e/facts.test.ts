@@ -378,9 +378,8 @@ describe('facts: where, member, can, derived docs', () => {
       (run.json() as { stages: { docs: Record<string, number> } }).stages.docs;
     const derived = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
     expect(derived.status, derived.stderr).toBe(0);
-    expect(docsStage(derived), 'init already derived both files').toMatchObject({ unchanged: 2 });
+    expect(docsStage(derived), 'init already derived the guide').toMatchObject({ unchanged: 1 });
     const agents = path.join(s.ws, 'AGENTS.md');
-    expect(existsSync(path.join(s.ws, 'CLAUDE.md'))).toBe(true);
     const text = readFileSync(agents, 'utf8');
     expect(text).toContain('| `a` | fx | First |');
     expect(text).not.toContain('sentry.example.com');
@@ -394,6 +393,15 @@ describe('facts: where, member, can, derived docs', () => {
           findings: { group: string; id: string; level: string; fix?: string }[];
         }
       ).findings.find((f) => f.group === 'manifest' && f.id === 'docs');
+    const pointer = path.join(s.ws, 'CLAUDE.md');
+    writeFileSync(pointer, `${text.split('\n')[0]}\n# CLAUDE.md\n`);
+    expect(docsFinding(), 'a pointer an earlier version derived is stale').toMatchObject({
+      level: 'warn',
+      fix: 'fx sync --only docs --workspace ws',
+    });
+    const retired = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
+    expect(docsStage(retired)).toMatchObject({ removed: 1, unchanged: 1 });
+    expect(existsSync(pointer)).toBe(false);
     writeFileSync(agents, `${text}\n## Ours\n\nRouting rules people wrote.\n`);
     expect(docsFinding(), 'a derived file is stale as soon as it differs').toMatchObject({
       level: 'warn',

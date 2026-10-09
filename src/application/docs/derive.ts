@@ -1,10 +1,10 @@
-// Derive marked workspace guides while preserving foreign files.
+// Derive the marked workspace guide while preserving foreign files.
 
 import path from 'node:path';
 
-import { derive, isDerived } from '../../domain/docs/derived.js';
+import { CLAUDE_GUIDE, derive, isDerived } from '../../domain/docs/derived.js';
 import { completeRegions } from '../../domain/docs/regions.js';
-import { agentsSkeleton, CLAUDE_POINTER } from '../../domain/docs/skeleton.js';
+import { agentsSkeleton } from '../../domain/docs/skeleton.js';
 import { renderAll } from '../../domain/docs/templates.js';
 import type { LoginDeps } from '../login/deps.js';
 import { assertWritable } from '../safety/posture.js';
@@ -43,8 +43,7 @@ export class DeriveDocs {
     );
     reportRegions(reporter, origin, agents.file);
     const files = [agents];
-    if (input.out === undefined)
-      files.push(await this.file(path.join(ctx.root, 'CLAUDE.md'), derive(CLAUDE_POINTER, origin)));
+    if (input.out === undefined) files.push(...(await this.retiredPointer()));
     const conflicts = files.filter((f) => f.file.action === 'foreign');
     if (!input.dryRun && !input.check && input.replace !== undefined && conflicts.length > 0) {
       assertWritable(input.posture, 'replace workspace documents');
@@ -66,7 +65,14 @@ export class DeriveDocs {
         message: `${foreign.map((f) => f.file.path).join(', ')} ${foreign.length === 1 ? 'was' : 'were'} not written by fx and left alone`,
         nextSteps: ['Move the file aside if fx should own it, then `fx sync --only docs`.'],
       });
-    return finish(this.deps.projections, input, files);
+    const output = await finish(this.deps.projections, input, files);
+    const removed = output.files.find((f) => f.action === 'removed' && f.result === 'done');
+    if (removed !== undefined)
+      reporter.notice({
+        code: 'DOCS_POINTER_REMOVED',
+        message: `${removed.path} was removed: Claude Code reads AGENTS.md without the pointer`,
+      });
+    return output;
   }
 
   private async sourceLinks(text: string): Promise<string> {
@@ -91,6 +97,13 @@ export class DeriveDocs {
     const current = before.text ?? undefined;
     const foreign = before.kind === 'foreign' || (current !== undefined && !isDerived(current));
     return pending(target, foreign ? 'foreign' : actionFor(current, text), text, before, regions);
+  }
+
+  private async retiredPointer(): Promise<Pending[]> {
+    const target = path.join(this.deps.ctx.root, CLAUDE_GUIDE);
+    const before = await this.deps.projections.read(documentPath(target));
+    if (before.text === null || !isDerived(before.text)) return [];
+    return [pending(target, 'removed', null, before)];
   }
 }
 

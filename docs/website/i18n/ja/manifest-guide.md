@@ -15,14 +15,13 @@ team-workspace/
     members.yaml
     harness.yaml
   AGENTS.md
-  CLAUDE.md
   docs/
   skills/
 ```
 
 必須なのは `manifest/workspace.yaml` だけで、リポジトリとワークスペースの provider を記述します。environments は環境とプラットフォーム座標、tools は内蔵ツール定義の上書き、members はメンバー情報、harness は MCP とルールです。これらは任意ですが、members には `sensitive: true` が必要です。
 
-AGENTS.md、CLAUDE.md、docs/、skills/ にはチームのガイドや Skill を追加できます。環境、メンバー、harness 文書を省略すると、その能力は未設定になります。資格情報は各ツールが管理し、これらの文書には保存しません。
+AGENTS.md、docs/、skills/ にはチームのガイドや Skill を追加できます。環境、メンバー、harness 文書を省略すると、その能力は未設定になります。資格情報は各ツールが管理し、これらの文書には保存しません。
 
 fx はどのツールも前提にしません。同梱する CLI は「fx が動かし方を知っているツールの目録」であり、ワークスペースのツールチェーンは結び付けた provider から導出されます。`ci` を `jenkins-cli` に結び付ければ Jenkins の配下ツールがツールチェーンに入り、最低バージョン、インストール方法、コマンドは引き続き fx が維持します。したがって多くのチームに tools.yaml は不要です。
 

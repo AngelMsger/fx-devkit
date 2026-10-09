@@ -8,7 +8,6 @@ import { RenderRegions } from '../../../../src/application/docs/render-regions.j
 import { replacementFor } from '../../../../src/application/safety/replace-files.js';
 import { derive, isDerived } from '../../../../src/domain/docs/derived.js';
 import { begin, end } from '../../../../src/domain/docs/regions.js';
-import { CLAUDE_POINTER } from '../../../../src/domain/docs/skeleton.js';
 import { REGIONS } from '../../../../src/domain/docs/templates.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { MANIFEST_DIR, ROOT, harness } from '../../../fakes/workspace.js';
@@ -84,20 +83,17 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(result).toContain(`](<${MANIFEST_DIR}/docs/guide.md#entry>)`);
     expect(result).toContain('[repo](../service/README.md) [web](https://example.com)');
   });
-  it('creates both documents from the skeleton, then leaves them alone', async () => {
+  it('creates the document from the skeleton, then leaves it alone', async () => {
     const s = await stage();
     const first = await s.regions.execute(write);
-    expect(first.files.map((f) => [f.path, f.action])).toEqual([
-      [ORIGIN, 'created'],
-      [ORIGIN_CLAUDE, 'created'],
-    ]);
+    expect(first.files.map((f) => [f.path, f.action])).toEqual([[ORIGIN, 'created']]);
     expect(first.files[0]?.missing).toEqual([]);
     expect(s.h.reporter.notices.map((n) => n.code)).toEqual(['DOCS_CREATED']);
     const text = await s.h.fs.readText(ORIGIN);
     expect(text).toContain('| `fx-example-api` |');
     expect(isDerived(text ?? '')).toBe(false);
     const again = await s.regions.execute(write);
-    expect(again.files.map((f) => f.action)).toEqual(['unchanged', 'unchanged']);
+    expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
     expect(await s.regions.execute({ ...write, check: true })).toBeDefined();
   });
 
@@ -118,7 +114,7 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
         'team-skills',
       ],
     });
-    expect(out.files[1]?.action).toBe('unchanged');
+    expect(out.files).toHaveLength(1);
     const text = (await s.h.fs.readText(ORIGIN)) ?? '';
     expect(text.startsWith('# Mine\n\nRouting rules people wrote.\n\n')).toBe(true);
     expect(text).not.toContain('stale');
@@ -155,27 +151,41 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
 describe('DeriveDocs, in the workspace root', () => {
   const prose = `# Ours\n\nRouting rules people wrote.\n\n${begin('rules')}\nstale\n${end('rules')}\n`;
 
-  it('derives AGENTS.md from the source prose with fresh regions, and CLAUDE.md from the pointer', async () => {
+  it('derives AGENTS.md from the source prose with fresh regions, and nothing beside it', async () => {
     const s = await stage({ [ORIGIN]: prose });
     const out = await s.derive.execute(write);
-    expect(out.files.map((f) => [f.path, f.action])).toEqual([
-      [AGENTS, 'created'],
-      [CLAUDE, 'created'],
-    ]);
+    expect(out.files.map((f) => [f.path, f.action])).toEqual([[AGENTS, 'created']]);
     const agents = (await s.h.fs.readText(AGENTS)) ?? '';
     expect(isDerived(agents)).toBe(true);
     expect(agents.split('\n')[0]).toContain(ORIGIN);
     expect(agents).toContain('Routing rules people wrote.');
     expect(agents).not.toContain('fx:begin rules');
     expect(agents).not.toContain('stale');
-    expect(await s.h.fs.readText(CLAUDE)).toBe(derive(CLAUDE_POINTER, ORIGIN));
     expect(await s.h.fs.exists(ORIGIN)).toBe(true);
-    expect(s.h.fs.writes).toEqual([AGENTS, CLAUDE]);
+    expect(s.h.fs.writes).toEqual([AGENTS]);
     expect(out.files[0]?.added).toHaveLength(REGIONS.length);
     expect(await s.h.fs.readText(ORIGIN)).toBe(prose);
     const again = await s.derive.execute(write);
-    expect(again.files.map((f) => f.action)).toEqual(['unchanged', 'unchanged']);
+    expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
     expect(await s.derive.execute({ ...write, check: true })).toBeDefined();
+  });
+
+  it('removes the pointer an earlier version derived beside the guide', async () => {
+    const pointer = derive('# CLAUDE.md\n', ORIGIN);
+    const s = await stage({ [ORIGIN]: prose, [CLAUDE]: pointer });
+    await expect(s.derive.execute({ ...write, check: true })).rejects.toMatchObject({
+      code: 'DOCS_STALE',
+    });
+    await s.derive.execute({ ...write, dryRun: true });
+    expect(await s.h.fs.readText(CLAUDE)).toBe(pointer);
+    const out = await s.derive.execute(write);
+    expect(out.files.map((f) => [f.path, f.action, f.result])).toEqual([
+      [AGENTS, 'created', 'done'],
+      [CLAUDE, 'removed', 'done'],
+    ]);
+    expect(await s.h.fs.exists(CLAUDE)).toBe(false);
+    expect(s.h.reporter.codes().filter((code) => code === 'DOCS_POINTER_REMOVED')).toHaveLength(1);
+    expect((await s.derive.execute(write)).files.map((f) => f.path)).toEqual([AGENTS]);
   });
 
   it('backs up user documents only after approval, and never prompts during a preview', async () => {
@@ -205,7 +215,7 @@ describe('DeriveDocs, in the workspace root', () => {
   it('never replaces a file a person wrote, and does not call it stale', async () => {
     const s = await stage({ [ORIGIN]: prose, [AGENTS]: '# Mine\n', [CLAUDE]: 'keep' });
     const out = await s.derive.execute(write);
-    expect(out.files.map((f) => f.action)).toEqual(['foreign', 'foreign']);
+    expect(out.files.map((f) => [f.path, f.action])).toEqual([[AGENTS, 'foreign']]);
     expect(await s.h.fs.readText(AGENTS)).toBe('# Mine\n');
     expect(await s.h.fs.readText(CLAUDE)).toBe('keep');
     expect(s.h.reporter.codes()).toContain('DOCS_FOREIGN');

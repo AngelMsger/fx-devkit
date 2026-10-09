@@ -1,7 +1,7 @@
 // Inspect source, selection and authorized preparation plans without registering or materializing a workspace.
 import path from 'node:path';
 
-import { isDerived } from '../../domain/docs/derived.js';
+import { DERIVED_GUIDE, isDerived } from '../../domain/docs/derived.js';
 import { completeRegions, type RenderedRegions } from '../../domain/docs/regions.js';
 import { REGIONS } from '../../domain/docs/templates.js';
 import { DevkitError } from '../../domain/errors.js';
@@ -145,14 +145,11 @@ async function inspectGuides(
     guide ?? '',
     Object.fromEntries(REGIONS.map((name) => [name, ''])),
   );
-  const guideConflicts: string[] = [];
-  for (const name of ['AGENTS.md', 'CLAUDE.md']) {
-    const target = path.join(root, name);
-    const snapshot = await projections.read(documentPath(target));
-    if (snapshot.kind === 'foreign' || (snapshot.text !== null && !isDerived(snapshot.text)))
-      guideConflicts.push(target);
-  }
-  return { guidePlan, guideConflicts };
+  const target = path.join(root, DERIVED_GUIDE);
+  const snapshot = await projections.read(documentPath(target));
+  const foreign =
+    snapshot.kind === 'foreign' || (snapshot.text !== null && !isDerived(snapshot.text));
+  return { guidePlan, guideConflicts: foreign ? [target] : [] };
 }
 
 async function inspectedResources({

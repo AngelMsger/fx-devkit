@@ -59,7 +59,7 @@ describe('stray root entries', () => {
     const h = await root(
       {
         'AGENTS.md': 'guide',
-        'CLAUDE.md': 'pointer',
+        'CLAUDE.md': 'personal instructions',
         '.sentryclirc': '[defaults]',
         '.DS_Store': '',
         '.claude/settings.local.json': '{}',

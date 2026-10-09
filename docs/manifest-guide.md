@@ -18,7 +18,6 @@ team-workspace/
     members.yaml         # optional: people; requires sensitive: true
     harness.yaml         # optional: MCP resources and rules
   AGENTS.md              # optional: team guidance and managed regions
-  CLAUDE.md              # optional: host-specific entry guidance
   docs/                  # optional: team documentation
   skills/                # optional: team agent Skills
 ```

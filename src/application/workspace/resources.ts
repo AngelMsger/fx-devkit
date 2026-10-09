@@ -2,7 +2,7 @@
 
 import path from 'node:path';
 
-import { marker } from '../../domain/docs/derived.js';
+import { CLAUDE_GUIDE, DERIVED_GUIDE, marker } from '../../domain/docs/derived.js';
 import { DevkitError } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -194,7 +194,7 @@ export class WorkspaceResources {
       retarget?: string;
       blocked?: boolean;
     }[] = [];
-    for (const file of ['AGENTS.md', 'CLAUDE.md']) {
+    for (const file of [DERIVED_GUIDE, CLAUDE_GUIDE]) {
       const at = path.join(input.root, file);
       const before = await this.harness.files.read({ root: input.root, relative: file });
       if (before.kind === 'absent') continue;

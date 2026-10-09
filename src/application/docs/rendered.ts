@@ -31,7 +31,7 @@ export interface RenderInput {
 
 export interface RenderedFile {
   readonly path: string;
-  readonly action: 'created' | 'updated' | 'unchanged' | 'foreign';
+  readonly action: 'created' | 'updated' | 'removed' | 'unchanged' | 'foreign';
   readonly result: 'planned' | 'done' | 'skipped' | 'failed' | 'not_started';
   readonly failure?: ErrorEnvelope['error'];
   readonly replaced: readonly string[];
@@ -44,11 +44,14 @@ export interface RenderOutput {
   readonly files: readonly RenderedFile[];
 }
 
+// A null text removes the file.
 export interface Pending {
   readonly file: RenderedFile;
-  readonly text: string;
+  readonly text: string | null;
   readonly before: ProjectionSnapshot;
 }
+
+const CHANGES: ReadonlySet<RenderedFile['action']> = new Set(['created', 'updated', 'removed']);
 
 export function actionFor(current: string | undefined, next: string): RenderedFile['action'] {
   if (current === undefined) return 'created';
@@ -58,7 +61,7 @@ export function actionFor(current: string | undefined, next: string): RenderedFi
 export function pending(
   path: string,
   action: RenderedFile['action'],
-  text: string,
+  text: string | null,
   before: ProjectionSnapshot,
   regions?: RenderedRegions,
 ): Pending {
@@ -68,7 +71,7 @@ export function pending(
     file: {
       path,
       action,
-      result: action === 'created' || action === 'updated' ? 'planned' : 'skipped',
+      result: CHANGES.has(action) ? 'planned' : 'skipped',
       replaced: regions?.replaced ?? [],
       missing: regions?.missing ?? [],
       added: regions?.added ?? [],
@@ -98,7 +101,7 @@ export async function finish(
   files: readonly Pending[],
 ): Promise<RenderOutput> {
   const output = { files: files.map((f) => f.file) };
-  const stale = files.filter((f) => f.file.action === 'created' || f.file.action === 'updated');
+  const stale = files.filter((f) => CHANGES.has(f.file.action));
   if (input.check) {
     if (stale.length === 0) return output;
     throw new DevkitError(

@@ -121,7 +121,7 @@ async function checkDocs(
         required: true,
         fix: `Move the file aside, then ${workspaceCommand(deps, 'sync', '--only', 'docs')}`,
       });
-    return finding('manifest', 'docs', 'ok', 'the root AGENTS.md and CLAUDE.md match the manifest');
+    return finding('manifest', 'docs', 'ok', 'the root AGENTS.md matches the manifest');
   } catch (err) {
     if (err instanceof DevkitError && err.code === 'DOCS_REGIONS_INVALID')
       return finding('manifest', 'docs', 'fail', err.message, {

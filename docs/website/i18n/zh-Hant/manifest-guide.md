@@ -15,14 +15,13 @@ team-workspace/
     members.yaml
     harness.yaml
   AGENTS.md
-  CLAUDE.md
   docs/
   skills/
 ```
 
 只有 `manifest/workspace.yaml` 必填，儲存儲存庫與工作區 provider。environments 儲存環境和平台座標，tools 覆寫內建工具定義，members 儲存成員資訊且必須標記 `sensitive: true`，harness 宣告 MCP 和規則；這些檔案皆為選用。
 
-AGENTS.md、CLAUDE.md、docs/ 和 skills/ 可以補充團隊規則與文件。未提供環境、成員或 harness 文件時，對應能力保持未設定。憑證屬於工具，不應寫入這些檔案。
+AGENTS.md、docs/ 和 skills/ 可以補充團隊規則與文件。未提供環境、成員或 harness 文件時，對應能力保持未設定。憑證屬於工具，不應寫入這些檔案。
 
 fx 不假定任何工具。它內建的 CLI 只是一份目錄，記錄它知道如何驅動哪些工具；工作區的工具鏈由它繫結的 provider 推導而來：把 `ci` 繫結到 `jenkins-cli`，Jenkins 配套工具就進入工具鏈，版本下限、安裝方式與命令仍由 fx 維護。因此多數團隊不需要 tools.yaml。
 

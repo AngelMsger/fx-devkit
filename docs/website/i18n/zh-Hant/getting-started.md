@@ -149,6 +149,8 @@ sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改
 
 不屬於任何儲存庫的產出放在工作區根目錄的 `.workbench/` 下：每個任務一個帶日期的目錄，存放報告、計畫與證據；`worktrees/` 放 `git worktree add` 的目標；`tmp/` 放隨時可以捨棄的內容。派生指南向 Agent 說明相同的規則。fx 不會寫入該目錄。
 
+根目錄的 `AGENTS.md` 是 fx 派生的唯一一份指南，各 Agent 會自行讀取。Claude Code 從 2.1.277 起也是如此，前提是工作區根目錄及其上層目錄中沒有 `CLAUDE.md` 或 `CLAUDE.local.md`。一旦存在，Claude Code 會改讀該檔案而不讀指南，因此請在其開頭寫上 `@AGENTS.md`。
+
 workspace、environments、tools 和 members 文件儲存共用資訊；選用的 harness 文件描述 MCP 和規則。使用以下命令查看欄位：
 
 ```sh
