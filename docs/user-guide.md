@@ -315,7 +315,9 @@ Preview service changes with `fx sync --only services --dry-run`.
 
 Configuration and authentication are separate. Each member obtains and stores
 credentials through the companion CLI. Existing conflicting settings are preserved
-and reported for review; sync never signs in or activates another context. Sentry
+and reported for review; sync never signs in or activates another context. It does
+associate a login you already have for the same service with the workspace's
+context, on every run, so there is nothing to remember after you sign in elsewhere. Sentry
 uses public workspace `.sentryclirc` defaults and preserves foreign files.
 
 In sync results, inspect `stages.services` and `stage_details.services.items`

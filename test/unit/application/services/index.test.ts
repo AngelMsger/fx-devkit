@@ -258,9 +258,9 @@ describe('native preparation', () => {
     const blocked = await operation.execute(plan.steps[0]!, false);
     expect(blocked.detail).toContain('outdated');
     expect(blocked.actions?.[0]?.argv).toContain('update');
-    for (const apply of [false, true]) {
+    for (const initializing of [false, true]) {
       const preparation = await prepareWorkspaceSetup(h.deps, login, {
-        apply,
+        initializing,
         dryRun: false,
         posture: { readOnly: false, source: 'default' },
       });
@@ -309,11 +309,36 @@ describe('native preparation', () => {
         applied.push([...vector]);
         created = true;
       }
-      return { code: 0, stdout: JSON.stringify({ changed: !created }), stderr: '' };
+      // A companion proposes a scheme only for a context that has none yet.
+      const changes = { server: { before: '', after: 'x' }, 'auth.scheme': { before: '' } };
+      return { code: 0, stdout: JSON.stringify({ changed: !created, changes }), stderr: '' };
     });
     expect((await operation.execute(plan.steps[0]!, false)).status).toBe('configured');
     expect(applied).toHaveLength(1);
     expect(applied[0]).toEqual(expect.arrayContaining(['--auth-scheme', 'pat']));
+  });
+
+  it('fills a missing service field without touching how an existing context signs in', async () => {
+    const { h, operation, plan } = await fixture();
+    let filled = false;
+    const calls: string[][] = [];
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      calls.push([...vector]);
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      // The context signs in another way: naming the declared scheme would conflict.
+      if (vector.includes('--auth-scheme')) return { code: 11, stdout: '', stderr: '{}' };
+      if (!vector.includes('--dry-run')) filled = true;
+      const changes = { flavor: { before: '', after: 'datacenter' } };
+      return { code: 0, stdout: JSON.stringify({ changed: !filled, changes }), stderr: '' };
+    });
+    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+      status: 'configured',
+      changes: { flavor: { before: '', after: 'datacenter' } },
+    });
+    expect(calls.some((vector) => vector.includes('--auth-scheme'))).toBe(false);
+    expect(
+      calls.filter((vector) => vector.includes('set-context') && !vector.includes('--dry-run')),
+    ).toHaveLength(1);
   });
 
   it('does not modify settings under read-only posture', async () => {
@@ -552,6 +577,64 @@ envs:
       'prometheus-cli.credential@test',
     ]);
     expect(plan.steps[2]?.run).toEqual([...scope, 'auth', 'login']);
+  });
+});
+
+describe('existing login reuse on every sync', () => {
+  it('associates a login the person already has and never signs in for them', async () => {
+    const { h, login } = await fixture();
+    let associated = false;
+    const run = vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      if (vector.includes('set-context'))
+        return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('reuse')) {
+        const changed = !associated;
+        if (!vector.includes('--dry-run')) associated = true;
+        return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+      }
+      if (vector.includes('status'))
+        return { code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' };
+      throw new Error('A sync must never invoke personal login');
+    });
+    const stage = await prepareWorkspaceSetup(h.deps, login, {
+      initializing: false,
+      dryRun: false,
+      posture: login.trust.posture,
+    });
+    expect(stage.checks.map((check) => [check.resource, check.state])).toEqual([
+      ['bitbucket-cli.service', 'ready'],
+      ['bitbucket-cli.reuse', 'ready'],
+      ['bitbucket-cli.credential', 'ready'],
+    ]);
+    expect(
+      run.mock.calls.filter(
+        ([vector]) => vector.includes('reuse') && !vector.includes('--dry-run'),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('hands sign-in to the person and an unfinished preparation to doctor, not to init', async () => {
+    const { h, login } = await fixture();
+    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
+      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+      if (vector.includes('set-context'))
+        return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('reuse')) return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('status')) return { code: 0, stdout: '{"configured":false}', stderr: '' };
+      throw new Error('A sync must never invoke personal login');
+    });
+    const stage = await prepareWorkspaceSetup(h.deps, login, {
+      initializing: false,
+      dryRun: false,
+      posture: login.trust.posture,
+    });
+    const credential = stage.checks.find((check) => check.resource === 'bitbucket-cli.credential');
+    expect(credential).toMatchObject({ state: 'blocked', owner: 'user' });
+    expect(credential?.actions?.[0]).toMatchObject({
+      actor: 'user',
+      argv: ['fx', 'login', 'bitbucket-cli', '--workspace', 'fx'],
+    });
   });
 });
 

@@ -186,7 +186,7 @@ init/sync も同じ関連ツールを対象とします。任意ツールの不�
 
 manifest の `service` は URL、context、組織、認証方式などの公開接続設定を宣言します。`init`、明示的な `sync`、`login` が対応 CLI 自身のコマンドで準備し、バックグラウンド hook は確認だけを行います。宣言した認証方式は、fx が context を新しく作るときの既定値にすぎません。自分の context が宣言されたサービスにすでに到達できるなら、どの方式でサインインしていても準備完了として扱われます。`fx sync --only services --dry-run` でプレビューします。
 
-設定と認証は別です。各メンバーが対応 CLI で自分の認証情報を取得・保存します。競合する既存設定は保持して報告し、sync は個人のログインを行いません。Sentry はワークスペースの `.sentryclirc` に公開デフォルトのみを書き、外部所有のファイルは保持します。
+設定と認証は別です。各メンバーが対応 CLI で自分の認証情報を取得・保存します。競合する既存設定は保持して報告し、sync は個人のログインを行いません。ただし実行のたびに、同じサービスに対する既存のログインをワークスペースの context に関連付けるため、別の場所でサインインした後に覚えておくことはありません。Sentry はワークスペースの `.sentryclirc` に公開デフォルトのみを書き、外部所有のファイルは保持します。
 
 sync の `stages.services` と `stage_details.services.items` が結果を示します。init はこれらを `sync` 配下に返します。要約にはブロック・失敗項目が残り、`--details` では成功項目も確認できます。[サービス設定](manifest-guide.md#public-service-presets)と[復旧リファレンス](../skills/fx-workspace/references/commands.md#service-preparation)を参照してください。
 

@@ -283,7 +283,9 @@ when needed, then verifies again. A declaration says where a service is and prop
 how to sign in. Preparation, checks, sign-in and live query guards hold a context to
 the location alone: URL, flavor and organization. The declared authentication method
 shapes a context fx creates and the sign-in it offers, so a context that already
-serves the declared service is ready with whatever method its owner signed in. No automatic overwrite or activation is issued.
+serves the declared service is ready with whatever method its owner signed in. An
+existing context that lacks a declared location field gains that field alone: the
+method is named only when the companion would otherwise give the context one. No automatic overwrite or activation is issued.
 The family may activate its first context according to its own contract.
 
 The services stage precedes repository/provider work on explicit sync and init.
@@ -310,7 +312,10 @@ and does not confer permission to overwrite.
 ## Existing-login reuse
 
 Family service preparation retains the manifest's canonical context name. After
-public setup, a separate `phase: prepare` recipe invokes native `auth reuse`. Its
+public setup, a separate `phase: prepare` recipe invokes native `auth reuse`. Init
+and every explicit sync apply prepare-phase steps, so a login that became usable
+after initialization is associated by the next sync without a person or an agent
+asking for it; background hooks and doctor without `--fix` only check. Its
 preview performs read-only matching/verification; `changed: true` authorizes a
 planned association, and a subsequent unchanged preview verifies completion.
 An unavailable candidate is a no-change result, not proof of authentication.

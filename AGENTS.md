@@ -115,8 +115,9 @@ not provider-specific application branches.
   workspace registration availability is not preparation readiness. Release retains
   its independent `ok`/`complete` checklist and exit-zero report contract.
 - Tools schema 3 run steps declare `phase: prepare` or `phase: authenticate`.
-  Init and doctor --fix execute only authorized local prepare steps, verify before
-  and after, and leave personal authentication/manual files to the person.
+  Init, every explicit sync and doctor --fix execute only authorized local prepare
+  steps, verify before and after, and leave personal authentication/manual files to
+  the person. Background hooks only check them.
   Init --resume uses the managed source and current selection, never reimports it.
 
 The [runtime contract](docs/design/runtime.md) owns output, deadlines and trust
@@ -361,6 +362,7 @@ Check the final diff and preserve unrelated work. Push only to the verified
 
 Keep team context names and public service setup separate from native identity
 association. Family adapters run the companion's verified `auth reuse` preparation
-before credential readiness. An unavailable reuse result is not authentication
+before credential readiness, in init and in every explicit sync, so that nobody has
+to know to ask for it. An unavailable reuse result is not authentication
 proof; a failed reuse blocks dependent sign-in. Never read/copy native secrets or
 add a parallel identity store in fx. Keep native error recovery in setup reports.
