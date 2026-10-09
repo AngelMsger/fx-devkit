@@ -403,7 +403,7 @@ envs:
         '--format',
         'json',
       ],
-      json: { path: 'authenticated', equals: true },
+      json: { path: 'authenticated', equals: true, reason: 'error' },
     });
   });
 

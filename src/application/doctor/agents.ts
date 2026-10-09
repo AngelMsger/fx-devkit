@@ -1,6 +1,7 @@
 // Check required Skill projections for enabled agents. Installation evidence does
 // not establish that the host has activated a Skill.
 
+import { repairAction } from '../preparation.js';
 import { SkillList } from '../skill/list.js';
 import type { SkillDeps } from '../skill/targets.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -23,7 +24,14 @@ export async function checkAgents(deps: WorkspaceDeps, skills: SkillDeps): Promi
             fix,
           }),
         );
-      else findings.push(finding('agents', id, 'warn', state, { fix, required: true }));
+      else
+        findings.push(
+          finding('agents', id, 'warn', state, {
+            fix,
+            required: true,
+            actions: [repairAction(deps)],
+          }),
+        );
     }
   }
   if (findings.length === 0)

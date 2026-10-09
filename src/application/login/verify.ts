@@ -5,7 +5,7 @@
 import path from 'node:path';
 
 import type { PreparationAction } from '../../domain/preparation.js';
-import { matchesJson } from '../../domain/setup/json-check.js';
+import { matchesJson, statedReason } from '../../domain/setup/json-check.js';
 import type { SetupCheck, SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
@@ -98,7 +98,8 @@ function commandVerdict(
 ): Verdict {
   const unmet =
     verify.json !== undefined && !matchesJson(result.stdout, verify.json)
-      ? `expected ${verify.json.path} to be ${String(verify.json.equals)}`
+      ? (statedReason(result.stdout, verify.json) ??
+        `expected ${verify.json.path} to be ${String(verify.json.equals)}`)
       : undefined;
   if (result.code === 0)
     return unmet === undefined

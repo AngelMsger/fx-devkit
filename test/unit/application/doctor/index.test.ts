@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
@@ -457,6 +457,41 @@ describe('Doctor', () => {
       level: 'fail',
       message: expect.stringContaining('acknowledged on 2026-08-01 but the check fails'),
     });
+  });
+
+  it('asks nobody to sign in for a check that could not finish', async () => {
+    const s = await stage({ healthy: true });
+    const run = s.h.process.run.bind(s.h.process);
+    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
+      if (vector[0] === 'bitbucket-cli' && vector[1] === 'auth')
+        throw new DevkitError(
+          'internal',
+          'PROCESS_TIMEOUT',
+          'bitbucket-cli did not finish within 30000ms',
+          { nextSteps: ['Retry.'] },
+        );
+      return run(vector, options);
+    });
+    const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
+    expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')).toMatchObject({
+      coverage: 'incomplete',
+      fix: 'fx doctor --tool bitbucket-cli --workspace fx',
+    });
+    expect(
+      report.preparation.blockers.find((c) => c.id === 'login:bitbucket-cli.login'),
+    ).toMatchObject({ state: 'unknown', actions: [] });
+  });
+
+  it('offers its own repair for a Skill copy it can bring up to date', async () => {
+    const report = await (await stage()).doctor.execute(check);
+    const repair = expect.objectContaining({
+      actor: 'agent',
+      argv: ['fx', 'doctor', '--fix', '--workspace', 'fx'],
+    });
+    expect(
+      report.preparation.blockers.find((c) => c.id === 'agents:claude-code:fx-workspace')?.actions,
+    ).toEqual([repair]);
+    expect(report.preparation.next_actions).toContainEqual(repair);
   });
 
   it('is all green on a healthy machine', async () => {
