@@ -37,20 +37,22 @@ async function fixture(
   options: {
     environments?: string;
     tools?: readonly string[];
+    patch?: string;
     readOnly?: boolean;
     yes?: boolean;
   } = {},
 ) {
+  const tools =
+    options.patch ??
+    (options.environments && options.tools ? vendorTools(options.tools) : undefined);
   const h = await harness({
     workspace,
-    files: options.environments
-      ? {
-          [`${MANIFEST_DIR}/manifest/environments.yaml`]: options.environments,
-          ...(options.tools === undefined
-            ? {}
-            : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: vendorTools(options.tools) }),
-        }
-      : {},
+    files: {
+      ...(options.environments
+        ? { [`${MANIFEST_DIR}/manifest/environments.yaml`]: options.environments }
+        : {}),
+      ...(tools === undefined ? {} : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: tools }),
+    },
   });
   const trust = new FakeTrustStore();
   const clock = new FakeClock();
@@ -185,12 +187,28 @@ describe('native preparation', () => {
       after: 'https://git.example.com/deploy',
     });
   });
-  it('does not execute or trust unapproved commands in a dry run', async () => {
-    const { h, operation, plan, trust } = await fixture();
+  it('checks a bundled companion against declared settings without asking for trust', async () => {
+    const { h, login, plan, trust } = await fixture({ yes: false });
+    h.process.on(['bitbucket-cli', '--use-context'], { code: 0, stdout: '{}', stderr: '' });
+    h.process.on(['bitbucket-cli', 'config'], {
+      code: 0,
+      stdout: JSON.stringify({ changed: false }),
+      stderr: '',
+    });
+    for (const step of plan.steps) await new Verifier(h.deps, login).verify(step);
+    expect(h.process.calls.some((call) => call.vector.includes('reuse'))).toBe(true);
+    expect(trust.entries).toHaveLength(0);
+  });
+
+  it('runs nothing from an executable the team patch substituted until it is trusted', async () => {
+    const { h, operation, plan, trust } = await fixture({
+      patch: 'schema_version: 3\ntools:\n  - {name: bitbucket-cli, binary: team-wrapper}\n',
+    });
+    h.process.binaries.add('team-wrapper');
     const result = await operation.execute(plan.steps[0]!, true);
     expect(result.status).toBe('blocked');
     expect(trust.entries).toHaveLength(0);
-    expect(h.process.calls.every((call) => call.vector.includes('--version'))).toBe(true);
+    expect(h.process.calls.filter((call) => call.vector[0] === 'team-wrapper')).toEqual([]);
   });
 
   it('prepares and verifies only public settings, without activating, overwriting or logging in', async () => {
@@ -257,8 +275,20 @@ describe('native preparation', () => {
 
   it('does not modify settings under read-only posture', async () => {
     const { h, operation, plan } = await fixture({ readOnly: true });
-    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('blocked');
-    expect(h.process.calls.every((call) => call.vector.includes('--version'))).toBe(true);
+    h.process.on(['bitbucket-cli', 'config'], {
+      code: 0,
+      stdout: JSON.stringify({ changed: true }),
+      stderr: '',
+    });
+    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+      status: 'blocked',
+      failure: { code: 'READONLY_BLOCKED' },
+    });
+    expect(
+      h.process.calls.every(
+        (call) => call.vector.includes('--version') || call.vector.includes('--dry-run'),
+      ),
+    ).toBe(true);
   });
 
   it('keeps personal authentication blocked when service preparation conflicts', async () => {

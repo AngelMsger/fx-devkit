@@ -264,8 +264,10 @@ that matches nothing still succeeds, so metrics offer no existence probe and
 ### Companion tools and trust
 
 `tool list/show` explains requirements; `tool install/update` uses available
-installers; `login` guides setup. Companions own authentication. Manifest-supplied
-execution vectors require trust, and a changed vector requires new trust.
+installers; `login` guides setup. Companions own authentication, including which
+service a stored credential may reach. Commands fx defines for bundled tools run
+without confirmation; command vectors your team's `tools.yaml` adds or overrides
+require trust once, and a changed vector requires new trust.
 Acknowledging a manual step never substitutes for a successful verification.
 
 Tool definitions combine the bundled catalog with the selected workspace's
@@ -301,7 +303,7 @@ The bundled Sentry tool can be installed with npm (`sentry`), including during i
 
 A manifest can declare public `service` settings such as URLs, contexts,
 organizations and authentication methods. `init`, explicit `sync` and `login`
-prepare them through trusted companion commands; background hooks only check.
+prepare them through the companions' own commands; background hooks only check.
 Preview service changes with `fx sync --only services --dry-run`.
 
 Configuration and authentication are separate. Each member obtains and stores

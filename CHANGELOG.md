@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Run the commands fx defines for bundled tools without asking for trust,
+  including the service preparation, login reuse and credential checks that a
+  manifest `service` declaration fills in. Only command vectors the team's
+  `tools.yaml` patch authors still require confirmation; a companion decides where
+  its stored credentials may be sent.
+- Rework the human view of an incomplete `init`, `sync` or `doctor`: each blocker
+  appears under its check id, sign-in commands are joined per tool across
+  environments, commands are spelled `fx` when PATH resolves it, and a terminal no
+  longer receives the `PREPARATION_INCOMPLETE` envelope after the view. JSON output
+  is unchanged.
+- Report companion Skill installation progress once per tool instead of once per
+  agent directory.
+- Approve a team-authored companion Skill command once. The agent name or
+  directory fx appends no longer makes each target a separate vector to confirm,
+  and existing approvals stay valid.
+- Say why a companion check failed in the tool's own words: read the message of an
+  error object it printed, set log records and warnings aside, keep the line that
+  follows where it failed, and state the expected value of a JSON check, as in
+  `expected authenticated to be true`.
+
 ## 0.7.1 (2026-10-09)
 
 ### Added

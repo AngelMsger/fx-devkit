@@ -61,8 +61,8 @@ Inspect `ready`/`status`, coordinates and handoffs, then use the companion's Ski
 A printed command is not permission for a write. fx's diagnostic provider queries
 are read-only; source contributions use a separate explicit write workflow.
 
-- Manifest vectors need exact-command trust. Existing approval for that vector
-  counts; broad setup intent does not. `--yes` also approves vectors, so never
+- Vectors the team's `tools.yaml` patch authors need exact-command trust; fx's own
+  commands for bundled tools do not. Existing approval for that vector counts; broad setup intent does not. `--yes` also approves vectors, so never
   use it to bypass an unresolved `VECTOR_UNTRUSTED` decision.
 - Every write supports `--dry-run`; preview unfamiliar effects. Respect
   `READONLY_BLOCKED` and do not add `--allow-writes` without authorization.

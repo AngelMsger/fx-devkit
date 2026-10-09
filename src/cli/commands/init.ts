@@ -78,6 +78,6 @@ export default class InitCommand extends FxCommand {
       ...writeIntent(flags, this.posture),
       jobs: flags.jobs,
     });
-    this.renderPreparation(result);
+    await this.renderPreparation(result);
   }
 }

@@ -171,54 +171,72 @@ export abstract class FxCommand extends Command {
     else this.renderer.record(report);
   }
 
-  protected renderPreparation<T extends { readonly preparation: Preparation }>(
+  protected async renderPreparation<T extends { readonly preparation: Preparation }>(
     value: T,
     exitIncomplete = true,
-  ): void {
-    const bind = (action: PreparationAction): PreparationAction => this.bindRecoveryAction(action);
-    const bindCheck = (check: PreparationCheck): PreparationCheck => ({
-      ...check,
-      ...(check.actions ? { actions: check.actions.map(bind) } : {}),
-    });
-    const preparation: Preparation = {
-      ...value.preparation,
-      next_actions: value.preparation.next_actions.map(bind),
-      resume: value.preparation.resume ? bind(value.preparation.resume) : null,
-      blockers: value.preparation.blockers.map(bindCheck),
-      warnings: value.preparation.warnings.map(bindCheck),
-      unchecked: value.preparation.unchecked.map(bindCheck),
-    };
-    const result = { ...value, preparation };
-    if (this.format === 'human' && !this.renderOptions.fields) {
+  ): Promise<void> {
+    const bound = this.bindPreparation(value.preparation, fxExecutable());
+    const result = { ...value, preparation: bound };
+    const viewed = this.format === 'human' && !this.renderOptions.fields;
+    if (viewed) {
+      // A person types `fx`; the exact executable matters only where PATH cannot reach it.
+      const spoken = (await this.container.process.which('fx'))
+        ? this.bindPreparation(value.preparation, ['fx'])
+        : bound;
       this.renderer.text(
-        preparationText(result, this.commandShell, process.env.FX_HOME !== undefined),
+        preparationText(
+          { ...value, preparation: spoken },
+          this.commandShell,
+          process.env.FX_HOME !== undefined,
+        ),
       );
       if (this.renderOptions.details || this.renderOptions.verbose) this.renderer.record(result);
     } else this.renderer.record(result);
-    if (preparation.state === 'incomplete' && exitIncomplete) {
+    if (bound.state === 'incomplete' && exitIncomplete) {
       const error = new DevkitError(
         'incomplete',
         'PREPARATION_INCOMPLETE',
         'Required workspace preparation is unfinished',
         {
           nextSteps: [
-            preparation.next.message,
+            bound.next.message,
             'Use preparation.next_actions for Agent work; preparation.resume continues after the blockers change.',
           ],
         },
       );
-      this.renderer.error(error);
+      // The view above already told a person at a terminal; everything else reads the envelope.
+      if (!(viewed && process.stderr.isTTY)) this.renderer.error(error);
       invocation.trace?.failed(error);
       this.exit(exitCodeFor('incomplete'));
     }
   }
 
-  private bindRecoveryAction(action: PreparationAction): PreparationAction {
+  private bindPreparation(preparation: Preparation, executable: readonly string[]): Preparation {
+    const bind = (action: PreparationAction): PreparationAction =>
+      this.bindRecoveryAction(action, executable);
+    const bindCheck = (check: PreparationCheck): PreparationCheck => ({
+      ...check,
+      ...(check.actions ? { actions: check.actions.map(bind) } : {}),
+    });
+    return {
+      ...preparation,
+      next_actions: preparation.next_actions.map(bind),
+      resume: preparation.resume ? bind(preparation.resume) : null,
+      blockers: preparation.blockers.map(bindCheck),
+      warnings: preparation.warnings.map(bindCheck),
+      unchecked: preparation.unchecked.map(bindCheck),
+    };
+  }
+
+  private bindRecoveryAction(
+    action: PreparationAction,
+    executable: readonly string[],
+  ): PreparationAction {
     if (action.argv[0] !== 'fx') return action;
     return {
       ...action,
       argv: [
-        ...fxExecutable(),
+        ...executable,
         ...action.argv.slice(1),
         ...(this.format === 'human' ? [] : ['--format', this.format]),
       ],
@@ -416,7 +434,7 @@ export abstract class FxCommand extends Command {
       });
     if (failure.partialResult !== undefined) {
       if ('preparation' in failure.partialResult)
-        this.renderPreparation(failure.partialResult as { preparation: Preparation }, false);
+        await this.renderPreparation(failure.partialResult as { preparation: Preparation }, false);
       else this.renderer.record(failure.partialResult);
     }
     this.renderer.error(failure);

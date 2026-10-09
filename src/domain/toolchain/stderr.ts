@@ -1,16 +1,43 @@
 // What a failing tool's stderr means. A family tool writes its `_notice`/`_progress`
 // lines first and its error envelope last, each a JSON object that may be pretty-
-// printed; any other tool is read by its first plain line.
+// printed. Any other tool is read by its own words: the message of the error object
+// it printed, or where it failed and why, its first two lines of text once log
+// records and warnings are set aside.
+
+const REASON_LIMIT = 240;
+const MESSAGE_KEYS = ['message', 'errmsg', 'error'];
+// A log record opens with a timestamp or a logfmt field.
+const ASIDE =
+  /^(?:[IWEF]\d{4} \d{2}:\d{2}|\[?\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|(?:time|ts|level)=|warn(?:ing)?\b)/i;
 
 export function stderrReason(stderr: string, code: number): string {
   const { objects, text } = splitJsonObjects(stderr);
   const message = errorEnvelopeOf(objects)?.['message'];
   if (typeof message === 'string') return message;
-  const plain = text
+  return shorten(statedMessage(objects) ?? textReason(text) ?? `exit ${code}`);
+}
+
+// A wrapper around a remote API may print that service's error object as it is.
+function statedMessage(objects: readonly Record<string, unknown>[]): string | undefined {
+  for (const object of [...objects].reverse())
+    for (const key of MESSAGE_KEYS) {
+      const value = object[key];
+      if (typeof value === 'string' && value !== '') return value;
+    }
+  return undefined;
+}
+
+function textReason(text: string): string | undefined {
+  const lines = text
     .split('\n')
     .map((line) => line.trim())
-    .find((line) => line !== '');
-  return plain ?? `exit ${code}`;
+    .filter((line) => line !== '');
+  const stated = lines.filter((line) => !ASIDE.test(line));
+  return stated.length > 0 ? stated.slice(0, 2).join(' ') : lines.at(-1);
+}
+
+function shorten(reason: string): string {
+  return reason.length > REASON_LIMIT ? `${reason.slice(0, REASON_LIMIT - 1).trimEnd()}…` : reason;
 }
 
 export function errorEnvelope(stderr: string): Record<string, unknown> | undefined {

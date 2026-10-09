@@ -32,7 +32,7 @@ export async function prepareCommand(
     workspace: deps.ctx.name,
     commandShell: deps.commandShell,
     vector: preview,
-    origin: 'patch' as const,
+    origin: step.origin,
     label: `${step.id} preview`,
   };
   if (dryRun && !(await login.trust.gate.isTrusted(trust)))

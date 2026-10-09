@@ -36,7 +36,9 @@ export class SkillStage {
     const plannedTools: ToolSkillItem[] = (await planTools(this.deps, this.skills, input)).map(
       (item) => ({ ...item, status }),
     );
-    let tools = input.background ? await trustedTools(plannedTools, input.trust) : plannedTools;
+    let tools = input.background
+      ? await trustedTools(plannedTools, input.toolchain, input.trust)
+      : plannedTools;
     try {
       const writes =
         links.some((i) => i.action === 'create' || i.action === 'prune') ||
@@ -44,7 +46,7 @@ export class SkillStage {
         tools.some((t) => t.vector !== null);
       if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
       if (!input.dryRun) {
-        if (!input.background) tools = await trustAll(tools, input.trust);
+        if (!input.background) tools = await trustAll(tools, input.toolchain, input.trust);
         await replaceConflicts(this.deps, input, links);
         await applyLinks(this.deps, links);
         await applyCopies(this.deps, this.skills, fx, input);

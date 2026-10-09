@@ -116,7 +116,7 @@ export class ServiceOperation {
       workspace: this.deps.ctx.name,
       commandShell: this.deps.commandShell,
       vector: ['fx', 'sync', '--only', 'services'],
-      origin: 'patch',
+      origin: step.origin,
       label: step.id,
       execution: {
         purpose: 'public service defaults',

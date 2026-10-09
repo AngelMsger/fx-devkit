@@ -168,7 +168,7 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 `metrics` 由 `prometheus-cli` 提供。它的坐标是服务的抓取 job：`where` 输出一条 `up{job="..."}` 查询，返回该服务各抓取目标的标签集合，可作为编写后续选择器的起点。选择器匹配不到任何序列时查询仍然成功，因此指标不提供存在性探测，`where --probe` 对它报告 `unknown`，不作猜测。
 
-`tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责。manifest 提供的执行向量需要信任；向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
+`tool list/show` 展示工具要求，`tool install/update` 使用声明的安装器，`login` 引导设置。认证由各工具负责，包括已保存的凭据可以发往哪个服务。fx 为内置工具定义的命令无需确认即可运行；团队 `tools.yaml` 新增或覆盖的命令向量需要信任一次，向量改变后需要重新确认。口头确认手动步骤不能替代验证成功。
 
 工具定义由内置目录与所选工作区的 `tools.yaml` 合并；工作区的工具链则是其中它真正使用的部分：被绑定 provider 驱动的工具，加上 tools.yaml 声明的工具。`fx tool list` 说明每个工具因何在此，`--catalog` 会再列出 fx 知道但没有被选用的工具。工作区优先级为 `--workspace`、`FX_WORKSPACE`、当前目录所属的已注册工作区、`default_workspace`；无法确定工作区时没有绑定可推导，因此列出内置目录。包管理器决定安装位置，工具由多个工作区共享。
 
@@ -182,7 +182,7 @@ init/sync 使用相同的相关工具范围。缺少可选工具仍会显示，�
 
 ### 共享服务设置与个人凭证 {#shared-service-settings-and-personal-credentials}
 
-manifest 可声明 URL、context、组织和认证方式等公共 `service` 设置。`init`、显式 `sync` 和 `login` 通过受信任的配套命令准备这些设置；后台 hook 只检查。使用 `fx sync --only services --dry-run` 预览。
+manifest 可声明 URL、context、组织和认证方式等公共 `service` 设置。`init`、显式 `sync` 和 `login` 通过配套工具自身的命令准备这些设置；后台 hook 只检查。使用 `fx sync --only services --dry-run` 预览。
 
 配置和认证分开进行。每位成员通过配套 CLI 获取并保存自己的凭证。已有冲突设置保留并报告；sync 不执行个人登录。Sentry 仅写入工作区 `.sentryclirc` 的公共默认值，保留外来文件。
 

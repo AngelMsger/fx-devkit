@@ -349,7 +349,8 @@ changing existing settings. Session-backed OpenObserve contexts require a new
 context to change their URL/scheme; login uses `auth login --browser`.
 Sentry accepts public workspace URL/org defaults and names the instance with
 `--url`; it never copies existing credentials into shared configuration.
-Changed setup vectors require new exact-command trust.
+These bundled service commands need no trust approval. Vectors the team's
+`tools.yaml` patch authors do, and a changed one requires new exact-command trust.
 
 ## Readiness and recovery
 

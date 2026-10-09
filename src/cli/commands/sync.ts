@@ -38,6 +38,6 @@ export default class SyncCommand extends FxCommand {
       only,
       stages: this.stages(deps, run.dryRun),
     });
-    this.renderPreparation(out);
+    await this.renderPreparation(out);
   }
 }
