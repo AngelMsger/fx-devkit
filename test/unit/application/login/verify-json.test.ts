@@ -46,3 +46,26 @@ it('names the unmet expectation when a tool fails without saying why on stderr',
   });
   expect(result).toEqual({ ok: false, detail: 'expected errcode to be 0' });
 });
+
+it('quotes the reason a recipe declares, and nothing else from the response', async () => {
+  const h = await harness();
+  h.process.on(['check'], {
+    code: 0,
+    stdout: '{"authenticated":false,"error":"service returned HTTP 401","secret":"private-value"}',
+    stderr: '',
+  });
+  const result = await new Verifier(h.deps, fakeLoginDeps({})).verify({
+    id: 'tool.auth',
+    tool: 'check',
+    kind: 'manual',
+    title: 'Authenticate',
+    verify: {
+      command: ['check'],
+      json: { path: 'authenticated', equals: true, reason: 'error' },
+    },
+    requires: [],
+    origin: 'base',
+    required: false,
+  });
+  expect(result).toEqual({ ok: false, detail: 'service returned HTTP 401' });
+});

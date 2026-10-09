@@ -41,7 +41,7 @@ export function familyService(
         run: [...scope, 'auth', 'login', ...browser],
         verify: {
           command: [...scope, 'auth', 'status', '--format', 'json'],
-          json: { path: statusField, equals: true },
+          json: { path: statusField, equals: true, reason: 'error' },
         },
       },
     ],

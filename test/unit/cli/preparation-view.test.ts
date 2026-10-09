@@ -39,7 +39,7 @@ function view(
   );
 }
 
-it('names every blocker and gives one sign-in command per tool, then the continuation', () => {
+it('names what is blocked once per cause and gives one sign-in command per tool, then the continuation', () => {
   const blocked = (id: string, message: string, ...argv: readonly string[]) =>
     preparationCheck(id, 'blocked', message, { owner: 'user', actions: [action('user', ...argv)] });
   const login = ['fx', 'login', 'logs-cli', '--workspace', 'work'];
@@ -53,8 +53,8 @@ it('names every blocker and gives one sign-in command per tool, then the continu
     action('agent', 'node', '/tools with spaces/fx.js', 'init', '--resume', '--workspace', 'work'),
   );
   expect(text.split('\n')[0]).toBe('work needs attention: 3 required checks are not ready');
-  expect(text).toContain('  login:logs-cli.credential@dev   exit 1\n');
-  expect(text).toContain('  login:chat-cli.access           exit 1\n');
+  expect(text).toContain('  login:logs-cli.credential@dev (+1 more)  exit 1\n');
+  expect(text).toContain('  login:chat-cli.access                    exit 1\n');
   expect(text).toContain(
     [
       'Run in your terminal:',
@@ -91,6 +91,25 @@ it('offers the repairs fx can make itself as one command', () => {
     'fx can repair:\n  fx doctor --fix --workspace work --tool logs-cli --tool chat-cli\n',
   );
   expect(text).not.toContain('Run in your terminal:');
+});
+
+it('keeps apart a check that could not run and asks nobody to sign in for it', () => {
+  const login = action('user', 'fx', 'login', 'logs-cli', '--workspace', 'work');
+  const checks = [
+    preparationCheck('login:logs-cli.credential', 'blocked', 'HTTP 401', { actions: [login] }),
+    ...['dev', 'test'].map((env) =>
+      preparationCheck(`login:cluster.access@${env}`, 'unknown', 'did not finish within 30000ms', {
+        actions: [],
+      }),
+    ),
+  ];
+  const text = tagged(view(checks, undefined, displayOf(new FakeTerminal(), {}, 'darwin')));
+  expect(text).toContain('  <fail>✗</> <strong>login:logs-cli.credential</>');
+  expect(text).toContain(
+    '  <quiet>→</> <strong>login:cluster.access@dev (+1 more)</>  did not finish within 30000ms',
+  );
+  expect(view(checks)).toContain('Run in your terminal:\n  fx login logs-cli --workspace work\n');
+  expect(view(checks)).not.toContain('cluster --');
 });
 
 it('does not prescribe another setup command after preparation succeeds', () => {

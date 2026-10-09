@@ -133,8 +133,10 @@ continuing; they contain no credentials. The CLI binds fx actions to
 the running executable; an error before the root exists uses an existing invocation
 directory for retry. Normal incomplete reports exit 12 with PREPARATION_INCOMPLETE;
 fatal errors preserve their original category and partial result. The human view of
-an incomplete report lists each blocker under its check id, then the person's
-commands, the repairs fx can make and the continuation. It spells the executable
+an incomplete report lists what is blocked under its check id, one row for checks
+that say the same thing and are resolved by the same commands, and marks a check
+that could not run apart from one that failed. The person's commands, the repairs
+fx can make and the continuation follow. It spells the executable
 `fx` when PATH resolves one, and joins actions that differ only in their `--env` or
 `--tool` selection into one command. When both streams are terminals that view
 replaces the PREPARATION_INCOMPLETE error; in every other case stderr still

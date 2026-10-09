@@ -25,6 +25,17 @@ export function verifyAction(deps: Workspace, tool: string): PreparationAction {
   };
 }
 
+export function repairAction(deps: Workspace): PreparationAction {
+  return {
+    id: 'repair-managed-resources',
+    actor: 'agent',
+    description: "Repair the workspace's managed guides and Skills",
+    argv: ['fx', 'doctor', '--fix', '--workspace', deps.ctx.name],
+    cwd: deps.ctx.root,
+    requires_approval: true,
+  };
+}
+
 export function resumeAction(deps: Workspace): PreparationAction {
   return {
     id: 'resume-initialization',

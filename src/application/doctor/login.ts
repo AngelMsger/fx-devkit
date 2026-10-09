@@ -63,7 +63,7 @@ export async function checkLogin(
       if (!(err instanceof DevkitError)) throw err;
       return isTrustRequired(err)
         ? trustFinding(step, login, err, deps)
-        : finding('login', step.id, 'warn', err.message, { fix, coverage: 'incomplete' });
+        : unfinishedFinding(step, err, deps);
     }
   };
   checks.plan(plan.steps.length);
@@ -97,6 +97,15 @@ function trustFinding(
     fix: handoff.command,
     handoff,
     actions: [verifyAction(deps, step.tool)],
+  });
+}
+
+// A check that could not finish says nothing about sign-in; checking again is the step.
+function unfinishedFinding(step: SetupStep, error: DevkitError, deps: WorkspaceGuidance): Finding {
+  return finding('login', step.id, 'warn', error.message, {
+    fix: workspaceCommand(deps, 'doctor', '--tool', step.tool),
+    coverage: 'incomplete',
+    actions: [],
   });
 }
 

@@ -15,7 +15,7 @@ export const BINARY = 'prometheus-cli';
 export function answers(scope: readonly string[]): SetupCheck {
   return {
     command: [...scope, '--timeout', '10s', 'auth', 'status', '--format', 'json'],
-    json: { path: 'authenticated', equals: true },
+    json: { path: 'authenticated', equals: true, reason: 'error' },
   };
 }
 

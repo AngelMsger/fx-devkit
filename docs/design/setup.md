@@ -259,6 +259,17 @@ cannot reveal the original person/manager or detect same-path external replaceme
 Only confirmed fx-origin records may produce unused-package suggestions. No
 uninstall operation is provided. Tool definitions and requirement merging remain unchanged.
 
+## Check reasons
+
+A JSON check compares only its declared field. A bundled recipe may also name the
+field in which the same response says why, and that reason is quoted in place of the
+unmet expectation; nothing else from a response becomes a diagnostic. A tool that
+fails without writing to stderr is described by the unmet expectation as well.
+
+A check that could not finish, such as one that outlived its deadline, has incomplete
+coverage and hands nobody a sign-in: checking again is its only step. A Skill copy fx
+can bring up to date carries the `doctor --fix` action instead of waiting for a person.
+
 ## Shared service preparation
 
 ProviderDescriptor.settings declares which allowlisted fields and authentication

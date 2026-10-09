@@ -4,6 +4,8 @@
 export interface JsonExpectation {
   readonly path: string;
   readonly equals: string | number | boolean | null;
+  // A bundled recipe may name the field in which the same response says why.
+  readonly reason?: string;
 }
 
 export type SetupCheck =

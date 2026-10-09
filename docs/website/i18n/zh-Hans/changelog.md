@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- `init`、`sync`、`doctor` 未完成时的终端输出把原因相同、解决命令也相同的检查合并成一行，并把没能执行的检查与执行后失败的检查用不同标记区分开。
+- 没能完成的检查不再要求登录。配套工具的检查超时后只提示重新检查。
+- 直接引用内置配套工具给出的未就绪原因，例如 `OpenObserve returned HTTP 401`，或对无需登录的服务请求失败，不再只显示 `expected authenticated to be true`。
+- 对 fx 自己能更新的 Skill 副本给出 `fx doctor --fix`。
+
 ## 0.9.0 (2026-10-09)
 
 - 工作区根目录只派生 `AGENTS.md`。fx 不再写入指向它的 `CLAUDE.md`，`fx manifest render` 也不再在 manifest 仓库中创建该文件：Claude Code 2.1.277 及以上版本会自行读取 `AGENTS.md`，而只要存在 `CLAUDE.md` 就会改读后者。`fx sync` 会移除早期版本派生的指针文件；在移除之前，`fx doctor` 报告指南已过期。你自己写的 `CLAUDE.md` 保持原样，也不再算作指南冲突；请在其开头写上 `@AGENTS.md`，这样 Claude Code 仍会读取指南。如果 manifest 仓库里还留有这个指针文件，请将其删除。

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Show one row for checks that say the same thing and are resolved by the same
+  commands in the human view of an incomplete `init`, `sync` or `doctor`, and mark a
+  check that could not run apart from one that failed.
+- Stop handing a sign-in to a check that could not finish. A timed-out companion
+  check now only asks to be checked again.
+- Quote why a bundled companion says it is not ready, in place of
+  `expected authenticated to be true`: `OpenObserve returned HTTP 401`, for example,
+  or a failed request to a server that takes no sign-in.
+- Offer `fx doctor --fix` for Skill copies fx can bring up to date itself.
+
 ## 0.9.0 (2026-10-09)
 
 ### Changed
