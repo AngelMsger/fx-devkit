@@ -42,6 +42,37 @@ one line per item, or one field per line once any item runs long, and omits empt
 fields. `Display` owns appearance; a view names roles and marks and never emits a
 control sequence or measures the terminal itself.
 
+A command that has run for half a second shows a status line on a stderr that
+faces a person in the human format: a busy indicator, the command, the time since
+it started, how far counted work has come and what has been under way for a
+second or more, the longest first. It is one line, never wraps, is redrawn in
+place and is gone when the command ends or is interrupted. `--quiet`, `TERM=dumb`,
+a pipe, a file, CI and the machine formats have none, so a program reads exactly
+what it read without it.
+
+Two places feed the line without any workflow asking: the command base starts it
+for every command, and the one subprocess port reports each call it waits on under
+the caller's diagnostic phase, or the executable's name alone, never its
+arguments. A workflow that knows its size adds a count through `Tally`: doctor
+counts its checks, sync, status and release their repositories, login its steps.
+What is said through the `Activity` port is never a record. Progress records stay
+with `Reporter` and reach every reader in every format; on a terminal showing the
+line, a `start` or `running` record is the line's to say and prints no line of its
+own, while every outcome still does.
+
+Everything else written to that terminal goes around the line: results, notices,
+outcomes, diagnostics and errors are written above it. A question to the person
+and a child process that owns the terminal take it over until they are done, and
+the steps that had begun are written down first as the heading of what follows.
+
+The line is redrawn only while no child can write to the terminal behind fx's
+back. A piped child given a deadline or a cancellation signal leads its own
+session and has no terminal; one given neither stays in fx's session, where git,
+ssh or an installer may ask about a host key, a passphrase or a password. While
+such a child runs, and on Windows while any child runs, nothing is redrawn: the
+line is cleared before the child starts and is printed as an ordinary line every
+five seconds instead, so a question is never wiped and fx is still never silent.
+
 `--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
 structured error. `--fields` projects result data; top-level error envelopes on stderr remain
 intact. Include nested recovery fields in the projection when they are needed. Init/sync/doctor exit 12 when required preparation is incomplete; their structured
@@ -228,7 +259,7 @@ recovery; [Windows](windows.md) owns platform-specific behavior and acceptance.
 
 ## Partial execution and recovery
 
-Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat with completed/total, active names and elapsed milliseconds. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.
+Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat record with completed/total, active names and elapsed milliseconds; a terminal showing the status line reads the same count there instead. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.
 
 Optional Bitbucket repository/user probes use five-second process deadlines. Readability is probed live once per absent repository during sync planning or per repository in an explicit unreadable listing. No persisted readability record, positive or negative, is used; normal retries recheck recovered access and changed hosts. Timeouts become `unknown`; explicit refusals/missing results apply only to the current operation. Cancellation and unexpected exceptions propagate. Repository heartbeat records begin before planning and include `phase: preflight | apply`.
 

@@ -6,7 +6,7 @@ import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { DiagnosticEvent } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
-import type { Display, Role } from './display.js';
+import type { Display, LiveLine, Role } from './display.js';
 import { roleOf } from './tone.js';
 import { gap, widthOf } from './width.js';
 
@@ -183,6 +183,67 @@ export function humanProgress(event: ProgressEvent, display: Display): string {
   const state = display.paint(outcome ?? 'quiet', event.state);
   const detail = event.detail === undefined ? '' : `  ${display.paint('quiet', event.detail)}`;
   return `${subject} ${state}${detail}`;
+}
+
+// What a status line says at one moment.
+interface Status {
+  readonly tick: number;
+  readonly title: string;
+  readonly elapsedMs: number;
+  readonly counts: readonly StatusCount[];
+  // What is under way, the longest-running first: that is the one a person waits on.
+  readonly underway: readonly Underway[];
+}
+
+interface StatusCount {
+  readonly id: string;
+  readonly phase?: string | undefined;
+  readonly total: number;
+  readonly completed: number;
+}
+
+export interface Underway {
+  readonly name: string;
+  readonly ms: number;
+}
+
+// More names than this say less than their number does.
+const UNDERWAY_SHOWN = 3;
+// What has only just begun is not yet what a person is waiting on, and has no age to show.
+const LASTING_MS = 1000;
+
+// One line that never wraps: the parts come in order of importance and the first that
+// does not fit is shortened and ends the line.
+export function humanStatus(status: Status, display: Display, live: LiveLine): string {
+  const lasting = status.underway.filter(({ ms }) => ms >= LASTING_MS);
+  const shown = lasting.slice(0, UNDERWAY_SHOWN).map(({ name, ms }) => `${name} ${age(ms)}`);
+  const more = lasting.length - shown.length;
+  const part = (text: string): string => (text === '' ? '' : `${GUTTER}${text}`);
+  const cells: Cell[] = [
+    { text: `${live.frame(status.tick)} `, role: 'accent' },
+    { text: status.title, role: 'strong' },
+    { text: status.elapsedMs < LASTING_MS ? '' : ` ${age(status.elapsedMs)}`, role: 'quiet' },
+    ...status.counts.map(({ id, phase, completed, total }): Cell => ({
+      text: part([id, phase, `${completed}/${total}`].filter(Boolean).join(' ')),
+      role: undefined,
+    })),
+    { text: part(`${shown.join(', ')}${more > 0 ? ` +${more}` : ''}`), role: 'quiet' },
+  ];
+  let line = '';
+  let used = 0;
+  for (const cell of cells) {
+    const text = live.fit(cell.text, used);
+    line += display.paint(cell.role, text);
+    used += widthOf(text);
+    if (text !== cell.text) break;
+  }
+  return line;
+}
+
+function age(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  return minutes === 0 ? `${seconds}s` : `${minutes}m${String(seconds % 60).padStart(2, '0')}s`;
 }
 
 export function humanDiagnostic(event: DiagnosticEvent, display: Display): string {

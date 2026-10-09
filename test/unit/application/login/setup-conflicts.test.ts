@@ -6,6 +6,7 @@ import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provid
 import { checkLogin } from '../../../../src/application/doctor/login.js';
 import { Login } from '../../../../src/application/login/run.js';
 import { Readiness } from '../../../../src/application/readiness/index.js';
+import { Tally } from '../../../../src/application/tally.js';
 import { report } from '../../../../src/domain/report.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
@@ -52,7 +53,9 @@ it('never certifies either platform from a colliding setup plan', async () => {
     expect(target).not.toBeNull();
     expect(await readiness.judge(target!, 'test')).toMatchObject({ status: 'unconfigured' });
   }
-  const findings = await checkLogin(h.deps, login, { tools: ['kubectl'], envs: ['test'] });
+  const findings = await Tally.during(h.activity, 'checks', (checks) =>
+    checkLogin(h.deps, login, { tools: ['kubectl'], envs: ['test'] }, checks),
+  );
   expect(report(['login'], findings)).toMatchObject({ ok: true, complete: false });
   expect(findings).toHaveLength(2);
   expect(h.process.calls.every((call) => call.vector.includes('version'))).toBe(true);

@@ -17,6 +17,7 @@ import { report } from '../../domain/report.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import type { LoginDeps } from '../login/deps.js';
 import { pooled } from '../pool.js';
+import { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { checkCi } from './ci.js';
@@ -60,7 +61,12 @@ export class Release {
     const checks = CHECKS.filter((c) => input.only === undefined || input.only.includes(c));
     const repos = this.select(input);
     await this.warmGates(repos, checks, input);
-    const findings = await pooled(repos, input.jobs, (repo) => this.checkRepo(repo, checks, input));
+    const findings = await Tally.during(this.deps.activity, 'repos', (tally) => {
+      tally.plan(repos.length);
+      return pooled(repos, input.jobs, (repo) =>
+        tally.unit(repo.name, () => this.checkRepo(repo, checks, input)),
+      );
+    });
     return report(CHECKS, findings.flat());
   }
 

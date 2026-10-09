@@ -10,6 +10,7 @@ import type { WritePosture } from '../../../../src/application/safety/posture.js
 import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { ManifestSource } from '../../../../src/ports/manifest-source.js';
+import { FakeActivity } from '../../../fakes/fake-activity.js';
 import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
@@ -76,6 +77,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
       localStore: new FakeLocalStore(),
       cache: new FakeCache(),
       reporter,
+      activity: new FakeActivity(),
       cliVersion: '1.0.0',
       user: undefined,
       processRun: async () => ({ code: 0, stdout: '', stderr: '' }),

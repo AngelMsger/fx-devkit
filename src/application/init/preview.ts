@@ -14,6 +14,7 @@ import type { ConfigFile } from '../../ports/stores.js';
 import { documentPath } from '../docs/rendered.js';
 import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
+import { Tally } from '../tally.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import { planRepositories } from '../workspace/plan.js';
@@ -80,10 +81,10 @@ export async function inspectInitialization(
     workspaceDeps.projections,
   );
   const setup = await checkedSetupPlan(deps, ctx);
-  const repositories = await planRepositories(workspaceDeps, {
-    jobs: input.jobs,
-    remote: false,
-  });
+  const repos = ctx.workspace.repos.length;
+  const repositories = await Tally.during(workspaceDeps.activity, 'repos', (tally) =>
+    planRepositories(workspaceDeps, { jobs: input.jobs, remote: false, tally: tally.plan(repos) }),
+  );
   return {
     ...output.plan,
     source_inspected: true,

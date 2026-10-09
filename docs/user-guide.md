@@ -475,7 +475,12 @@ Use `--format json` and capture both streams. Workflow JSON keeps the preparatio
 verdict and every blocker; `--details` adds full stage evidence. Human output starts
 with the task result and next action. On a terminal it adds colour and symbols, fits
 tables to the width and prints an error as text; a pipe or a file receives plain text
-and the JSON error envelope, and `NO_COLOR` removes the colour. `--fields`
+and the JSON error envelope, and `NO_COLOR` removes the colour. While a command
+works, the terminal also shows one status line with the time elapsed, how far
+counted work has come and what it is waiting on; the line disappears when the
+command ends, and a pipe, a file, JSON output and `--quiet` never receive it. While
+git or an installer runs, which may ask for a host key or a passphrase on the same
+terminal, the line is printed every five seconds instead of being redrawn. `--fields`
 projects the complete report in any format, using flat keys for dot paths, for example:
 
 ```sh

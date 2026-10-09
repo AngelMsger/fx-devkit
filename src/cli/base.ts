@@ -89,7 +89,11 @@ export abstract class FxCommand extends Command {
   private selection: ResolveInput['selection'];
 
   protected get commandName(): string {
-    return `fx ${(this.id ?? '').replaceAll(':', ' ')}`.trim();
+    return `fx ${this.commandWords}`.trim();
+  }
+
+  private get commandWords(): string {
+    return (this.id ?? '').replaceAll(':', ' ');
   }
 
   // Resolve and connect output before acquiring the workspace lease so lock
@@ -130,6 +134,7 @@ export abstract class FxCommand extends Command {
     };
     this.renderer = createRenderer(this.format, processIo(), this.renderOptions);
     this.container.diagnostics.connect(this.renderer);
+    this.showWork();
     this.noInput = flags['no-input'] || !process.stdin.isTTY;
     this.quietOn = flags.quiet;
     this.yes = flags.yes;
@@ -148,6 +153,15 @@ export abstract class FxCommand extends Command {
         this.selection = operation.located.selection;
       }
     }
+  }
+
+  // From here until the command ends, a person watching stderr sees that fx is at work.
+  // It starts before the workspace lease: waiting for another fx is work too.
+  private showWork(): void {
+    const { status } = this.renderer;
+    if (status === undefined) return;
+    this.container.activity.connect(status);
+    status.start(this.commandWords);
   }
 
   protected get configAgents(): readonly string[] | undefined {
@@ -386,17 +400,21 @@ export abstract class FxCommand extends Command {
   }
 
   protected override async finally(err: Error | undefined): Promise<void> {
-    await this.operationLease?.release();
-    const gate = { id: this.id, quiet: this.quietOn, enabled: this.updateCheckOn };
-    if (shouldCheckUpdates(gate)) {
-      const notices = await updateNotices(
-        this.updateChecks(),
-        await this.fxUpdateInput(),
-        this.located === undefined
-          ? undefined
-          : { workspace: this.located.name, sourceDir: this.located.manifestDir },
-      );
-      for (const notice of notices) this.renderer.notice(notice);
+    try {
+      await this.operationLease?.release();
+      const gate = { id: this.id, quiet: this.quietOn, enabled: this.updateCheckOn };
+      if (shouldCheckUpdates(gate)) {
+        const notices = await updateNotices(
+          this.updateChecks(),
+          await this.fxUpdateInput(),
+          this.located === undefined
+            ? undefined
+            : { workspace: this.located.name, sourceDir: this.located.manifestDir },
+        );
+        for (const notice of notices) this.renderer.notice(notice);
+      }
+    } finally {
+      this.renderer.status?.stop();
     }
     return super.finally(err);
   }

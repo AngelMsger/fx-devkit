@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { checkTools } from '../../../../src/application/doctor/tools.js';
+import type { Finding } from '../../../../src/application/doctor/types.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
-import { workspaceToolScope } from '../../../../src/application/tool/scope.js';
+import { Tally } from '../../../../src/application/tally.js';
+import {
+  workspaceToolScope,
+  type WorkspaceToolScope,
+} from '../../../../src/application/tool/scope.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
+import { harness, MANIFEST_DIR, type Harness } from '../../../fakes/workspace.js';
 
 const workspace =
   'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n';
@@ -16,12 +21,15 @@ const trust = {
   posture: { readOnly: false, source: 'default' as const },
 };
 
+const toolFindings = (h: Harness, scope: WorkspaceToolScope): Promise<Finding[]> =>
+  Tally.during(h.activity, 'checks', (checks) => checkTools(h.deps, { ...scope, trust }, checks));
+
 describe('doctor tool scope', () => {
   it('does not probe unused baseline tools for a local-git workspace', async () => {
     const h = await harness({ workspace });
     const scope = workspaceToolScope(h.ctx, {});
     expect(scope.names).toEqual([]);
-    expect(await checkTools(h.deps, { ...scope, trust })).toEqual([]);
+    expect(await toolFindings(h, scope)).toEqual([]);
     expect(h.process.calls).toEqual([]);
   });
 
@@ -53,7 +61,7 @@ describe('doctor tool scope', () => {
     });
     const scope = workspaceToolScope(h.ctx, {});
     expect(scope.names).toEqual(['lark-cli']);
-    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([{ id: 'lark-cli' }]);
+    expect(await toolFindings(h, scope)).toMatchObject([{ id: 'lark-cli' }]);
   });
 
   it('checks a tool the workspace named, whether or not it changed one of its fields', async () => {
@@ -71,7 +79,7 @@ describe('doctor tool scope', () => {
   it('allows explicit checks of an optional baseline tool', async () => {
     const h = await harness({ workspace });
     const scope = workspaceToolScope(h.ctx, { tools: ['bitbucket-cli'] });
-    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+    expect(await toolFindings(h, scope)).toMatchObject([
       { id: 'bitbucket-cli', level: 'fail', evidence: { required: true, state: 'missing' } },
     ]);
   });
@@ -79,7 +87,7 @@ describe('doctor tool scope', () => {
   it("requires a bound provider's tool without the workspace declaring it", async () => {
     const h = await harness({ workspace: workspace.replace('local-git', 'bitbucket-cli') });
     const scope = workspaceToolScope(h.ctx, {});
-    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+    expect(await toolFindings(h, scope)).toMatchObject([
       { id: 'bitbucket-cli', level: 'fail', evidence: { required: true, active_dependency: true } },
     ]);
   });
@@ -92,7 +100,7 @@ describe('doctor tool scope', () => {
       },
     });
     const scope = workspaceToolScope(h.ctx, {});
-    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+    expect(await toolFindings(h, scope)).toMatchObject([
       { id: 'bitbucket-cli', level: required ? 'fail' : 'warn', evidence: { required } },
     ]);
   });
@@ -112,7 +120,7 @@ describe('doctor tool scope', () => {
         },
       });
       const scope = workspaceToolScope(h.ctx, {});
-      expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+      expect(await toolFindings(h, scope)).toMatchObject([
         { id: 'bitbucket-cli', level, coverage, evidence: { required, active_dependency: active } },
       ]);
     },
@@ -127,7 +135,7 @@ describe('doctor tool scope', () => {
       },
     });
     const scope = workspaceToolScope(h.ctx, {});
-    expect(await checkTools(h.deps, { ...scope, trust })).toMatchObject([
+    expect(await toolFindings(h, scope)).toMatchObject([
       { id: 'required-tool', level: 'fail' },
       { id: 'optional-tool', level: 'warn' },
     ]);
@@ -142,7 +150,7 @@ describe('doctor tool scope', () => {
     };
     const h = await harness({ workspace, local: { scope: { envs: ['dev'] } }, files });
     const inactive = workspaceToolScope(h.ctx, {});
-    expect(await checkTools(h.deps, { ...inactive, trust })).toMatchObject([
+    expect(await toolFindings(h, inactive)).toMatchObject([
       {
         id: 'jenkins-cli',
         level: 'ok',
@@ -152,7 +160,7 @@ describe('doctor tool scope', () => {
     ]);
     const other = await harness({ workspace, files });
     const active = workspaceToolScope(other.ctx, { envs: ['test'] });
-    expect(await checkTools(other.deps, { ...active, trust })).toMatchObject([
+    expect(await toolFindings(other, active)).toMatchObject([
       { id: 'jenkins-cli', level: 'fail', coverage: 'incomplete', evidence: { required: true } },
     ]);
     const excluded = workspaceToolScope(other.ctx, { envs: ['dev'] });

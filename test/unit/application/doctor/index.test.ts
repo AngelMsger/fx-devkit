@@ -467,6 +467,23 @@ describe('Doctor', () => {
     expect(report.summary.ok).toBeGreaterThan(5);
   });
 
+  it('counts every check for a watcher, one that fails or is withheld included', async () => {
+    for (const s of [await stage({ healthy: true }), await stage()]) {
+      const report = await s.doctor.execute(check);
+      const counts = s.h.activity.of('checks');
+      const last = counts.at(-1)!;
+      expect(last).toEqual({
+        phase: undefined,
+        total: last.total,
+        completed: last.total,
+        active: [],
+      });
+      // The groups that are one check each, then one per tool and per sign-in step.
+      expect(last.total).toBeGreaterThan(report.findings.filter((f) => f.group === 'login').length);
+      expect(s.h.activity.counts.at(-1)).toEqual({ id: 'checks', count: undefined });
+    }
+  });
+
   it('with --fix, repairs owned Skills but leaves personal authentication and operator files for the user', async () => {
     const s = await stage({ yes: true });
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'k');

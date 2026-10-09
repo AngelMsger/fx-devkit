@@ -9,6 +9,7 @@ import { handoffStep, loginCommand } from '../login/handoff.js';
 import { Verifier } from '../login/verify.js';
 import { verifyAction } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
+import type { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
@@ -25,6 +26,7 @@ export async function checkLogin(
   deps: WorkspaceDeps,
   login: LoginDeps,
   options: LoginCheckOptions,
+  checks: Tally,
 ): Promise<Finding[]> {
   const plan = buildPlan(deps, login, { ...options, scopeEnvs: deps.ctx.local.scope?.envs });
   const verifier = new Verifier(deps, login);
@@ -36,48 +38,40 @@ export async function checkLogin(
     }),
   );
   const pending = new Set<string>();
-  for (const step of plan.steps) {
+  const check = async (step: SetupStep): Promise<Finding> => {
     const fix = loginCommand([step], deps);
+    const blocker = step.requires.find((id) => pending.has(id));
+    if (blocker) return blockedFinding(step, blocker, deps);
     try {
-      const blocker = step.requires.find((id) => pending.has(id));
-      if (blocker) {
-        pending.add(step.id);
-        findings.push(blockedFinding(step, blocker, deps));
-        continue;
-      }
       const verdict = await verifier.verify(
         step,
         options.dryRun === undefined ? {} : { dryRun: options.dryRun },
       );
-      if (verdict.ok) {
-        findings.push(finding('login', step.id, 'ok', verdict.detail));
-        continue;
-      }
+      if (verdict.ok) return finding('login', step.id, 'ok', verdict.detail);
       const when = acknowledged[step.id]?.acknowledged;
-      pending.add(step.id);
       const message =
         when === undefined
           ? verdict.detail
           : `acknowledged on ${when} but the check fails: ${verdict.detail}`;
       const required = step.required || options.requiredTools?.has(step.tool);
-      findings.push(
-        finding('login', step.id, when !== undefined || required ? 'fail' : 'warn', message, {
-          fix,
-          handoff: handoffFor(step, fix),
-          ...(verdict.actions ? { actions: verdict.actions } : {}),
-        }),
-      );
+      return finding('login', step.id, when !== undefined || required ? 'fail' : 'warn', message, {
+        fix,
+        handoff: handoffFor(step, fix),
+        ...(verdict.actions ? { actions: verdict.actions } : {}),
+      });
     } catch (err) {
-      pending.add(step.id);
       if (!(err instanceof DevkitError)) throw err;
-      if (!isTrustRequired(err)) {
-        findings.push(
-          finding('login', step.id, 'warn', err.message, { fix, coverage: 'incomplete' }),
-        );
-        continue;
-      }
-      findings.push(trustFinding(step, login, err, deps));
+      return isTrustRequired(err)
+        ? trustFinding(step, login, err, deps)
+        : finding('login', step.id, 'warn', err.message, { fix, coverage: 'incomplete' });
     }
+  };
+  checks.plan(plan.steps.length);
+  for (const step of plan.steps) {
+    const found = await checks.unit(step.id, () => check(step));
+    // Whatever keeps a step from passing also withholds the steps that require it.
+    if (found.level !== 'ok') pending.add(step.id);
+    findings.push(found);
   }
   return findings;
 }

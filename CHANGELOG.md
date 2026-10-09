@@ -16,6 +16,21 @@
 - Leave `CLAUDE.md` out of the manifest source payload. A directory source's copy
   is no longer materialized, and a stdin bundle that names it is rejected with
   `MANIFEST_SOURCE_INVALID`.
+- Show that a command is still working. After half a second a terminal gets one
+  status line that is redrawn in place: the time elapsed, how far counted work has
+  come and what has been under way the longest, such as
+  `doctor 23s  checks 69/82  kubectl.access@dev 3s`. Every command has it, because
+  each external call fx waits on is reported where it is started; `doctor`, `sync`,
+  `init`, `status`, `release` and `login` also count their checks, repositories and
+  steps. Results, notices and outcomes are written above the line, a question or a
+  sign-in command takes the terminal over until it is done, and the line is gone
+  when the command ends or is interrupted. While git or an installer runs, which
+  may ask for a host key or a passphrase on the same terminal, nothing is redrawn
+  under it and the line is printed every five seconds instead. On a terminal that
+  shows the line, the per-item `start` lines and the repository heartbeat are no
+  longer printed, since the line says the same. A pipe, a file, CI, `TERM=dumb`,
+  `--quiet` and JSON or NDJSON output never receive the line and read exactly what
+  they did.
 
 ## 0.8.0 (2026-10-09)
 

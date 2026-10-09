@@ -60,6 +60,18 @@ function disarm(): void {
   handlers.clear();
 }
 
+function isBounded(options: RunOptions): boolean {
+  return options.timeoutMs !== undefined || options.signal !== undefined;
+}
+
+// A bounded piped child leads a process group and session of its own, so giving up on it
+// reaches whatever it started, and it has no terminal to write to. The lifecycle
+// supervisor owns the group when this is one of its workers, and Windows has no such
+// separation.
+export function leavesSession(options: RunOptions): boolean {
+  return isBounded(options) && process.platform !== 'win32' && supervisedRole() === undefined;
+}
+
 export class NodeProcess implements Process {
   async run(vector: readonly string[], options: RunOptions = {}): Promise<ProcessResult> {
     const [binary, ...args] = vector;
@@ -78,9 +90,8 @@ export class NodeProcess implements Process {
   private runPiped(binary: string, args: string[], options: RunOptions): Promise<ProcessResult> {
     const vector = [binary, ...args];
     return new Promise((resolve, reject) => {
-      // The lifecycle supervisor owns the group when this is one of its workers.
-      const bounded = options.timeoutMs !== undefined || options.signal !== undefined;
-      const ownGroup = bounded && process.platform !== 'win32' && supervisedRole() === undefined;
+      const bounded = isBounded(options);
+      const ownGroup = leavesSession(options);
       const child = spawn(binary, args, {
         cwd: options.cwd,
         env: options.env,

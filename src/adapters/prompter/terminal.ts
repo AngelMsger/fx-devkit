@@ -1,15 +1,18 @@
 // Questions on the terminal, through stderr so stdout stays data. With
 // --no-input or without a TTY nothing waits: the question becomes an
 // INPUT_REQUIRED error that names the flag that would have answered it.
+// A question has the terminal to itself until it is answered.
 
 import readline from 'node:readline';
 
 import { DevkitError } from '../../domain/errors.js';
+import type { Activity } from '../../ports/activity.js';
 import type { ConfirmOptions, Prompter } from '../../ports/prompter.js';
 
 export class TerminalPrompter implements Prompter {
   constructor(
     private readonly noInput: boolean,
+    private readonly activity: Pick<Activity, 'handover'>,
     private readonly streams: {
       readonly input: NodeJS.ReadableStream & { isTTY?: boolean };
       readonly output: NodeJS.WritableStream;
@@ -57,10 +60,12 @@ export class TerminalPrompter implements Prompter {
         }),
       );
     }
+    const answered = this.activity.handover();
     const rl = readline.createInterface({ input: this.streams.input, output: this.streams.output });
     return new Promise((resolve) => {
       rl.question(prompt, (answer) => {
         rl.close();
+        answered();
         resolve(answer);
       });
     });

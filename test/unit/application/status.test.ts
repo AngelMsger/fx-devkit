@@ -88,6 +88,9 @@ describe('Status', () => {
     expect(rows.map((r) => r.name)).toEqual(['fx-example-auth']);
     expect(rows[0]?.fetch).toBe('completed');
     expect(h.git.calls.filter((c) => c.startsWith('fetch'))).toHaveLength(2);
+    // A watcher counts every repository inspected, then each checkout fetched.
+    expect(h.activity.of('repos').at(-1)).toMatchObject({ total: 3, completed: 3 });
+    expect(h.activity.of('fetch').at(-1)).toMatchObject({ total: 2, completed: 2 });
   });
 
   it('includes untracked-only work in --dirty without changing tracked dirtiness', async () => {

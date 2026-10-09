@@ -5,6 +5,7 @@ import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import { toolChecks } from '../sync/checks.js';
+import type { Tally } from '../tally.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
 import type { WorkspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -19,17 +20,21 @@ export interface ToolCheckOptions extends WorkspaceToolScope {
 export async function checkTools(
   deps: WorkspaceDeps,
   options: ToolCheckOptions,
+  checks: Tally,
 ): Promise<Finding[]> {
   const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
   const tools = options.covered;
   const findings: Finding[] = [];
   const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
+  checks.plan(tools.length);
   for (const tool of tools) {
     try {
-      const [status] = await check.execute({
-        tools: [{ ...tool, required: options.required.has(tool.name) }],
-        trust,
-      });
+      const [status] = await checks.unit(tool.name, () =>
+        check.execute({
+          tools: [{ ...tool, required: options.required.has(tool.name) }],
+          trust,
+        }),
+      );
       if (status !== undefined)
         findings.push({
           ...fromStatus(status, options.dependencies.has(tool.name), deps),

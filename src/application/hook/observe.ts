@@ -18,6 +18,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { RefreshManifest } from '../refresh-manifest.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
+import { Tally } from '../tally.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { FxUpdateCheck } from '../update/fx.js';
 import type { ManifestUpdateCheck } from '../update/manifest.js';
@@ -166,7 +167,10 @@ async function checkSelf(deps: BackgroundDeps): Promise<readonly HookObservation
 }
 
 async function checkServices(deps: BackgroundDeps): Promise<readonly HookObservation[]> {
-  const findings = await checkLogin(await deps.context(), deps.login, {});
+  const context = await deps.context();
+  const findings = await Tally.during(context.activity, 'checks', (checks) =>
+    checkLogin(context, deps.login, {}, checks),
+  );
   return [
     observer(deps, 'checks')(
       findings.some((finding) => finding.level !== 'ok') ? 'LOGIN_REQUIRED' : 'LOGIN_CHECKED',

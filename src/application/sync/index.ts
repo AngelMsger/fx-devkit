@@ -11,6 +11,7 @@ import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
 import { workspacePreparation } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
+import { Tally } from '../tally.js';
 import { prepareUpstream } from '../workspace/adopt.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { checkoutDir } from '../workspace/inspect.js';
@@ -83,52 +84,9 @@ export class Sync {
   }
 
   private async repos(input: SyncInput): Promise<readonly SyncItem[]> {
-    const total = this.deps.ctx.workspace.repos.length;
-    let phase = 'preflight';
-    let completed = 0;
-    const active = new Set<string>();
-    const started = Date.now();
-    const progress = (): void =>
-      this.deps.reporter.progress({
-        id: 'repos',
-        state: 'running',
-        total,
-        completed,
-        elapsed_ms: Date.now() - started,
-        active: [...active],
-        phase,
-        detail: `${phase}: ${completed}/${total} complete; ${[...active].join(', ')}; ${Math.floor((Date.now() - started) / 1000)}s elapsed`,
-      });
-    progress();
-    const heartbeat = setInterval(progress, 5000);
-    let items: SyncItem[];
-    try {
-      const plan = await planRepositories(this.deps, {
-        jobs: input.jobs,
-        active,
-        complete: () => {
-          completed += 1;
-        },
-      });
-      if (input.dryRun) return plan.map((item) => ({ ...item, result: 'planned' as const }));
-      if (plan.some(needsRepositoryWrite)) assertWritable(input.posture, 'sync');
-      phase = 'apply';
-      completed = 0;
-      progress();
-      items = await pooled(plan, input.jobs, async (item) => {
-        if (item.action === 'skip_unpicked') return { ...item, result: 'skipped' };
-        active.add(item.name);
-        try {
-          return await this.apply(item);
-        } finally {
-          active.delete(item.name);
-          completed += 1;
-        }
-      });
-    } finally {
-      clearInterval(heartbeat);
-      progress();
-    }
+    const items = await Tally.during(this.deps.activity, 'repos', (tally) =>
+      this.reconcile(input, tally),
+    );
     const summary = repositorySummary(items);
     if (summary.failed > 0) {
       this.deps.reporter.notice({
@@ -138,6 +96,50 @@ export class Sync {
       });
     }
     return items;
+  }
+
+  // A watcher follows the tally as it moves. A program reads it as a record when each
+  // phase begins, every five seconds after that and once more at the end.
+  private async reconcile(input: SyncInput, tally: Tally): Promise<readonly SyncItem[]> {
+    const total = this.deps.ctx.workspace.repos.length;
+    const started = Date.now();
+    let phase = 'preflight';
+    const record = (): void => {
+      const { completed, active } = tally.count;
+      const elapsed = Date.now() - started;
+      this.deps.reporter.progress({
+        id: 'repos',
+        state: 'running',
+        total,
+        completed,
+        elapsed_ms: elapsed,
+        active,
+        phase,
+        detail: `${phase}: ${completed}/${total} complete; ${active.join(', ')}; ${Math.floor(elapsed / 1000)}s elapsed`,
+      });
+    };
+    const enter = (next: string, units: number): void => {
+      phase = next;
+      tally.enter(phase).plan(units);
+      record();
+    };
+    enter('preflight', total);
+    const heartbeat = setInterval(record, 5000);
+    try {
+      const plan = await planRepositories(this.deps, { jobs: input.jobs, tally });
+      if (input.dryRun) return plan.map((item) => ({ ...item, result: 'planned' as const }));
+      if (plan.some(needsRepositoryWrite)) assertWritable(input.posture, 'sync');
+      const picked = (item: PlanItem): boolean => item.action !== 'skip_unpicked';
+      enter('apply', plan.filter(picked).length);
+      return await pooled(plan, input.jobs, async (item) =>
+        picked(item)
+          ? tally.unit(item.name, () => this.apply(item))
+          : { ...item, result: 'skipped' as const },
+      );
+    } finally {
+      clearInterval(heartbeat);
+      record();
+    }
   }
 
   private async apply(item: PlanItem): Promise<SyncItem> {

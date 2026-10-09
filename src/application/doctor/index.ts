@@ -11,6 +11,7 @@ import { findingCheck, workspacePreparation } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
+import { Tally } from '../tally.js';
 import type { ToolInstalled } from '../tool/installed.js';
 import { workspaceToolScope, type WorkspaceToolScope } from '../tool/scope.js';
 import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
@@ -61,24 +62,48 @@ export class Doctor {
     validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
     const toolScope = workspaceToolScope(this.deps.ctx, input, this.deps.commandShell);
     const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
-    const groups = await Promise.all([
-      toolScope.problems,
-      checkRepos(this.deps),
-      checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
-      checkInstallations(this.doctor.inventory, input.tools),
-      checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }),
-      checkLogin(this.deps, this.doctor.login, {
-        tools: toolScope.configuredNames,
-        requiredTools: toolScope.required,
-        envs: input.envs,
-        dryRun: input.dryRun,
-      }),
-      checkAgents(this.deps, this.doctor.skills),
-      checkManifest(this.deps, this.doctor.login, this.doctor.bundledTools, this.doctor.updates),
-      checkSelf(this.doctor.updates),
-      ...(this.doctor.extensions ?? []).map((extension) => extension.check()),
-    ]);
+    const groups = await Tally.during(this.deps.activity, 'checks', (checks) =>
+      this.check(input, toolScope, checks),
+    );
     return this.summarize(input, toolScope, groups.flat(), repairs);
+  }
+
+  // One unit per group, except the two that run a companion per tool and per step.
+  private check(
+    input: DoctorInput,
+    toolScope: WorkspaceToolScope,
+    checks: Tally,
+  ): Promise<(readonly Finding[])[]> {
+    const group = (name: string, check: () => Promise<readonly Finding[]>) =>
+      checks.plan(1).unit(name, check);
+    return Promise.all([
+      toolScope.problems,
+      group('repos', () => checkRepos(this.deps)),
+      group('root', () =>
+        checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
+      ),
+      group('installations', () => checkInstallations(this.doctor.inventory, input.tools)),
+      checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }, checks),
+      checkLogin(
+        this.deps,
+        this.doctor.login,
+        {
+          tools: toolScope.configuredNames,
+          requiredTools: toolScope.required,
+          envs: input.envs,
+          dryRun: input.dryRun,
+        },
+        checks,
+      ),
+      group('agents', () => checkAgents(this.deps, this.doctor.skills)),
+      group('manifest', () =>
+        checkManifest(this.deps, this.doctor.login, this.doctor.bundledTools, this.doctor.updates),
+      ),
+      group('self', () => checkSelf(this.doctor.updates)),
+      ...(this.doctor.extensions ?? []).map((extension) =>
+        group(extension.group, () => extension.check()),
+      ),
+    ]);
   }
 
   private async summarize(
