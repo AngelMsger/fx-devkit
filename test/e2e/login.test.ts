@@ -23,8 +23,9 @@ const SHIMS: Record<string, string> = {
     'if(process.argv[2]==="--version") console.log("bitbucket-cli 1.0.0"); else { console.log(JSON.stringify({configured: process.env.FAKE_BB_OK === \"0\"})); process.exit(Number(process.env.FAKE_BB_OK??1)); }',
   'openobserve-cli':
     'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("openobserve-cli 1.0.0"); else process.exit(a==="auth status --use-context test"?Number(process.env.FAKE_OO_OK??1):2);',
+  // A kubeconfig that exists names its context: the offline check then passes.
   kubectl:
-    'const a=process.argv.slice(2).join(" "); if(a==="version --client") console.log("Client Version: v1.30.0"); else process.exit(a.includes("auth can-i")?Number(process.env.FAKE_KUBE_OK??1):2);',
+    'const v=process.argv.slice(2), a=v.join(" "); if(a==="version --client") console.log("Client Version: v1.30.0"); else if(a.includes("config get-contexts")) process.exit(require("node:fs").existsSync(v[1])?0:1); else process.exit(a.includes("auth can-i")?Number(process.env.FAKE_KUBE_OK??1):2);',
 };
 
 function stage(): Stage {

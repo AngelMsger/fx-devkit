@@ -10,8 +10,28 @@ export interface JsonExpectation {
   readonly unmet?: string;
 }
 
+// What a failed check says is wrong, as far as the tool's own output tells.
+export type CheckCause = 'credential' | 'permission' | 'network';
+
+// A bundled recipe's reading of its own check failing. Every condition a case states
+// must hold, and the first case that does names the cause and what resolves it, in
+// place of the step's own guidance. Patterns are regular-expression sources, so a step
+// stays plain data; output no case answers to keeps its cause unknown.
+export interface FailureCase {
+  readonly cause: CheckCause;
+  readonly exitCode?: number;
+  readonly stdout?: string;
+  readonly stderr?: string;
+  readonly instructions: string;
+  readonly open?: string;
+}
+
 export type SetupCheck =
-  | { readonly command: readonly string[]; readonly json?: JsonExpectation | undefined }
+  | {
+      readonly command: readonly string[];
+      readonly json?: JsonExpectation | undefined;
+      readonly failures?: readonly FailureCase[] | undefined;
+    }
   | { readonly file: string }
   | { readonly provider: 'whoami' };
 

@@ -633,6 +633,20 @@ the error on stderr. Completed steps remain visible; `handoff`, `blocked`,
 [login response contract](../skills/fx-workspace/references/commands.md#readiness-and-recovery)
 for summaries, plan problems and per-step recovery fields.
 
+A step handed over says what its check answered. Its `check` carries the tool's own
+message and, where fx can read the failure, the cause: authentication that was not
+established, a permission the service refused or a connection that could not be
+completed. The step's instructions then describe what resolves that cause, so read
+them before signing in again. Most checks name no cause; go by the tool's message and
+the step's guidance then.
+
+A check that gave no answer, because its tool did not start or it ran out of time, is
+never handed to a person. `can` and `where` list it as `unfinished` and answer
+`unknown` when nothing else failed; `login` stops with that error and keeps the
+partial result on stdout; `doctor` reports the finding with incomplete coverage. An
+earlier fx omits these fields; `fx doctor --tool <tool> --env <env>` shows the tool's
+message for one tool.
+
 ### Skill ownership and host activation
 
 Bundled user Skills are shared across workspaces and protected by a user-wide

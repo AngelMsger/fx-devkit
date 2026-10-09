@@ -8,6 +8,7 @@ import {
   type PreparationAction,
 } from '../domain/preparation.js';
 import type { Finding } from '../domain/report.js';
+import type { SetupStep } from '../domain/setup/types.js';
 
 import { workspaceToolScope } from './tool/scope.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
@@ -22,6 +23,30 @@ export function verifyAction(deps: Workspace, tool: string): PreparationAction {
     argv: ['fx', 'doctor', '--tool', tool, '--workspace', deps.ctx.name, '--yes'],
     cwd: deps.ctx.root,
     requires_approval: true,
+  };
+}
+
+// What an agent does about a check that gave no answer. A tool that did not start gets the
+// action a missing tool gets from its own check (toolChecks in sync/checks.ts), so the two
+// coalesce; a check that ran out of time is asked again, within its environment.
+export function noAnswerAction(
+  deps: Workspace,
+  step: Pick<SetupStep, 'id' | 'tool' | 'env'>,
+  code: string,
+): PreparationAction {
+  const missing = code === 'TOOL_MISSING';
+  const scope = ['--workspace', deps.ctx.name];
+  return {
+    id: missing ? `tool:${step.tool}` : `recheck:${step.id}`,
+    actor: 'agent',
+    description: missing
+      ? `Inspect ${step.tool} preparation`
+      : `Check ${step.tool} again; its check did not finish`,
+    argv: missing
+      ? ['fx', 'tool', 'install', step.tool, ...scope, '--dry-run']
+      : ['fx', 'doctor', '--tool', step.tool, ...(step.env ? ['--env', step.env] : []), ...scope],
+    cwd: deps.ctx.root,
+    requires_approval: false,
   };
 }
 

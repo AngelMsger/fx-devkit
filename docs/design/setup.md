@@ -152,7 +152,11 @@ and the provider's default otherwise.
 
 Absence is an answer rather than a blank coordinate. An environment that does not
 declare the platform, a repository marked uncovered and an entry whose confidence
-is already `not_covered` are all `not_covered`.
+is already `not_covered` are all `not_covered`. An undeclared platform gives that as
+its reason, `<env> declares no <platform> platform`, in `where` and in `can` alike. An
+environment's note speaks for the whole environment and is never that reason; `where`
+lists it after the reason, as it does on every row of that environment. The answer
+describes what the manifest covers, not whether such a service exists.
 
 A metrics coordinate is a scrape job, and the provider default is a PromQL
 selector whose braces are not placeholders: only `{name}` forms the manifest
@@ -266,9 +270,56 @@ field in which the same response says why, and that reason is quoted in place of
 unmet expectation; nothing else from a response becomes a diagnostic. A tool that
 fails without writing to stderr is described by the unmet expectation as well.
 
-A check that could not finish, such as one that outlived its deadline, has incomplete
-coverage and hands nobody a sign-in: checking again is its only step. A Skill copy fx
-can bring up to date carries the `doctor --fix` action instead of waiting for a person.
+A bundled recipe may declare failure cases for a command check. A case states
+conditions on the exit code and on what the tool wrote, and names a cause
+(`credential`, `permission` or `network`) with the guidance that resolves it. The
+first case whose every condition holds applies. Output no case answers to keeps its
+cause unknown, and the tool's own words remain the detail either way. A cause says
+what the check observed, not why: `network` means a connection could not be
+completed, whatever stood in its way. Cases are static data of the bundled recipe and
+appear with it in `login --list` and the init preview; the tools document does not
+accept them. A check withheld under a dry run did not run and reports no failure.
+
+A pending step is handed over with what its check last said. `check.result` is
+`failed`, with the detail and the cause when a case applies, or `blocked`, with the
+step it waits on. A case's guidance replaces the step's own instructions and page in
+that handoff. `can`, `where`, `doctor`, `login` and the preparation actions built from
+them carry the same handoff, and a step that still fails after a person finished it is
+read by its check afterwards.
+
+A check that gave no answer, because its tool did not start or it outlived its
+deadline, has incomplete coverage and hands nobody a step: the tool is what to fix in
+the first case, and checking again is the only step in the second. `can` and `where`
+answer `unknown` for it and list it under `unfinished` with its error code; a step
+waiting on it is as unknown and is not handed over. `login` stops with that error and
+keeps the partial result, and `doctor` reports the finding with incomplete coverage.
+Preparation marks such a check unknown and gives an agent its one action, inspecting
+the tool or checking again within the environment; the steps waiting on it are unknown
+too and carry no action, so nobody is asked to sign in for them. Whether a tool
+started is what the process port reports, never an inference from its exit code: a
+program that ran and exited 127 failed its check in its own words. A failure another step established
+keeps its handoff, with the unfinished checks listed beside it, and one platform's
+unfinished check does not withhold the other rows of a `where` query. An interrupted
+check still fails the command. Release gates treat `unknown` as they did: the query
+itself gives the evidence. A Skill copy fx can bring up to date carries the
+`doctor --fix` action instead of waiting for a person.
+
+## Cluster access
+
+kubectl readiness is two steps per environment. The kubeconfig step reads the file
+alone and passes when it names the declared context; its expected path stays the
+step's destination. The access step asks the cluster one question, whether the
+person may get pods in the environment's namespace or `default`, and gives each
+request a deadline below the check's own, so a cluster that never answers is
+kubectl's verdict rather than a check fx abandons. Only an answer of no is a
+permission verdict. A request the cluster took for nobody's reads as `credential`:
+authentication was not established, which leaves open whether the credential, its
+kind or the way the kubeconfig signs in is at fault.
+
+The step establishes that the environment can be asked. It does not establish that
+every namespace, resource or verb of a later query is permitted, and a repository's
+namespace override changes its coordinate, not this check. A coordinate is where to
+look: `located` says the manifest resolved one, not that the repository runs there.
 
 ## Shared service preparation
 

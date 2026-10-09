@@ -1,13 +1,13 @@
 // The check is the truth: a step a person acknowledged still fails when its
 // check does, and the finding says both.
 
-import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
 import { Verifier } from '../login/verify.js';
-import { verifyAction } from '../preparation.js';
+import { noAnswerAction, verifyAction } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import type { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -38,10 +38,15 @@ export async function checkLogin(
     }),
   );
   const pending = new Set<string>();
+  // Checks that gave no answer, and the steps waiting on them: nobody is handed either.
+  const unanswered = new Set<string>();
   const check = async (step: SetupStep): Promise<Finding> => {
     const fix = loginCommand([step], deps);
-    const blocker = step.requires.find((id) => pending.has(id));
-    if (blocker) return blockedFinding(step, blocker, deps);
+    const blocker = blockerOf(step, unanswered) ?? blockerOf(step, pending);
+    if (blocker) {
+      if (unanswered.has(blocker)) unanswered.add(step.id);
+      return blockedFinding(step, blocker, deps, unanswered.has(step.id));
+    }
     try {
       const verdict = await verifier.verify(
         step,
@@ -56,14 +61,18 @@ export async function checkLogin(
       const required = step.required || options.requiredTools?.has(step.tool);
       return finding('login', step.id, when !== undefined || required ? 'fail' : 'warn', message, {
         fix,
-        handoff: handoffFor(step, fix),
+        handoff: handoffEnvelope({
+          summary: step.title,
+          userSteps: [handoffStep(step, { failed: verdict })],
+          command: fix,
+        }),
         ...(verdict.actions ? { actions: verdict.actions } : {}),
       });
     } catch (err) {
       if (!(err instanceof DevkitError)) throw err;
-      return isTrustRequired(err)
-        ? trustFinding(step, login, err, deps)
-        : unfinishedFinding(step, err, deps);
+      if (isTrustRequired(err)) return trustFinding(step, login, err, deps);
+      unanswered.add(step.id);
+      return unfinishedFinding(step, err, deps);
     }
   };
   checks.plan(plan.steps.length);
@@ -76,8 +85,10 @@ export async function checkLogin(
   return findings;
 }
 
-function handoffFor(step: SetupStep, command: string): HandoffEnvelope {
-  return handoffEnvelope({ summary: step.title, userSteps: [handoffStep(step)], command });
+// The first prerequisite of a step found in a set. An unanswered one is looked for
+// first: it decides what becomes of the step even beside one that failed outright.
+function blockerOf(step: SetupStep, among: ReadonlySet<string>): string | undefined {
+  return step.requires.find((id) => among.has(id));
 }
 
 function trustFinding(
@@ -100,18 +111,28 @@ function trustFinding(
   });
 }
 
-// A check that could not finish says nothing about sign-in; checking again is the step.
-function unfinishedFinding(step: SetupStep, error: DevkitError, deps: WorkspaceGuidance): Finding {
+// A check that could not run or finish says nothing about sign-in: its tool is the step
+// when that did not start, and checking again is otherwise.
+function unfinishedFinding(step: SetupStep, error: DevkitError, deps: WorkspaceDeps): Finding {
+  const recovery = error.code === 'TOOL_MISSING' ? ['tool', 'install'] : ['doctor', '--tool'];
   return finding('login', step.id, 'warn', error.message, {
-    fix: workspaceCommand(deps, 'doctor', '--tool', step.tool),
+    fix: workspaceCommand(deps, ...recovery, step.tool),
     coverage: 'incomplete',
-    actions: [],
+    actions: [noAnswerAction(deps, step, error.code)],
   });
 }
 
-function blockedFinding(step: SetupStep, blocker: string, deps: WorkspaceGuidance): Finding {
+// A step behind a check that gave no answer waits for that check, not for a person.
+function blockedFinding(
+  step: SetupStep,
+  blocker: string,
+  deps: WorkspaceGuidance,
+  unanswered: boolean,
+): Finding {
   return finding('login', step.id, 'warn', `Blocked by ${blocker}`, {
-    fix: loginCommand([step], deps),
     coverage: 'incomplete',
+    ...(unanswered
+      ? { fix: workspaceCommand(deps, 'doctor', '--tool', step.tool), actions: [] }
+      : { fix: loginCommand([step], deps) }),
   });
 }

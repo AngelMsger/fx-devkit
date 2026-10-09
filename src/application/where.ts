@@ -16,7 +16,7 @@ import type { LoginDeps } from './login/deps.js';
 import { expandHomeIn } from './login/verify.js';
 import { pooled } from './pool.js';
 import { Readiness } from './readiness/index.js';
-import type { ReadyStatus } from './readiness/types.js';
+import type { ReadyStatus, UnfinishedCheck } from './readiness/types.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { workspaceCommand } from './workspace/guidance.js';
 import { findKnownRepo } from './workspace/inspect.js';
@@ -36,6 +36,7 @@ export type { ProbeOutcome } from '../domain/obs/probe.js';
 export interface WhereRow extends ObsCoordinate {
   readonly ready: ReadyStatus | null;
   readonly handoff: HandoffEnvelope | null;
+  readonly unfinished?: readonly UnfinishedCheck[];
   readonly probed?: string | null;
   readonly probe_template?: readonly string[] | null;
   readonly outcome?: ProbeOutcome;
@@ -43,7 +44,7 @@ export interface WhereRow extends ObsCoordinate {
   readonly suggested_confidence?: Confidence | null;
 }
 
-type ReadyColumns = Pick<WhereRow, 'ready' | 'handoff'>;
+type ReadyColumns = Pick<WhereRow, 'ready' | 'handoff' | 'unfinished'>;
 type ProbeColumns = Required<
   Pick<WhereRow, 'probed' | 'probe_template' | 'outcome' | 'detail' | 'suggested_confidence'>
 >;
@@ -155,8 +156,8 @@ export class Where {
     const binding = this.deps.ctx.platforms.find((b) => b.platform === c.platform);
     const target = binding === undefined ? null : this.readiness.targetOf(binding);
     if (target === null) return { ready: 'unknown', handoff: null };
-    const verdict = await this.readiness.judge(target, c.env);
-    return { ready: verdict.status, handoff: verdict.handoff };
+    const { status, handoff, unfinished } = await this.readiness.judge(target, c.env);
+    return { ready: status, handoff, ...(unfinished === undefined ? {} : { unfinished }) };
   }
 
   private async probe(c: ObsCoordinate, preview: boolean): Promise<ProbeColumns> {

@@ -4,13 +4,16 @@
 
 import path from 'node:path';
 
+import { DevkitError } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
+import { failureCaseOf } from '../../domain/setup/failure-case.js';
 import { matchesJson, statedReason } from '../../domain/setup/json-check.js';
-import type { SetupCheck, SetupStep } from '../../domain/setup/types.js';
+import type { CheckCause, FailureCase, SetupCheck, SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
 import type { LoginDeps } from './deps.js';
 
@@ -18,6 +21,11 @@ export interface Verdict {
   readonly actions?: readonly PreparationAction[];
   readonly ok: boolean;
   readonly detail: string;
+  // What the recipe reads from its own check failing, when a failure case answers.
+  readonly cause?: CheckCause;
+  readonly recovery?: Pick<FailureCase, 'instructions' | 'open'>;
+  // The check did not run, so it says nothing about the step either way.
+  readonly withheld?: true;
 }
 
 export interface VerifyOptions {
@@ -78,7 +86,7 @@ export class Verifier {
         : {}),
     };
     if (options.dryRun && !(await this.setup.trust.gate.isTrusted(trust)))
-      return { ok: false, detail: 'manifest command is not trusted' };
+      return { ok: false, detail: 'manifest command is not trusted', withheld: true };
     await this.setup.trust.gate.ensure(trust);
     const vector = expandHomeIn(verify.command, this.setup.home);
     const result = await this.deps.processRun(vector, {
@@ -88,8 +96,25 @@ export class Verifier {
       diagnostic: { phase: `${step.id} check` },
       sensitiveOutput: true,
     });
+    if (result.notStarted) throw this.toolMissing(step.tool, vector[0] ?? step.tool);
     return commandVerdict(verify, result);
   }
+
+  private toolMissing(tool: string, binary: string): DevkitError {
+    return new DevkitError('config', 'TOOL_MISSING', `${binary} is not installed or not on PATH`, {
+      hint: 'The check did not run, so it says nothing about this step.',
+      nextSteps: [
+        workspaceCommand(this.deps, 'tool', 'show', tool),
+        workspaceCommand(this.deps, 'tool', 'install', tool),
+      ],
+    });
+  }
+}
+
+// A check that gave no answer: its tool did not start, or it outlived its deadline.
+// Nothing about the step follows from it, so nobody is handed the step for it.
+export function gaveNoAnswer(code: string | undefined): boolean {
+  return code === 'TOOL_MISSING' || code === 'PROCESS_TIMEOUT';
 }
 
 function commandVerdict(
@@ -108,9 +133,19 @@ function commandVerdict(
       : { ok: false, detail: unmet };
   // A tool that fails silently still answered the declared expectation on stdout.
   const silent = result.stderr.trim() === '';
+  const read = failureCaseOf(result, verify.failures);
   return {
     ok: false,
     detail: silent && unmet !== undefined ? unmet : stderrReason(result.stderr, result.code),
+    ...(read === undefined
+      ? {}
+      : {
+          cause: read.cause,
+          recovery: {
+            instructions: read.instructions,
+            ...(read.open === undefined ? {} : { open: read.open }),
+          },
+        }),
   };
 }
 

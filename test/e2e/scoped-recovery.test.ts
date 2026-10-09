@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { stringify } from 'yaml';
 
 import { shellLine } from '../../src/domain/shell.js';
+import { writeNodeShim } from '../platform.js';
 
 import { freshHome, fx, git, manifestDirOf, repository, userHome } from './harness.js';
 
@@ -340,7 +341,14 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
         ],
       }),
     );
-    const env = { ...s.env, FX_WORKSPACE: 'beta' };
+    // Installed, with its access not yet enabled: the step is a person's to finish.
+    const shims = path.join(s.base, 'shims');
+    writeNodeShim(shims, 'fixture-tool', 'process.exit(1);');
+    const env = {
+      ...s.env,
+      FX_WORKSPACE: 'beta',
+      PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
+    };
     const result = fx(
       ['login', 'fixture-tool', '--workspace', 'alpha', '--no-input', '--yes', '--format', 'json'],
       env,
