@@ -1,7 +1,7 @@
 // The command base. It resolves the global flags in a lenient pre-parse so
 // the renderer and posture exist before the command's own strict parse, and
-// it is the single error boundary: whatever escapes a command leaves as a
-// JSON envelope on stderr and a category exit code.
+// it is the single error boundary: whatever escapes a command leaves through
+// the renderer's error contract on stderr and a category exit code.
 
 import path from 'node:path';
 
@@ -44,6 +44,7 @@ import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import { globalFlags } from './flags.js';
+import { invocationFormat, UNDECIDED_FORMAT } from './invocation-format.js';
 import { preparationText } from './preparation-view.js';
 import {
   createRenderer,
@@ -61,7 +62,7 @@ import { workspaceWriteMode } from './workspace-write-policy.js';
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
   protected readonly container: Container = createContainer(process.env);
-  protected renderer: Renderer = createRenderer(DEFAULT_FORMAT, processIo());
+  protected renderer: Renderer = createRenderer(UNDECIDED_FORMAT, processIo());
   private reportSink: SinkReporter | undefined;
   protected noInput = false;
   protected yes = false;
@@ -95,9 +96,12 @@ export abstract class FxCommand extends Command {
   // failures use the requested format and retain diagnostics.
   protected override async init(): Promise<void> {
     await super.init();
+    const file = await this.container.config.read();
+    // The parse below already rejects an unknown flag, and that error has to read the
+    // way the caller asked.
+    this.renderer = createRenderer(invocationFormat(this.argv, process.env, file), processIo());
     const spec = this.constructor as typeof FxCommand & { flags?: object; args?: object };
     const { flags } = await this.parse({ ...spec, baseFlags: globalFlags, strict: false });
-    const file = await this.container.config.read();
     const settings = readSettings({
       env: process.env,
       file,
@@ -122,6 +126,7 @@ export abstract class FxCommand extends Command {
       quiet: flags.quiet,
       verbose: flags.verbose,
       noHeader: flags['no-header'],
+      shell: this.commandShell,
     };
     this.renderer = createRenderer(this.format, processIo(), this.renderOptions);
     this.container.diagnostics.connect(this.renderer);
@@ -186,8 +191,11 @@ export abstract class FxCommand extends Command {
       this.renderer.text(
         preparationText(
           { ...value, preparation: spoken },
-          this.commandShell,
-          process.env.FX_HOME !== undefined,
+          {
+            shell: this.commandShell,
+            display: this.renderer.display.out,
+            includeEnvironment: process.env.FX_HOME !== undefined,
+          },
         ),
       );
       if (this.renderOptions.details || this.renderOptions.verbose) this.renderer.record(result);
@@ -204,8 +212,9 @@ export abstract class FxCommand extends Command {
           ],
         },
       );
-      // The view above already told a person at a terminal; everything else reads the envelope.
-      if (!(viewed && process.stderr.isTTY)) this.renderer.error(error);
+      // The view already told a person watching both streams; anyone else reads the error.
+      const { out, err } = this.renderer.display;
+      if (!(viewed && out.interactive && err.interactive)) this.renderer.error(error);
       invocation.trace?.failed(error);
       this.exit(exitCodeFor('incomplete'));
     }

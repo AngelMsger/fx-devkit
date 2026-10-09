@@ -1,110 +1,241 @@
-// Column layout only. Colour and width negotiation are deliberately absent so
-// the output is identical under a pipe, in CI logs and on a terminal.
+// The human layouts. Each says what a line means and leaves its appearance to the
+// display: a plain display yields the exact text a pipe, a file and CI receive.
 
+import type { ErrorEnvelope, HandoffEnvelope } from '../../domain/errors.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { DiagnosticEvent } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
+import type { Display, Role } from './display.js';
+import { roleOf } from './tone.js';
+import { gap, widthOf } from './width.js';
+
+const GUTTER = '  ';
+const NARROWEST_COLUMN = 12;
+// A list whose items stay within this reads best as one line each.
+const ITEM_LINE = 100;
+
+interface Cell {
+  readonly text: string;
+  readonly role: Role | undefined;
+}
+
 export function humanList(
   items: readonly object[],
+  display: Display,
   columns?: readonly string[],
   noHeader = false,
 ): string {
-  if (items.length === 0) return '(none)';
-  const cols = columns ?? Object.keys(items[0] as Record<string, unknown>);
-  const rows = items.map((item) =>
-    cols.map((c) => cell(column(item as Record<string, unknown>, c))),
+  if (items.length === 0) return display.paint('quiet', '(none)');
+  const names = columns ?? Object.keys(items[0] as Record<string, unknown>);
+  const body = items.map((item) => names.map((name) => cellOf(column(item, name))));
+  const widths = fitColumns(
+    names.map((name, i) => Math.max(widthOf(name), ...body.map((row) => widthOf(row[i]!.text)))),
+    names.map(widthOf),
+    display.room(),
   );
-  const widths = cols.map((column, i) =>
-    Math.max(column.length, ...rows.map((r) => r[i]?.length ?? 0)),
-  );
-  const render = (row: readonly string[]): string =>
-    row
-      .map((value, i) => value.padEnd(widths[i] ?? 0))
-      .join('  ')
+  const line = (cells: readonly Cell[]): string =>
+    cells
+      .map(({ text, role }, i) => padded(display, role, display.clip(text, widths[i]!), widths[i]!))
+      .join(GUTTER)
       .trimEnd();
-  const body = rows.map(render);
-  return (
-    noHeader ? body : [render(cols), render(widths.map((width) => '-'.repeat(width))), ...body]
-  ).join('\n');
+  const heading = names.map((text): Cell => ({ text, role: 'strong' }));
+  const rule = widths.map((width): Cell => ({ text: '-'.repeat(width), role: 'quiet' }));
+  return [...(noHeader ? [] : [line(heading), line(rule)]), ...body.map(line)].join('\n');
+}
+
+// Shave the widest column until the table fits the room. The first column names the row
+// and keeps its width; no other goes below its heading or the narrowest useful width,
+// and a table that still cannot fit is left to wrap.
+function fitColumns(
+  natural: readonly number[],
+  headings: readonly number[],
+  room: number,
+): number[] {
+  const widths = [...natural];
+  const floor = headings.map((heading, i) =>
+    i === 0 ? Infinity : Math.max(heading, NARROWEST_COLUMN),
+  );
+  const total = widths.reduce((sum, width) => sum + width, GUTTER.length * (widths.length - 1));
+  for (let excess = total - room; excess > 0; excess -= 1) {
+    const widest = widths.reduce(
+      (best, width, i) => (width > floor[i]! && width > (widths[best] ?? 0) ? i : best),
+      -1,
+    );
+    if (widest < 0) break;
+    widths[widest] = widths[widest]! - 1;
+  }
+  return widths;
 }
 
 // A column may name a nested value. --fields projects onto literal dotted keys,
 // so a key the row actually has always wins over walking the same path.
-function column(item: Record<string, unknown>, name: string): unknown {
-  if (name in item) return item[name];
-  return name
-    .split('.')
-    .reduce<unknown>(
-      (at, key) =>
-        typeof at === 'object' && at !== null ? (at as Record<string, unknown>)[key] : undefined,
-      item,
-    );
+function column(item: object, name: string): unknown {
+  const row = item as Record<string, unknown>;
+  if (name in row) return row[name];
+  return name.split('.').reduce<unknown>((at, key) => (isRecord(at) ? at[key] : undefined), row);
 }
 
-type Describers = Readonly<Record<string, (value: unknown) => readonly string[]>>;
+export type Describers = Readonly<
+  Record<string, (value: unknown, display: Display) => readonly string[]>
+>;
 
-export function humanRecord(value: object, describe: Describers = {}): string {
+export function humanRecord(value: object, display: Display, describe: Describers = {}): string {
   const entries = Object.entries(value as Record<string, unknown>);
-  const width = Math.max(...entries.map(([k]) => k.length));
-  const lines = (k: string, v: unknown): string[] => {
-    const describer = describe[k];
-    if (describer !== undefined) return [k, ...describer(v).map((l) => `  ${l}`)];
-    if (isObjectList(v) && v.length > 8)
-      return [`${k}  [${v.length} items; use --format json for details]`];
-    if (isObjectList(v)) return [k, ...v.map((item) => `  - ${pairs(item)}`)];
-    if (typeof v === 'object' && v !== null && !Array.isArray(v))
+  const width = Math.max(...entries.map(([key]) => widthOf(key)));
+  const section = (key: string, body: readonly string[]): string[] => [
+    display.paint('strong', key),
+    ...body.map((line) => `  ${line}`),
+  ];
+  const field = (key: string, item: unknown): string[] => {
+    const describer = describe[key];
+    if (describer !== undefined) return section(key, describer(item, display));
+    if (isRecordList(item) && item.length > 8)
       return [
-        k,
-        ...humanRecord(v)
-          .split('\n')
-          .map((line) => `  ${line}`),
+        `${display.paint('quiet', key)}  [${item.length} items; use --format json for details]`,
       ];
-    return [`${k.padEnd(width)}  ${cell(v)}`];
+    if (isRecordList(item)) return section(key, listItems(item, display));
+    if (isRecord(item) && Object.keys(item).length > 0)
+      return section(key, humanRecord(item, display).split('\n'));
+    const { text, role } = cellOf(item);
+    return [`${padded(display, 'quiet', key, width)}  ${display.paint(role, text)}`.trimEnd()];
   };
-  return entries.flatMap(([k, v]) => lines(k, v)).join('\n');
+  return entries.flatMap(([key, item]) => field(key, item)).join('\n');
 }
 
-function isObjectList(value: unknown): value is Record<string, unknown>[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every((v) => typeof v === 'object' && v !== null && !Array.isArray(v))
-  );
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function pairs(item: Record<string, unknown>): string {
-  return Object.entries(item)
-    .map(([k, v]) => `${k}: ${cell(v)}`)
-    .join(', ');
+function isRecordList(value: unknown): value is Record<string, unknown>[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isRecord);
 }
 
-export function humanNotice(notice: Notice): string {
-  const lines = [`notice ${notice.code}: ${notice.message}`];
-  for (const step of notice.nextSteps ?? []) lines.push(`  ${step}`);
-  if (notice.silence !== undefined) lines.push(`  silence with ${notice.silence}`);
-  return lines.join('\n');
+// One line per item while every item stays short, otherwise one field per line.
+// Either way a field with nothing in it is left out, and so is an item left with none.
+function listItems(items: readonly Record<string, unknown>[], display: Display): string[] {
+  const bullet = display.paint('quiet', '-');
+  const entries = items
+    .map((item) =>
+      Object.entries(item)
+        .map(([key, value]): [string, Cell] => [key, cellOf(value)])
+        .filter(([, cell]) => cell.text !== ''),
+    )
+    .filter((fields) => fields.length > 0);
+  const value = ({ text, role }: Cell): string => display.paint(role, text);
+  const inline = entries.map((fields) => fields.map(([key, cell]) => `${key}: ${cell.text}`));
+  if (inline.every((parts) => widthOf(parts.join(', ')) <= ITEM_LINE))
+    return entries.map(
+      (fields) =>
+        `${bullet} ${fields
+          .map(([key, cell]) => `${display.paint('quiet', `${key}:`)} ${value(cell)}`)
+          .join(', ')}`,
+    );
+  return entries.flatMap((fields) => {
+    const width = Math.max(...fields.map(([key]) => widthOf(key)));
+    return fields.map(
+      ([key, cell], i) =>
+        `${i === 0 ? bullet : ' '} ${padded(display, 'quiet', key, width)}  ${value(cell)}`,
+    );
+  });
 }
 
-function cell(value: unknown): string {
+function cellOf(value: unknown): Cell {
+  return { text: textOf(value), role: roleOf(value) };
+}
+
+function textOf(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (Array.isArray(value))
     return value.length > 5
       ? `[${value.length} items; use --format json for details]`
-      : value.map(cell).join(',');
+      : value.map(textOf).join(',');
   if (typeof value === 'object')
     return Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => `${k}=${cell(v)}`)
+      .map(([k, v]) => `${k}=${textOf(v)}`)
       .join(' ');
   return String(value);
 }
 
-export function humanProgress(event: ProgressEvent): string {
-  const detail = event.detail === undefined ? '' : `  ${event.detail}`;
-  return `${event.id.padEnd(24)} ${event.state}${detail}`;
+// Padding follows what the terminal shows, so paint never counts toward a column.
+function padded(display: Display, role: Role | undefined, text: string, width: number): string {
+  return display.paint(role, text) + gap(text, width);
 }
 
-export function humanDiagnostic(event: DiagnosticEvent): string {
+export function humanNotice(notice: Notice, display: Display): string {
+  return [
+    headline(display, 'notice', notice.code, notice.message),
+    ...steps(display, notice.nextSteps ?? []),
+    ...(notice.silence === undefined
+      ? []
+      : [`  ${display.paint('quiet', `silence with ${notice.silence}`)}`]),
+  ].join('\n');
+}
+
+const OUTCOME: Readonly<Partial<Record<ProgressEvent['state'], 'ok' | 'fail'>>> = {
+  done: 'ok',
+  fail: 'fail',
+};
+
+export function humanProgress(event: ProgressEvent, display: Display): string {
+  const outcome = OUTCOME[event.state];
+  const subject = `${display.mark(outcome)}${padded(display, undefined, event.id, 24)}`;
+  const state = display.paint(outcome ?? 'quiet', event.state);
+  const detail = event.detail === undefined ? '' : `  ${display.paint('quiet', event.detail)}`;
+  return `${subject} ${state}${detail}`;
+}
+
+export function humanDiagnostic(event: DiagnosticEvent, display: Display): string {
   const { kind, phase, ...detail } = event;
-  const suffix = Object.keys(detail).length === 0 ? '' : `  ${cell(detail)}`;
-  return `diagnostic ${kind}: ${phase}${suffix}`;
+  const suffix = Object.keys(detail).length === 0 ? '' : `  ${textOf(detail)}`;
+  return display.paint('quiet', `diagnostic ${kind}: ${phase}${suffix}`);
+}
+
+// What a person at a terminal reads in place of the envelope: its code, message, hint,
+// next steps and hand-off. The category and retryability stay with the exit code and
+// the envelope.
+export function humanError(
+  error: ErrorEnvelope['error'],
+  display: Display,
+  shell: ResolvedShell,
+): string {
+  const [summary = '', ...more] = error.message.split('\n');
+  return [
+    headline(display, 'error', error.code, display.paint('strong', summary)),
+    ...more.map((line) => `  ${line}`),
+    `  ${error.hint}`,
+    ...steps(display, error.next_steps),
+    ...(error.handoff === undefined ? [] : handoffLines(error.handoff, display, shell)),
+  ].join('\n');
+}
+
+function handoffLines(handoff: HandoffEnvelope, display: Display, shell: ResolvedShell): string[] {
+  const detail = (line: string): string => `     ${line}`;
+  return [
+    '',
+    `  ${display.paint('strong', handoff.summary)}`,
+    ...handoff.user_steps.flatMap((step, i) => [
+      `  ${i + 1}. ${step.title}`,
+      ...(step.instructions === undefined ? [] : [detail(step.instructions)]),
+      ...(step.open === undefined ? [] : [detail(`Open: ${step.open}`)]),
+      ...(step.command === undefined
+        ? []
+        : [detail(display.paint('accent', shellLine(step.command, shell)))]),
+      ...(step.expects === undefined ? [] : [detail(`Expected: ${step.expects.path}`)]),
+    ]),
+    ...steps(display, [
+      ...(handoff.command === undefined ? [] : [handoff.command]),
+      ...(handoff.alternatives ?? []),
+    ]),
+  ];
+}
+
+// The first line of a notice and of an error: its label, its code, then what it says.
+function headline(display: Display, kind: 'notice' | 'error', code: string, text: string): string {
+  const label = display.paint(kind === 'error' ? 'fail' : 'accent', display.label[kind]);
+  return `${label} ${display.paint('quiet', `${code}:`)} ${text}`;
+}
+
+function steps(display: Display, lines: readonly string[]): string[] {
+  return lines.map((line) => `  ${display.mark('step')}${line}`);
 }

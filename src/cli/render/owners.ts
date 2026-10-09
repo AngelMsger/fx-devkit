@@ -2,17 +2,19 @@
 
 import type { Ownership, PersonRef } from '../../domain/members/owners.js';
 
-export function ownerLines(value: unknown): string[] {
-  if (value === null) return ['(no members document)'];
+import type { Display } from './display.js';
+
+export function ownerLines(value: unknown, display: Display): string[] {
+  if (value === null) return [display.paint('quiet', '(no members document)')];
   const owners = value as readonly Ownership[];
-  if (owners.length === 0) return ['(nobody)'];
+  if (owners.length === 0) return [display.paint('quiet', '(nobody)')];
+  const role = (name: string, people: string): string =>
+    `  ${display.paint('quiet', `${name}:`)} ${people}`;
   return owners.flatMap((o) => [
-    `- ${o.area} / ${o.scenario}`,
-    ...(o.lead === null ? [] : [`  area lead: ${person(o.lead)}`]),
-    ...(o.devLead === null ? [] : [`  dev lead: ${person(o.devLead)}`]),
-    ...Object.entries(o.roles).map(
-      ([role, people]) => `  ${role}: ${people.map(person).join(', ')}`,
-    ),
+    `${display.paint('quiet', '-')} ${o.area} / ${o.scenario}`,
+    ...(o.lead === null ? [] : [role('area lead', person(o.lead))]),
+    ...(o.devLead === null ? [] : [role('dev lead', person(o.devLead))]),
+    ...Object.entries(o.roles).map(([name, people]) => role(name, people.map(person).join(', '))),
   ]);
 }
 

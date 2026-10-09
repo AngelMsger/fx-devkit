@@ -23,6 +23,24 @@
   error object it printed, set log records and warnings aside, keep the line that
   follows where it failed, and state the expected value of a JSON check, as in
   `expected authenticated to be true`.
+- Make human output readable on a terminal. Headings, state words and zero counts
+  are told apart by colour, check lists and progress carry status symbols, commands
+  to type stand out, tables fit the terminal width, a blocker's long reason wraps
+  under its own column, and an error prints as text with its hint, next steps and
+  hand-off instead of a JSON envelope. Only a terminal is decorated, each stream on
+  its own: whatever the environment says, a pipe, a file and CI receive plain text
+  and the JSON error envelope, and JSON and NDJSON output is unchanged. `NO_COLOR`
+  removes the colour and keeps the symbols.
+- Align human tables by terminal columns so rows holding CJK text line up, set a
+  list's trailer apart with a blank line, drop trailing spaces after absent values,
+  and print a list inside a record one field per line once an item runs long,
+  leaving out empty fields.
+
+### Fixed
+
+- Root help on a terminal titles the everyday commands `EVERYDAY` again, and the
+  `FIRST WORKSPACE`, `AGENT USAGE` and `COMPATIBILITY` headings are emphasised like
+  the others.
 
 ## 0.7.1 (2026-10-09)
 

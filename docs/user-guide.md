@@ -468,8 +468,10 @@ require a Skill-loaded environment declaration. The full
 stdout contains results; stderr contains progress, notices and structured errors.
 Use `--format json` and capture both streams. Workflow JSON keeps the preparation
 verdict and every blocker; `--details` adds full stage evidence. Human output starts
-with the task result and next action. `--fields` projects the complete report in
-any format, using flat keys for dot paths, for example:
+with the task result and next action. On a terminal it adds colour and symbols, fits
+tables to the width and prints an error as text; a pipe or a file receives plain text
+and the JSON error envelope, and `NO_COLOR` removes the colour. `--fields`
+projects the complete report in any format, using flat keys for dot paths, for example:
 
 ```sh
 fx sync --format json --fields operation,preparation.state,items,summary

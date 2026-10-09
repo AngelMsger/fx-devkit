@@ -2,8 +2,10 @@ import { Writable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
+import { PLAIN } from '../../../src/cli/render/display.js';
 import { createRenderer, FORMATS } from '../../../src/cli/render/index.js';
 import { DevkitError } from '../../../src/domain/errors.js';
+import { FakeTerminal, tagged } from '../../fakes/fake-terminal.js';
 
 function sink(): { stream: Writable; text: () => string } {
   const chunks: string[] = [];
@@ -136,6 +138,14 @@ describe('human renderer', () => {
     expect(t.out()).toBe('name    a\nowners\n  1 scenario\n');
   });
 
+  it('sets a trailer apart from its table, and adds nothing when the trailer says nothing', () => {
+    const t = io();
+    const r = createRenderer('human', t.io);
+    r.list([{ name: 'a' }], { trailer: { workspace: 'work', stage_details: { docs: 1 } } });
+    r.list([{ name: 'a' }], { trailer: { stage_details: { docs: 1 } } });
+    expect(t.out()).toBe('name\n----\na\n\nworkspace  work\nname\n----\na\n');
+  });
+
   it('renders a notice as a labelled line with its silence hint', () => {
     const t = io();
     createRenderer('human', t.io).notice({ ...notice, nextSteps: ['fx self update'] });
@@ -145,8 +155,115 @@ describe('human renderer', () => {
   });
 });
 
+describe('human renderer on a terminal', () => {
+  const terminals = (env: NodeJS.ProcessEnv = {}) => {
+    const out = new FakeTerminal(60);
+    const err = new FakeTerminal(60);
+    return {
+      io: { out, err, env, platform: 'darwin' as const },
+      out: () => out.text(),
+      err: () => err.text(),
+    };
+  };
+
+  it('decorates stdout and stderr and sets a trailer apart from its table', () => {
+    const t = terminals();
+    const r = createRenderer('human', t.io);
+    r.list([{ name: 'api', state: 'ready' }], { trailer: { workspace: 'work' } });
+    r.notice({ code: 'SCOPE_UNSET', message: 'Everything is selected' });
+    expect(tagged(t.out())).toBe(
+      [
+        '<strong>name</>  <strong>state</>',
+        '<quiet>----</>  <quiet>-----</>',
+        'api   <ok>ready</>',
+        '',
+        '<quiet>workspace</>  work',
+        '',
+      ].join('\n'),
+    );
+    expect(tagged(t.err())).toBe('<accent>●</> <quiet>SCOPE_UNSET:</> Everything is selected\n');
+  });
+
+  it('prints an error as text for the person watching', () => {
+    const t = terminals();
+    createRenderer('human', t.io).error(
+      new DevkitError('usage', 'BAD_FLAG', 'no such flag', { nextSteps: ['fx --help'] }),
+    );
+    expect(tagged(t.err())).toBe(
+      [
+        '<fail>✗</> <quiet>BAD_FLAG:</> <strong>no such flag</>',
+        '  The command was invoked incorrectly.',
+        '  <quiet>→</> fx --help',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('tells the person about a field no row has; a program still reads it structured', () => {
+    const watched = terminals();
+    createRenderer('human', watched.io, { fields: ['name', 'nope'] }).list([{ name: 'a' }]);
+    expect(tagged(watched.err())).toBe(
+      '<accent>●</> <quiet>FIELDS_UNMATCHED:</> Fields absent from this result (possibly optional): nope\n' +
+        '  <quiet>→</> Inspect the result without --fields.\n',
+    );
+    const piped = io();
+    createRenderer('human', piped.io, { fields: ['name', 'nope'] }).list([{ name: 'a' }]);
+    expect(JSON.parse(piped.err())._notice.code).toBe('FIELDS_UNMATCHED');
+  });
+
+  it('keeps an error text, its steps still marked, when the terminal has no colour', () => {
+    const t = terminals({ NO_COLOR: '1' });
+    createRenderer('human', t.io).error(
+      new DevkitError('usage', 'BAD_FLAG', 'no such flag', { nextSteps: ['fx --help'] }),
+    );
+    expect(t.err()).toBe(
+      [
+        '✗ BAD_FLAG: no such flag',
+        '  The command was invoked incorrectly.',
+        '  → fx --help',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('decides each stream on its own: piped data stays plain beside a decorated stderr', () => {
+    const out = sink();
+    const err = new FakeTerminal();
+    const r = createRenderer('human', { out: out.stream, err, env: {}, platform: 'darwin' });
+    r.list([{ name: 'api', state: 'ready' }]);
+    r.notice({ code: 'SCOPE_UNSET', message: 'Everything is selected' });
+    expect(out.text()).toBe('name  state\n----  -----\napi   ready\n');
+    expect(err.text()).toContain('\u001b[');
+    expect(r.display.out.interactive).toBe(false);
+    expect(r.display.err.interactive).toBe(true);
+  });
+
+  it('keeps data plain and the error an envelope when only stdout faces a person', () => {
+    const out = new FakeTerminal();
+    const err = sink();
+    const r = createRenderer('human', { out, err: err.stream, env: {}, platform: 'darwin' });
+    r.error(new DevkitError('usage', 'BAD_FLAG', 'no such flag'));
+    expect(JSON.parse(err.text()).error.code).toBe('BAD_FLAG');
+  });
+
+  it('never decorates a machine format, and keeps its error an envelope', () => {
+    for (const format of ['json', 'ndjson'] as const) {
+      const t = terminals();
+      const r = createRenderer(format, t.io, { verbose: true });
+      r.list([{ name: 'api', state: 'ready' }]);
+      r.notice({ code: 'SCOPE_UNSET', message: 'Everything is selected' });
+      r.progress({ id: 'api', state: 'done' });
+      r.emit({ kind: 'process', phase: 'version probe', exit_code: 1 });
+      r.error(new DevkitError('usage', 'BAD_FLAG', 'no such flag'));
+      expect(t.out() + t.err()).not.toMatch(/[\u001b✓✗→●…]/);
+      expect(r.display).toEqual({ out: PLAIN, err: PLAIN });
+      expect(JSON.parse(t.err().trim().split('\n').at(-1)!).error.code).toBe('BAD_FLAG');
+    }
+  });
+});
+
 describe('every renderer', () => {
-  it('writes errors as a JSON envelope on stderr and nothing on stdout', () => {
+  it('writes errors as a JSON envelope on any stderr that is not a terminal', () => {
     for (const format of FORMATS) {
       const t = io();
       createRenderer(format, t.io).error(new DevkitError('usage', 'BAD_FLAG', 'no such flag'));
