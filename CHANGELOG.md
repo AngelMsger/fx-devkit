@@ -22,6 +22,13 @@
 - Give `<env> declares no <platform> platform` as the reason an environment does not
   cover a platform. The environment's note, which may be about another platform, is
   no longer that reason.
+- Stop asking which environments a person uses during `fx login`. The personal
+  environment selection is set with `fx env select` alone: until it is, every
+  declared environment is in scope, and a login that names none with `--env`
+  says so and how to narrow it. The question was asked even when `--env` named
+  the environments, came back on every login for a person who answered "all",
+  and narrowed what `fx doctor` and `fx sync` cover for one who answered with
+  only the environment at hand.
 
 ## 0.9.1 (2026-10-09)
 

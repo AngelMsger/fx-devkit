@@ -3,7 +3,7 @@
     "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "36464c32afcdd63bb43d9eb4c5b6983135249c242fc3a2c7f68fdf83d84a7b5a"
+      "source_sha256": "49f97cca6c47887b9aaf1715b830b0fe2f5025b9ace7ce45d886afbb4d8e8807"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -19,14 +19,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "79557374ebd37a547d70545136fbef6eca11eba131d544db0d81eea1168ed689"
+      "source_sha256": "b76431798f14fe8a5e8956ac6e5b5af0edef6ecdd74a9d3d4a31fa95383052b6"
     }
   },
   "zh-Hans": {
     "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "36464c32afcdd63bb43d9eb4c5b6983135249c242fc3a2c7f68fdf83d84a7b5a"
+      "source_sha256": "49f97cca6c47887b9aaf1715b830b0fe2f5025b9ace7ce45d886afbb4d8e8807"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -42,14 +42,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "79557374ebd37a547d70545136fbef6eca11eba131d544db0d81eea1168ed689"
+      "source_sha256": "b76431798f14fe8a5e8956ac6e5b5af0edef6ecdd74a9d3d4a31fa95383052b6"
     }
   },
   "zh-Hant": {
     "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "36464c32afcdd63bb43d9eb4c5b6983135249c242fc3a2c7f68fdf83d84a7b5a"
+      "source_sha256": "49f97cca6c47887b9aaf1715b830b0fe2f5025b9ace7ce45d886afbb4d8e8807"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -65,7 +65,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "79557374ebd37a547d70545136fbef6eca11eba131d544db0d81eea1168ed689"
+      "source_sha256": "b76431798f14fe8a5e8956ac6e5b5af0edef6ecdd74a9d3d4a31fa95383052b6"
     }
   }
 }

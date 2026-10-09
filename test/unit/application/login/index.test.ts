@@ -515,30 +515,23 @@ describe('Login', () => {
     },
   );
 
-  it('asks which environments once, writes the answer, and does not ask without a person', async () => {
+  it('never asks which environments: an unset selection covers all and says how to narrow it', async () => {
     const s = await stage({ local: {} });
     s.loggedIn = true;
-    s.prompter.answers = ['test', 'test'];
     const out = await s.setup.execute({ ...run, dryRun: true, tools: ['kubectl'] });
-    expect(out.items.map((r) => r.id)).toEqual(['kubectl.kubeconfig@test', 'kubectl.access@test']);
-    expect(s.h.localStore.writes, 'dry run: chosen but not written').toEqual([]);
-    await s.setup.execute({ ...run, tools: ['kubectl'], skipManual: true });
-    expect((await s.h.localStore.read('fx')).scope?.envs).toEqual(['test']);
-
-    const quiet = await stage({ local: {}, unavailable: true });
-    quiet.loggedIn = true;
-    await quiet.setup.execute({ ...run, noInput: true, dryRun: true, tools: ['kubectl'] });
-    expect(quiet.reporter().map((n) => n.code)).toContain('SCOPE_ENVS_UNSET');
-    expect(quiet.prompter.questions).toEqual([]);
-  });
-
-  it('keeps dynamic all when guided environment selection is left empty', async () => {
-    const s = await stage({ local: {} });
-    s.loggedIn = true;
-    s.prompter.answers = [''];
-    await s.setup.execute({ ...run, tools: ['kubectl'], skipManual: true });
-    expect((await s.h.localStore.read('fx')).scope?.envs).toBeUndefined();
+    expect(new Set(out.items.map((r) => r.env))).toEqual(new Set(['dev', 'test']));
+    expect(s.prompter.questions).toEqual([]);
+    expect(s.reporter().map((n) => n.code)).toContain('SCOPE_ENVS_UNSET');
     expect(s.h.localStore.writes).toEqual([]);
+
+    const named = await stage({ local: {} });
+    named.loggedIn = true;
+    const scoped = { ...run, dryRun: true, envs: ['test'], tools: ['kubectl'] };
+    expect((await named.setup.execute(scoped)).items.map((r) => r.env)).toEqual(['test', 'test']);
+    expect(
+      named.reporter().map((n) => n.code),
+      '--env already says which',
+    ).toEqual([]);
   });
 
   it('respects read-only posture after verifying', async () => {
