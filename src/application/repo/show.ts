@@ -5,6 +5,7 @@ import type { ResolvedRepo } from '../../domain/manifest/local.js';
 import { ownersOf, type Ownership } from '../../domain/members/owners.js';
 import { deriveStatus, type StatusRow } from '../../domain/workspace/status.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 import {
   contactFor,
   findKnownRepo,
@@ -27,6 +28,7 @@ export interface RepoDetail extends StatusRow {
   readonly contact: string | null;
   // null: no members document, not an unowned repository.
   readonly owners: readonly Ownership[] | null;
+  readonly next_steps: readonly string[];
 }
 
 export class RepoShow {
@@ -37,11 +39,12 @@ export class RepoShow {
     const urls = urlsFor(this.deps, repo, undefined);
     const status = deriveStatus(repo, await inspectDisk(this.deps, repo), urls.upstream);
     const people = this.deps.ctx.manifest.members?.result.doc;
+    const picked = this.deps.ctx.workspace.repos.some((entry) => entry.name === repo.name);
     return {
       ...status,
       aka: repo.aka ?? [],
       links: repo.links ?? {},
-      picked: this.deps.ctx.workspace.repos.some((entry) => entry.name === repo.name),
+      picked,
       project: repo.project ?? null,
       tags: repo.tags,
       desc: repo.desc ?? null,
@@ -51,6 +54,12 @@ export class RepoShow {
       web_url: webUrlFor(this.deps, repo) ?? null,
       contact: contactFor(this.deps, repo) ?? null,
       owners: people === undefined ? null : ownersOf(people, repo.name),
+      next_steps: [
+        ...(!picked ? [workspaceCommand(this.deps, 'repo', 'pick', repo.name)] : []),
+        ...(!status.exists && repo.origin === 'shared'
+          ? [workspaceCommand(this.deps, 'sync', '--only', 'repos', '--no-refresh-manifest')]
+          : []),
+      ],
     };
   }
 }

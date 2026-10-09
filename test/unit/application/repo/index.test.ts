@@ -134,6 +134,10 @@ describe('RepoShow', () => {
       picked: false,
       exists: false,
       upstream_url: 'ssh://git@git.example.com:12345/fx/fx-example-api.git',
+      next_steps: [
+        'fx repo pick fx-example-api --workspace fx',
+        'fx sync --only repos --no-refresh-manifest --workspace fx',
+      ],
     });
     expect(h.ctx.workspace.repos.map((repo) => repo.name)).toEqual(['fx-example-auth']);
     expect(h.localStore.writes).toEqual([]);
@@ -158,6 +162,7 @@ describe('RepoShow', () => {
       overridden: ['path', 'branch'],
       picked: false,
       exists: true,
+      next_steps: ['fx repo pick fx-example-api --workspace fx'],
     });
     expect((await new RepoList(h.deps).execute({ picked: 'unpicked' }))[0]).toMatchObject({
       name: 'fx-example-api',

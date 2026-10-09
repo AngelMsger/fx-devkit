@@ -82,6 +82,8 @@ fx 会检查来源，完成已授权的本地工具与配置准备，克隆所�
 fx init --resume --workspace work
 ```
 
+终端输出会直接列出个人登录命令和继续命令。在自己的终端完成登录，解决所列前置条件后运行继续命令即可。
+
 续跑会验证当前状态并跳过已完成的准备，不会重新导入目录来源或重建已有仓库。无需自行选择内部阶段或再组合一套诊断命令。
 
 新工作区默认选择全部共享仓库。需要减少首次下载时，先[选择仓库](#choose-repositories-before-downloading)，给初始预览和执行都加 `--repos`。已有目录自动纳入管理。日常更新使用 `fx sync`，查看仓库状态使用 `fx status`。
@@ -122,6 +124,10 @@ fx env select dev
 fx env select --none
 fx env select --all
 ```
+
+仅使用显式 Git URL、未绑定代码托管 provider 的 manifest，同步仓库无需配置代码托管用户名。
+
+未下载的仓库仍保留在完整目录中。可以直接让 Agent 处理该仓库的任务，或运行 `fx repo show <name>`：返回的 `next_steps` 会在正确的工作区补选仓库并同步下载，随后在返回的路径继续工作。
 
 `--all` 持续跟随团队完整集合，包括未来新增项；逐个选中目前全部名称仍然是固定列表。`--none` 选择空集合。清单与选择结果展示当前模式，避免将空选误认为未设置默认值。
 
@@ -171,6 +177,8 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 doctor 默认检查工作区声明的工具及所选环境中实际启用的 provider 依赖。未使用的内置工具仍可通过 `tool list --catalog` 或显式 `doctor --tool <name>` 查询；缺少它们不会导致无关工作区不健康。工具链本身覆盖 manifest 声明的全部环境（安装是整机的），而 doctor 的检查仍按所选环境收窄。活跃 provider 的依赖若被禁用，仍会报告检查不完整。
 
 init/sync 使用相同的相关工具范围。缺少可选工具仍会显示，但不阻断准备。启用的 `install_on_init` 工具需要验证；已禁用的可选工具不会仅因这个安装标记而变成必需工具。
+
+内置 Sentry 工具通过 npm 的 `sentry` 包安装；manifest 启用初始化安装时也适用。
 
 ### 共享服务设置与个人凭证 {#shared-service-settings-and-personal-credentials}
 

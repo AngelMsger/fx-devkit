@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+
+- Return `next_steps` from `fx repo show` that select and synchronize a shared
+  repository not on disk yet, and say in the generated repository index that the
+  catalog includes such repositories.
+- Print each personal sign-in command once in human preparation output, followed
+  by the command that continues afterwards.
+
+### Changed
+
+- Synchronize repositories without a code-host username, and without the notice
+  about one, when the manifest uses explicit Git URLs and binds no code host.
+- Install the bundled Sentry tool with npm (`sentry`).
+
 ## 0.7.0 (2026-10-08)
 
 ### Added

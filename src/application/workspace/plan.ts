@@ -74,6 +74,8 @@ async function resolvePlanningUser(deps: WorkspaceDeps): Promise<string | undefi
   try {
     return await resolveUser(deps);
   } catch (err) {
+    // A manifest using explicit Git URLs needs no hosted identity for synchronization.
+    if (err instanceof DevkitError && err.code === 'PROVIDER_UNBOUND') return undefined;
     if (
       !(err instanceof DevkitError) ||
       ![
@@ -82,7 +84,6 @@ async function resolvePlanningUser(deps: WorkspaceDeps): Promise<string | undefi
         'LOGIN_REQUIRED',
         'VECTOR_UNTRUSTED',
         'PROCESS_TIMEOUT',
-        'PROVIDER_UNBOUND',
         'PROVIDER_UNKNOWN',
         'PROVIDER_VAR_MISSING',
       ].includes(err.code)

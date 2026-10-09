@@ -60,6 +60,7 @@ export function projectIndex(workspace: Workspace): string {
     '## Repositories',
     '',
     'One line per repository, grouped by its first tag. `fx repo show <name>` has the rest.',
+    'This catalog includes repositories not downloaded yet. When a task needs one, use `fx repo show <name>` and follow its `next_steps` to select and synchronize it, then continue the task in its checkout.',
   ];
   for (const [tag, repos] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     lines.push(

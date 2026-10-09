@@ -119,6 +119,8 @@ items and use the printed continuation command:
 fx init --resume --workspace work
 ```
 
+The terminal output prints each personal sign-in command and a continuation command. Run personal sign-in in your own terminal, then use the continuation after the listed prerequisites change.
+
 A continuation verifies current state and skips completed preparation. It does
 not reimport a directory source or rebuild checkouts. You do not need to choose
 internal stages or run a separate diagnostic sequence to finish initialization.
@@ -179,6 +181,10 @@ fx env select dev
 fx env select --none
 fx env select --all
 ```
+
+Manifests using explicit Git URLs without a code-host binding need no code-host username to synchronize repositories.
+
+The catalog remains available even when a repository has not been downloaded. Ask your Agent to work on that repository, or run `fx repo show <name>`: its `next_steps` select the missing repository and synchronize checkouts in the correct workspace. Then continue in the reported path.
 
 `--all` follows the team's full shared collection, including future additions.
 An explicit list containing every current name remains a fixed list. `--none`
@@ -288,6 +294,8 @@ Init and sync use the same relevant tool scope. Missing optional tools remain
 visible without blocking preparation. An enabled `install_on_init` tool must be
 verified; a disabled optional tool does not become required merely because that
 installation flag is set.
+
+The bundled Sentry tool can be installed with npm (`sentry`), including during init when the manifest opts in.
 
 ### Shared service settings and personal credentials
 

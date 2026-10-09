@@ -128,7 +128,7 @@ and environment, or inspect repository platforms through `where`.
 | `outcome`, `suggested_confidence` | with `--probe` (needs `--env`): what the platform said, read-only, and the confidence to record                |
 
 `fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `accounts` (per system), `matched_by`, `via`.
-`fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact.
+`fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact. Its `next_steps` use the canonical repository name and explicit workspace to select an unpicked repository and synchronize missing shared checkouts; inspection itself never changes selection or downloads files.
 
 ### Diagnostic reports
 

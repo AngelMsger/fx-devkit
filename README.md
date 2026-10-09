@@ -102,7 +102,7 @@ internal stages or run a separate diagnostic sequence to finish initialization.
 New workspaces select all shared repositories. To limit the first download,
 [choose repositories](docs/user-guide.md#choose-repositories-before-downloading) and add `--repos`
 to the initial preview and apply. Existing directories are adopted automatically.
-For everyday updates use `fx sync`; `fx status` shows repository state.
+For everyday updates use `fx sync`; `fx status` shows repository state. To work on a repository not downloaded yet, ask your Agent or follow `fx repo show <name>` and its `next_steps`.
 
 ## Everyday commands
 
