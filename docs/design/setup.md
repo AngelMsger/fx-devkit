@@ -279,7 +279,11 @@ allowlisted manifest service into public preparation and separate personal recip
 source; environment overrides merge before planning. Service setup never exports
 or reads credential stores. Family adapters delegate merge/conflict decisions to
 native `config set-context --dry-run`; application executes the native command only
-when needed, then verifies again. No automatic overwrite or activation is issued.
+when needed, then verifies again. A declaration says where a service is and proposes
+how to sign in. Preparation, checks, sign-in and live query guards hold a context to
+the location alone: URL, flavor and organization. The declared authentication method
+shapes a context fx creates and the sign-in it offers, so a context that already
+serves the declared service is ready with whatever method its owner signed in. No automatic overwrite or activation is issued.
 The family may activate its first context according to its own contract.
 
 The services stage precedes repository/provider work on explicit sync and init.

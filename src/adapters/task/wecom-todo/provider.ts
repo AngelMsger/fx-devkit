@@ -21,7 +21,10 @@ export const wecomTodoProvider: ProviderDescriptor<Coordinate> = {
       title: 'Authorize WeCom to-do discovery',
       instructions:
         'Use the wecomcli-shared Skill to authorize wecom-cli. The to-do list covers what the authorized bot created or participates in.',
-      verify: { command: TODOS },
+      verify: {
+        command: TODOS,
+        json: { path: 'errcode', equals: 0, unmet: 'the WeCom API returned an error' },
+      },
     },
   ],
   create: () => ({

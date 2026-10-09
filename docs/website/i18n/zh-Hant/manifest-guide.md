@@ -249,7 +249,7 @@ envs:
 
 ## 公共服務預設 {#public-service-presets}
 
-fx 0.2.0 支援在工作區 provider、platform 預設值及環境覆寫項宣告可選的 `service`；對應文件需設定 `min_cli: '0.2.0'`。環境覆寫繼承平台設定。`base_url` 是包含部署路徑的完整 HTTP(S) URL，SSH 複製位址分開保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可設定 `flavor`；OpenObserve 必須宣告 `org`；四種配套工具須宣告 `auth_scheme`，可選公共憑證取得頁面 `credential_url`。Prometheus 同樣須宣告 `auth_scheme`，並接受 `none`，用於無需登入的服務：就緒與否取決於服務是否回應，不會要求登入；只有前置閘道要求時才使用 `basic` 或 `bearer`。Sentry 只接受 `base_url` 與 `org`。未寫 `provider` 的 platform 依其名稱推導出的 provider 驗證，與 `fx manifest providers` 顯示的一致。
+fx 0.2.0 支援在工作區 provider、platform 預設值及環境覆寫項宣告可選的 `service`；對應文件需設定 `min_cli: '0.2.0'`。環境覆寫繼承平台設定。`base_url` 是包含部署路徑的完整 HTTP(S) URL，SSH 複製位址分開保留；`context` 指定配套 CLI 的 context。Bitbucket/Confluence 可設定 `flavor`；OpenObserve 必須宣告 `org`；四種配套工具須宣告 `auth_scheme`，可選公共憑證取得頁面 `credential_url`。`auth_scheme` 決定 fx 如何新建缺少的 context 以及 `fx login` 提供哪種登入方式，並非就緒條件；成員針對同一 `base_url` 的 context 以其他方式登入時同樣算就緒。Prometheus 同樣須宣告 `auth_scheme`，並接受 `none`，用於無需登入的服務：就緒與否取決於服務是否回應，不會要求登入；只有前置閘道要求時才使用 `basic` 或 `bearer`。Sentry 只接受 `base_url` 與 `org`。未寫 `provider` 的 platform 依其名稱推導出的 provider 驗證，與 `fx manifest providers` 顯示的一致。
 
 相同預設可共用本機目標，同一目標有不同預設時會阻擋設定。衝突的舊 vars 應刪除以避免兩個來源。使用者名稱、電子郵件、密碼、PAT/API Token 值、Cookie 與瀏覽器工作階段不可分發；每人透過自己的 CLI 取得並保存憑證。額外 service 欄位在非嚴格模式也驗證失敗；URL 中的憑證會遭拒且不回顯。
 

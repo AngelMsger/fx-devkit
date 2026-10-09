@@ -211,7 +211,8 @@ from version verification. Inventory's `unused` is a suggestion, never uninstall
 authorization; inspect unregistered projects before removing anything manually.
 
 Service declarations contain public connection settings and authentication methods,
-never personal credentials. Init/explicit sync prepare them before repository
+never personal credentials. The method is the default for a context fx creates; a
+context that already reaches the declared service is ready however it signs in. Init/explicit sync prepare them before repository
 queries; background hooks only check. Conflicts preserve existing settings.
 Follow the [service reference](commands.md#service-preparation) for
 native context conflicts and scoped login.

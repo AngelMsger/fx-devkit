@@ -13,6 +13,15 @@
   `expected authenticated to be true`: `OpenObserve returned HTTP 401`, for example,
   or a failed request to a server that takes no sign-in.
 - Offer `fx doctor --fix` for Skill copies fx can bring up to date itself.
+- Accept a companion context that reaches the declared service however its owner
+  signed in. A `service` declaration's `auth_scheme` now only shapes a context fx
+  creates and the sign-in `fx login` offers; preparation, checks and queries hold a
+  context to the declared URL, flavor and organization and no longer pass
+  `--auth-scheme`.
+- Say what an unmet companion check means where fx knows it. A login that
+  `fx doctor --fix` can associate reads `an existing login can be reused`, and
+  the three WeCom checks, now all judged by the response's error code, read
+  `the WeCom API returned an error`.
 
 ## 0.9.0 (2026-10-09)
 

@@ -2,6 +2,7 @@
 import type { SetupStep } from '../../domain/setup/types.js';
 import { shellLine } from '../../domain/shell.js';
 import { errorEnvelope } from '../../domain/toolchain/stderr.js';
+import type { ProcessResult } from '../../ports/process.js';
 import type { LoginDeps } from '../login/deps.js';
 import { assertWritable } from '../safety/posture.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -27,50 +28,63 @@ export async function prepareCommand(
 ): Promise<ServiceOutcome> {
   const vector = step.run ?? [];
   const preview = [...vector, '--dry-run'];
-  const trust = {
+  // A context that already serves the declared service is ready as the person set it up.
+  const agrees = 'command' in step.verify ? step.verify.command : preview;
+  const trust = (command: readonly string[], label = `${step.id} preview`) => ({
     ...login.trust,
     workspace: deps.ctx.name,
     commandShell: deps.commandShell,
-    vector: preview,
+    vector: command,
     origin: step.origin,
-    label: `${step.id} preview`,
-  };
-  if (dryRun && !(await login.trust.gate.isTrusted(trust)))
-    return {
-      status: 'blocked',
-      detail: 'Service preview command is not trusted',
-      next_steps: [shellLine(preview, deps.commandShell)],
-    };
-  await login.trust.gate.ensure(trust);
-  const result = await deps.processRun(preview, {
-    timeoutMs: 5000,
-    cwd: deps.ctx.root,
-    diagnostic: { phase: `${step.id} preview` },
+    label,
   });
-  if (result.code !== 0) return commandFailure(result.stderr, vector, deps);
-  const data = object(result.stdout);
-  if (data['changed'] === false)
-    return { status: 'unchanged', detail: 'Public service settings match' };
-  if (data['changed'] !== true)
-    return { status: 'failed', detail: 'Companion did not return a service configuration plan' };
-  const changes = publicChanges(data['changes']);
+  const run = (command: readonly string[], phase: string) =>
+    deps.processRun(command, {
+      timeoutMs: 5000,
+      cwd: deps.ctx.root,
+      diagnostic: { phase: `${step.id} ${phase}` },
+    });
+  // What a dry run says: an outcome that ends the step, or the changes it would make.
+  const consult = async (
+    command: readonly string[],
+  ): Promise<ServiceOutcome | { readonly pending: unknown }> => {
+    if (dryRun && !(await login.trust.gate.isTrusted(trust(command))))
+      return {
+        status: 'blocked',
+        detail: 'Service preview command is not trusted',
+        next_steps: [shellLine(command, deps.commandShell)],
+      };
+    await login.trust.gate.ensure(trust(command));
+    const result = await run(command, 'preview');
+    if (result.code !== 0) return commandFailure(result.stderr, vector, deps);
+    const data = object(result.stdout);
+    if (data['changed'] === false)
+      return { status: 'unchanged', detail: 'Public service settings match' };
+    if (data['changed'] !== true)
+      return { status: 'failed', detail: 'Companion did not return a service configuration plan' };
+    return { pending: data['changes'] };
+  };
+  const serving = await consult(agrees);
+  if ('status' in serving) return serving;
+  const plan = await consult(preview);
+  if ('status' in plan) return plan;
+  const changes = publicChanges(plan.pending);
   if (dryRun)
     return { status: 'planned', detail: 'Public service settings would be prepared', changes };
   assertWritable(login.trust.posture, step.id);
-  await login.trust.gate.ensure({ ...trust, vector, label: step.id });
-  const applied = await deps.processRun(vector, {
-    timeoutMs: 5000,
-    cwd: deps.ctx.root,
-    diagnostic: { phase: `${step.id} prepare` },
-  });
+  await login.trust.gate.ensure(trust(vector, step.id));
+  const applied = await run(vector, 'prepare');
   if (applied.code !== 0) return commandFailure(applied.stderr, vector, deps);
-  const after = await deps.processRun(preview, { timeoutMs: 5000, cwd: deps.ctx.root });
+  return verified(await run(agrees, 'verify'), changes);
+}
+
+function verified(after: ProcessResult, changes: ServiceOutcome['changes']): ServiceOutcome {
   if (after.code !== 0 || object(after.stdout)['changed'] !== false)
     return { status: 'failed', detail: 'Service settings were not verified after preparation' };
   return {
     status: 'configured',
     detail: 'Public service settings prepared; personal login is separate',
-    changes,
+    ...(changes ? { changes } : {}),
   };
 }
 

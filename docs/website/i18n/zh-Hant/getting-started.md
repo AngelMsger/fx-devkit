@@ -184,7 +184,7 @@ init/sync 使用相同的相關工具範圍。缺少選用工具仍會顯示，�
 
 ### 共用服務設定與個人憑證 {#shared-service-settings-and-personal-credentials}
 
-manifest 可宣告 URL、context、組織和驗證方式等公共 `service` 設定。`init`、明確執行的 `sync` 和 `login` 透過配套工具自身的命令準備設定；背景 hook 只檢查。使用 `fx sync --only services --dry-run` 預覽。
+manifest 可宣告 URL、context、組織和驗證方式等公共 `service` 設定。`init`、明確執行的 `sync` 和 `login` 透過配套工具自身的命令準備設定；背景 hook 只檢查。宣告的驗證方式只是 fx 新建 context 時的預設值；你自己的 context 只要已經能存取宣告的服務，無論以哪種方式登入都算就緒。使用 `fx sync --only services --dry-run` 預覽。
 
 設定與身分驗證分開進行。每位成員透過配套 CLI 取得並儲存自己的憑證。既有衝突設定會保留並回報；sync 不執行個人登入。Sentry 僅寫入工作區 `.sentryclirc` 的公共預設值，保留外來檔案。
 

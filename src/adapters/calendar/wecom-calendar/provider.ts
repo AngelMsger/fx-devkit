@@ -21,7 +21,10 @@ export const wecomCalendarProvider: ProviderDescriptor<Coordinate> = {
       title: 'Authorize WeCom schedule discovery',
       instructions:
         'Use the wecomcli-shared Skill to authorize wecom-cli. Schedule visibility is limited to the authorized bot.',
-      verify: { command: SCHEDULES },
+      verify: {
+        command: SCHEDULES,
+        json: { path: 'errcode', equals: 0, unmet: 'the WeCom API returned an error' },
+      },
     },
   ],
   create: () => ({

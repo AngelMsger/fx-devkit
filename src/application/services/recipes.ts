@@ -35,7 +35,7 @@ export function serviceRecipes(input: {
         ...(prep.kind === 'command' ? { run: prep.command } : {}),
         verify:
           prep.kind === 'command'
-            ? { command: [...prep.command, '--dry-run'], json: { path: 'changed', equals: false } }
+            ? { command: [...prep.agrees, '--dry-run'], json: { path: 'changed', equals: false } }
             : { file: prep.relative },
       },
     },
