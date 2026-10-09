@@ -14,6 +14,7 @@ import { syncStages } from '../../../../src/application/sync/stages.js';
 import { WorkspaceContext } from '../../../../src/application/workspace-context.js';
 import { createContainer } from '../../../../src/composition/container.js';
 import { harnessSession } from '../../../../src/composition/harness.js';
+import { derive } from '../../../../src/domain/docs/derived.js';
 import { asDevkitError } from '../../../../src/domain/errors.js';
 import { FileLock } from '../../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../../src/infra/projection-store.js';
@@ -34,6 +35,8 @@ const input = {
 };
 const original =
   '# Team\nOriginal prose\n<!-- fx:begin project-index -->\nstale\n<!-- fx:end project-index -->\n';
+// What an earlier version derived beside the guide.
+const pointer = (source: string): string => derive('# CLAUDE.md\n', path.join(source, 'AGENTS.md'));
 async function fixture() {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'fx-docs-recovery-')));
   directories.push(root);
@@ -63,29 +66,47 @@ it('refuses an outdated render, then preserves the new prose on retry', async ()
   const deps = { ...s.deps, context: s.deps.ctx.context, describeProvider: () => undefined };
   await expect(new RenderRegions({ ...deps, projections }).execute(input)).rejects.toMatchObject({
     code: 'DOCS_WRITE_CONFLICT',
-    partialResult: { files: [{ result: 'failed' }, { result: 'not_started' }] },
+    partialResult: { files: [{ result: 'failed' }] },
   });
   expect(await readFile(target, 'utf8')).toBe(concurrent);
   const render = new RenderRegions(deps);
   await render.execute(input);
   expect(await readFile(target, 'utf8')).toContain('New instructions saved by a person');
-  expect((await render.execute(input)).files.map((file) => file.result)).toEqual([
-    'skipped',
-    'skipped',
-  ]);
+  expect((await render.execute(input)).files.map((file) => file.result)).toEqual(['skipped']);
+});
+
+it('leaves the retired pointer for the next sync when the guide cannot be written', async () => {
+  const s = await fixture();
+  const agents = path.join(s.root, 'AGENTS.md');
+  const claude = path.join(s.root, 'CLAUDE.md');
+  await writeFile(claude, pointer(s.source));
+  const projections: ProjectionStore = {
+    read: (at) => s.projections.read(at),
+    async write(request) {
+      if (request.relative === 'AGENTS.md')
+        await writeFile(agents, 'A person created this file after planning');
+      return s.projections.write(request);
+    },
+  };
+  const docs = new DeriveDocs({ ...s.deps, projections }, { describeProvider: () => undefined });
+  await expect(docs.execute(input)).rejects.toMatchObject({
+    code: 'DOCS_WRITE_CONFLICT',
+    partialResult: {
+      files: [{ result: 'failed' }, { action: 'removed', result: 'not_started' }],
+    },
+  });
+  expect(await readFile(claude, 'utf8')).toBe(pointer(s.source));
 });
 
 it('keeps the first write in a failed sync report and resumes without rewriting it', async () => {
   const s = await fixture();
   const claude = path.join(s.root, 'CLAUDE.md');
-  let interrupted = false;
+  await writeFile(claude, pointer(s.source));
   const projections: ProjectionStore = {
     read: (at) => s.projections.read(at),
     async write(request) {
-      if (request.relative === 'CLAUDE.md' && !interrupted) {
-        interrupted = true;
-        await writeFile(claude, 'A person created this file after planning');
-      }
+      if (request.relative === 'CLAUDE.md')
+        await writeFile(claude, 'A person took this file over after planning');
       return s.projections.write(request);
     },
   };
@@ -122,21 +143,14 @@ it('keeps the first write in a failed sync report and resumes without rewriting 
   });
   const agents = await readFile(path.join(s.root, 'AGENTS.md'), 'utf8');
   expect(agents).toContain('# docs workspace');
-  expect(await readFile(claude, 'utf8')).toBe('A person created this file after planning');
-  await rm(claude);
+  expect(await readFile(claude, 'utf8')).toBe('A person took this file over after planning');
   const resumed = await sync();
   expect(resumed).toMatchObject({
     preparation: { state: 'ready' },
-    stage_details: {
-      docs: {
-        files: [
-          { action: 'unchanged', result: 'skipped' },
-          { action: 'created', result: 'done' },
-        ],
-      },
-    },
+    stage_details: { docs: { files: [{ action: 'unchanged', result: 'skipped' }] } },
   });
   expect(await readFile(path.join(s.root, 'AGENTS.md'), 'utf8')).toBe(agents);
+  expect(await readFile(claude, 'utf8')).toBe('A person took this file over after planning');
 });
 
 it('retains completed documents when the following rules source cannot be projected', async () => {
@@ -176,19 +190,12 @@ it('retains completed documents when the following rules source cannot be projec
   await expect(sync()).rejects.toMatchObject({
     code: 'HARNESS_SOURCE_FOREIGN',
     partialResult: {
-      stage_details: { docs: { files: [{ result: 'done' }, { result: 'done' }] } },
+      stage_details: { docs: { files: [{ result: 'done' }] } },
     },
   });
   await rm(blocked, { recursive: true });
   await expect(sync()).resolves.toMatchObject({
     preparation: { state: 'ready' },
-    stage_details: {
-      docs: {
-        files: [
-          { action: 'unchanged', result: 'skipped' },
-          { action: 'unchanged', result: 'skipped' },
-        ],
-      },
-    },
+    stage_details: { docs: { files: [{ action: 'unchanged', result: 'skipped' }] } },
   });
 });

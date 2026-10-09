@@ -50,12 +50,14 @@ describe('FileSource', () => {
       '/src/AGENTS.md': 'Read docs/guide.md',
       '/src/docs/guide.md': 'Team background',
       '/src/skills/review/references/check.md': 'Review guidance',
+      '/src/CLAUDE.md': 'Host notes',
       '/src/.env': 'personal config',
     });
     await new FileSource('/src/manifest', fs).materialize('/target');
     expect(await fs.readText('/target/AGENTS.md')).toBe('Read docs/guide.md');
     expect(await fs.readText('/target/docs/guide.md')).toBe('Team background');
     expect(await fs.readText('/target/skills/review/references/check.md')).toBe('Review guidance');
+    expect(await fs.exists('/target/CLAUDE.md')).toBe(false);
     expect(await fs.exists('/target/.env')).toBe(false);
     const writes = fs.writes.length;
     await new FileSource('/src', fs).materialize('/target');
@@ -132,6 +134,7 @@ describe('stdin bundle validation', () => {
     'docs\\outside',
     'manifest/../../outside',
     '.env',
+    'CLAUDE.md',
   ])('rejects unsafe or non-payload path %s before writing', async (name) => {
     const fs = FakeFs.from({});
     const input = JSON.stringify({

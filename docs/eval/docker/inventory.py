@@ -52,7 +52,7 @@ def main(round_id, fx=None, label_prefix="inventory"):
                 item["disk_kib"] = int(result.stdout.split()[0]) if result.returncode == 0 else None
             repos.append(item)
     guides = []
-    for relative in ["AGENTS.md", "CLAUDE.md", ".grok/skills", ".grok/hooks/fx.json"]:
+    for relative in ["AGENTS.md", ".grok/skills", ".grok/hooks/fx.json"]:
         path = workspace / relative
         row = {"path": relative, "exists": path.exists(), "symlink": path.is_symlink(),
                "resolved": str(path.resolve())}

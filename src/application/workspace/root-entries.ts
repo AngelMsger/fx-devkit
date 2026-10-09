@@ -4,7 +4,7 @@
 
 import path from 'node:path';
 
-import { DERIVED_GUIDES } from '../../domain/docs/derived.js';
+import { CLAUDE_GUIDE, DERIVED_GUIDE } from '../../domain/docs/derived.js';
 import {
   accountedNames,
   isStray,
@@ -29,7 +29,8 @@ export async function strayRootEntries(
 ): Promise<RootEntry[]> {
   const { ctx, fs } = deps;
   const accounted = accountedNames([
-    ...DERIVED_GUIDES,
+    DERIVED_GUIDE,
+    CLAUDE_GUIDE,
     ...ctx.manifest.workspace.result.doc.repos.map((repo) => repo.path ?? repo.name),
     ...ctx.workspace.repos.map((repo) =>
       path.relative(ctx.root, path.resolve(ctx.root, repo.path)),

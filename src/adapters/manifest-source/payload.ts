@@ -11,7 +11,6 @@ import type { ReplaceFiles } from '../../ports/replace-files.js';
 export const PAYLOAD_PATHS = [
   ...Object.values(MANIFEST_FILES),
   'AGENTS.md',
-  'CLAUDE.md',
   'README.md',
   'docs',
   'skills',

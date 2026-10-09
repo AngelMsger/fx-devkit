@@ -1,11 +1,11 @@
-// Rendering the generated regions of AGENTS.md (and the CLAUDE.md pointer) inside a
-// checkout of the manifest repository, for its maintainers and its CI. Prose outside the
-// regions is preserved using a captured snapshot; a draft may target another path.
+// Rendering the generated regions of AGENTS.md inside a checkout of the manifest
+// repository, for its maintainers and its CI. Prose outside the regions is preserved
+// using a captured snapshot; a draft may target another path.
 
 import path from 'node:path';
 
 import { renderRegions } from '../../domain/docs/regions.js';
-import { agentsSkeleton, CLAUDE_POINTER } from '../../domain/docs/skeleton.js';
+import { agentsSkeleton } from '../../domain/docs/skeleton.js';
 import { renderAll } from '../../domain/docs/templates.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { ProjectionStore } from '../../ports/projection.js';
@@ -38,10 +38,8 @@ export class RenderRegions {
 
   async execute(input: RenderInput): Promise<RenderOutput> {
     const agents = await this.agents(input.out);
-    const files = [agents];
-    if (input.out === undefined) files.push(await this.claude());
     reportRegions(this.deps.reporter, agents.file.path, agents.file);
-    const result = await finish(this.deps.projections, input, files);
+    const result = await finish(this.deps.projections, input, [agents]);
     if (result.files[0]?.action === 'created' && result.files[0].result === 'done')
       this.deps.reporter.notice({
         code: 'DOCS_CREATED',
@@ -68,17 +66,6 @@ export class RenderRegions {
       rendered.text,
       before,
       rendered,
-    );
-  }
-
-  private async claude(): Promise<Pending> {
-    const target = path.join(this.deps.context.dir, 'CLAUDE.md');
-    const before = await this.deps.projections.read(documentPath(target));
-    return pending(
-      target,
-      before.kind === 'absent' ? 'created' : 'unchanged',
-      CLAUDE_POINTER,
-      before,
     );
   }
 }

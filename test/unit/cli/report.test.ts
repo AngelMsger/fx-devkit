@@ -69,7 +69,7 @@ const report = {
         failure,
         files: [
           { path: '/workspace/AGENTS.md', action: 'created', result: 'done' },
-          { path: '/workspace/CLAUDE.md', action: 'created', result: 'failed', failure },
+          { path: '/workspace/CLAUDE.md', action: 'removed', result: 'failed', failure },
         ],
       },
     },

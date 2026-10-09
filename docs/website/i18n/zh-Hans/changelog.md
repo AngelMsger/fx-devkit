@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- 工作区根目录只派生 `AGENTS.md`。fx 不再写入指向它的 `CLAUDE.md`，`fx manifest render` 也不再在 manifest 仓库中创建该文件：Claude Code 2.1.277 及以上版本会自行读取 `AGENTS.md`，而只要存在 `CLAUDE.md` 就会改读后者。`fx sync` 会移除早期版本派生的指针文件；在移除之前，`fx doctor` 报告指南已过期。你自己写的 `CLAUDE.md` 保持原样，也不再算作指南冲突；请在其开头写上 `@AGENTS.md`，这样 Claude Code 仍会读取指南。如果 manifest 仓库里还留有这个指针文件，请将其删除。
+- manifest 源的载荷不再包含 `CLAUDE.md`。目录源中的该文件不再被复制到受管理的源，stdin 包里若列出它，会以 `MANIFEST_SOURCE_INVALID` 拒绝。
+
 ## 0.8.0 (2026-10-09)
 
 - fx 为内置工具定义的命令不再询问信任，包括由 manifest `service` 声明填入参数的服务准备、登录复用和凭据检查。只有团队 `tools.yaml` 补丁编写的命令向量仍需确认；已保存的凭据可以发往哪里由配套工具自己决定。

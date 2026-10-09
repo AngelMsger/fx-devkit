@@ -100,11 +100,9 @@ describe('a manifest repository', () => {
     expect(agents).toContain('Routing rules people wrote.');
     expect(agents).toContain('| `a` |');
     expect(agents).not.toContain('stale');
-    expect(readFileSync(path.join(s.ws, 'CLAUDE.md'), 'utf8').startsWith('<!-- fx:derived')).toBe(
-      true,
-    );
+    expect(existsSync(path.join(s.ws, 'CLAUDE.md'))).toBe(false);
     const stages = (boot.json() as { sync: { stages: Record<string, unknown> } }).sync.stages;
-    expect(stages['docs']).toMatchObject({ created: 2 });
+    expect(stages['docs']).toMatchObject({ created: 1 });
     expect(stages['skills']).toMatchObject({ create: 1 });
     expect(pathKey(readlinkSync(path.join(s.ws, '.claude', 'skills')))).toBe(
       pathKey(path.join(sourceDir, 'skills')),

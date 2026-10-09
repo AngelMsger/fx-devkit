@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Derive `AGENTS.md` alone into the workspace root. fx no longer writes a
+  `CLAUDE.md` pointing at it, and `fx manifest render` no longer creates one in
+  the manifest repository: Claude Code 2.1.277 and later reads `AGENTS.md` by
+  itself, and reads a `CLAUDE.md` in its place whenever one exists. `fx sync`
+  removes the pointer an earlier version derived; `fx doctor` reports the guide
+  as stale until it has. A `CLAUDE.md` you wrote stays where it is and no longer
+  counts as a guide conflict; start it with `@AGENTS.md` so Claude Code still
+  reads the guide. Delete the pointer from a manifest repository that still
+  carries it.
+- Leave `CLAUDE.md` out of the manifest source payload. A directory source's copy
+  is no longer materialized, and a stdin bundle that names it is rejected with
+  `MANIFEST_SOURCE_INVALID`.
+
 ## 0.8.0 (2026-10-09)
 
 ### Changed

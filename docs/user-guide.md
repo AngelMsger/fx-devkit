@@ -226,6 +226,11 @@ root: one dated directory per task for reports, plans and evidence,
 `worktrees/` for `git worktree add` targets, and `tmp/` for anything disposable.
 The derived guide gives agents the same rules. fx never writes inside it.
 
+The root `AGENTS.md` is the one guide fx derives, and agents read it on their
+own. Claude Code does from 2.1.277, provided no `CLAUDE.md` or `CLAUDE.local.md`
+sits at the workspace root or above it. One that does is read in place of the
+guide, so start it with `@AGENTS.md`.
+
 The manifest's workspace, environments, tools and members documents describe
 shared facts; optional harness declarations describe MCP resources and rules.
 Use `fx manifest explain '<path>'` or `fx manifest schema --kind <kind>` to inspect

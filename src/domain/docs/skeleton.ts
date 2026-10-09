@@ -13,10 +13,3 @@ export function agentsSkeleton(workspaceName: string): string {
     ...REGIONS.flatMap((name) => [region(name, ''), '']),
   ].join('\n');
 }
-
-export const CLAUDE_POINTER = [
-  '# CLAUDE.md',
-  '',
-  'The engineering guide of this workspace is [AGENTS.md](./AGENTS.md). Read it directly; do not restate it here.',
-  '',
-].join('\n');
