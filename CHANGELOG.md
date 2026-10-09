@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.9.0 (2026-10-09)
+
 ### Changed
 
 - Derive `AGENTS.md` alone into the workspace root. fx no longer writes a
