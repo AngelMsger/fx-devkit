@@ -192,6 +192,10 @@ selects no shared entries. Machine-local repositories and the manifest checkout
 remain separately managed. Lists and selection results identify the active mode,
 so an empty selection cannot be confused with an unset default.
 
+Only these commands change the environment selection. `fx login` never asks for
+it: with none set it covers every declared environment and says how to narrow
+it, and `--env` limits one invocation without changing the selection.
+
 ## Read repository status
 
 `fx status` identifies the workspace and includes untracked-file counts.

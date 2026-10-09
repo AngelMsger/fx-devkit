@@ -22,7 +22,7 @@ import { buildPlan } from './collect.js';
 import { setupCommandFailure } from './command-failure.js';
 import type { LoginDeps } from './deps.js';
 import { handoffStep, loginCommand } from './handoff.js';
-import { ensureScopeEnvs } from './scope-envs.js';
+import { noteUnsetEnvScope } from './scope-envs.js';
 import { expandHomeIn, Verifier } from './verify.js';
 
 export interface LoginInput {
@@ -97,13 +97,9 @@ export class Login {
   }
 
   async execute(input: LoginInput): Promise<LoginOutput> {
-    this.validatePlan(await this.plan(input), true);
-    const scopeEnvs =
-      input.mode === 'prepare'
-        ? this.deps.ctx.local.scope?.envs
-        : await ensureScopeEnvs(this.deps, this.setup.prompter, input);
-    const plan = buildPlan(this.deps, this.setup, { ...input, scopeEnvs });
+    const plan = await this.plan(input);
     this.validatePlan(plan);
+    if (input.mode !== 'prepare') noteUnsetEnvScope(this.deps, input.envs);
     return Tally.during(this.deps.activity, 'steps', (steps) =>
       this.run(plan, input, steps.plan(plan.steps.length)),
     );
@@ -150,10 +146,8 @@ export class Login {
     return output();
   }
 
-  private validatePlan(plan: SetupPlan, conflictsOnly = false): void {
-    const problems = conflictsOnly
-      ? plan.problems.filter((problem) => problem.reason === 'step_conflict')
-      : plan.problems;
+  private validatePlan(plan: SetupPlan): void {
+    const problems = plan.problems;
     if (!problems.length) return;
     const conflicts = problems.some((problem) => problem.reason === 'step_conflict');
     throw new DevkitError(
