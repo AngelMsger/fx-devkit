@@ -1,6 +1,6 @@
 {
   "name": "@fx/devkit",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Manifest-driven multi-repository workspaces for people and coding agents",
   "license": "Apache-2.0",
   "type": "module",
