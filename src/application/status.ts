@@ -8,6 +8,7 @@ import { deriveStatus, type StatusRow } from '../domain/workspace/status.js';
 
 import { pooled } from './pool.js';
 import { assertWritable, type WritePosture } from './safety/posture.js';
+import { Tally } from './tally.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 import { checkoutDir, inspectDisk, urlsFor } from './workspace/inspect.js';
 
@@ -37,33 +38,43 @@ export class Status {
   constructor(private readonly deps: WorkspaceDeps) {}
 
   async execute(input: StatusInput): Promise<StatusItem[]> {
-    const plan: StatusPlanItem[] = await pooled(
-      this.deps.ctx.workspace.repos,
-      input.jobs ?? 4,
-      async (repo) => {
-        const disk = await inspectDisk(this.deps, repo);
-        return { repo, disk, fetch: planFetch(input.fetch, disk) };
-      },
-    );
+    const { activity } = this.deps;
+    const { repos } = this.deps.ctx.workspace;
+    const plan: StatusPlanItem[] = await Tally.during(activity, 'repos', (tally) => {
+      tally.plan(repos.length);
+      return pooled(repos, input.jobs ?? 4, (repo) =>
+        tally.unit(repo.name, async () => {
+          const disk = await inspectDisk(this.deps, repo);
+          return { repo, disk, fetch: planFetch(input.fetch, disk) };
+        }),
+      );
+    });
     const writes = plan.filter((item) => item.fetch === 'planned');
-    if (input.fetch && !input.dryRun && writes.length > 0)
-      assertWritable(input.posture, 'status --fetch');
+    if (!input.fetch || input.dryRun || writes.length === 0) return this.rows(input, plan);
+    assertWritable(input.posture, 'status --fetch');
+    return Tally.during(activity, 'fetch', async (tally) => {
+      tally.plan(writes.length);
+      const fetched: StatusPlanItem[] = [];
+      for (const item of plan)
+        fetched.push(
+          item.fetch === 'planned'
+            ? await tally.unit(item.repo.name, () => this.fetch(item))
+            : item,
+        );
+      return this.rows(input, fetched);
+    });
+  }
 
-    const rows: StatusItem[] = [];
-    for (const item of plan) {
-      let { disk } = item;
-      let fetch = item.fetch;
-      if (input.fetch && !input.dryRun && fetch === 'planned') {
-        const { repo } = item;
-        await this.deps.git.fetch(checkoutDir(this.deps, repo), 'upstream');
-        disk = await inspectDisk(this.deps, repo);
-        fetch = 'completed';
-      }
-      rows.push({
-        ...deriveStatus(item.repo, disk, urlsFor(this.deps, item.repo, undefined).upstream),
-        fetch,
-      });
-    }
+  private async fetch({ repo }: StatusPlanItem): Promise<StatusPlanItem> {
+    await this.deps.git.fetch(checkoutDir(this.deps, repo), 'upstream');
+    return { repo, disk: await inspectDisk(this.deps, repo), fetch: 'completed' };
+  }
+
+  private rows(input: StatusInput, plan: readonly StatusPlanItem[]): StatusItem[] {
+    const rows = plan.map((item): StatusItem => ({
+      ...deriveStatus(item.repo, item.disk, urlsFor(this.deps, item.repo, undefined).upstream),
+      fetch: item.fetch,
+    }));
     return input.dirtyOnly ? rows.filter((r) => r.uncommitted) : rows;
   }
 }

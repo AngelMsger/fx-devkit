@@ -20,6 +20,7 @@ import {
   type Describers,
 } from './human.js';
 import { compactReport, type ReportCommand } from './report.js';
+import { statusLineOn, type StatusLine } from './status-line.js';
 
 export { parseFields, project } from './fields.js';
 export { FORMATS, type Format } from '../../domain/format.js';
@@ -50,6 +51,8 @@ export interface Displays {
 export interface Renderer extends DiagnosticReporter {
   // How each stream shows a human view; plain in every other format.
   readonly display: Displays;
+  // Present where a person watches stderr work; everything written goes around it.
+  readonly status: StatusLine | undefined;
   record(value: object, options?: RecordOptions): void;
   list(items: readonly object[], options?: ListOptions): void;
   // A document the command emits verbatim, such as a schema, a Skill file or a
@@ -87,10 +90,28 @@ export interface RenderOptions {
 // What every way of writing a result shares.
 interface Rendering {
   readonly format: Format;
-  readonly io: RenderIo;
   readonly options: RenderOptions;
   readonly display: Display;
+  readonly out: Write;
   readonly projectionNotice: (notice: Notice) => void;
+}
+
+type Write = (text: string) => void;
+
+// How text reaches each stream, around the status line where there is one. stdout takes
+// text as it is, since a document is written verbatim; stderr only ever takes lines.
+interface Writes {
+  readonly out: Write;
+  readonly err: Write;
+}
+
+function writesTo(io: RenderIo, status: StatusLine | undefined): Writes {
+  if (status === undefined)
+    return { out: (text) => io.out.write(text), err: (text) => io.err.write(`${text}\n`) };
+  return {
+    out: (text) => status.aside(() => io.out.write(text), text.endsWith('\n')),
+    err: (text) => status.above(text),
+  };
 }
 
 function displaysFor(format: Format, io: RenderIo): Displays {
@@ -111,22 +132,34 @@ export function createRenderer(
     !options.details &&
     options.fields === undefined;
   const display = displaysFor(format, io);
-  const { projectionNotice, ...said } = diagnosticRenderer(format, io, options, display.err);
-  const rendering: Rendering = { format, io, options, display: display.out, projectionNotice };
+  const status = options.quiet ? undefined : statusLineOn(io.err, display.err);
+  const writes = writesTo(io, status);
+  const { projectionNotice, ...said } = diagnosticRenderer(format, options, display.err, {
+    err: writes.err,
+    status,
+  });
+  const rendering: Rendering = {
+    format,
+    options,
+    display: display.out,
+    out: writes.out,
+    projectionNotice,
+  };
   return {
     ...said,
     display,
+    status,
     record: (value, opts = {}) => {
       const result = shapeResult(rendering, compact ? compactReport(value) : value) as object;
       line(
-        io.out,
+        rendering,
         format === 'human'
           ? humanRecord(result, display.out, opts.describe)
           : JSON.stringify(result),
       );
     },
     list: (items, opts = {}) => renderList(rendering, items, opts, compact),
-    text: (value) => io.out.write(value),
+    text: (value) => writes.out(value),
   };
 }
 
@@ -136,22 +169,22 @@ function renderList(
   opts: ListOptions,
   compact: boolean,
 ): void {
-  const { format, io, options, display } = rendering;
+  const { format, options, display } = rendering;
   if (options.report !== undefined && options.fields !== undefined) {
     const result = shapeResult(rendering, opts.fullReport ?? envelope(items, opts)) as object;
-    line(io.out, format === 'human' ? humanRecord(result, display) : JSON.stringify(result));
+    line(rendering, format === 'human' ? humanRecord(result, display) : JSON.stringify(result));
     return;
   }
   if (format === 'json' && compact) {
-    line(io.out, JSON.stringify(compactReport(envelope(items, opts))));
+    line(rendering, JSON.stringify(compactReport(envelope(items, opts))));
     return;
   }
   const rows = shapeResult(rendering, items) as object[];
-  if (format === 'json') line(io.out, JSON.stringify(envelope(rows, opts)));
-  else if (format === 'human') line(io.out, humanCollection(rendering, rows, opts));
+  if (format === 'json') line(rendering, JSON.stringify(envelope(rows, opts)));
+  else if (format === 'human') line(rendering, humanCollection(rendering, rows, opts));
   else {
-    for (const item of rows) line(io.out, JSON.stringify(item));
-    if (opts.trailer !== undefined) line(io.out, JSON.stringify({ _trailer: opts.trailer }));
+    for (const item of rows) line(rendering, JSON.stringify(item));
+    if (opts.trailer !== undefined) line(rendering, JSON.stringify({ _trailer: opts.trailer }));
   }
 }
 
@@ -187,31 +220,28 @@ function humanCollection(rendering: Rendering, items: object[], opts: ListOption
   return [table, '', humanRecord(Object.fromEntries(trailer), display)].join('\n');
 }
 
-function line(stream: Writable, text: string): void {
-  stream.write(text + '\n');
+function line(rendering: Rendering, text: string): void {
+  rendering.out(text + '\n');
 }
 
 type Said = Pick<Renderer, 'emit' | 'error' | 'notice' | 'progress'>;
 
 function diagnosticRenderer(
   format: Format,
-  io: RenderIo,
   options: RenderOptions,
   display: Display,
+  { err, status }: Pick<Writes, 'err'> & Pick<Renderer, 'status'>,
 ): Said & Pick<Rendering, 'projectionNotice'> {
   const human = format === 'human';
   // An error and a notice about --fields answer whoever built the request, so a program
   // reads them structured in every format; only a person watching a terminal in the
   // human format reads them as text.
   const answer = (structured: object, text: () => string): void =>
-    line(io.err, human && display.interactive ? text() : JSON.stringify(structured));
+    err(human && display.interactive ? text() : JSON.stringify(structured));
   return {
     emit: (event: DiagnosticEvent) => {
       if (!options.verbose) return;
-      line(
-        io.err,
-        human ? humanDiagnostic(event, display) : JSON.stringify({ _diagnostic: event }),
-      );
+      err(human ? humanDiagnostic(event, display) : JSON.stringify({ _diagnostic: event }));
     },
     error: (err: DevkitError) => {
       const envelope = toEnvelope(err);
@@ -223,11 +253,11 @@ function diagnosticRenderer(
     },
     notice: (notice: Notice) => {
       if (options.quiet) return;
-      line(io.err, human ? humanNotice(notice, display) : JSON.stringify({ _notice: notice }));
+      err(human ? humanNotice(notice, display) : JSON.stringify({ _notice: notice }));
     },
     progress: (event: ProgressEvent) => {
-      if (options.quiet) return;
-      line(io.err, human ? humanProgress(event, display) : JSON.stringify({ _progress: event }));
+      if (options.quiet || status?.takes(event)) return;
+      err(human ? humanProgress(event, display) : JSON.stringify({ _progress: event }));
     },
   };
 }

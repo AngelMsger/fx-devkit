@@ -52,6 +52,31 @@ describe('a terminal', () => {
     expect(terminal.wrap('a long reason', 6)).toEqual(['a long', 'reason']);
   });
 
+  it('redraws a line in place and keeps it within the width it has right now', () => {
+    const stream = new FakeTerminal(20);
+    const { live } = displayOf(stream, {}, 'darwin');
+    expect(live!.redraw('working')).toBe('\rworking\u001b[K');
+    expect(live!.redraw('')).toBe('\r\u001b[K');
+    expect(live!.fit('a status line that is too long')).toBe('a status line that…');
+    expect(live!.fit('too long', 16)).toBe('to…');
+    expect(live!.fit('anything', 19)).toBe('');
+    Object.assign(stream, { columns: 12 });
+    expect(live!.fit('a status line that is too long')).toBe('a status l…');
+    // A terminal of unknown size still wraps somewhere.
+    const unsized = displayOf(new FakeTerminal(0), {}, 'darwin').live!;
+    expect(unsized.fit('x'.repeat(100))).toHaveLength(79);
+  });
+
+  it('turns a busy indicator it can draw, and redraws nothing where sequences are not obeyed', () => {
+    const drawn = displayOf(new FakeTerminal(), {}, 'darwin').live!;
+    const legacy = displayOf(new FakeTerminal(), {}, 'win32').live!;
+    expect(drawn.frame(0)).not.toBe(drawn.frame(1));
+    expect(drawn.frame(0)).toBe(drawn.frame(10));
+    expect([0, 1, 2, 3, 4].map((tick) => legacy.frame(tick))).toEqual(['-', '\\', '|', '/', '-']);
+    expect(displayOf(new FakeTerminal(), { TERM: 'dumb' }, 'darwin').live).toBeUndefined();
+    expect(PLAIN.live).toBeUndefined();
+  });
+
   it('shortens nothing when it reports no width', () => {
     const unsized = displayOf(new FakeTerminal(0), {}, 'darwin');
     expect(unsized.room()).toBe(Infinity);

@@ -75,6 +75,14 @@ not provider-specific application branches.
   variable changes that. A human view states
   what its text means through `Display` roles and marks. It never writes a control
   sequence, picks a colour or measures a terminal itself.
+- A person watching a terminal must always see that fx is working. The status line
+  is fed by the command base and the one subprocess port, so start every external
+  call through `Process` and write to the streams only through the renderer; a
+  question goes through the prompter. Count work of known size with `Tally`. A call
+  without a deadline keeps the terminal and may ask there, so the line is not
+  redrawn under it; give a read-only probe a deadline. What goes through `Activity`
+  is never a record: programs keep reading `Reporter` records, and a change for
+  watchers must not change what a pipe or JSON receives.
 - Collections use `{items, has_more, next?}`. Absent facts are explicit values;
   never confuse not configured, not covered and a failed check. Preserve
   structured errors when returning batch or report results.

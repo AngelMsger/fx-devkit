@@ -14,6 +14,7 @@ import { NpmInstaller } from '../adapters/installer/npm.js';
 import { DiagnosticProcess } from '../adapters/process/diagnostic-process.js';
 import { NodeProcess } from '../adapters/process/node-process.js';
 import { SystemUrlOpener } from '../adapters/process/url-opener.js';
+import { WatchedProcess } from '../adapters/process/watched-process.js';
 import { TerminalPrompter } from '../adapters/prompter/terminal.js';
 import { NpmRegistryLocator } from '../adapters/registry/npm-config.js';
 import { NpmRegistry } from '../adapters/registry/npm-registry.js';
@@ -51,6 +52,7 @@ import type { Reporter } from '../ports/reporter.js';
 import type { Cache, ConfigStore, LocalLayerStore, TrustStore } from '../ports/stores.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
 
+import { ActivityChannel } from './activity.js';
 import {
   bundledPackage,
   bundledSkillDir,
@@ -92,13 +94,18 @@ export interface Container {
   readonly registryLocator: RegistryLocator;
   readonly registryAt: (url: string, timeoutMs: number) => Registry;
   readonly diagnostics: DiagnosticChannel;
+  readonly activity: ActivityChannel;
 }
 
 export function createContainer(env: NodeJS.ProcessEnv): Container {
   const home = fxHome(env);
   const clock = new SystemClock();
   const diagnostics = new DiagnosticChannel();
-  const process = new DiagnosticProcess(new NodeProcess(), diagnostics);
+  const activity = new ActivityChannel();
+  const process = new WatchedProcess(
+    new DiagnosticProcess(new NodeProcess(), diagnostics),
+    activity,
+  );
   const lock = new FileLock(home);
   const fs = new NodeFs(lock);
   return {
@@ -116,7 +123,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     clock,
     bundledTools: bundledToolsText,
     packageMetadata: bundledPackage,
-    prompter: (noInput) => new TerminalPrompter(noInput),
+    prompter: (noInput) => new TerminalPrompter(noInput, activity),
     installers: [
       new NpmInstaller(process),
       new BrewInstaller(process),
@@ -133,6 +140,7 @@ export function createContainer(env: NodeJS.ProcessEnv): Container {
     registryAt: (registry, timeoutMs) =>
       new NpmRegistry(process, { registry, timeoutMs, env, userHome: os.homedir() }),
     diagnostics,
+    activity,
   };
 }
 
@@ -192,6 +200,7 @@ export function workspaceDeps(
     localStore: container.localStore,
     cache: container.cache,
     reporter,
+    activity: container.activity,
     cliVersion,
     codeHost: once(() => resolveProvider<CodeHost>(codeHostBinding(ctx.bindings), adapters)),
     platform: (binding) =>

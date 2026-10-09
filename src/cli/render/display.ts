@@ -4,7 +4,7 @@
 
 import type { Writable } from 'node:stream';
 
-import { truncate, wrap } from './width.js';
+import { truncate, widthOf, wrap } from './width.js';
 
 // What a piece of text means, never how it looks.
 export type Role = 'ok' | 'warn' | 'fail' | 'accent' | 'strong' | 'quiet';
@@ -26,9 +26,29 @@ export interface Display {
   clip(text: string, width: number): string;
   // Breaks into lines only where `room` is bounded; plain text stays the one line it was.
   wrap(text: string, width: number): string[];
+  // Absent wherever a line cannot be redrawn, which is everything but a terminal that
+  // moves its cursor.
+  readonly live: LiveLine | undefined;
+}
+
+// A line redrawn in place while fx works.
+export interface LiveLine {
+  // The busy indicator at one moment of its turn.
+  frame(tick: number): string;
+  // Shortens to the columns the line may fill right now: a line that wraps cannot be
+  // redrawn, so this holds even where the terminal reports no size.
+  fit(text: string, reserved?: number): string;
+  // What puts `text` on the cursor's line in place of what is there; empty text clears it.
+  redraw(text: string): string;
 }
 
 const SYMBOL = { ok: '✓', fail: '✗', step: '→', notice: '●', ellipsis: '…' } as const;
+const BUSY = {
+  symbols: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+  plain: ['-', '\\', '|', '/'],
+} as const;
+// What a terminal that reports no size is taken to have.
+const ASSUMED_COLUMNS = 80;
 const MARK_ROLE: Readonly<Record<Mark, Role>> = { ok: 'ok', fail: 'fail', step: 'quiet' };
 
 // The sixteen-colour set only: it follows the palette the person chose for their terminal.
@@ -46,6 +66,9 @@ interface Capabilities {
   readonly colour: boolean;
   readonly symbols: boolean;
   readonly columns: number | undefined;
+  // Reads the width as it is now, where lines can be redrawn: a terminal may be resized
+  // while one is showing.
+  readonly redraws: (() => number | undefined) | undefined;
 }
 
 export const PLAIN: Display = createDisplay({
@@ -53,6 +76,7 @@ export const PLAIN: Display = createDisplay({
   colour: false,
   symbols: false,
   columns: undefined,
+  redraws: undefined,
 });
 
 function createDisplay(can: Capabilities): Display {
@@ -61,6 +85,7 @@ function createDisplay(can: Capabilities): Display {
     const [open, close] = SGR[role];
     return `\u001b[${open}m${text}\u001b[${close}m`;
   };
+  const ellipsis = can.symbols ? SYMBOL.ellipsis : '...';
   return {
     interactive: can.interactive,
     label: can.symbols
@@ -73,11 +98,26 @@ function createDisplay(can: Capabilities): Display {
     },
     // The last column stays free: a line that fills it wraps on some consoles.
     room: (reserved = 0) => (can.columns === undefined ? Infinity : can.columns - 1 - reserved),
-    clip: (text, width) =>
-      can.columns === undefined
-        ? text
-        : truncate(text, width, can.symbols ? SYMBOL.ellipsis : '...'),
+    clip: (text, width) => (can.columns === undefined ? text : truncate(text, width, ellipsis)),
     wrap: (text, width) => (can.columns === undefined ? [text] : wrap(text, width)),
+    live: can.redraws && liveLine(can.redraws, can.symbols ? BUSY.symbols : BUSY.plain, ellipsis),
+  };
+}
+
+function liveLine(
+  columns: () => number | undefined,
+  frames: readonly string[],
+  ellipsis: string,
+): LiveLine {
+  return {
+    frame: (tick) => frames[tick % frames.length]!,
+    fit: (text, reserved = 0) => {
+      const room = (columns() ?? ASSUMED_COLUMNS) - 1 - reserved;
+      // Where not even the ellipsis fits, nothing does.
+      return room < widthOf(ellipsis) ? '' : truncate(text, room, ellipsis);
+    },
+    // Carriage return, the text, then erase to the end of the line.
+    redraw: (text) => `\r${text}\u001b[K`,
   };
 }
 
@@ -101,6 +141,8 @@ export function displayOf(
     symbols: drawsSymbols(env, platform),
     // Some pseudo-terminals report no width at all.
     columns: stream.columns || undefined,
+    // A dumb terminal prints control sequences instead of obeying them.
+    redraws: env['TERM'] === 'dumb' ? undefined : () => stream.columns || undefined,
   });
 }
 

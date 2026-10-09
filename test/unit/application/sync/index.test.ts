@@ -343,6 +343,14 @@ describe('Sync', () => {
       `fetch ${path.join(ROOT, 'fx-example-auth')} upstream`,
       `fast-forward ${path.join(ROOT, 'fx-example-auth')} upstream/main`,
     ]);
+    // A watcher counts the picked repositories through each phase, never the one left out.
+    const counts = h.activity.of('repos');
+    expect(counts.filter((count) => count.phase === 'preflight').at(-1)).toMatchObject({
+      total: 2,
+      completed: 2,
+    });
+    expect(counts.at(-1)).toEqual({ phase: 'apply', total: 2, completed: 2, active: [] });
+    expect(h.activity.counts.at(-1)).toEqual({ id: 'repos', count: undefined });
   });
 
   it('clones without origin and says so when the code host does not know the user', async () => {

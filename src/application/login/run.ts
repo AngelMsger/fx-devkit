@@ -13,6 +13,7 @@ import type { PreparationAction } from '../../domain/preparation.js';
 import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { ServiceOperation } from '../services/operation.js';
+import { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
@@ -97,6 +98,12 @@ export class Login {
         : await ensureScopeEnvs(this.deps, this.setup.prompter, input);
     const plan = buildPlan(this.deps, this.setup, { ...input, scopeEnvs });
     this.validatePlan(plan);
+    return Tally.during(this.deps.activity, 'steps', (steps) =>
+      this.run(plan, input, steps.plan(plan.steps.length)),
+    );
+  }
+
+  private async run(plan: SetupPlan, input: LoginInput, steps: Tally): Promise<LoginOutput> {
     const rows: StepRow[] = [];
     const pending: SetupStep[] = [];
     const undone = new Set<string>();
@@ -108,7 +115,7 @@ export class Login {
     });
     for (const [index, step] of plan.steps.entries()) {
       try {
-        const outcome = await this.attempt(step, input, undone);
+        const outcome = await steps.unit(step.id, () => this.attempt(step, input, undone));
         if (outcome === 'handoff' || outcome.result === 'handoff') {
           pending.push(step);
           rows.push(

@@ -4,6 +4,7 @@
 
 - 工作區根目錄只派生 `AGENTS.md`。fx 不再寫入指向它的 `CLAUDE.md`，`fx manifest render` 也不再在 manifest 儲存庫中建立該檔案：Claude Code 2.1.277 及以上版本會自行讀取 `AGENTS.md`，而只要存在 `CLAUDE.md` 就會改讀後者。`fx sync` 會移除早期版本派生的指標檔案；在移除之前，`fx doctor` 回報指南已過期。你自己寫的 `CLAUDE.md` 保持原樣，也不再算作指南衝突；請在其開頭寫上 `@AGENTS.md`，這樣 Claude Code 仍會讀取指南。如果 manifest 儲存庫裡還留有這個指標檔案，請將其刪除。
 - manifest 來源的載荷不再包含 `CLAUDE.md`。目錄來源中的該檔案不再被複製到受管理的來源，stdin 套件若列出它，會以 `MANIFEST_SOURCE_INVALID` 拒絕。
+- 命令執行期間顯示它仍在工作。超過半秒後，終端上出現一行原地重繪的狀態列：已用時間、可計數工作的進度，以及進行時間最長的那一項，例如 `doctor 23s  checks 69/82  kubectl.access@dev 3s`。所有命令都有這一行，因為 fx 等待的每個外部呼叫都在發起處回報；`doctor`、`sync`、`init`、`status`、`release` 與 `login` 還會統計各自的檢查項目、儲存庫與步驟。結果、通知與各項結局寫在狀態列上方，提問或登入命令在完成前獨占終端，命令結束或被中斷後狀態列消失。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時不在它下方重繪，狀態列改為每五秒列印一行。在顯示狀態列的終端上不再列印逐項的 `start` 行與儲存庫心跳，因為狀態列給出同樣的資訊。管線、檔案、CI、`TERM=dumb`、`--quiet` 以及 JSON 或 NDJSON 輸出都不會收到狀態列，讀到的內容與先前完全一致。
 
 ## 0.8.0 (2026-10-09)
 

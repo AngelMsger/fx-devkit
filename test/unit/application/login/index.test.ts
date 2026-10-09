@@ -289,6 +289,13 @@ describe('Login', () => {
     const login = s.h.process.calls.find((c) => c.vector[1] === 'auth' && c.vector[2] === 'login');
     expect(login?.options.interactive).toBe(true);
     expect(s.prompter.questions.some((q) => q.includes('bitbucket-cli auth login'))).toBe(true);
+    // Every step counts for a watcher, whether it ran, passed or was left out.
+    expect(s.h.activity.of('steps').at(-1)).toEqual({
+      phase: undefined,
+      total: 4,
+      completed: 4,
+      active: [],
+    });
 
     const s2 = await stage();
     s2.loggedIn = true;

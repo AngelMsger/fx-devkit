@@ -12,6 +12,7 @@ import type { ProviderCatalog } from '../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';
 import type { Platform } from '../../src/ports/platform.js';
 
+import { FakeActivity } from './fake-activity.js';
 import { FakeCache } from './fake-cache.js';
 import { FakeCodeHost } from './fake-code-host.js';
 import { FakeConfigStore } from './fake-config-store.js';
@@ -36,6 +37,7 @@ export interface Harness {
   readonly localStore: FakeLocalStore;
   readonly cache: FakeCache;
   readonly reporter: FakeReporter;
+  readonly activity: FakeActivity;
   readonly process: FakeProcess;
 }
 
@@ -67,6 +69,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const localStore = FakeLocalStore.with('fx', options.local ?? {});
   const cache = new FakeCache();
   const reporter = new FakeReporter();
+  const activity = new FakeActivity();
   const process = new FakeProcess();
   const ctx = await WorkspaceContext.locate({
     cwd: ROOT,
@@ -93,6 +96,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     localStore,
     cache,
     reporter,
+    activity,
     cliVersion: '1.0.0',
     user: options.user,
     processRun: (vector, opts) => process.run(vector, opts),
@@ -116,6 +120,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     localStore,
     cache,
     reporter,
+    activity,
     process,
   };
 }

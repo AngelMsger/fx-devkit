@@ -11,6 +11,7 @@ import { expandHome } from '../login/verify.js';
 import { findingCheck, resumeAction, verifyAction } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { StageResult } from '../sync/types.js';
+import { Tally } from '../tally.js';
 import { workspaceToolScope, type WorkspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -74,11 +75,14 @@ async function verifyWorkspaceSetup(
   scope: WorkspaceToolScope,
   plan: SetupPlan,
 ): Promise<StageResult> {
-  const findings = await checkLogin(deps, login, {
-    tools: scope.configuredNames,
-    requiredTools: scope.required,
-    dryRun: true,
-  });
+  const findings = await Tally.during(deps.activity, 'setup', (checks) =>
+    checkLogin(
+      deps,
+      login,
+      { tools: scope.configuredNames, requiredTools: scope.required, dryRun: true },
+      checks,
+    ),
+  );
   return {
     summary: { checked: findings.length },
     details: { findings },

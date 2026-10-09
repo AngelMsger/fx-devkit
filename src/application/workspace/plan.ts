@@ -7,6 +7,7 @@ import {
   type Readability,
 } from '../../domain/workspace/plan.js';
 import { pooled } from '../pool.js';
+import type { Tally } from '../tally.js';
 
 import type { WorkspaceDeps } from './deps.js';
 import { inspectDisk, readabilityOf, resolveUser, urlsFor } from './inspect.js';
@@ -14,30 +15,26 @@ import { inspectDisk, readabilityOf, resolveUser, urlsFor } from './inspect.js';
 export interface RepositoryPlanInput {
   readonly jobs: number;
   readonly remote?: boolean;
-  readonly active?: Set<string>;
-  readonly complete?: () => void;
+  // Counts one unit per repository of the workspace.
+  readonly tally: Tally;
 }
 
 export async function planRepositories(
   deps: WorkspaceDeps,
   input: RepositoryPlanInput,
 ): Promise<readonly PlanItem[]> {
-  const { jobs, active = new Set<string>(), complete = () => undefined } = input;
+  const { jobs, tally } = input;
   const { ctx } = deps;
-  const inspected = await pooled(ctx.workspace.repos, jobs, async (repo) => {
-    active.add(repo.name);
-    try {
+  const inspected = await pooled(ctx.workspace.repos, jobs, (repo) =>
+    tally.unit(repo.name, async () => {
       const state = await inspectDisk(deps, repo);
       const readability =
         input.remote !== false && state.kind === 'absent'
           ? await readabilityOf(deps, repo)
           : undefined;
       return { repo, state, readability };
-    } finally {
-      active.delete(repo.name);
-      complete();
-    }
-  });
+    }),
+  );
   const states: Record<string, DiskState> = Object.fromEntries(
     inspected.map(({ repo, state }) => [repo.name, state]),
   );
