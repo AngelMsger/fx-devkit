@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.9.1 (2026-10-09)
+
 ### Changed
 
 - Show one row for checks that say the same thing and are resolved by the same
