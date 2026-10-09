@@ -12,10 +12,38 @@ describe('stderrReason', () => {
     expect(stderrReason('{"error":{"message":"job not found"}}\n', 6)).toBe('job not found');
   });
 
-  it('falls back to the first plain line, then to the exit code', () => {
-    expect(stderrReason('\n  fatal: no such job\nmore\n', 1)).toBe('fatal: no such job');
+  it('reads other tools by where they failed and why, then falls back to the exit code', () => {
+    expect(stderrReason('\n  fatal: no such job\n', 1)).toBe('fatal: no such job');
+    expect(
+      stderrReason('Error: Config at ./settings\nNo credentials for this host.\nRun login.\n', 13),
+    ).toBe('Error: Config at ./settings No credentials for this host.');
     expect(stderrReason(`${NOTICE}\n`, 4)).toBe('exit 4');
     expect(stderrReason('', 2)).toBe('exit 2');
+  });
+
+  it('sets log records and warnings aside unless they are all a tool said', () => {
+    const record = 'E1009 13:14:36.199047    2943 cache.go:381] "discovery failed" err="timeout"';
+    expect(
+      stderrReason(
+        `${record}\nWarning: resource type unknown\n\nUnable to connect to the server: timeout\n`,
+        1,
+      ),
+    ).toBe('Unable to connect to the server: timeout');
+    expect(stderrReason('2026-01-02T03:04:05Z starting\nlevel=error msg=refused\n', 1)).toBe(
+      'level=error msg=refused',
+    );
+  });
+
+  it('takes the message of an error object a tool printed in place of an envelope', () => {
+    expect(
+      stderrReason('{\n  "errcode": 850003,\n  "errmsg": "authorization expired"\n}\n', 1),
+    ).toBe('authorization expired');
+  });
+
+  it('shortens a reason that would not fit a report row', () => {
+    const reason = stderrReason(`fatal: ${'x'.repeat(400)}`, 1);
+    expect(reason).toHaveLength(240);
+    expect(reason.endsWith('…')).toBe(true);
   });
 
   it('is not fooled by braces inside strings or by text around the objects', () => {

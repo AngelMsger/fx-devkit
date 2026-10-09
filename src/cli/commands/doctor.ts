@@ -53,6 +53,6 @@ export default class DoctorCommand extends FxCommand {
           data: { repair },
         });
     }
-    this.renderPreparation(report);
+    await this.renderPreparation(report);
   }
 }

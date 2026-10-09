@@ -84,9 +84,11 @@ not provider-specific application branches.
   through `assertWritable`. Preserve `read_only` / `FX_READ_ONLY` and the explicit
   one-invocation `--allow-writes` override. Reads are not write-gated.
 - No TTY or `--no-input` means no waiting: missing input becomes `INPUT_REQUIRED`
-  or `CONFIRM_REQUIRED`. A manifest vector passes through `TrustGate`; bundled
-  defaults run freely, changed vectors require new trust. Install vectors are
-  assembled from installer/package data, never supplied as shell code.
+  or `CONFIRM_REQUIRED`. A command vector the team patch authors passes through
+  `TrustGate`, and a changed one requires new trust. Bundled commands run freely
+  whatever service settings the manifest fills in: where a companion may send
+  credentials is the companion's contract, not a decision fx takes for it. Install
+  vectors are assembled from installer/package data, never supplied as shell code.
 - Manual/file setup steps belong to the user and are followed by verification.
   Authorized local preparation may be assisted, but acknowledgement alone never
   establishes readiness. `doctor --fix` is limited to local prepare steps and managed
@@ -119,7 +121,7 @@ own branches and histories.
   Tools explicitly marked `install_on_init` may also install missing global packages
   through approved installer/probe vectors before repository and Skill synchronization.
   Explicit service declarations also let init/sync prepare public companion settings
-  through trusted native commands. Credentials and personal identities stay in each
+  through the companions' native commands. Credentials and personal identities stay in each
   member's own CLI storage; never distribute them through service declarations.
   Configuration conflicts preserve existing values. Background hooks only check services.
   Existing installations are preserved; ordinary sync and lifecycle hooks never install packages.

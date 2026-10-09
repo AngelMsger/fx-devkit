@@ -79,7 +79,12 @@ for FX_HOME, HOME, USERPROFILE and FX_AGENTS. Preserve these coordinates when
 continuing; they contain no credentials. The CLI binds fx actions to
 the running executable; an error before the root exists uses an existing invocation
 directory for retry. Normal incomplete reports exit 12 with PREPARATION_INCOMPLETE;
-fatal errors preserve their original category and partial result. Default summaries
+fatal errors preserve their original category and partial result. The human view of
+an incomplete report lists each blocker under its check id, then the person's
+commands, the repairs fx can make and the continuation. It spells the executable
+`fx` when PATH resolves one, and joins actions that differ only in their `--env` or
+`--tool` selection into one command. On a terminal that view replaces the
+PREPARATION_INCOMPLETE envelope; a non-terminal stderr still receives it. Default summaries
 retain every blocker/action and local setup outcome, including completed steps,
 and selected initialization repository/guide/Skill effects, and omit redundant
 execution plans. Workspace discovery
@@ -153,8 +158,14 @@ A batch preserves each failure's structured recovery instead of replacing it
 with a success-shaped summary. Source and projection plans are rechecked before
 application so stale evidence cannot overwrite intervening work.
 
-Manifest execution vectors pass through TrustGate. Bundled defaults are trusted;
-changed vectors require new approval bound to their exact identity. Installer
+Command vectors authored by the team patch pass through TrustGate, and a changed
+vector requires new approval bound to its exact identity. Bundled defaults and
+provider recipes are trusted with whatever public settings a service declaration
+fills in; a companion's own context matching decides where its stored credentials
+may go. A patch that substitutes a tool's executable makes every vector of that
+tool patch-authored. A companion Skill installation is approved as the command the
+patch wrote: the agent name or directory fx appends is not part of that identity,
+and an approval recorded earlier for a whole vector still counts. Installer
 vectors are assembled by fx from installer and package data. Execution is an
 argument-vector contract, not a raw shell string API. Windows batch interpretation
 is an adapter concern. `command_shell` affects presentation only: it does not

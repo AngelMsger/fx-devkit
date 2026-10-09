@@ -377,6 +377,10 @@ describe('SkillStage: the fx copy and the tools', () => {
     const out = await stage.execute({ toolchain, dryRun: false, posture: writable });
     expect(out.tools.map((t) => t.code)).toEqual([0, 0, 0]);
     expect(out.summary).toMatchObject({ tools_run: 3, tools_failed: 0 });
+    expect(h.reporter.progress_.filter((e) => e.id === 'alpha').map((e) => e.state)).toEqual([
+      'start',
+      'done',
+    ]);
     const empty = await stage.execute({ toolchain, agents: [], dryRun: false, posture: writable });
     expect(empty.tools).toEqual([]);
   });
@@ -644,6 +648,60 @@ describe('SkillStage: independent local effects and command trust', () => {
     ).toBe(true);
     expect(h.process.calls.some((c) => c.vector[0] === 'gamma')).toBe(false);
     expect(store.entries.map((e) => e.label)).toEqual(['alpha']);
+  });
+});
+
+describe('SkillStage: one approval per authored Skill command', () => {
+  async function teamTool() {
+    const { h, skills } = await setup();
+    const loaded = loadTools(
+      'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
+      'schema_version: 3\ntools: [{ name: alpha, skill: { command: [skill, install], dir_flag: --dir } }]',
+      { cliVersion: '1.0.0' },
+    );
+    h.process.binaries.add('alpha');
+    h.process.always({ code: 0, stdout: '', stderr: '' });
+    const store = new FakeTrustStore();
+    const prompter = new FakePrompter();
+    prompter.unavailable = true;
+    const stage = (hosts: readonly FakeAgentHost[], yes: boolean, background = false) =>
+      new SkillStage(h.deps, { ...skills, hosts }).execute({
+        toolchain: resolveTools(loaded.doc, loaded.provenance),
+        trust: {
+          gate: new TrustGate(store, prompter, new FakeClock()),
+          workspace: 'fx',
+          yes,
+          posture: writable,
+        },
+        dryRun: false,
+        posture: writable,
+        background,
+      });
+    return { h, store, stage };
+  }
+
+  it('does not ask again when another agent directory joins', async () => {
+    const { store, stage } = await teamTool();
+    await stage(agents, true);
+    expect(store.entries.map((entry) => entry.label)).toEqual(['alpha skill install']);
+    const joined = await stage([...agents, new FakeAgentHost('cursor', true)], false);
+    expect(joined.tools.map((tool) => tool.code)).toEqual([0, 0, 0]);
+    expect(store.entries).toHaveLength(1);
+  });
+
+  it('keeps honouring an approval recorded for one whole vector', async () => {
+    const { h, store, stage } = await teamTool();
+    await new TrustGate(store, new FakePrompter(), new FakeClock()).ensure({
+      workspace: 'fx',
+      vector: ['alpha', 'skill', 'install', '--dir', claudeDir],
+      label: 'alpha skill install',
+      origin: 'patch',
+      yes: true,
+      posture: writable,
+    });
+    const background = await stage(agents, false, true);
+    expect(background.tools.map((tool) => tool.note)).toEqual([undefined, 'untrusted']);
+    expect(h.process.calls.map((call) => call.vector.at(-1))).toEqual([claudeDir]);
   });
 });
 

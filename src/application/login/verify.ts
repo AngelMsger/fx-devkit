@@ -6,8 +6,9 @@ import path from 'node:path';
 
 import type { PreparationAction } from '../../domain/preparation.js';
 import { matchesJson } from '../../domain/setup/json-check.js';
-import type { SetupStep } from '../../domain/setup/types.js';
+import type { SetupCheck, SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
+import type { ProcessResult } from '../../ports/process.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -87,12 +88,28 @@ export class Verifier {
       diagnostic: { phase: `${step.id} check` },
       sensitiveOutput: true,
     });
-    if (result.code === 0 && verify.json !== undefined && !matchesJson(result.stdout, verify.json))
-      return { ok: false, detail: `JSON check did not match ${verify.json.path}` };
-    return result.code === 0
-      ? { ok: true, detail: `${verify.command.join(' ')} succeeded` }
-      : { ok: false, detail: stderrReason(result.stderr, result.code) };
+    return commandVerdict(verify, result);
   }
+}
+
+function commandVerdict(
+  verify: Extract<SetupCheck, { readonly command: readonly string[] }>,
+  result: ProcessResult,
+): Verdict {
+  const unmet =
+    verify.json !== undefined && !matchesJson(result.stdout, verify.json)
+      ? `expected ${verify.json.path} to be ${String(verify.json.equals)}`
+      : undefined;
+  if (result.code === 0)
+    return unmet === undefined
+      ? { ok: true, detail: `${verify.command.join(' ')} succeeded` }
+      : { ok: false, detail: unmet };
+  // A tool that fails silently still answered the declared expectation on stdout.
+  const silent = result.stderr.trim() === '';
+  return {
+    ok: false,
+    detail: silent && unmet !== undefined ? unmet : stderrReason(result.stderr, result.code),
+  };
 }
 
 // Manifest paths say `~` the way a person would; a tool receiving them

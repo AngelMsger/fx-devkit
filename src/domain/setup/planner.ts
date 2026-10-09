@@ -110,13 +110,10 @@ function fromSource(tool: ResolvedTool, source: RecipeSource): SetupStep | PlanP
     source.env,
   );
   if ('reason' in step) return step;
-  const managed =
-    source.preparation || source.executionEnv || source.recipe.requires?.includes('service');
   return {
     ...step,
     ...(source.preparation ? { preparation: source.preparation } : {}),
     ...(source.executionEnv ? { executionEnv: source.executionEnv } : {}),
-    ...(managed ? { origin: 'patch' as const } : {}),
   };
 }
 

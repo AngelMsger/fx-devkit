@@ -267,7 +267,7 @@ provider needs no change to the rules. ProviderDescriptor.service compiles the
 allowlisted manifest service into public preparation and separate personal recipes. Runtime variables derive from this same
 source; environment overrides merge before planning. Service setup never exports
 or reads credential stores. Family adapters delegate merge/conflict decisions to
-native `config set-context --dry-run`; application executes trusted commands only
+native `config set-context --dry-run`; application executes the native command only
 when needed, then verifies again. No automatic overwrite or activation is issued.
 The family may activate its first context according to its own contract.
 
@@ -282,11 +282,12 @@ Sentry declares a public INI projection at the registered workspace root. Compar
 only expected defaults, preserve foreign content/links and recheck absence before
 creation. Personal tokens are neither copied nor serialized. Login supplies --url;
 checks and query commands carry the same public SENTRY_URL/SENTRY_HOST bindings.
-Those bindings are part of command trust. Shell rendering scopes environment
+For a patch-authored vector those bindings are part of its trust identity. Shell rendering scopes environment
 changes to the command and restores PowerShell process variables afterward.
 
-New preparation/check vectors always require exact trust. Dry-run cannot acquire
-it. Shared declarations use a fixed public field allowlist; unknown service keys
+Preparation and check vectors compiled from bundled recipes need no approval. The
+same steps for an executable the team patch substitutes require exact trust, which
+a dry run cannot acquire. Shared declarations use a fixed public field allowlist; unknown service keys
 are fatal before permissive unknown-field stripping. Errors report paths and public
 conflicts, never the rejected credential value. Native conflict recovery is explicit
 and does not confer permission to overwrite.
