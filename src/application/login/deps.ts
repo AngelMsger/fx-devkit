@@ -6,10 +6,12 @@
 import type { Clock } from '../../ports/clock.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { ProviderDescriptor } from '../../ports/provider.js';
+import type { ServiceProtocol } from '../../ports/service-protocol.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { TrustGate } from '../safety/trust.js';
 
 export interface LoginDeps {
+  readonly serviceProtocol: ServiceProtocol;
   readonly describeProvider: (id: string) => ProviderDescriptor<unknown> | undefined;
   readonly prompter: Prompter;
   readonly clock: Clock;

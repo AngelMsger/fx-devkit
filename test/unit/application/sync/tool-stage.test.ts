@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
 import type { StageResult } from '../../../../src/application/sync/types.js';
@@ -63,6 +64,7 @@ async function stage(options: StageOptions = {}) {
     trust,
     dryRun: false,
     login: {
+      serviceProtocol: new FamilyServiceProtocol(),
       describeProvider: (id) => describeProvider(id),
       prompter,
       clock,

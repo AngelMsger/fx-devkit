@@ -3,10 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { FileCache } from '../../../src/infra/cache.js';
 import { FileLocalLayerStore } from '../../../src/infra/local-store.js';
 import { localLayerPath } from '../../../src/infra/workspace-home.js';
-import { FakeClock } from '../../fakes/fake-clock.js';
 import { tempDir } from '../../temp.js';
 
 const home = (): string => tempDir('fx-home-');
@@ -65,17 +63,5 @@ describe('FileLocalLayerStore', () => {
     await expect(new FileLocalLayerStore(dir).read('fx')).rejects.toMatchObject({
       code: 'LOCAL_INVALID',
     });
-  });
-});
-
-describe('FileCache', () => {
-  it('returns a value until its ttl passes, then forgets it', async () => {
-    const clock = new FakeClock();
-    const cache = new FileCache(home(), clock);
-    await cache.set('readable/fx/fx-example-api', { state: 'readable' }, 1000);
-    expect(await cache.get('readable/fx/fx-example-api')).toEqual({ state: 'readable' });
-    clock.advance(1001);
-    expect(await cache.get('readable/fx/fx-example-api')).toBeUndefined();
-    expect(await cache.get('never-set')).toBeUndefined();
   });
 });

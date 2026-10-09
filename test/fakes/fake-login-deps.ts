@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { FamilyServiceProtocol } from '../../src/adapters/family/service-protocol.js';
 import type { LoginDeps } from '../../src/application/login/deps.js';
 import { TrustGate } from '../../src/application/safety/trust.js';
 import type { ProviderDescriptor } from '../../src/ports/provider.js';
@@ -15,6 +16,7 @@ export function fakeLoginDeps(
   const prompter = new FakePrompter();
   prompter.unavailable = options.unavailable ?? true;
   return {
+    serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: (id) => descriptors[id],
     prompter,
     clock: new FakeClock(),

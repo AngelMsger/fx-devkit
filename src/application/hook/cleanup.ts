@@ -1,15 +1,12 @@
 // Global agent unpick cleans only that agent's receipts in registered roots.
 // A missing or inaccessible workspace remains a row so cleanup can be retried.
 
-import { asDevkitError } from '../../domain/errors.js';
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { FileSystem } from '../../ports/fs.js';
-import type { Lease } from '../../ports/lock.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import type { AgentCleanupInput } from '../agent/cleanup.js';
+import { cleanupAgentWorkspaces } from '../agent/workspace-cleanup.js';
 import { readSettings } from '../config/settings.js';
-import { assertNoWorkspaceOperation } from '../workspace/health.js';
-import { acquireWorkspaceOperation } from '../workspace/operation.js';
 
 import { ReconcileHooks } from './reconcile.js';
 import type { HookDeps } from './types.js';
@@ -25,45 +22,32 @@ export class CleanupAgentHooks {
   async execute(input: AgentCleanupInput): Promise<readonly AgentCleanupRow[]> {
     const file = await this.config.read();
     const settings = readSettings({ env: input.env, file });
-    const rows: AgentCleanupRow[] = [];
-    for (const [workspace] of Object.entries(file.workspaces ?? {})) {
-      let lease: Lease | undefined;
-      try {
-        if (!input.dryRun) lease = await acquireWorkspaceOperation(this.deps.lock, workspace);
-        const entry = (await this.config.read()).workspaces?.[workspace];
-        if (!entry) continue;
-        await assertNoWorkspaceOperation(
-          { fs: this.fs },
-          { name: workspace, manifestDir: this.manifestDirFor(workspace) },
-        );
-        const root = await this.fs.realpath(entry.root);
-        if (!(await this.fs.isDirectory(root))) {
-          rows.push(...input.ids.map((agent) => ({ workspace, agent, action: 'root_missing' })));
-          continue;
-        }
-        const result = await new ReconcileHooks(this.deps).execute({
-          workspace,
-          root,
-          action: 'sync',
-          removeAgents: input.ids,
-          dryRun: input.dryRun,
-          posture: input.posture,
-          configured: settings.agents,
-          globalEnabled: settings.hooks,
-        });
-        rows.push(
-          ...result.items
+    return cleanupAgentWorkspaces(
+      {
+        config: this.config,
+        fs: this.fs,
+        lock: this.deps.lock,
+        manifestDirFor: this.manifestDirFor,
+      },
+      {
+        ...input,
+        workspaces: Object.keys(file.workspaces ?? {}),
+        reconcile: async (workspace, root) => {
+          const result = await new ReconcileHooks(this.deps).execute({
+            workspace,
+            root,
+            action: 'sync',
+            removeAgents: input.ids,
+            dryRun: input.dryRun,
+            posture: input.posture,
+            configured: settings.agents,
+            globalEnabled: settings.hooks,
+          });
+          return result.items
             .filter((row) => input.ids.includes(row.agent))
-            .map((row) => ({ workspace, agent: row.agent, action: row.action })),
-        );
-      } catch (err) {
-        rows.push(
-          ...input.ids.map((agent) => ({ workspace, agent, action: asDevkitError(err).code })),
-        );
-      } finally {
-        await lease?.release();
-      }
-    }
-    return rows;
+            .map((row) => ({ workspace, agent: row.agent, action: row.action }));
+        },
+      },
+    );
   }
 }

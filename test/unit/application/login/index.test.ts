@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login, type LoginInput } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
@@ -120,6 +121,7 @@ async function stage(
   prompter.unavailable = options.unavailable ?? false;
   const trust = new FakeTrustStore();
   const deps: LoginDeps = {
+    serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: (id) => DESCRIPTORS[id],
     prompter,
     clock: new FakeClock(),

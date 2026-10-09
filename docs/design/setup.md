@@ -323,28 +323,29 @@ look: `located` says the manifest resolved one, not that the repository runs the
 
 ## Shared service preparation
 
-ProviderDescriptor.settings declares which allowlisted fields and authentication
-methods a provider accepts; manifest validation reads the registered catalog, so a new
-provider needs no change to the rules. ProviderDescriptor.service compiles the
-allowlisted manifest service into public preparation and separate personal recipes. Runtime variables derive from this same
-source; environment overrides merge before planning. Service setup never exports
-or reads credential stores. Family adapters delegate merge/conflict decisions to
-native `config set-context --dry-run`; application executes the native command only
-when needed, then verifies again. A declaration says where a service is and proposes
-how to sign in. Preparation, checks, sign-in and live query guards hold a context to
-the location alone: URL, flavor and organization. The declared authentication method
-shapes a context fx creates and the sign-in it offers, so a context that already
-serves the declared service is ready with whatever method its owner signed in. An
-existing context that lacks a declared location field gains that field alone: the
-method is named only when the companion would otherwise give the context one. No automatic overwrite or activation is issued.
-The family may activate its first context according to its own contract.
+Provider descriptors own accepted service fields, authentication methods and setup
+recipes. Validation reads this catalog; environment overrides merge before a
+service declaration is compiled. Declarations contain public settings only.
 
-The services stage precedes repository/provider work on explicit sync and init.
-It aggregates independent results and preserves blockers without running personal
-login. Login uses the same preparation. Doctor/readiness check preparations first
-and withhold dependent auth checks on failure. Background hooks never apply them.
-Old manifests omit this opt-in and retain existing recipes. Native minimum versions
-are checked before preset calls, independent of older workspace version floors.
+`ServiceProtocol` gives application typed plans and failures. The family adapter
+interprets native JSON and conflict codes, filters public fields and redacts URLs
+that contain credentials. Application owns trust, write gates and verification:
+
+1. Check the native minimum version before invoking preset commands.
+2. Preview the declared location with `config set-context --dry-run`.
+3. Preserve an existing context's authentication method. Fill missing location
+   fields only; name the declared method when creating a context that has none.
+4. Apply a needed change and verify it with another preview.
+
+Location checks compare URL, flavor and organization. The declared authentication
+method shapes new contexts and offered sign-in; an existing context can serve the
+location with any supported login method. fx never requests automatic overwrite
+or activation; the native tool may activate its first context.
+
+Explicit sync and init prepare services before repository/provider work. Login
+reuses this preparation; doctor/readiness withhold dependent auth checks on failure.
+Background hooks only check. Manifests without service declarations retain their
+existing recipes.
 
 Sentry declares a public INI projection at the registered workspace root. Compare
 only expected defaults, preserve foreign content/links and recheck absence before
@@ -362,24 +363,20 @@ and does not confer permission to overwrite.
 
 ## Existing-login reuse
 
-Family service preparation retains the manifest's canonical context name. After
-public setup, a separate `phase: prepare` recipe invokes native `auth reuse`. Init
-and every explicit sync apply prepare-phase steps, so a login that became usable
-after initialization is associated by the next sync without a person or an agent
-asking for it; background hooks and doctor without `--fix` only check. Its
-preview performs read-only matching/verification; `changed: true` authorizes a
-planned association, and a subsequent unchanged preview verifies completion.
-An unavailable candidate is a no-change result, not proof of authentication.
-The independent credential recipe still checks auth status and handles personal
-sign-in. It depends on reuse, so ambiguous identity, inaccessible storage or failed
-verification cannot fall through to an unnecessary login.
+After public setup, a separate `phase: prepare` recipe calls native `auth reuse`
+for the declared context. Init, explicit sync and doctor --fix apply prepare steps;
+background hooks and doctor without --fix only check. Preview is read-only, and an
+unchanged post-write preview verifies association.
 
-Native tools own service matching, credential access and config updates. fx never
-reads or serializes secrets and does not add a second identity registry. Existing
-identities/current-context settings remain native and unchanged. The companion
-release floors in defaults/tools.yaml must ship before an fx release requiring
-this command; compatible installations are preserved. Release-order validation
-must cover a prepared destination with an existing login under another name.
+A no-change result does not prove authentication. The independent credential
+recipe checks auth status and hands personal sign-in to the user. It depends on
+reuse, so ambiguity, inaccessible storage or failed verification blocks dependent
+login. Native tools own identity matching and credential access; fx stores no
+secrets or parallel identity registry.
+
+The companion version floors in defaults/tools.yaml must support reuse before an
+fx release requires it. Release validation covers a prepared destination and an
+existing login under another name.
 
 A service declared with `auth_scheme: none` has no identity to reuse or obtain,
 and the companion refuses a login for it. Its provider replaces both recipes

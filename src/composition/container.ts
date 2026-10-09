@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { SystemClock } from '../adapters/clock/system-clock.js';
+import { FamilyServiceProtocol } from '../adapters/family/service-protocol.js';
 import { NodeFs } from '../adapters/fs/node-fs.js';
 import { SystemGit } from '../adapters/git/system-git.js';
 import { BrewInstaller } from '../adapters/installer/brew.js';
@@ -236,6 +237,7 @@ export interface LoginDepsInput {
 // background hook started it.
 export function loginDeps(input: LoginDepsInput): LoginDeps {
   return {
+    serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: input.container.describeProvider,
     prompter: input.container.prompter(input.noInput),
     clock: input.container.clock,

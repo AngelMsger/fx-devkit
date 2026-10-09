@@ -1,7 +1,4 @@
-// Ties a personal store's schema to the domain type it persists: a field the
-// contract does not declare, one it declares and the schema drops, and one whose
-// stored type disagrees are compile errors. See "Personal stores" in
-// docs/design/runtime.md for how such a document is allowed to grow.
+// Require each persisted domain field to have a matching schema.
 
 import type * as z from 'zod';
 

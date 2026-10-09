@@ -7,7 +7,6 @@ import type { LoginDeps } from '../application/login/deps.js';
 import { Login } from '../application/login/run.js';
 import { PreviewInitialization } from '../application/preview-initialization.js';
 import type { TrustGate } from '../application/safety/trust.js';
-import { prepareServices } from '../application/services/stage.js';
 import { SkillStage } from '../application/skill/stage.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync/types.js';
@@ -85,7 +84,7 @@ export class CommandWiring {
       cliVersion: this.input.cliVersion,
       reporter: this.input.reporter,
       workspaceDepsFor: depsFor,
-      preview: (ctx) => this.previewInit(ctx, depsFor(ctx)),
+      preview: (ctx) => this.previewInit(depsFor(ctx)),
       installTools: (ctx) =>
         new ToolInitialize(toolInstall(this.input.container)).execute({
           tools: toolchainOf(ctx).tools,
@@ -110,18 +109,19 @@ export class CommandWiring {
     };
   }
 
-  private async previewInit(ctx: WorkspaceContext, deps: WorkspaceDeps): Promise<object> {
-    const prepared = await new PreviewInitialization(
+  private previewInit(deps: WorkspaceDeps): Promise<object> {
+    return new PreviewInitialization(
+      deps,
+      this.loginDeps(),
       toolInstall(this.input.container),
       new SkillStage(deps, skillDeps(this.input.container, this.input.agents)),
-    ).execute(ctx, {
+    ).execute({
       gate: this.input.trust,
-      workspace: ctx.name,
+      workspace: deps.ctx.name,
       yes: this.input.yes,
       posture: this.input.posture,
       dryRun: true,
     });
-    return { ...prepared, services: await prepareServices(deps, this.loginDeps(), true) };
   }
 
   stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
