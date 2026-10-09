@@ -2,12 +2,14 @@
 import { expect, it } from 'vitest';
 
 import { preparationText } from '../../../src/cli/preparation-view.js';
+import { displayOf, PLAIN, type Display } from '../../../src/cli/render/display.js';
 import {
   preparation,
   preparationCheck,
   preparationScope,
   type PreparationAction,
 } from '../../../src/domain/preparation.js';
+import { FakeTerminal, tagged } from '../../fakes/fake-terminal.js';
 
 function action(actor: PreparationAction['actor'], ...argv: readonly string[]): PreparationAction {
   return {
@@ -23,6 +25,7 @@ function action(actor: PreparationAction['actor'], ...argv: readonly string[]): 
 function view(
   checks: Parameters<typeof preparation>[0]['checks'],
   resume?: PreparationAction,
+  display: Display = PLAIN,
 ): string {
   return preparationText(
     {
@@ -32,7 +35,7 @@ function view(
         ...(resume ? { resume } : {}),
       }),
     },
-    'posix',
+    { shell: 'posix', display },
   );
 }
 
@@ -94,4 +97,31 @@ it('does not prescribe another setup command after preparation succeeds', () => 
   const text = view([]);
   expect(text).not.toContain('Run in your terminal:');
   expect(text).not.toContain('Afterwards:');
+});
+
+it('marks the verdict, each blocker and what to type, wrapping a reason under its own column', () => {
+  const reason = 'denied: no credentials are configured for this host in the current environment';
+  const blocked = [
+    preparationCheck('login:logs-cli', 'blocked', reason, {
+      owner: 'user',
+      actions: [action('user', 'fx', 'login', 'logs-cli')],
+    }),
+  ];
+  const text = tagged(
+    view(blocked, undefined, displayOf(new FakeTerminal(48), {}, 'darwin')),
+  ).split('\n');
+  expect(text[0]).toBe('<fail>✗</> <strong>work needs attention: 1 required check is not ready</>');
+  expect(text.slice(2, 5)).toEqual([
+    '  <fail>✗</> <strong>login:logs-cli</>  denied: no credentials are',
+    `${' '.repeat(20)}configured for this host in`,
+    `${' '.repeat(20)}the current environment`,
+  ]);
+  expect(text.slice(6, 8)).toEqual([
+    '<strong>Run in your terminal:</>',
+    '  <accent>fx login logs-cli</>',
+  ]);
+  expect(view(blocked)).toContain(`  login:logs-cli  ${reason}\n`);
+  expect(tagged(view([], undefined, displayOf(new FakeTerminal(), {}, 'darwin')))).toMatch(
+    /^<ok>✓<\/> <strong>Required preparation verified: work<\/>\n/,
+  );
 });

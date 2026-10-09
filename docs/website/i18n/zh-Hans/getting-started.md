@@ -255,7 +255,7 @@ fx skill status
 
 先执行 `fx self info --format json`。初始化任务读取返回的 `initialization_guide`，并持续使用同一准确入口；无需声明已加载 Skill 的环境变量。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任务的路由。
 
-用 `--format json` 分开保存 stdout 结果与 stderr 进度、通知和错误。默认结果保留准备结论和全部阻塞项，`--details` 展开阶段证据。human 默认先显示任务结论和下一步。显式 `--fields` 从完整报告提取字段，点路径保留为扁平键，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
+用 `--format json` 分开保存 stdout 结果与 stderr 进度、通知和错误。默认结果保留准备结论和全部阻塞项，`--details` 展开阶段证据。human 默认先显示任务结论和下一步。在终端上还会加上颜色和符号、按宽度收窄表格，并以文本显示错误；管道或文件得到纯文本和 JSON 错误信封，`NO_COLOR` 去掉颜色。显式 `--fields` 从完整报告提取字段，点路径保留为扁平键，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
 | 结果               | 完成判定                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------- |

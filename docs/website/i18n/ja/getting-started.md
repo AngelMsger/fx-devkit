@@ -255,7 +255,7 @@ fx skill status
 
 `fx self info --format json` から始めます。初期化では返された `initialization_guide` を読み、同じ実行ファイルを使い続けます。Skill 読み込み済みの環境変数は不要です。[完全な Skill](../skills/fx-workspace/SKILL.md) はその他のタスクを説明します。
 
-`--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
+`--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。端末では色と記号を加え、表を幅に合わせ、エラーをテキストで表示します。パイプやファイルにはプレーンテキストと JSON のエラーエンベロープを出力し、`NO_COLOR` で色を消せます。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
 
 | 結果               | 完了の判定                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------ |

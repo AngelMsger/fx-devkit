@@ -75,7 +75,8 @@ are read-only; source contributions use a separate explicit write workflow.
 - Member results belong on stdout, not in logs or shared instructions. Keep
   private coordinates and evaluation evidence in the team's controlled source.
 
-Errors on stderr use `{error: {category, code, message, hint, next_steps, retryable}}`.
+Errors on stderr use `{error: {category, code, message, hint, next_steps, retryable}}`;
+only the human format on a terminal prints them as text.
 Follow the supplied recovery. The [command reference](commands.md)
 describes output exceptions and error/coverage fields.
 

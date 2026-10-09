@@ -66,7 +66,15 @@ not provider-specific application branches.
 
 - Default output is human; `--format json` and `FX_FORMAT=json` serve agents.
   stdout contains data only. Notices, progress and diagnostics go to stderr.
-  Errors use the same JSON envelope in every output format.
+  Errors use the same JSON envelope in every output format; only a terminal in
+  the human format reads it as text. An error raised before parsing follows the
+  format the invocation asks for, and an undecided format means the envelope.
+- Decoration belongs to the stream, not the format. Only a terminal receives
+  colour, symbols and width fitting, each stream decided on its own; a pipe, a
+  file and every machine format stay plain and byte-stable, and no environment
+  variable changes that. A human view states
+  what its text means through `Display` roles and marks. It never writes a control
+  sequence, picks a colour or measures a terminal itself.
 - Collections use `{items, has_more, next?}`. Absent facts are explicit values;
   never confuse not configured, not covered and a failed check. Preserve
   structured errors when returning batch or report results.

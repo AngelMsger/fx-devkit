@@ -17,8 +17,30 @@ allowed values, routing, help and completion.
 Human is the default format. JSON collections are `{items, has_more, next?}`;
 NDJSON streams records and, where applicable, a final trailer. stdout contains
 only the requested data. Notices, progress and optional diagnostics use stderr.
-Errors remain JSON even in human mode, with category, stable code, message,
-hint, next_steps and retryable. Handoffs describe the user's missing action.
+Errors carry category, stable code, message, hint, next_steps and retryable;
+handoffs describe the user's missing action. They remain a JSON envelope even in
+human mode on any stderr a program may read. A terminal in human mode prints the
+code, message, hint, next steps and handoff as text; category and retryability
+stay with the exit code and the envelope. A `FIELDS_UNMATCHED` notice follows the
+same rule. An error raised before parsing, such as an unknown command or flag,
+already follows the format the invocation asks for by flag, environment or file.
+While that is undecided, because the configuration is unreadable or names no
+format, it leaves as the envelope.
+
+The human format is decorated per stream, and only on a terminal: a pipe, a file
+and CI receive plain text with nothing shortened whatever the environment says,
+and JSON/NDJSON are never decorated. Redirecting stdout while stderr faces a
+person decorates stderr only. Colour, symbols and width are separate abilities of
+a terminal. Colour comes from the sixteen-colour set and is removed by `NO_COLOR`
+and `TERM=dumb`; a console that cannot draw the status symbols keeps colour alone.
+Tables fit the width with the last column left free: the first column keeps its
+width and the widest of the others is shortened. A blocker's reason that is too
+long for the line wraps under its own column. Layout is otherwise the same in
+both forms. Columns align by terminal
+width, counting wide characters and emoji as two. A list inside a record prints
+one line per item, or one field per line once any item runs long, and omits empty
+fields. `Display` owns appearance; a view names roles and marks and never emits a
+control sequence or measures the terminal itself.
 
 `--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
 structured error. `--fields` projects result data; top-level error envelopes on stderr remain
@@ -83,8 +105,9 @@ fatal errors preserve their original category and partial result. The human view
 an incomplete report lists each blocker under its check id, then the person's
 commands, the repairs fx can make and the continuation. It spells the executable
 `fx` when PATH resolves one, and joins actions that differ only in their `--env` or
-`--tool` selection into one command. On a terminal that view replaces the
-PREPARATION_INCOMPLETE envelope; a non-terminal stderr still receives it. Default summaries
+`--tool` selection into one command. When both streams are terminals that view
+replaces the PREPARATION_INCOMPLETE error; in every other case stderr still
+receives it. Default summaries
 retain every blocker/action and local setup outcome, including completed steps,
 and selected initialization repository/guide/Skill effects, and omit redundant
 execution plans. Workspace discovery

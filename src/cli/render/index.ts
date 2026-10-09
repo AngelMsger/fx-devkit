@@ -4,11 +4,21 @@ import type { Writable } from 'node:stream';
 
 import { toEnvelope, type DevkitError } from '../../domain/errors.js';
 import type { Format } from '../../domain/format.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import type { DiagnosticEvent, DiagnosticReporter } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
+import { displayOf, PLAIN, type Display } from './display.js';
 import { unmatchedFields, project } from './fields.js';
-import { humanDiagnostic, humanList, humanNotice, humanProgress, humanRecord } from './human.js';
+import {
+  humanDiagnostic,
+  humanError,
+  humanList,
+  humanNotice,
+  humanProgress,
+  humanRecord,
+  type Describers,
+} from './human.js';
 import { compactReport, type ReportCommand } from './report.js';
 
 export { parseFields, project } from './fields.js';
@@ -28,10 +38,18 @@ export interface ListOptions {
 // `describe` gives one key its own human lines, for a nested structure the
 // generic key/value layout would flatten into noise; json ignores it.
 export interface RecordOptions {
-  readonly describe?: Readonly<Record<string, (value: unknown) => readonly string[]>>;
+  readonly describe?: Describers;
+}
+
+// One display per stream: stdout may be piped while stderr still faces a person.
+export interface Displays {
+  readonly out: Display;
+  readonly err: Display;
 }
 
 export interface Renderer extends DiagnosticReporter {
+  // How each stream shows a human view; plain in every other format.
+  readonly display: Displays;
   record(value: object, options?: RecordOptions): void;
   list(items: readonly object[], options?: ListOptions): void;
   // A document the command emits verbatim, such as a schema, a Skill file or a
@@ -46,10 +64,13 @@ export interface Renderer extends DiagnosticReporter {
 export interface RenderIo {
   readonly out: Writable;
   readonly err: Writable;
+  // What a terminal's abilities depend on besides the stream itself.
+  readonly env?: NodeJS.ProcessEnv;
+  readonly platform?: NodeJS.Platform;
 }
 
 export function processIo(): RenderIo {
-  return { out: process.stdout, err: process.stderr };
+  return { out: process.stdout, err: process.stderr, env: process.env, platform: process.platform };
 }
 
 export interface RenderOptions {
@@ -59,6 +80,24 @@ export interface RenderOptions {
   readonly quiet?: boolean | undefined;
   readonly verbose?: boolean | undefined;
   readonly noHeader?: boolean | undefined;
+  // Quotes the commands a human error view prints.
+  readonly shell?: ResolvedShell | undefined;
+}
+
+// What every way of writing a result shares.
+interface Rendering {
+  readonly format: Format;
+  readonly io: RenderIo;
+  readonly options: RenderOptions;
+  readonly display: Display;
+  readonly projectionNotice: (notice: Notice) => void;
+}
+
+function displaysFor(format: Format, io: RenderIo): Displays {
+  if (format !== 'human') return { out: PLAIN, err: PLAIN };
+  const of = (stream: Writable): Display =>
+    displayOf(stream, io.env ?? {}, io.platform ?? process.platform);
+  return { out: of(io.out), err: of(io.err) };
 }
 
 export function createRenderer(
@@ -71,42 +110,45 @@ export function createRenderer(
     options.report !== undefined &&
     !options.details &&
     options.fields === undefined;
-  const shape = (value: unknown): unknown => shapeResult(value, options, io);
-  const shared = diagnosticRenderer(format, io, options);
+  const display = displaysFor(format, io);
+  const { projectionNotice, ...said } = diagnosticRenderer(format, io, options, display.err);
+  const rendering: Rendering = { format, io, options, display: display.out, projectionNotice };
   return {
-    ...shared,
+    ...said,
+    display,
     record: (value, opts = {}) => {
-      const result = shape(compact ? compactReport(value) : value) as object;
+      const result = shapeResult(rendering, compact ? compactReport(value) : value) as object;
       line(
         io.out,
-        format === 'human' ? humanRecord(result, opts.describe ?? {}) : JSON.stringify(result),
+        format === 'human'
+          ? humanRecord(result, display.out, opts.describe)
+          : JSON.stringify(result),
       );
     },
-    list: (items, opts = {}) => renderList(format, io, options, items, opts, compact),
+    list: (items, opts = {}) => renderList(rendering, items, opts, compact),
     text: (value) => io.out.write(value),
   };
 }
 
 function renderList(
-  format: Format,
-  io: RenderIo,
-  options: RenderOptions,
+  rendering: Rendering,
   items: readonly object[],
   opts: ListOptions,
   compact: boolean,
 ): void {
+  const { format, io, options, display } = rendering;
   if (options.report !== undefined && options.fields !== undefined) {
-    const result = shapeResult(opts.fullReport ?? envelope(items, opts), options, io) as object;
-    line(io.out, format === 'human' ? humanRecord(result) : JSON.stringify(result));
+    const result = shapeResult(rendering, opts.fullReport ?? envelope(items, opts)) as object;
+    line(io.out, format === 'human' ? humanRecord(result, display) : JSON.stringify(result));
     return;
   }
   if (format === 'json' && compact) {
     line(io.out, JSON.stringify(compactReport(envelope(items, opts))));
     return;
   }
-  const rows = shapeResult(items, options, io) as object[];
+  const rows = shapeResult(rendering, items) as object[];
   if (format === 'json') line(io.out, JSON.stringify(envelope(rows, opts)));
-  else if (format === 'human') line(io.out, humanCollection(rows, opts, options));
+  else if (format === 'human') line(io.out, humanCollection(rendering, rows, opts));
   else {
     for (const item of rows) line(io.out, JSON.stringify(item));
     if (opts.trailer !== undefined) line(io.out, JSON.stringify({ _trailer: opts.trailer }));
@@ -122,61 +164,70 @@ function envelope(items: unknown, options: ListOptions): Record<string, unknown>
   };
 }
 
-function shapeResult(value: unknown, options: RenderOptions, io: RenderIo): unknown {
-  if (options.fields === undefined) return value;
-  const unmatched = unmatchedFields(value, options.fields);
-  if (unmatched.length > 0 && !options.quiet)
-    io.err.write(
-      JSON.stringify({
-        _notice: {
-          code: 'FIELDS_UNMATCHED',
-          message: `Fields absent from this result (possibly optional): ${unmatched.join(', ')}`,
-          nextSteps: ['Inspect the result without --fields.'],
-        },
-      }) + '\n',
-    );
-  return project(value, options.fields);
+function shapeResult(rendering: Rendering, value: unknown): unknown {
+  const { fields } = rendering.options;
+  if (fields === undefined) return value;
+  const unmatched = unmatchedFields(value, fields);
+  if (unmatched.length > 0)
+    rendering.projectionNotice({
+      code: 'FIELDS_UNMATCHED',
+      message: `Fields absent from this result (possibly optional): ${unmatched.join(', ')}`,
+      nextSteps: ['Inspect the result without --fields.'],
+    });
+  return project(value, fields);
 }
 
-function humanCollection(items: object[], opts: ListOptions, options: RenderOptions): string {
-  const lines = [humanList(items, options.fields ?? opts.columns, options.noHeader)];
-  if (opts.trailer !== undefined) {
-    const trailer = options.verbose
-      ? opts.trailer
-      : Object.fromEntries(Object.entries(opts.trailer).filter(([key]) => key !== 'stage_details'));
-    lines.push(humanRecord(trailer));
-  }
-  return lines.join('\n');
+function humanCollection(rendering: Rendering, items: object[], opts: ListOptions): string {
+  const { options, display } = rendering;
+  const table = humanList(items, display, options.fields ?? opts.columns, options.noHeader);
+  const trailer = Object.entries(opts.trailer ?? {}).filter(
+    ([key]) => options.verbose || key !== 'stage_details',
+  );
+  if (trailer.length === 0) return table;
+  return [table, '', humanRecord(Object.fromEntries(trailer), display)].join('\n');
 }
 
 function line(stream: Writable, text: string): void {
   stream.write(text + '\n');
 }
 
+type Said = Pick<Renderer, 'emit' | 'error' | 'notice' | 'progress'>;
+
 function diagnosticRenderer(
   format: Format,
   io: RenderIo,
   options: RenderOptions,
-): Pick<Renderer, 'emit' | 'error' | 'notice' | 'progress'> {
+  display: Display,
+): Said & Pick<Rendering, 'projectionNotice'> {
+  const human = format === 'human';
+  // An error and a notice about --fields answer whoever built the request, so a program
+  // reads them structured in every format; only a person watching a terminal in the
+  // human format reads them as text.
+  const answer = (structured: object, text: () => string): void =>
+    line(io.err, human && display.interactive ? text() : JSON.stringify(structured));
   return {
     emit: (event: DiagnosticEvent) => {
       if (!options.verbose) return;
       line(
         io.err,
-        format === 'human' ? humanDiagnostic(event) : JSON.stringify({ _diagnostic: event }),
+        human ? humanDiagnostic(event, display) : JSON.stringify({ _diagnostic: event }),
       );
     },
-    error: (err: DevkitError) => line(io.err, JSON.stringify(toEnvelope(err))),
+    error: (err: DevkitError) => {
+      const envelope = toEnvelope(err);
+      answer(envelope, () => humanError(envelope.error, display, options.shell ?? 'posix'));
+    },
+    projectionNotice: (notice: Notice) => {
+      if (options.quiet) return;
+      answer({ _notice: notice }, () => humanNotice(notice, display));
+    },
     notice: (notice: Notice) => {
       if (options.quiet) return;
-      line(io.err, format === 'human' ? humanNotice(notice) : JSON.stringify({ _notice: notice }));
+      line(io.err, human ? humanNotice(notice, display) : JSON.stringify({ _notice: notice }));
     },
     progress: (event: ProgressEvent) => {
       if (options.quiet) return;
-      line(
-        io.err,
-        format === 'human' ? humanProgress(event) : JSON.stringify({ _progress: event }),
-      );
+      line(io.err, human ? humanProgress(event, display) : JSON.stringify({ _progress: event }));
     },
   };
 }

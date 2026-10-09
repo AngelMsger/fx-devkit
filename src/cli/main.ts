@@ -4,11 +4,13 @@
 
 import { Errors, flush, run } from '@oclif/core';
 
+import { createContainer } from '../composition/container.js';
 import { traceFor } from '../composition/trace.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 
 import { commandIds } from './commands/index.js';
-import { createRenderer, FORMATS, processIo, type Format } from './render/index.js';
+import { readInvocationFormat } from './invocation-format.js';
+import { createRenderer, FORMATS, processIo } from './render/index.js';
 import { normalizeArgv, routeArgv, type Route } from './route/index.js';
 import { invocation } from './trace.js';
 
@@ -27,7 +29,7 @@ async function dispatch(normalized: string[]): Promise<void> {
   const route = routeArgv(normalized, commandIds(), { discoverableIds: commandIds(false) });
   const refusal = routeError(route);
   if (refusal !== undefined) {
-    fail(normalized, refusal);
+    await fail(normalized, refusal);
     return;
   }
   try {
@@ -42,7 +44,7 @@ async function dispatch(normalized: string[]): Promise<void> {
       process.exitCode = err.oclif.exit;
       return;
     }
-    fail(normalized, asDevkitError(err));
+    await fail(normalized, asDevkitError(err));
   }
 }
 
@@ -103,17 +105,9 @@ function routeError(route: Route): DevkitError | undefined {
   }
 }
 
-function fail(argv: readonly string[], err: DevkitError): void {
+async function fail(argv: readonly string[], err: DevkitError): Promise<void> {
   invocation.trace?.failed(err);
-  createRenderer(formatFromArgv(argv), processIo()).error(err);
+  const format = await readInvocationFormat(argv, process.env, createContainer(process.env).config);
+  createRenderer(format, processIo()).error(err);
   process.exitCode = exitCodeFor(err.category);
-}
-
-// Only the format matters before oclif has parsed anything, and only so the
-// error reads the way the caller asked for.
-function formatFromArgv(argv: readonly string[]): Format {
-  const inline = argv.find((a) => a.startsWith('--format='))?.slice('--format='.length);
-  const separate = argv[argv.indexOf('--format') + 1];
-  const candidate = inline ?? (argv.includes('--format') ? separate : process.env['FX_FORMAT']);
-  return (FORMATS as readonly string[]).includes(candidate ?? '') ? (candidate as Format) : 'human';
 }
