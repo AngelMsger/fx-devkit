@@ -6,7 +6,7 @@
 - 未能完成的檢查不再要求登入。配套工具的檢查逾時後只提示重新檢查。
 - 直接引用內建配套工具給出的未就緒原因，例如 `OpenObserve returned HTTP 401`，或對無需登入的服務請求失敗，不再只顯示 `expected authenticated to be true`。
 - 對 fx 自己能更新的 Skill 副本提供 `fx doctor --fix`。
-- 配套工具的 context 只要能存取宣告的服務，無論其擁有者以哪種方式登入都會被接受。`service` 宣告中的 `auth_scheme` 現在只決定 fx 如何新建 context 以及 `fx login` 提供哪種登入方式；準備、檢查和查詢只核對宣告的 URL、flavor 和組織，不再傳遞 `--auth-scheme`。
+- 配套工具的 context 只要能存取宣告的服務，無論其擁有者以哪種方式登入都會被接受。`service` 宣告中的 `auth_scheme` 現在只決定 fx 如何新建 context 以及 `fx login` 提供哪種登入方式；準備、檢查和查詢只核對宣告的 URL、flavor 和組織，不再傳遞 `--auth-scheme`。既有的 context 缺少其中某個欄位時只補上該欄位，不再帶上宣告的登入方式；先前這會與以其他方式登入的 context 衝突。
 - 在 fx 知道含義的地方直接說明配套工具檢查未通過代表什麼：`fx doctor --fix` 可以關聯的既有登入顯示 `an existing login can be reused`；企業微信的三項檢查統一依回應中的錯誤碼判斷，未通過時顯示 `the WeCom API returned an error`。
 
 ## 0.9.0 (2026-10-09)

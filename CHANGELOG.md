@@ -17,7 +17,9 @@
   signed in. A `service` declaration's `auth_scheme` now only shapes a context fx
   creates and the sign-in `fx login` offers; preparation, checks and queries hold a
   context to the declared URL, flavor and organization and no longer pass
-  `--auth-scheme`.
+  `--auth-scheme`. An existing context that lacks one of those fields gains it
+  without the declared method being named, which used to conflict with a context
+  that signs in another way.
 - Say what an unmet companion check means where fx knows it. A login that
   `fx doctor --fix` can associate reads `an existing login can be reused`, and
   the three WeCom checks, now all judged by the response's error code, read

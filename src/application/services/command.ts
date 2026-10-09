@@ -20,62 +20,92 @@ function object(text: string): Record<string, unknown> {
   }
 }
 
+interface Preset {
+  readonly deps: WorkspaceDeps;
+  readonly login: LoginDeps;
+  readonly step: SetupStep;
+  readonly dryRun: boolean;
+}
+
 export async function prepareCommand(
   deps: WorkspaceDeps,
   login: LoginDeps,
   step: SetupStep,
   dryRun: boolean,
 ): Promise<ServiceOutcome> {
-  const vector = step.run ?? [];
-  const preview = [...vector, '--dry-run'];
-  // A context that already serves the declared service is ready as the person set it up.
-  const agrees = 'command' in step.verify ? step.verify.command : preview;
-  const trust = (command: readonly string[], label = `${step.id} preview`) => ({
-    ...login.trust,
-    workspace: deps.ctx.name,
-    commandShell: deps.commandShell,
-    vector: command,
-    origin: step.origin,
-    label,
-  });
-  const run = (command: readonly string[], phase: string) =>
-    deps.processRun(command, {
-      timeoutMs: 5000,
-      cwd: deps.ctx.root,
-      diagnostic: { phase: `${step.id} ${phase}` },
-    });
-  // What a dry run says: an outcome that ends the step, or the changes it would make.
-  const consult = async (
-    command: readonly string[],
-  ): Promise<ServiceOutcome | { readonly pending: unknown }> => {
-    if (dryRun && !(await login.trust.gate.isTrusted(trust(command))))
-      return {
-        status: 'blocked',
-        detail: 'Service preview command is not trusted',
-        next_steps: [shellLine(command, deps.commandShell)],
-      };
-    await login.trust.gate.ensure(trust(command));
-    const result = await run(command, 'preview');
-    if (result.code !== 0) return commandFailure(result.stderr, vector, deps);
-    const data = object(result.stdout);
-    if (data['changed'] === false)
-      return { status: 'unchanged', detail: 'Public service settings match' };
-    if (data['changed'] !== true)
-      return { status: 'failed', detail: 'Companion did not return a service configuration plan' };
-    return { pending: data['changes'] };
-  };
-  const serving = await consult(agrees);
+  const preset: Preset = { deps, login, step, dryRun };
+  const create = step.run ?? [];
+  // Where the service is, without how to sign in: a context that already serves the
+  // declared service is ready as the person set it up.
+  const settle =
+    step.preparation?.kind === 'command' ? [create[0] ?? '', ...step.preparation.agrees] : create;
+  const serving = await consult(preset, settle);
   if ('status' in serving) return serving;
-  const plan = await consult(preview);
+  // The companion proposes a scheme only for a context that has none. That one is created
+  // the way the declaration signs in; an existing one keeps its own and gains the rest.
+  const creating = isRecord(serving.pending) && 'auth.scheme' in serving.pending;
+  const vector = creating ? create : settle;
+  const plan = creating ? await consult(preset, create) : serving;
   if ('status' in plan) return plan;
   const changes = publicChanges(plan.pending);
   if (dryRun)
     return { status: 'planned', detail: 'Public service settings would be prepared', changes };
   assertWritable(login.trust.posture, step.id);
-  await login.trust.gate.ensure(trust(vector, step.id));
-  const applied = await run(vector, 'prepare');
+  await login.trust.gate.ensure(trustOf(preset, vector, step.id));
+  const applied = await runPreset(preset, vector, 'prepare');
   if (applied.code !== 0) return commandFailure(applied.stderr, vector, deps);
-  return verified(await run(agrees, 'verify'), changes);
+  return verified(await runPreset(preset, [...settle, '--dry-run'], 'verify'), changes);
+}
+
+// What a preset's dry run says: an outcome that ends the step, or the changes it would make.
+async function consult(
+  preset: Preset,
+  vector: readonly string[],
+): Promise<ServiceOutcome | { readonly pending: unknown }> {
+  const { deps, login } = preset;
+  const preview = [...vector, '--dry-run'];
+  if (preset.dryRun && !(await login.trust.gate.isTrusted(trustOf(preset, preview))))
+    return {
+      status: 'blocked',
+      detail: 'Service preview command is not trusted',
+      next_steps: [shellLine(preview, deps.commandShell)],
+    };
+  await login.trust.gate.ensure(trustOf(preset, preview));
+  const result = await runPreset(preset, preview, 'preview');
+  if (result.code !== 0) return commandFailure(result.stderr, vector, deps);
+  const data = object(result.stdout);
+  if (data['changed'] === false)
+    return { status: 'unchanged', detail: 'Public service settings match' };
+  if (data['changed'] !== true)
+    return { status: 'failed', detail: 'Companion did not return a service configuration plan' };
+  return { pending: data['changes'] };
+}
+
+function trustOf(preset: Preset, vector: readonly string[], label?: string) {
+  return {
+    ...preset.login.trust,
+    workspace: preset.deps.ctx.name,
+    commandShell: preset.deps.commandShell,
+    vector,
+    origin: preset.step.origin,
+    label: label ?? `${preset.step.id} preview`,
+  };
+}
+
+function runPreset(
+  preset: Preset,
+  vector: readonly string[],
+  phase: string,
+): Promise<ProcessResult> {
+  return preset.deps.processRun(vector, {
+    timeoutMs: 5000,
+    cwd: preset.deps.ctx.root,
+    diagnostic: { phase: `${preset.step.id} ${phase}` },
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function verified(after: ProcessResult, changes: ServiceOutcome['changes']): ServiceOutcome {
