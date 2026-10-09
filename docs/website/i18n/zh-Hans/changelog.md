@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.9.0 (2026-10-09)
+
 - 工作区根目录只派生 `AGENTS.md`。fx 不再写入指向它的 `CLAUDE.md`，`fx manifest render` 也不再在 manifest 仓库中创建该文件：Claude Code 2.1.277 及以上版本会自行读取 `AGENTS.md`，而只要存在 `CLAUDE.md` 就会改读后者。`fx sync` 会移除早期版本派生的指针文件；在移除之前，`fx doctor` 报告指南已过期。你自己写的 `CLAUDE.md` 保持原样，也不再算作指南冲突；请在其开头写上 `@AGENTS.md`，这样 Claude Code 仍会读取指南。如果 manifest 仓库里还留有这个指针文件，请将其删除。
 - manifest 源的载荷不再包含 `CLAUDE.md`。目录源中的该文件不再被复制到受管理的源，stdin 包里若列出它，会以 `MANIFEST_SOURCE_INVALID` 拒绝。
 - 命令执行期间显示它仍在工作。超过半秒后，终端上出现一行原地刷新的状态行：已用时间、可计数工作的进度，以及进行时间最长的那一项，例如 `doctor 23s  checks 69/82  kubectl.access@dev 3s`。所有命令都有这一行，因为 fx 等待的每个外部调用都在发起处上报；`doctor`、`sync`、`init`、`status`、`release` 和 `login` 还会统计各自的检查项、仓库和步骤。结果、通知和各项结局写在状态行上方，提问或登录命令在完成前独占终端，命令结束或被中断后状态行消失。git 或安装器运行期间可能在同一终端上询问主机密钥或口令，这时不在它下面重绘，状态行改为每五秒打印一行。在显示状态行的终端上不再打印逐项的 `start` 行和仓库心跳，因为状态行给出同样的信息。管道、文件、CI、`TERM=dumb`、`--quiet` 以及 JSON 或 NDJSON 输出都不会收到状态行，读到的内容与此前完全一致。
