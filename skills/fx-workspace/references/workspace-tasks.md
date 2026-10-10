@@ -52,7 +52,7 @@ See [report views](commands.md#workflow-report-views) and
 Use `--workspace <name-or-root>` to select a registered workspace directly.
 Use `workspace list/show` to discover registered roots and their health from any
 directory, including when manifest loading fails. Use `repo list`, `env list`, `agent list`, `tool list`, `config list` and
-`member list` to discover names. `repo show` and `where` resolve exact aliases;
+`member list` to discover names, and `fx can` without a target to list capabilities. `repo show` and `where` resolve exact aliases;
 use canonical names for mutations. An ambiguous match is not permission to guess.
 
 Before querying a service, use `fx where <repo> --env <env>` and select its
@@ -130,18 +130,10 @@ stand in for `fx`; `self update` cannot repair an entry that cannot execute.
 | Contribute selected source files           | `fx source push <paths...> --issue <id> --title <title> --dry-run`                       |
 | Inspect personal settings                  | `fx config list`; `fx config get <key> --explain`                                        |
 
-Match the returned row by `capability`, not by a platform name from another manifest:
-
-| Need                         | Capability      |
-| ---------------------------- | --------------- |
-| Runtime errors               | `error-tracker` |
-| Service logs                 | `log-store`     |
-| Service metrics              | `metrics`       |
-| Builds and console output    | `ci`            |
-| Read-only cluster inspection | `cluster`       |
-
-For environment-wide queries use `fx can <capability> --env <env>`; for repository
-hosting use `fx can code-host`.
+Match the returned row by `capability`, not by a platform name from another manifest.
+`fx can` without a target lists every capability with its scope, what it is for and
+what serves it in this workspace. Ask about a `workspace` one as `fx can <capability>`
+and an `environment` one as `fx can <capability> --env <env>`.
 
 `select` replaces a collection, `pick/unpick` add/remove names, `--all` follows
 future shared additions and `--none` selects nothing. Initial `--repos` or

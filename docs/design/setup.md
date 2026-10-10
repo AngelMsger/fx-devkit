@@ -131,6 +131,13 @@ manifest describes is `TOOL_UNDECLARED`, and its recovery is that description,
 not another binding. All three are configuration errors.
 Release uses the same readiness decision.
 
+Without a target, `can` lists what may be asked about: every capability a manifest
+binds, one row per platform instance for an environment-scoped one, with the
+provider and companion tool its binding resolves to. A capability nothing is bound
+to keeps its row without a provider. The list reads bindings and checks nothing, so
+it takes no environment. Internal capabilities are wired by fx itself; they appear
+neither there nor in the names an unknown target is offered.
+
 `where` additionally identifies a repository and platform. `--record` is an
 explicit write mode with a recording response, described in
 [probe recording](probe-recording.md). It does not turn readiness into blanket

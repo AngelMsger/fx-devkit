@@ -3,8 +3,8 @@
 // binding, is a usage error: the question itself has no single answer.
 
 import {
-  CAPABILITIES,
   CAPABILITY_INFO,
+  bindableCapabilities,
   knownCapability,
   type Capability,
   type CapabilityName,
@@ -46,7 +46,8 @@ export function resolveTarget(
   const tool = tools.find((t) => t.name === name);
   if (tool !== undefined)
     return { capability: null, tool, binding: bindingDriving(deps, login, tool.name, env) };
-  const suggestion = nearest(name, [...CAPABILITIES, ...tools.map((t) => t.name)]);
+  const capabilities = bindableCapabilities();
+  const suggestion = nearest(name, [...capabilities, ...tools.map((t) => t.name)]);
   throw new DevkitError(
     'not_found',
     'CAN_UNKNOWN',
@@ -54,12 +55,9 @@ export function resolveTarget(
     {
       hint:
         suggestion === undefined
-          ? `Capabilities: ${CAPABILITIES.join(', ')}.`
+          ? `Capabilities: ${capabilities.join(', ')}.`
           : `Did you mean "${suggestion}"?`,
-      nextSteps: [
-        workspaceCommand(deps, 'manifest', 'providers'),
-        workspaceCommand(deps, 'tool', 'list'),
-      ],
+      nextSteps: [workspaceCommand(deps, 'can'), workspaceCommand(deps, 'tool', 'list')],
     },
   );
 }
@@ -67,7 +65,7 @@ export function resolveTarget(
 export function targetOfBinding(
   deps: WorkspaceDeps,
   login: LoginDeps,
-  binding: PlatformBinding,
+  binding: Binding | PlatformBinding,
 ): Target | null {
   const served = toolOf(deps, login, binding);
   if (served.kind !== 'tool' && served.kind !== 'toolless') return null;

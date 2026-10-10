@@ -125,6 +125,19 @@ When a tool has multiple viable platform bindings, `can` returns
 `CAN_AMBIGUOUS` rather than choosing by declaration order. Select a capability
 and environment, or inspect repository platforms through `where`.
 
+`fx can` without a target — `items[]`, one per capability a manifest binds, and per
+platform instance for an environment-scoped one:
+
+| Field                 | Meaning                                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `capability`, `scope` | the name `can` accepts; a `workspace` one is asked as `fx can <capability>`, an `environment` one needs `--env <env>`                |
+| `platform`            | the platform instance, as `where --platform` names it; `null` for a workspace-scoped capability or when nothing is bound             |
+| `provider`, `tool`    | what serves it in this workspace; `provider: null` means the manifest binds nothing, `tool: null` that no companion tool is resolved |
+| `desc`                | what the capability is for                                                                                                           |
+
+The list reads bindings only and takes no `--env`: it says who would answer, and
+asking about one capability says whether they can.
+
 `fx where <repo> [--env <env>] [--platform <name>] [--no-check] [--probe]` — `items[]`, one per platform and environment:
 
 | Field                             | Meaning                                                                                                        |

@@ -364,6 +364,11 @@ describe('facts: where, member, can, derived docs', () => {
       status: 'ready',
       tool: 'jenkins-cli',
     });
+    const asked = fx(['can', ...json], s.env, s.ws);
+    expect(asked.status, asked.stderr).toBe(0);
+    expect((asked.json() as Items<{ capability: string }>).items).toContainEqual(
+      expect.objectContaining({ capability: 'ci', platform: 'jenkins', tool: 'jenkins-cli' }),
+    );
     expect(can(['log-store', '--env', 'selfhosted'])).toMatchObject({
       status: 'not_covered',
       alternatives: ['selfhosted declares no openobserve platform', 'fx doctor --workspace ws'],

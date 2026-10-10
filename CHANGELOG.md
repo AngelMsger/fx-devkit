@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- List what a workspace can be asked about with `fx can` and no target: one row
+  per capability a manifest binds, and per platform instance for an
+  environment-scoped one, with its scope, provider, companion tool and what it is
+  for. A capability nothing is bound to keeps its row without a provider. The list
+  reads bindings only; asking about one capability still checks readiness.
+
 ### Changed
 
 - Say what a failed readiness check answered. Each pending step in a `can`, `where`,
@@ -29,6 +37,8 @@
   the environments, came back on every login for a person who answered "all",
   and narrowed what `fx doctor` and `fx sync` cover for one who answered with
   only the environment at hand.
+- Leave the capabilities fx wires itself out of what an unknown `fx can` target is
+  offered, and point its next steps at `fx can` and `fx tool list`.
 
 ## 0.9.1 (2026-10-09)
 
