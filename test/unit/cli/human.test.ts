@@ -25,7 +25,7 @@ describe('width', () => {
   it('counts terminal columns: wide characters and emoji take two, combining marks none', () => {
     expect(widthOf('dev')).toBe(3);
     expect(widthOf('测试环境')).toBe(8);
-    expect(widthOf('Jodoo 生产环境 (全球)')).toBe(21);
+    expect(widthOf('DemoX 生产环境 (全球)')).toBe(21);
     expect(widthOf('e\u0301')).toBe(1);
     expect(widthOf('\u2705 \u{1f680}')).toBe(5);
     expect(widthOf('✓ ✗')).toBe(3);
@@ -34,7 +34,7 @@ describe('width', () => {
   it('truncates by columns and never splits a wide character', () => {
     expect(truncate('fx-example-api', 20, '…')).toBe('fx-example-api');
     expect(truncate('fx-example-api', 8, '…')).toBe('fx-exam…');
-    expect(truncate('简道云生产环境', 8, '…')).toBe('简道云…');
+    expect(truncate('示例云生产环境', 8, '…')).toBe('示例云…');
   });
 
   it('leaves text whole where not even the ellipsis fits', () => {
@@ -60,7 +60,7 @@ describe('width', () => {
   });
 
   it('wraps wide characters by columns and keeps the line breaks the text has', () => {
-    expect(wrap('简道云生产环境', 6)).toEqual(['简道云', '生产环', '境']);
+    expect(wrap('示例云生产环境', 6)).toEqual(['示例云', '生产环', '境']);
     expect(wrap('first\nsecond line', 20)).toEqual(['first', 'second line']);
     expect(wrap('宽', 1)).toEqual(['宽']);
   });
@@ -132,9 +132,9 @@ describe('a table', () => {
 
   it('shortens a column of wide characters by columns, not characters', () => {
     const fitted = lines(
-      humanList([{ name: 'prod', label: '简道云生产环境国内版', note: 'x' }], terminal(24)),
+      humanList([{ name: 'prod', label: '示例云生产环境国内版', note: 'x' }], terminal(24)),
     );
-    expect(fitted[2]).toBe('prod  简道云生产…   x');
+    expect(fitted[2]).toBe('prod  示例云生产…   x');
   });
 
   it('never shortens what a program may read', () => {
