@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.10.0 (2026-10-10)
+
 ### Added
 
 - List what a workspace can be asked about with `fx can` and no target: one row
