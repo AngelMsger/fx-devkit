@@ -10,8 +10,10 @@ dispatch. The selected agents still come from the existing global agent choice.
 `fx hook list` is read-only. `inject` enables the workspace and reconciles the
 selected hosts. `remove` disables it before cleaning up, so sync cannot reinstall
 the entries. Writes support dry-run and the ordinary read-only posture.
-Global `agent unpick` immediately disables that host in every workspace and
-reports its cleanup results; retrying unpick retries unfinished cleanup.
+Global `agent unpick` removes that host from selection and reconciles its owned
+resources across registered workspaces. Cleanup rechecks each registration under
+its lifecycle lease and reports missing roots, pending operations and failures per
+workspace. Retrying unpick retries unfinished cleanup.
 
 Only the registered workspace root receives entries. Business checkouts and
 external worktrees receive no configuration. Dispatch validates the bound root,
@@ -24,7 +26,10 @@ code contains neither provider names nor native file layouts. Sync stages and
 additional doctor checks are registered independently of their orchestration.
 
 JSON edits preserve unmanaged text, including its whitespace and escaped values.
-Ambiguous, invalid or foreign files stay unchanged. Bridge content carries an
+Ambiguous, invalid or foreign files stay unchanged. Hook preferences commit only
+after successful projections and receipt writes; conflicts, contention and IO
+failures preserve the previous preference and retain recovery receipts for completed
+projections. Bridge content carries an
 ownership marker and digest; a modified bridge becomes foreign. Ownership
 receipts and dated observations stay under the workspace's FX_HOME directory.
 A phase that failed keeps one bounded line naming the failure beside its
@@ -97,18 +102,15 @@ A matching file proves projection, not host activation. The command reports
 `activation: unverified` and a handoff until the person verifies native project
 and hook trust. fx does not edit native trust stores or invoke bypass flags.
 Claude Code and Codex have native context output; Pi uses a bounded project
-extension; Grok requires explicit sync at plain workspace roots; see the activation limitation below.
+extension. Grok 1.0.25 requires a Git root for project hook discovery, so plain
+workspace roots receive an unsupported activation handoff to
+`fx sync --only docs,skills`. Native directory trust still governs guide/Skill discovery.
 
-Each protocol has a golden fixture. Unit tests also execute the generated Pi
-bridge and exercise independent process supervision, UTF-8 boundaries, locking
-and recovery. End-to-end tests use local bare repositories to prove that only
-the manifest receives Git network operations and that the window is reused.
-Native startup requires separate host and account verification under the
-[validation guidance](../validation.md). Keep account-specific transcripts private.
+Automated checks cover serialization, supervision, UTF-8 boundaries, locking and
+recovery. Native startup requires separate host verification under the
+[validation guidance](../validation.md); keep account-specific evidence private.
 
 Native Windows projection and acceptance details are in [Windows](windows.md).
 
 Stop is a reserved event type. No high-frequency hook, transcript parser,
 friction prompt, MCP projection or contribution write runs in lifecycle dispatch.
-
-Hook preferences commit after successful projections and receipt writes. Conflict, busy and IO failures preserve the previous preference; completed projections keep recovery receipts. Dispatch errors fail open with bounded metadata on stderr. Grok 1.0.25 project hook discovery requires a Git root, which plain workspace roots deliberately lack. Its projection carries an unsupported activation handoff to explicit fx sync --only docs,skills. Normal directory trust is still required for guide/Skill discovery and does not remove this limitation.

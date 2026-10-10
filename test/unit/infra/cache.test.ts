@@ -20,6 +20,7 @@ describe('FileCache', () => {
     const home = tempDir('fx-cache-');
     const clock = new FakeClock();
     const cache = new FileCache(home, clock);
+    expect(await cache.get('never-set')).toBeUndefined();
     await cache.set('update/fx', { a: 1 }, 1000);
     expect(await cache.get('update/fx')).toEqual({ a: 1 });
     clock.advance(1001);

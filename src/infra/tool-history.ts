@@ -1,7 +1,6 @@
 // A versioned personal ledger preserves every checkpoint under an atomic, locked append.
 // Invalid or foreign files fail closed, so installation cannot silently lose its audit trail.
 
-import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -12,6 +11,7 @@ import type { ToolInstallation } from '../domain/toolchain/installation.js';
 import type { Lock } from '../ports/lock.js';
 import type { ToolHistoryStore } from '../ports/tool-history.js';
 
+import { writeAtomicFile } from './atomic-file.js';
 import type { ShapeOf } from './stored-shape.js';
 
 const entry = {
@@ -72,7 +72,7 @@ export class FileToolHistoryStore implements ToolHistoryStore {
       if (!parsed.success) throw invalid();
       await fs.mkdir(this.home, { recursive: true, mode: 0o700 });
       await this.checkHome();
-      await replace(this.file(), JSON.stringify(parsed.data) + '\n');
+      await writeAtomicFile(this.file(), JSON.stringify(parsed.data) + '\n', { durable: true });
     } finally {
       await lease.release();
     }
@@ -88,30 +88,6 @@ export class FileToolHistoryStore implements ToolHistoryStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw invalid();
     }
-  }
-}
-
-async function replace(file: string, text: string): Promise<void> {
-  const temporary = `${file}.${randomUUID()}.tmp`;
-  try {
-    const handle = await fs.open(temporary, 'wx', 0o600);
-    try {
-      await handle.writeFile(text);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await fs.rename(temporary, file);
-    if (process.platform !== 'win32') {
-      const directory = await fs.open(path.dirname(file), 'r');
-      try {
-        await directory.sync();
-      } finally {
-        await directory.close();
-      }
-    }
-  } finally {
-    await fs.rm(temporary, { force: true });
   }
 }
 

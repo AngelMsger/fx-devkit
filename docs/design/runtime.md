@@ -187,24 +187,21 @@ locks or overwrite another edit. An identical edit reports `written: false`.
 
 ## Personal stores
 
-A store's codec is written as a schema against the domain type it persists, so a
-field the contract does not declare, one it declares and the schema drops, and
-one whose stored type disagrees are compile errors rather than a document that
-quietly stops matching the interface it claims to be.
+Personal-store schemas are checked against their domain types. Reads ignore unknown
+fields for compatibility with newer fx versions; writes reject values outside the
+contract. A subsequent write drops unknown fields, so older versions can read newer
+files without promising to preserve fields they do not understand.
 
-Growth is versionless. The same file is written by whichever fx an agent host
-launched and read by whichever fx the person runs next, so a field a newer fx
-added is not corruption: reads ignore what they do not know instead of failing a
-workspace closed, while writes stay strict and refuse a value outside the
-contract. An ignored field is therefore also dropped by the next write — an older
-fx degrades a document it does not understand, but never rejects it.
+Configuration, trust, resource metadata and journals share atomic file replacement.
+Each store owns its codec, lock scope, ownership checks and error contract.
+Contribution journals, harness ownership and tool history flush the file before
+rename and the containing directory afterward on POSIX. Projections retain file
+permissions. Workspace journal parent checks reject foreign ancestors within FX_HOME.
 
-The cache is disposable and holds no such contract. A miss only costs another
-probe, so nothing that goes wrong in it — unreadable, unwritable, not a regular
-file — is anyone's error. Nothing there is followed either: a symlink where the
-directory or an entry should be is a miss, and a write lands over it rather than
-through it. An owner replacing the directory underneath a running fx is not
-defended against; it is their directory.
+Cache failures are misses, never command failures. Reads reject non-files and
+symlinked entries or directories. Writes replace a linked entry without following
+it and leave linked directories alone. Concurrent replacement of the cache directory
+by its owner is outside this guarantee.
 
 ## Planned effects and readiness
 

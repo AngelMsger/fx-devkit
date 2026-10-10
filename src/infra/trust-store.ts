@@ -1,9 +1,6 @@
-// ~/.fx/trust.yaml: which manifest command vectors this person has
-// confirmed, per workspace. Fingerprints only; the vectors themselves live
-// in the manifest. One command serializes its approvals; atomic replacement
-// keeps readers from seeing a partly written document.
+// Persist approved command fingerprints under a file lease; command vectors stay
+// in the manifest. Queue approvals within one command to avoid self-contention.
 
-import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -13,6 +10,8 @@ import { busyError } from '../domain/errors.js';
 import type { Clock } from '../ports/clock.js';
 import type { Lock } from '../ports/lock.js';
 import type { TrustedEntry, TrustStore } from '../ports/stores.js';
+
+import { writeAtomicFile } from './atomic-file.js';
 
 interface TrustFile {
   workspaces?: Record<string, Record<string, { label: string; trusted_at: string }>>;
@@ -58,17 +57,10 @@ export class FileTrustStore implements TrustStore {
       [fingerprint]: { label, trusted_at: this.clock.now().toISOString() },
     };
     await fs.mkdir(this.home, { recursive: true });
-    const temporary = `${this.path()}.${randomUUID()}.tmp`;
-    try {
-      await fs.writeFile(
-        temporary,
-        stringify({ workspaces: { ...file.workspaces, [workspace]: entries } }),
-        { encoding: 'utf8', flag: 'wx', mode: 0o600 },
-      );
-      await fs.rename(temporary, this.path());
-    } finally {
-      await fs.rm(temporary, { force: true });
-    }
+    await writeAtomicFile(
+      this.path(),
+      stringify({ workspaces: { ...file.workspaces, [workspace]: entries } }),
+    );
   }
 
   async list(workspace: string): Promise<TrustedEntry[]> {

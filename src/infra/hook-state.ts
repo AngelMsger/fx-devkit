@@ -1,7 +1,6 @@
 // Hook metadata contains only ownership and bounded, dated status fields.
 // Corruption is explicit: losing ownership cannot authorize replacing a file.
 
-import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -11,6 +10,7 @@ import { DevkitError } from '../domain/errors.js';
 import type { HookObservation, HookReceipt, HookState } from '../domain/harness/state.js';
 import type { HookStateStore } from '../ports/hook-state.js';
 
+import { writeAtomicFile } from './atomic-file.js';
 import type { ShapeOf } from './stored-shape.js';
 
 const receipt = {
@@ -65,16 +65,7 @@ export class FileHookState implements HookStateStore {
   async write(workspace: string, state: HookState): Promise<void> {
     const file = this.file(workspace);
     await fs.mkdir(path.dirname(file), { recursive: true });
-    const temporary = `${file}.${randomUUID()}.tmp`;
-    try {
-      await fs.writeFile(temporary, JSON.stringify(written.parse(state)), {
-        flag: 'wx',
-        mode: 0o600,
-      });
-      await fs.rename(temporary, file);
-    } finally {
-      await fs.rm(temporary, { force: true });
-    }
+    await writeAtomicFile(file, JSON.stringify(written.parse(state)));
   }
 
   private file(workspace: string): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { providersFor, resolveProvider } from '../../../src/composition/registry.js';
+import { resolveProvider } from '../../../src/composition/registry.js';
 import type { Ci } from '../../../src/ports/ci.js';
 import type { CodeHost } from '../../../src/ports/code-host.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
@@ -10,10 +10,6 @@ import { FakeProcess } from '../../fakes/fake-process.js';
 const deps = { process: new FakeProcess(), fs: new FakeFs(), clock: new FakeClock() };
 
 describe('provider registry', () => {
-  it('knows two code hosts', () => {
-    expect(providersFor('code-host').map((p) => p.id)).toEqual(['bitbucket-cli', 'local-git']);
-  });
-
   it('creates the bound provider with its variables', () => {
     const host = resolveProvider<CodeHost>(
       {

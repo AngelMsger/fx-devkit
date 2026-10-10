@@ -17,17 +17,14 @@ while machine selections, trust decisions and operation receipts stay in FX_HOME
 | CLI         | Parse flags, invoke workflows, render values/errors     | Application/domain/ports, dependency construction through composition |
 | Composition | Construct dependencies and register implementations     | All layers                                                            |
 
-Business decisions do not read files or speak vendor protocols. Configuration
-codecs in `domain/manifest`, `domain/config` and `domain/import/render` may use
-YAML/Zod without duplicating a second type model. Adapters translate external
-formats; application decides what their results mean. CLI and composition do
-not own recovery policy. See [engineering rules](../../AGENTS.md) for style,
-dependency enforcement and tests.
+Application owns preparation, recovery and result aggregation. Composition supplies
+ports and registers implementations; it does not interpret their results. Shared
+workflows include initialization preview, sync stages, tool version probes and
+registered-workspace cleanup. Resource owners retain their reconciliation policy.
 
-Resource-stage execution and outcome aggregation live in `application/sync/stages`;
-composition supplies its ports and host callbacks. Version checks share an
-application-level probe so installation and readiness use the same exit and
-deadline policy without moving process IO into domain parsing.
+Configuration codecs may use YAML/Zod in `domain/manifest`, `domain/config` and
+`domain/import/render`; all IO stays behind ports. See [engineering rules](../../AGENTS.md)
+for dependency enforcement and [validation](../validation.md) for test ownership.
 
 ## Main flows
 

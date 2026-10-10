@@ -1,8 +1,5 @@
-// ~/.fx/workspaces/<name>/local.yaml on disk. Reading goes through the same
-// loader as everything else, so a hand-edited layer that copies a shared
-// field is refused here too.
+// Persist personal workspace layers using the manifest codec and a workspace lease.
 
-import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -13,6 +10,7 @@ import { loadLocal } from '../domain/manifest/loader.js';
 import type { LocalLayer } from '../domain/manifest/types.js';
 import type { LocalLayerStore } from '../ports/stores.js';
 
+import { writeAtomicFile } from './atomic-file.js';
 import { FileLock } from './lock.js';
 import { localLayerPath } from './workspace-home.js';
 
@@ -55,19 +53,13 @@ export class FileLocalLayerStore implements LocalLayerStore {
       throw busyError('WORKSPACE_BUSY', `The personal layer for ${workspace}`, {
         nextSteps: ['Retry the selection change.'],
       });
-    const temporary = `${file}.${randomUUID()}.tmp`;
     try {
       const next = await change();
       await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(temporary, stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-      await fs.rename(temporary, file);
+      await writeAtomicFile(file, stringify(next));
       return next;
     } finally {
-      try {
-        await fs.rm(temporary, { force: true });
-      } finally {
-        await lease.release();
-      }
+      await lease.release();
     }
   }
 }

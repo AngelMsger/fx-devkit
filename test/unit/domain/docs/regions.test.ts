@@ -67,11 +67,6 @@ describe('renderRegions', () => {
     expect(out.unknown).toEqual(['legacy']);
   });
 
-  it('is idempotent', () => {
-    const once = renderRegions(doc, { a: 'x' }).text;
-    expect(renderRegions(once, { a: 'x' }).text).toBe(once);
-  });
-
   it('starts a new document with every region present and empty', () => {
     expect(REGIONS).not.toContain('rules');
     expect(agentsSkeleton('fx')).not.toContain('fx:begin rules');

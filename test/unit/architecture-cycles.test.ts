@@ -1,7 +1,4 @@
-// A module cycle makes initialization order decide behavior and hides which
-// module owns a fact. Type-only edges count: they are the ones that survive a
-// refactor unnoticed. This check needs no exception list — an exception would
-// mean the cycle is still there.
+// Reject module cycles, including type-only edges that preserve circular ownership.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -43,8 +40,6 @@ function graph(): Map<string, string[]> {
   return edges;
 }
 
-// Depth-first search that reports the first cycle it closes, as the chain of
-// modules that leads back into itself.
 function firstCycle(edges: Map<string, string[]>): readonly string[] | undefined {
   const done = new Set<string>();
   const stack: string[] = [];

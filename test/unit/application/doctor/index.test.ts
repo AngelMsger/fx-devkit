@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
+import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
 import type { DoctorExtension } from '../../../../src/application/doctor/types.js';
@@ -117,6 +118,7 @@ async function stage(
   });
   const prompter = new FakePrompter();
   const setup: LoginDeps = {
+    serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: options.describeProvider ?? ((id) => DESCRIPTORS[id]),
     prompter,
     clock: new FakeClock(),

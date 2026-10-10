@@ -19,6 +19,8 @@ import type {
   ProjectionWrite,
 } from '../ports/projection.js';
 
+import { writeAtomicFile } from './atomic-file.js';
+
 export class FileProjectionStore implements ProjectionStore, LinkProjectionStore {
   constructor(private readonly lock: Lock) {}
 
@@ -111,17 +113,11 @@ async function isSafe(at: ProjectionPath): Promise<boolean> {
 
 async function replace(file: string, text: string): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${randomUUID()}.tmp`;
-  try {
-    const mode = await fs.stat(file).then(
-      (stat) => stat.mode & 0o777,
-      () => 0o600,
-    );
-    await fs.writeFile(temporary, text, { flag: 'wx', mode });
-    await fs.rename(temporary, file);
-  } finally {
-    await fs.rm(temporary, { force: true });
-  }
+  const mode = await fs.stat(file).then(
+    (stat) => stat.mode & 0o777,
+    () => 0o600,
+  );
+  await writeAtomicFile(file, text, { mode });
 }
 
 async function replaceLink(file: string, target: string): Promise<void> {

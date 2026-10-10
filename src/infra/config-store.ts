@@ -1,6 +1,5 @@
 // Validate and atomically update personal configuration under a cross-process lease.
 
-import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -11,6 +10,7 @@ import { busyError, DevkitError } from '../domain/errors.js';
 import { assertWorkspaceNames } from '../domain/workspace/name.js';
 import type { ConfigFile, ConfigStore } from '../ports/stores.js';
 
+import { writeAtomicFile } from './atomic-file.js';
 import { FileLock } from './lock.js';
 
 export const CONFIG_FILE_KEYS = Object.keys(configFileSchema.shape).sort();
@@ -49,21 +49,15 @@ export class FileConfigStore implements ConfigStore {
       throw busyError('CONFIG_BUSY', 'The personal configuration', {
         nextSteps: ['Retry the configuration change.'],
       });
-    const temporary = `${this.path()}.${randomUUID()}.tmp`;
     try {
       const next = await change(await this.read());
       assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
       if (!configFileSchema.safeParse(next).success)
         throw new DevkitError('config', 'CONFIG_INVALID', 'Invalid configuration update');
-      await fs.writeFile(temporary, stringify(next), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-      await fs.rename(temporary, this.path());
+      await writeAtomicFile(this.path(), stringify(next));
       return next;
     } finally {
-      try {
-        await fs.rm(temporary, { force: true });
-      } finally {
-        await lease.release();
-      }
+      await lease.release();
     }
   }
 

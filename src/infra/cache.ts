@@ -8,6 +8,8 @@ import path from 'node:path';
 import type { Clock } from '../ports/clock.js';
 import type { Cache } from '../ports/stores.js';
 
+import { writeAtomicFile } from './atomic-file.js';
+
 interface Entry<T> {
   readonly expires_at: number;
   readonly value: T;
@@ -33,14 +35,12 @@ export class FileCache implements Cache {
   async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
     const file = this.file(key);
     const entry: Entry<T> = { expires_at: this.clock.now().getTime() + ttlMs, value };
-    const draft = `${file}.${process.pid}.tmp`;
     try {
       await fs.mkdir(this.dir, { recursive: true });
       if (!(await this.isOwnDirectory())) return;
-      await fs.writeFile(draft, JSON.stringify(entry), { encoding: 'utf8', flag: 'wx' });
-      await fs.rename(draft, file);
+      await writeAtomicFile(file, JSON.stringify(entry), { mode: 0o666 });
     } catch {
-      await fs.rm(draft, { force: true }).catch(() => undefined);
+      // Cache persistence is best-effort; the next read can probe again.
     }
   }
 

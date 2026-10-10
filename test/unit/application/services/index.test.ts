@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FamilyCli } from '../../../../src/adapters/family/cli.js';
+import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
 import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
@@ -58,6 +59,7 @@ async function fixture(
   const clock = new FakeClock();
   const prompter = new FakePrompter();
   const login: LoginDeps = {
+    serviceProtocol: new FamilyServiceProtocol(),
     describeProvider,
     home: '/home/example',
     prompter,
@@ -124,6 +126,42 @@ describe('public service declarations', () => {
 });
 
 describe('native preparation', () => {
+  it('withholds writes when a companion returns an unreadable preview', async () => {
+    const { h, operation, plan } = await fixture();
+    h.process.on(['bitbucket-cli', 'config'], {
+      code: 0,
+      stdout: '{"changed":"false"}',
+      stderr: '',
+    });
+    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+      status: 'failed',
+      detail: 'Companion did not return a service configuration plan',
+    });
+    expect(
+      h.process.calls.every(
+        (call) => call.vector.includes('--version') || call.vector.includes('--dry-run'),
+      ),
+    ).toBe(true);
+  });
+
+  it('does not report configuration until the post-write preview verifies it', async () => {
+    const { h, operation, plan } = await fixture();
+    h.process.on(['bitbucket-cli', 'config'], {
+      code: 0,
+      stdout: '{"changed":true}',
+      stderr: '',
+    });
+    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+      status: 'failed',
+      detail: 'Service settings were not verified after preparation',
+    });
+    expect(
+      h.process.calls.filter(
+        (call) => call.vector.includes('config') && !call.vector.includes('--dry-run'),
+      ),
+    ).toHaveLength(1);
+  });
+
   it('keeps structured preparation failures in login rows', async () => {
     const { h, login } = await fixture({ readOnly: true });
     h.process.on(['bitbucket-cli', 'config'], {
