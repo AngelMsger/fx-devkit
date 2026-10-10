@@ -96,9 +96,8 @@ function workspaceContextFor(
   const { container, request } = input;
   let loaded: WorkspaceDeps | undefined;
   return async () => {
-    loaded ??= workspaceDeps(
-      container,
-      await WorkspaceContext.locate({
+    loaded ??= workspaceDeps(container, {
+      ctx: await WorkspaceContext.locate({
         cwd: request.root,
         name: request.workspace,
         config: container.config,
@@ -113,8 +112,9 @@ function workspaceContextFor(
       }),
       reporter,
       cliVersion,
-      undefined,
-    );
+      user: undefined,
+      commandShell: undefined,
+    });
     return loaded;
   };
 }
