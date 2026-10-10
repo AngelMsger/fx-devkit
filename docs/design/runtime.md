@@ -187,10 +187,19 @@ locks or overwrite another edit. An identical edit reports `written: false`.
 
 ## Personal stores
 
-Personal-store schemas are checked against their domain types. Reads ignore unknown
-fields for compatibility with newer fx versions; writes reject values outside the
-contract. A subsequent write drops unknown fields, so older versions can read newer
-files without promising to preserve fields they do not understand.
+Each store owns its schema and compatibility policy. User-editable `config.yaml`
+and workspace `local.yaml` reject unknown keys on read with `CONFIG_INVALID` and
+`LOCAL_INVALID`, respectively. Configuration updates also validate the new values;
+local-layer workflows supply typed selections and overrides to their store.
+
+Hook and harness metadata, contribution journals and tool history use schemas
+checked against their domain types. Their reads ignore unknown fields and their
+writes reject values outside the contract. A subsequent write drops unknown fields,
+so older versions can read newer files without promising to preserve fields they
+do not understand. Recognized ownership and version markers still apply; the
+[tool-history contract](setup.md#tool-installation-evidence) describes its versioned
+ledger. These policies do not imply that every personal file has a schema or uses
+the same versioning rules.
 
 Configuration, trust, resource metadata and journals share atomic file replacement.
 Each store owns its codec, lock scope, ownership checks and error contract.

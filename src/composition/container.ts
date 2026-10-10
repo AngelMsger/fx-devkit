@@ -27,6 +27,7 @@ import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { WorkspaceContext } from '../application/workspace-context.js';
 import { CAPABILITIES } from '../domain/capability.js';
 import { codeHostBinding, type ProviderCatalog } from '../domain/manifest/providers.js';
+import type { ResolvedShell } from '../domain/shell.js';
 import { FileCache } from '../infra/cache.js';
 import { FileConfigStore } from '../infra/config-store.js';
 import { fxHome } from '../infra/home.js';
@@ -182,17 +183,21 @@ function adaptersOf(container: Container): AdapterDeps {
 
 // The bundle every workspace use case receives. The code host is resolved
 // lazily from the workspace's own binding, and only once.
-export function workspaceDeps(
-  container: Container,
-  ctx: WorkspaceContext,
-  reporter: Reporter,
-  cliVersion: string,
-  user: string | undefined,
-): WorkspaceDeps {
+interface WorkspaceInvocation {
+  readonly ctx: WorkspaceContext;
+  readonly reporter: Reporter;
+  readonly cliVersion: string;
+  readonly user: string | undefined;
+  readonly commandShell: ResolvedShell | undefined;
+}
+
+export function workspaceDeps(container: Container, input: WorkspaceInvocation): WorkspaceDeps {
+  const { commandShell, ...invocation } = input;
+  const { ctx } = invocation;
   const adapters = adaptersOf(container);
   return {
-    ctx,
-    user,
+    ...invocation,
+    ...(commandShell === undefined ? {} : { commandShell }),
     processRun: (vector, options) => container.process.run(vector, options),
     processWhich: (binary) => container.process.which(binary),
     git: container.git,
@@ -200,9 +205,7 @@ export function workspaceDeps(
     projections: container.projections,
     localStore: container.localStore,
     cache: container.cache,
-    reporter,
     activity: container.activity,
-    cliVersion,
     codeHost: once(() => resolveProvider<CodeHost>(codeHostBinding(ctx.bindings), adapters)),
     platform: (binding) =>
       binding.provider === null ? undefined : resolveProvider<Platform>(binding, adapters),

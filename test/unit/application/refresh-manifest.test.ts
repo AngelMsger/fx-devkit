@@ -3,9 +3,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { RefreshManifest } from '../../../src/application/refresh-manifest.js';
+import { refreshWorkspaceManifest } from '../../../src/application/refresh-workspace-manifest.js';
+import type { LockRequest } from '../../../src/ports/lock.js';
 import type { ManifestSource, RefreshOutcome } from '../../../src/ports/manifest-source.js';
+import { FakeConfigStore } from '../../fakes/fake-config-store.js';
+import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeReporter } from '../../fakes/fake-reporter.js';
-import { MANIFEST_DIR } from '../../fakes/workspace.js';
+import { MANIFEST_DIR, manifestDirFor, ROOT } from '../../fakes/workspace.js';
 
 function repoSource(outcome: RefreshOutcome = { result: 'updated' }): {
   source: ManifestSource;
@@ -117,5 +121,84 @@ describe('RefreshManifest', () => {
       source: null,
     });
     expect(reporter.codes()).toEqual(['MANIFEST_REFRESH_UNAVAILABLE']);
+  });
+});
+
+function registeredRefresh(options: { busy?: boolean; fail?: 'refresh' | 'settle' } = {}) {
+  const { source, refreshed } = repoSource();
+  const acquired: LockRequest[] = [];
+  const events: string[] = [];
+  const resolve = {
+    cwd: ROOT,
+    config: new FakeConfigStore({ workspaces: { fx: { root: ROOT, source: source.description } } }),
+    fs: FakeFs.from({}),
+    reporter: new FakeReporter(),
+    manifestDirFor,
+  };
+  const deps = {
+    lock: {
+      acquire: async (request: LockRequest) => {
+        acquired.push(request);
+        return options.busy ? null : { release: async () => void events.push('released') };
+      },
+    },
+    sourceFor: async (spec: string): Promise<ManifestSource> => {
+      expect(spec).toBe(source.description);
+      return {
+        ...source,
+        refresh: async (dir) => {
+          events.push('refresh');
+          if (options.fail === 'refresh') throw new Error('refresh failed');
+          return source.refresh!(dir);
+        },
+      };
+    },
+    settle: async (name: string, dir: string) => {
+      expect([name, dir]).toEqual(['fx', MANIFEST_DIR]);
+      events.push('settle');
+      if (options.fail === 'settle') throw new Error('settle failed');
+    },
+  };
+  return { deps, resolve, acquired, events, refreshed };
+}
+
+describe('registered workspace refresh', () => {
+  it('refreshes a registered source before an absent manifest can block workspace loading', async () => {
+    const s = registeredRefresh();
+    await refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: false, posture: writable });
+    expect(s.refreshed).toEqual([MANIFEST_DIR]);
+    expect(s.acquired).toEqual([{ key: 'workspace:fx', waitMs: 2000 }]);
+    expect(s.events).toEqual(['refresh', 'settle', 'released']);
+  });
+
+  it('refuses a busy workspace without refreshing or settling it', async () => {
+    const s = registeredRefresh({ busy: true });
+    await expect(
+      refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: false, posture: writable }),
+    ).rejects.toMatchObject({ code: 'LOCK_BUSY', nextSteps: ['Retry fx sync shortly.'] });
+    expect(s.events).toEqual([]);
+  });
+
+  it.each(['refresh', 'settle'] as const)('releases the workspace when %s fails', async (fail) => {
+    const s = registeredRefresh({ fail });
+    await expect(
+      refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: false, posture: writable }),
+    ).rejects.toThrow(`${fail} failed`);
+    expect(s.events).toEqual(
+      fail === 'refresh' ? ['refresh', 'released'] : ['refresh', 'settle', 'released'],
+    );
+  });
+
+  it('creates no lease for a preview or refused read-only refresh', async () => {
+    const s = registeredRefresh();
+    await refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: true, posture: writable });
+    await expect(
+      refreshWorkspaceManifest(s.deps, s.resolve, {
+        dryRun: false,
+        posture: { readOnly: true, source: 'env' },
+      }),
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect(s.acquired).toEqual([]);
+    expect(s.events).toEqual([]);
   });
 });

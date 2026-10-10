@@ -273,14 +273,13 @@ export abstract class FxCommand extends Command {
   }
 
   protected async workspaceDeps(): Promise<WorkspaceDeps> {
-    const deps = workspaceDeps(
-      this.container,
-      await this.workspace(),
-      this.reporter,
-      this.config.version,
-      this.configUser,
-    );
-    return { ...deps, commandShell: this.commandShell };
+    return workspaceDeps(this.container, {
+      ctx: await this.workspace(),
+      reporter: this.reporter,
+      cliVersion: this.config.version,
+      user: this.configUser,
+      commandShell: this.commandShell,
+    });
   }
 
   protected harnessInput(): HarnessCommandInput {

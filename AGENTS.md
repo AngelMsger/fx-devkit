@@ -155,10 +155,10 @@ own branches and histories.
   managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery
   journals rather than guessing through unrecognized state.
-- A personal store's codec states the domain contract it persists, so a stored
-  shape cannot drift from that interface. These files carry no version and any
-  installed fx may write them: reads ignore unknown keys rather than failing a
-  workspace closed, and writes reject anything outside the contract.
+- Keep stored schemas aligned with their domain types and preserve each store's
+  read/write and compatibility policy. The [personal-store contract](docs/design/runtime.md#personal-stores)
+  distinguishes strict configuration inputs from forward-compatible metadata
+  and versioned ledgers; do not generalize one store's policy to all personal files.
 - Team Skills use one directory link per selected agent to the manifest's Skills
   tree. Windows uses junctions; do not silently substitute copies. The bundled
   fx Skill is a copy recognized by its name and version frontmatter. An unversioned

@@ -64,13 +64,13 @@ export class CommandWiring {
     const { fs, git, config, localStore, bundledTools, providers, manifestDirFor } =
       this.input.container;
     const depsFor = (ctx: WorkspaceContext): WorkspaceDeps =>
-      workspaceDeps(
-        this.input.container,
+      workspaceDeps(this.input.container, {
         ctx,
-        this.input.reporter,
-        this.input.cliVersion,
-        this.input.user,
-      );
+        reporter: this.input.reporter,
+        cliVersion: this.input.cliVersion,
+        user: this.input.user,
+        commandShell: this.input.commandShell,
+      });
     return {
       fs,
       lock: this.input.container.lock,
@@ -118,6 +118,7 @@ export class CommandWiring {
     ).execute({
       gate: this.input.trust,
       workspace: deps.ctx.name,
+      commandShell: deps.commandShell,
       yes: this.input.yes,
       posture: this.input.posture,
       dryRun: true,
@@ -144,6 +145,7 @@ export class CommandWiring {
       trust: {
         gate: this.input.trust,
         workspace: deps.ctx.name,
+        commandShell: deps.commandShell,
         yes: this.input.yes,
         posture: this.input.posture,
       },

@@ -1,9 +1,11 @@
-// Reject module cycles, including type-only edges that preserve circular ownership.
+// Reject module cycles, including type-only and literal dynamic imports that
+// preserve circular ownership. Parse syntax so comments and strings are not edges.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const src = path.resolve(fileURLToPath(import.meta.url), '../../../src');
@@ -16,24 +18,35 @@ function modules(dir: string): string[] {
   });
 }
 
-// Every static import and re-export, whether it carries values or only types.
-function relativeImports(file: string): string[] {
-  const text = readFileSync(file, 'utf8');
-  const specifiers = [...text.matchAll(/(?:^|\n)\s*(?:import|export)\b[^;]*?from\s*'([^']+)'/g)];
+function relativeImports(file: string, text: string): string[] {
+  const specifiers: string[] = [];
+  const visit = (node: ts.Node): void => {
+    const specifier = moduleSpecifier(node);
+    if (specifier && ts.isStringLiteralLike(specifier)) specifiers.push(specifier.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(ts.createSourceFile(file, text, ts.ScriptTarget.Latest));
   return specifiers
-    .map((match) => match[1]!)
     .filter((specifier) => specifier.startsWith('.'))
     .map((specifier) => path.resolve(path.dirname(file), specifier.replace(/\.js$/, '.ts')));
 }
 
-function graph(): Map<string, string[]> {
-  const files = new Set(modules(src));
+function moduleSpecifier(node: ts.Node): ts.Node | undefined {
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return node.moduleSpecifier;
+  if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword)
+    return node.arguments[0];
+  if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument))
+    return node.argument.literal;
+  return undefined;
+}
+
+function graph(sources: ReadonlyMap<string, string>): Map<string, string[]> {
   const edges = new Map<string, string[]>();
-  for (const file of files) {
-    const targets = relativeImports(file).flatMap((target) => {
-      if (files.has(target)) return [target];
+  for (const [file, text] of sources) {
+    const targets = relativeImports(file, text).flatMap((target) => {
+      if (sources.has(target)) return [target];
       const js = target.replace(/\.ts$/, '.js');
-      return files.has(js) ? [js] : [];
+      return sources.has(js) ? [js] : [];
     });
     edges.set(file, targets);
   }
@@ -66,8 +79,46 @@ function firstCycle(edges: Map<string, string[]>): readonly string[] | undefined
 }
 
 describe('module cycles', () => {
+  it.each([
+    ['named imports', 'import { value } from "./b.js";'],
+    ['side-effect imports', "import './b.js';"],
+    ['re-exports', "export * from './b.js';"],
+    ['type-only imports', "import type { Value } from './b.js';"],
+    ['dynamic imports', "async function load() { return import('./b.js'); }"],
+    ['literal template imports', 'async function load() { return import(`./b.js`); }'],
+    ['import type expressions', "type Value = import('./b.js').Value;"],
+  ])('detects a cycle through %s', (_kind, source) => {
+    const sources = new Map([
+      [path.resolve('a.ts'), source],
+      [path.resolve('b.ts'), "export type { Value } from './a.js';"],
+    ]);
+    expect(firstCycle(graph(sources))?.map((file) => path.basename(file))).toEqual([
+      'a.ts',
+      'b.ts',
+      'a.ts',
+    ]);
+  });
+
+  it('accepts shared dependencies without treating comments, strings or packages as edges', () => {
+    const sources = new Map([
+      [path.resolve('a.ts'), "import './b.js'; import './shared.js';"],
+      [path.resolve('b.ts'), "export * from './shared.js';"],
+      [
+        path.resolve('shared.js'),
+        [
+          "/*\nimport { value } from './a.js';\n*/",
+          "const example = `\nexport * from './a.js';\n`;",
+          "import ts from 'typescript';",
+          "export const load = () => import('node:fs');",
+        ].join('\n'),
+      ],
+    ]);
+    expect(firstCycle(graph(sources))).toBeUndefined();
+  });
+
   it('finds no import cycle anywhere in src', () => {
-    const cycle = firstCycle(graph());
+    const sources = new Map(modules(src).map((file) => [file, readFileSync(file, 'utf8')]));
+    const cycle = firstCycle(graph(sources));
     expect(cycle?.map((file) => path.relative(src, file))).toBeUndefined();
   });
 });

@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { completionFlags, completionScript } from '../../src/cli/completion.js';
 
-import { freshHome, fx, userHome } from './harness.js';
+import { freshHome, fx, tempDir, userHome } from './harness.js';
 
 describe('command shell configuration', () => {
   it('round-trips the setting and honours the global flag', () => {
@@ -19,6 +19,64 @@ describe('command shell configuration', () => {
       0,
     );
     expect(fx(['config', 'list', '--command-shell', 'invalid'], env).status).toBe(2);
+  });
+
+  it('retains the selected shell in initialization preview and service recovery', () => {
+    const base = tempDir('fx-shell-init-');
+    const source = path.join(base, 'source');
+    mkdirSync(path.join(source, 'manifest'), { recursive: true });
+    writeFileSync(
+      path.join(source, 'manifest/workspace.yaml'),
+      `schema_version: 2
+providers:
+  code-host:
+    provider: bitbucket-cli
+    vars: {host: 'ssh://git@git.example.com'}
+    service: {base_url: 'https://git.example.com', context: team, flavor: datacenter, auth_scheme: pat}
+defaults: {upstream_project: team, branch: main}
+repos: [{name: app}]
+`,
+    );
+    writeFileSync(
+      path.join(source, 'manifest/tools.yaml'),
+      'schema_version: 3\ntools: [{name: bitbucket-cli, binary: fixture-shell-missing, install: [{via: manual}], skill: {command: []}}]\n',
+    );
+    const env = { FX_HOME: freshHome(), FX_AGENTS: 'codex' };
+    const args = [
+      'init',
+      path.join(base, 'workspace'),
+      '--from',
+      source,
+      '--name',
+      'shell',
+      '--no-repos',
+      '--command-shell',
+      'powershell',
+      '--format',
+      'json',
+    ];
+    const recovery = expect.objectContaining({
+      id: 'bitbucket-cli.service',
+      status: 'blocked',
+      next_steps: [
+        "& 'fx' 'doctor' '--tool' 'bitbucket-cli' '--workspace' 'shell'",
+        "& 'fx' 'tool' 'update' 'bitbucket-cli' '--workspace' 'shell'",
+      ],
+    });
+    const preview = fx([...args, '--dry-run'], env);
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(preview.json()).toMatchObject({
+      plan: {
+        resources: {
+          preparation: { services: { details: { items: expect.arrayContaining([recovery]) } } },
+        },
+      },
+    });
+    const applied = fx(args, env);
+    expect(applied.status, applied.stderr).toBe(12);
+    expect(applied.json()).toMatchObject({
+      sync: { stage_details: { services: { items: expect.arrayContaining([recovery]) } } },
+    });
   });
 });
 
