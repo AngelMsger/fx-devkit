@@ -23,7 +23,7 @@
 
 <!-- distribution:internal -->
 
-fx 通过团队的私有 Registry 分发，暂不推进公开发布。请向团队获取 Registry 地址和 npm 访问权限；已有 npm scope 配置可直接复用，`FX_REGISTRY` 仅作为可选覆盖。以下 URL 为虚构示例，安装前需确认 Registry 已提供该包。
+fx 通过团队的私有 Registry 分发。请向团队获取 Registry 地址和 npm 访问权限；已有 npm scope 配置可直接复用，`FX_REGISTRY` 仅作为可选覆盖。以下 URL 为虚构示例，安装前需确认 Registry 已提供该包。
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -39,7 +39,7 @@ fx --version
 
 ### 公开包
 
-对外分发使用 npmjs 上的 `@angelmsger/fx`，无需团队私有 Registry。当前公开发布暂缓，请在目标版本提供后执行。
+对外分发使用 npmjs 上的 `@angelmsger/fx`，无需团队私有 Registry。
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/

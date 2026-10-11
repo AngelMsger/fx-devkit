@@ -128,8 +128,8 @@
       "description": "Query and maintain an existing workspace with fx."
     }
   },
-  "publicRelease": "PUBLIC RELEASE PAUSED",
-  "publicInstallNote": "Public publication is paused. Use your team’s internal package.",
+  "publicRelease": "PUBLIC PREVIEW",
+  "publicInstallNote": "Install from npmjs. Requires Node.js 22 or later.",
   "installTitle": "Install fx",
   "navInstall": "Install fx",
   "demoTitle": "One workspace. Three ways in.",

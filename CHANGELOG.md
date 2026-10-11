@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Publish the public `@angelmsger/fx` package to npmjs and attach its tarball to a
+  GitHub Release for each version tag. The internal `@fx/devkit` channel is
+  unchanged.
+
 ## 0.10.0 (2026-10-10)
 
 ### Added

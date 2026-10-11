@@ -23,7 +23,7 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 <!-- distribution:internal -->
 
-fx はチームのプライベート Registry で配布し、公開リリースは保留中です。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
+fx はチームのプライベート Registry で配布します。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -39,7 +39,7 @@ fx --version
 
 ### 公開パッケージ
 
-公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。公開は現在保留中のため、対象バージョンの提供開始後に実行してください。
+公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/

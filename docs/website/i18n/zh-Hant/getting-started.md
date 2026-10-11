@@ -23,7 +23,7 @@
 
 <!-- distribution:internal -->
 
-fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
+fx 透過團隊的私有 Registry 分發。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -39,7 +39,7 @@ fx --version
 
 ### 公開套件
 
-對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。目前公開發佈暫緩，請於目標版本提供後執行。
+對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/

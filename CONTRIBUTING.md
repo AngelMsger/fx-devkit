@@ -2,7 +2,7 @@
 
 Start with a small reproducible problem or a concrete improvement. Bug fixes,
 documentation, translations and provider work are welcome within the team.
-Public release and external contribution intake are currently on hold. For a substantial
+External contribution intake is currently on hold. For a substantial
 behavior or architecture change, open an issue first to explain the use case and
 proposed contract.
 
