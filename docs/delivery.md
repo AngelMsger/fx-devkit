@@ -12,8 +12,9 @@ from the user site.
 - `linux`: lint, typecheck, CLI reference freshness, Node and Bun unit tests,
   end-to-end tests, the package boundary scan, the website build and check, and
   `npm run release -- --dry-run`.
-- `windows`: `npm run check:windows`, the native Windows acceptance entry. Its
-  JSON report is uploaded as the `windows-acceptance` artifact.
+- `windows` (manual runs only, via _Run workflow_): `npm run check:windows`, the
+  native Windows acceptance entry. Its JSON report is uploaded as the
+  `windows-acceptance` artifact. It joins every run once the suite passes there.
 
 `.github/workflows/pages.yml` builds the website for both origin-root and
 repository-subpath hosting on every change, and deploys `main` to GitHub Pages.
@@ -46,7 +47,7 @@ repository-subpath hosting on every change, and deploys `main` to GitHub Pages.
    `npm run docs:check` reports. Merge that change to `main` with green CI.
 2. Tag the merged commit `v<version>` and push the tag. With
    `NPM_PUBLISH_ENABLED=true`, the `publish` job checks that the tag matches
-   `package.json`, waits for both test jobs and publishes with provenance. Without
+   `package.json`, waits for the `linux` job and publishes with provenance. Without
    it, publish manually with `npm run release` as above.
 
 `npm run release` (`scripts/publish.mjs`) always pins npmjs and public access;

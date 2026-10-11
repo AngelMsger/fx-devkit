@@ -49,8 +49,8 @@ npm run site:check
 node scripts/check-package.mjs
 ```
 
-Live companion tests are opt-in. GitHub Actions runs these checks and native
-Windows acceptance (`npm run check:windows`) on every pull request. Record
+Live companion tests are opt-in. GitHub Actions runs these checks on every pull
+request; native Windows acceptance (`npm run check:windows`) runs on demand. Record
 unavailable checks accurately. Passing a local test is not proof of remote access
 or native host activation. See [validation](docs/validation.md).
 

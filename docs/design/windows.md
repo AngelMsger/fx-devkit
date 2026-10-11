@@ -84,9 +84,9 @@ the package scanner, and installs a local tarball into an isolated prefix to
 exercise its `.cmd` entry. It never publishes or installs globally. Missing
 prerequisites and failed checks return nonzero. The temporary report records
 the platform, runtime, each completed check and overall outcome.
-`FX_WINDOWS_REPORT` can select a report destination; the `windows` CI job runs
-this entry on GitHub's `windows-latest` runner for every change and uploads the
-report even when a check fails. Run it locally under Node 22 as well. Native host activation and a junction across
+`FX_WINDOWS_REPORT` can select a report destination; the manually dispatched
+`windows` CI job runs this entry on GitHub's `windows-latest` runner and uploads
+the report even when a check fails. Run it locally under Node 22 as well. Native host activation and a junction across
 two local volumes are additional manual checks, not implied by a passing report.
 
 The automated suite uses portable Node/cmd fixtures and isolates both HOME and

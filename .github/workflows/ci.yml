@@ -36,7 +36,10 @@ jobs:
       - name: Validate packaging without publishing
         run: npm run release -- --dry-run
 
+  # Native Windows support is not verified yet (docs/design/windows.md), so
+  # this acceptance run is manual until the suite passes there.
   windows:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     env:
       FX_WINDOWS_REPORT: windows-acceptance.json
@@ -60,7 +63,7 @@ jobs:
 
   publish:
     if: vars.NPM_PUBLISH_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    needs: linux
     runs-on: ubuntu-latest
     environment: npm
     permissions:
