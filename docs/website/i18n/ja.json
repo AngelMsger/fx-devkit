@@ -1,12 +1,12 @@
 {
   "heroAudience": "人にも、エージェントにも。",
-  "preRelease": "内部リリース",
+  "preRelease": "プレビュー版",
   "heroMany": "リポジトリを、",
   "heroOne": "ひとつの",
   "heroWorkspace": "作業環境へ。",
   "heroLead": "共有マニフェストでリポジトリを同期し、ツールを接続。コーディングエージェントにも必要なコンテキストを届けます。",
   "readDocs": "ドキュメント",
-  "installNote": "チームの npm レジストリは設定済みですか？",
+  "installNote": "Node.js 22 以降が必要です。",
   "releaseLink": "レジストリ設定・インストールガイド ↗",
   "copy": "コピー",
   "copyInstall": "インストールコマンドをコピー",
@@ -128,8 +128,6 @@
       "description": "fx で既存のワークスペースを照会・保守します。"
     }
   },
-  "publicRelease": "公開リリースは停止中",
-  "publicInstallNote": "公開は現在停止中です。チームの内部パッケージを利用してください。",
   "installTitle": "インストール",
   "navInstall": "インストール",
   "demoTitle": "ひとつの環境、3つの使い方。",

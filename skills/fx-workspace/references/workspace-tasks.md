@@ -211,8 +211,8 @@ native context conflicts and scoped login.
 
 fx reuses npm's effective user/global scope Registry, then its default Registry;
 `FX_REGISTRY` is an optional override. `self info` reports `registry_source`.
-Project npmrc does not redirect global self-update. Internal `@fx/devkit` still
-needs a private target; public `@angelmsger/fx` can fall back to npmjs. Normal
+Project npmrc does not redirect global self-update. Without a usable npm
+configuration, `@angelmsger/fx` falls back to npmjs. Normal
 metadata reads use npm authentication, including `NPM_CONFIG_USERCONFIG`.
 `FX_OUTDATED` and `MANIFEST_OUTDATED` are advisory. Update within the user's scope,
 then rediscover the running version and read its bundled Skill. `fx skill install`

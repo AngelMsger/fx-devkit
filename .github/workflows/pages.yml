@@ -1,11 +1,10 @@
-# Validate every proposed website change; publish the reviewed default branch.
-name: Public website
+# Validate every website change; deploy main to GitHub Pages.
+name: Website
 on:
   pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
-env:
-  FX_DISTRIBUTION: public
 permissions:
   contents: read
 concurrency:
@@ -19,14 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '24.14.0'
+          node-version: 24.14.0
           cache: npm
           cache-dependency-path: |
             package-lock.json
             docs/website/package-lock.json
-      - run: node scripts/select-distribution.mjs public
       - run: npm ci
       - run: npm run check:examples
       - run: npm --prefix docs/website ci
@@ -38,22 +36,22 @@ jobs:
         env:
           SITE_BASE_PATH: /fx-devkit/
       - name: Configure Pages
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
         id: pages
         uses: actions/configure-pages@v5
       - name: Build deployment artifact
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: steps.pages.outcome == 'success'
         run: npm run site:build && npm run site:check
         env:
           SITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
           SITE_ORIGIN: ${{ steps.pages.outputs.origin }}
       - name: Upload Pages artifact
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v4
         with:
           path: docs/website/dist
   deploy:
-    if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
     needs: build
     runs-on: ubuntu-latest
     permissions:

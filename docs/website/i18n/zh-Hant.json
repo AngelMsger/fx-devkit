@@ -1,12 +1,12 @@
 {
   "heroAudience": "為人，也為 Agent。",
-  "preRelease": "內部發行版",
+  "preRelease": "預覽版",
   "heroMany": "多個儲存庫，",
   "heroOne": "一個",
   "heroWorkspace": "工作區。",
   "heroLead": "用一份共用 manifest 同步程式碼儲存庫、接入工具，並為 Coding Agent 提供所需的工程上下文。",
   "readDocs": "閱讀文件",
-  "installNote": "已設定團隊的 npm Registry？",
+  "installNote": "需要 Node.js 22 或更新版本。",
   "releaseLink": "Registry 設定與安裝指南 ↗",
   "copy": "複製",
   "copyInstall": "複製安裝命令",
@@ -128,8 +128,6 @@
       "description": "使用 fx 查詢和維護既有工作區。"
     }
   },
-  "publicRelease": "公開發佈暫停",
-  "publicInstallNote": "公開發佈暫緩，請使用團隊提供的內部套件。",
   "installTitle": "安裝 fx",
   "navInstall": "安裝 fx",
   "demoTitle": "一個工作區，三種使用方式。",

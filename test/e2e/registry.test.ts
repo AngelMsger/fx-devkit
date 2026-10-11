@@ -63,10 +63,8 @@ describe('runtime registry coordinates', () => {
       ],
     });
   });
-  it('does not infer a public target when the coordinate is absent or unsafe', () => {
-    for (const FX_REGISTRY of packageName === '@fx/devkit'
-      ? ['', 'https://registry.npmjs.org/']
-      : ['', 'invalid']) {
+  it('refuses an unusable registry coordinate instead of guessing one', () => {
+    for (const FX_REGISTRY of ['', 'invalid']) {
       const result = fx(['self', 'update', '--dry-run', '--format', 'json'], { FX_REGISTRY });
       expect(result.error().code).toBe('REGISTRY_UNKNOWN');
       expect(result.stdout).toBe('');

@@ -28,7 +28,7 @@ function checks(latest: string | Error, upstreamSha: string | undefined) {
   };
 }
 
-const FX = { current: '0.1.0', packageName: '@fx/devkit', registry: 'https://npm.example.com' };
+const FX = { current: '0.1.0', packageName: '@angelmsger/fx', registry: 'https://npm.example.com' };
 
 describe('shouldCheckUpdates', () => {
   it('checks for an ordinary command, and not when disabled, quiet, or for the remedies themselves', () => {
