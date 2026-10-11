@@ -21,16 +21,32 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 ## インストール {#install}
 
-### npmjs から
+<!-- distribution:internal -->
 
-fx は npmjs で `@angelmsger/fx` として公開されており、`fx` コマンドを提供します。
+fx はチームのプライベート Registry で配布し、公開リリースは保留中です。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
 
 ```sh
-npm install -g @angelmsger/fx
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
 
-npm 設定で `@angelmsger` スコープまたは既定 Registry がミラーを指している場合、fx はそのミラーからインストール・更新します。`fx self info --format json` が実際の `registry` と `registry_source` を報告します。
+`npm login --scope=@fx --registry=...` は scope と Registry を関連付けます。設定済みならインストールだけで構いません。`fx self info --format json` は有効な `registry` と `registry_source` を表示し、npm 設定を変更しません。
+
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+### 公開パッケージ
+
+公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。公開は現在保留中のため、対象バージョンの提供開始後に実行してください。
+
+```sh
+npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
+fx --version
+```
+
+<!-- /distribution -->
 
 現在はソースからも実行できます。
 

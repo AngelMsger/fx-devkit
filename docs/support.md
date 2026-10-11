@@ -44,9 +44,43 @@ higher-priority override. Project npmrc cannot redirect global self-update.
 Normal metadata reads use npm's own authentication and `NPM_CONFIG_USERCONFIG`.
 An invalid override is reported rather than silently ignored.
 
-fx follows npm's `@angelmsger:registry` and default Registry; without a usable
-npm configuration it defaults to npmjs. `FX_REGISTRY` can select
+<!-- distribution:internal -->
+
+For `@fx/devkit`, an existing npm `@fx:registry` or private default is sufficient.
+If neither is configured, obtain the team URL and associate the scope once:
+
+```sh
+npm login --registry=https://npm.example.com/ --scope=@fx
+fx self update --dry-run
+```
+
+The URL is fictional. A one-time installation flag does not necessarily persist
+that association; downloaded tarball URLs are not reliable Registry API addresses.
+`FX_REGISTRY` remains available for a one-invocation override.
+
+### Registry routing
+
+Self-update pins the fx scope while leaving public dependencies on npm's default
+Registry. If your private default fails while proxying public dependencies and
+team policy permits npmjs, keep the configured `@fx` scope private and route the
+other packages to npmjs for the installation:
+
+```sh
+npm install -g @fx/devkit --registry=https://registry.npmjs.org/
+```
+
+Configure the scope first. This changes one invocation, not stored credentials
+or the private proxy. It does not require a separate fx Registry setting.
+
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+The public package follows npm's `@angelmsger:registry` and default Registry;
+without a usable npm configuration it defaults to npmjs. `FX_REGISTRY` can select
 an explicit mirror. Preview with `fx self update --dry-run` before applying it.
+
+<!-- /distribution -->
 
 For source installations, update Git and run `npm ci` and `npm run build` in the
 checkout. Updating fx is separate from `fx sync`, which refreshes manifest sources.
@@ -66,6 +100,22 @@ local NTFS. Use `.cmd` entries if PowerShell policy blocks npm’s `.ps1` shims.
 Agent hosts differ in Skill, hook, MCP and rule support. Inspect `fx agent list`,
 `fx hook list` and `fx mcp list` for the selected host’s state.
 
+<!-- distribution:internal -->
+
+## Report an issue
+
+Contact your team's fx maintainers through the internal support channel with the
+output of `fx --version`, your operating system, the command, expected behavior
+and a redacted reproduction. Include the relevant finding and handoff for setup errors.
+
+## Security reports
+
+Report security findings privately to the maintainers. Keep credentials, personal
+information and team coordinates out of shared reports and reproduction examples.
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
 ## Report an issue
 
 [Open a GitHub issue](https://github.com/AngelMsger/fx-devkit/issues) with the version,
@@ -75,3 +125,4 @@ operating system, command, expected behavior and a redacted reproduction.
 
 Use [private vulnerability reporting](https://github.com/AngelMsger/fx-devkit/security/advisories/new).
 Keep credentials, personal information and private team coordinates out of public reports.
+<!-- /distribution -->

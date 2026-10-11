@@ -21,16 +21,32 @@
 
 ## 安裝 {#install}
 
-### 從 npmjs 安裝
+<!-- distribution:internal -->
 
-fx 以 `@angelmsger/fx` 發佈於 npmjs，提供 `fx` 指令：
+fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
 
 ```sh
-npm install -g @angelmsger/fx
+npm login --registry=https://npm.example.com/ --scope=@fx
+npm install -g @fx/devkit
 fx --version
 ```
 
-若 npm 設定將 `@angelmsger` 範圍或預設來源指向鏡像，fx 會從該鏡像安裝與更新。`fx self info --format json` 會回報實際的 `registry` 與 `registry_source`。
+`npm login --scope=@fx --registry=...` 會關聯 scope 與 Registry。已設定時只需執行安裝命令。`fx self info --format json` 顯示有效的 `registry` 與 `registry_source`，不修改 npm 設定。
+
+<!-- /distribution -->
+
+<!-- distribution:public -->
+
+### 公開套件
+
+對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。目前公開發佈暫緩，請於目標版本提供後執行。
+
+```sh
+npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
+fx --version
+```
+
+<!-- /distribution -->
 
 也可以從原始碼執行：
 

@@ -10,8 +10,8 @@ const tagged = tag === undefined || tag === '' ? undefined : parseSemver(tag);
 const packaged = parseSemver(version);
 const matches =
   tagged !== undefined && packaged !== undefined && compareSemver(tagged, packaged) === 0;
-if (!matches) {
-  console.error('Publication requires a v<version> tag matching the package version exactly.');
+if (tag ? !matches : process.env.BRANCH_NAME !== 'main') {
+  console.error('Publication requires main or a tag matching the package version exactly.');
   process.exit(1);
 }
 console.log(`Release version: ${version}`);

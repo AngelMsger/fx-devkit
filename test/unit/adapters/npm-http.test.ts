@@ -21,10 +21,10 @@ describe('NpmHttpRegistry', () => {
       userHome: '/nowhere',
       fetch: fake,
     });
-    expect(await registry.latest('@angelmsger/fx')).toBe('0.3.0');
+    expect(await registry.latest('@fx/devkit')).toBe('0.3.0');
     expect(process.calls).toEqual([]);
     expect(seen[0]).toEqual({
-      url: `${REGISTRY}/@angelmsger%2Ffx`,
+      url: `${REGISTRY}/@fx%2Fdevkit`,
       headers: { Accept: 'application/vnd.npm.install-v1+json', Authorization: 'Bearer tok' },
     });
   });
@@ -53,12 +53,12 @@ describe('NpmHttpRegistry', () => {
         userHome: '/nowhere',
         fetch: (async () => new Response(JSON.stringify(body), { status })) as typeof fetch,
       });
-    await expect(answer(401, {}).latest('@angelmsger/fx')).rejects.toMatchObject({
+    await expect(answer(401, {}).latest('@fx/devkit')).rejects.toMatchObject({
       category: 'auth',
       code: 'REGISTRY_HTTP_FAILED',
       message: expect.stringContaining('responded 401'),
     });
-    await expect(answer(200, { 'dist-tags': {} }).latest('@angelmsger/fx')).rejects.toMatchObject({
+    await expect(answer(200, { 'dist-tags': {} }).latest('@fx/devkit')).rejects.toMatchObject({
       category: 'parse',
       code: 'REGISTRY_RESPONSE_INVALID',
       message: expect.stringContaining('dist-tags.latest'),

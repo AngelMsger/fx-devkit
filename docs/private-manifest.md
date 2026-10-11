@@ -38,7 +38,8 @@ not defaults for a real organization. Repository and service identifiers can dif
 set `obs.svc` explicitly when needed. The legacy `fx-` service-name convention is
 retained for compatibility, without requiring that convention in new manifests.
 
-fx itself is published as `@angelmsger/fx` on npmjs.
+The internal `@fx/devkit` package uses a private Registry; the public
+`@angelmsger/fx` package uses npmjs.
 Team manifests, companion packages and services retain their separate controls.
 See the [registry contract](design/registry-configuration.md). The toolkit uses
 [Apache-2.0](../LICENSE); its license does not grant access to private manifests

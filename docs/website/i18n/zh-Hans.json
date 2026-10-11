@@ -1,12 +1,12 @@
 {
   "heroAudience": "为人，也为 Agent。",
-  "preRelease": "预览版",
+  "preRelease": "内部发行版",
   "heroMany": "多个仓库，",
   "heroOne": "一个",
   "heroWorkspace": "工作区。",
   "heroLead": "用一份共享 manifest 同步代码仓库、接入工具，并为 Coding Agent 提供所需的工程上下文。",
   "readDocs": "阅读文档",
-  "installNote": "需要 Node.js 22 或更高版本。",
+  "installNote": "已配置团队的 npm Registry？",
   "releaseLink": "Registry 配置与安装指南 ↗",
   "copy": "复制",
   "copyInstall": "复制安装命令",
@@ -128,6 +128,8 @@
       "description": "使用 fx 查询和维护已有工作区。"
     }
   },
+  "publicRelease": "公开发布暂停",
+  "publicInstallNote": "公开发布暂缓，请使用团队提供的内部包。",
   "installTitle": "安装 fx",
   "navInstall": "安装 fx",
   "demoTitle": "一个工作区，三种打开方式。",

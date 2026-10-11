@@ -15,7 +15,7 @@ function stage(answer: string | Error = '0.2.0') {
   const clock = new FakeClock();
   const registry = new FakeRegistry(answer);
   const check = new FxUpdateCheck(new CachedProbe(cache, clock), () => registry);
-  const input = { current: '0.1.0', packageName: '@angelmsger/fx', registry: REGISTRY };
+  const input = { current: '0.1.0', packageName: '@fx/devkit', registry: REGISTRY };
   return { cache, clock, registry, check, input };
 }
 

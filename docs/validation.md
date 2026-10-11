@@ -121,6 +121,6 @@ Removing a file from the working tree does not erase earlier commits. A public
 source snapshot can omit `.git` entirely and begin a new public history. Preserve
 the private original; rewriting or publishing that history is a separate action.
 Apache-2.0 is selected for this project. Release review still includes
-third-party notices and the license text in the actual distribution. Publishing
-fx does not publish a team's manifest or change the distribution policy of
-companion packages. See the [delivery checklist](delivery.md).
+third-party notices and the license text in the actual distribution. Private package delivery does not publish the team's manifest or change the
+distribution policy of companion packages. Track fx's own registry migration in
+the [distribution delivery checklist](delivery.md).

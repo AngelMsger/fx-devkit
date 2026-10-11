@@ -26,7 +26,7 @@ export class NpmRegistryLocator implements RegistryLocator {
   private async read(packageName: string): Promise<RegistryLocation> {
     if (this.env.FX_REGISTRY !== undefined)
       return {
-        registry: runtimeRegistry(this.env.FX_REGISTRY),
+        registry: runtimeRegistry(packageName, this.env.FX_REGISTRY),
         source: 'environment',
       };
     const scope = packageName.split('/')[0]!;
@@ -56,15 +56,16 @@ export class NpmRegistryLocator implements RegistryLocator {
           return configured === undefined || configured === 'undefined' ? undefined : configured;
         };
         const scoped = value(key);
-        if (scoped !== undefined) return { registry: runtimeRegistry(scoped), source: 'npm_scope' };
+        if (scoped !== undefined)
+          return { registry: runtimeRegistry(packageName, scoped), source: 'npm_scope' };
         const registry = value('registry');
         if (registry !== undefined)
-          return { registry: runtimeRegistry(registry), source: 'npm_default' };
+          return { registry: runtimeRegistry(packageName, registry), source: 'npm_default' };
       }
     } catch {
       // Startup and configuration failures must not break unrelated fx commands.
     }
-    const registry = runtimeRegistry(undefined);
+    const registry = runtimeRegistry(packageName, undefined);
     return { registry, source: registry === null ? 'unavailable' : 'distribution_default' };
   }
 }

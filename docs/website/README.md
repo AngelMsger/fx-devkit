@@ -23,11 +23,34 @@ It is separate from the CLI's `dist/` and excluded from the npm package.
 Personal hosting bindings are not tracked in this repository.
 For hosts that support it, configure `404.html` as the custom error document.
 
-## GitHub Pages
+## Internal Dokploy deployment
 
-The Pages workflow builds and checks both origin-root and repository-subpath
-routes on every change, then deploys `main` to GitHub Pages with Pages origin
-metadata. Other static hosts can serve subpaths too. For example:
+The internal website uses `FX_DISTRIBUTION=internal`. Configure the application in Dokploy with
+its internal Git source and a read-only deploy key. Use Dockerfile build type,
+`docs/website/Dockerfile`, and the repository root (`.`) as build context. The
+Dockerfile needs user Markdown from outside the website directory.
+
+The container serves port 80 with directory indexes, a `/healthz` check and actual
+404 responses. Only static output is copied into the NGINX runtime. Configure the
+internal domain, HTTPS and network/access restrictions in Dokploy. `noindex`
+metadata and headers discourage indexing; they do not provide access control.
+
+Build arguments:
+
+- `SITE_ORIGIN`: the internal HTTP(S) origin, without a path or credentials.
+- `SITE_REPOSITORY_URL`: optional internal source browser URL, without credentials.
+- `SITE_BASE_PATH`: keep `/` for the supplied NGINX container.
+
+```sh
+docker build -f docs/website/Dockerfile -t fx-devkit-website:local .
+docker run --rm -p 4173:80 fx-devkit-website:local
+```
+
+Deploy a reviewed main revision after Jenkins checks pass. Keep private Git keys,
+Registry tokens, application IDs and personal preview bindings in the platform.
+Configure a real 404 for removed maintainer routes; do not add an SPA fallback.
+
+Other static hosts can serve subpaths. For example:
 
 ```sh
 SITE_BASE_PATH=/fx-devkit/ SITE_ORIGIN=https://docs.example.com npm run site:build
@@ -38,9 +61,22 @@ The preview reads the base from ignored local build state; restart it after a ba
 change. Relative links, assets and English-default language selection work with
 or without `SITE_ORIGIN`. When set, canonical URLs, hreflang and a sitemap use it.
 Only `docs/website/dist/` is deployable; build state and source files stay outside it.
-`SITE_REPOSITORY_URL` optionally replaces the footer's source link. See
-[delivery](../delivery.md) for maintainer-side configuration; it is not a user
-website route.
+
+## Public GitHub Pages channel
+
+Set `FX_DISTRIBUTION=public` for the npmjs package name and public installation
+instructions. The Pages workflow validates root and repository-subpath routes,
+builds against Pages origin metadata, and deploys only with
+`PUBLIC_RELEASE_ENABLED=true`. Leave this gate unset while public release is on
+hold. Public builds use the public repository link and allow indexing; internal
+builds use the optional platform-supplied source link and discourage indexing.
+Neither indexing metadata nor private repository visibility provides website access control.
+
+Channel-specific Markdown is wrapped in `<!-- distribution:internal -->` or
+`<!-- distribution:public -->` blocks, closed by `<!-- /distribution -->`.
+The source README can show both; deployed user pages show only their own channel.
+Keep both blocks and the matching translations accurate. See [delivery](../delivery.md)
+for maintainer-side configuration; it is not a user website route.
 
 ## Languages and translation coverage
 
@@ -111,7 +147,8 @@ block with a copy button, without a third-party browser runtime.
 Review website changes through the running local preview before pushing or deploying.
 The preview server disables caching. Generated stylesheet and script URLs include
 content versions, checked against their actual bytes by `site:check`, so refreshed
-HTML cannot reuse an older cached asset. This cannot retroactively invalidate responses already cached by a
+HTML cannot reuse an older cached asset. The NGINX container revalidates responses
+before reuse. This cannot retroactively invalidate responses already cached by a
 previous deployment; a hard reload may be needed once when upgrading from it.
 
 ## Homepage hierarchy

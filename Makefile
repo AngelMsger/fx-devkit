@@ -15,6 +15,6 @@ docs:
 	npm run build && npm run docs:gen
 
 publish:
-	npm run release
+	npm publish
 
 .PHONY: build lint test e2e docs publish

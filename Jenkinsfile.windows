@@ -1,0 +1,30 @@
+// An opt-in job: configure a real Windows label and preinstall Node, Git,
+// npm, Bun and PowerShell 7. This job never publishes or creates tags.
+pipeline {
+    agent none
+    parameters {
+        string(name: 'WINDOWS_AGENT_LABEL', defaultValue: '', description: 'Required label of a native Windows agent')
+    }
+    stages {
+        stage('Validate agent') {
+            steps {
+                script {
+                    if (!params.WINDOWS_AGENT_LABEL?.trim()) {
+                        error('Set WINDOWS_AGENT_LABEL to an existing Windows agent label')
+                    }
+                }
+            }
+        }
+        stage('Windows acceptance') {
+            agent { label "${params.WINDOWS_AGENT_LABEL}" }
+            environment { FX_WINDOWS_REPORT = 'windows-acceptance.json' }
+            steps {
+                bat 'npm ci'
+                bat 'npm run check:windows'
+            }
+            post {
+                always { archiveArtifacts artifacts: 'windows-acceptance.json', allowEmptyArchive: true }
+            }
+        }
+    }
+}

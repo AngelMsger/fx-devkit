@@ -11,7 +11,7 @@ export const REGISTRY_HANDOFF: Handoff = {
       id: 'fx-registry',
       kind: 'manual',
       title:
-        'Check npm config get registry --global and the @angelmsger:registry scope setting. fx updates from npmjs unless a valid mirror is configured there or in FX_REGISTRY. Remove invalid overrides before retrying.',
+        'Check npm config get registry --global and the package scope registry. Configure @fx:registry for @fx/devkit, or use FX_REGISTRY as an optional override. Remove invalid overrides before retrying.',
     },
   ],
 };

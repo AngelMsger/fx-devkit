@@ -2,13 +2,6 @@
 
 ## [Unreleased]
 
-### Changed
-
-- fx is published only as `@angelmsger/fx` on npmjs. Self-update and version
-  checks default to npmjs and still follow a valid mirror configured in npm or
-  `FX_REGISTRY`. The `@fx/devkit` package and its private-Registry channel are
-  no longer supported; reinstall with `npm install -g @angelmsger/fx`.
-
 ## 0.10.0 (2026-10-10)
 
 ### Added

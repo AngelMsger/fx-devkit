@@ -11,10 +11,12 @@ private manifests, live evaluation evidence or business patches. Keep migration
 provenance in a private record outside this repository.
 
 Preserve existing changes and verify repository identity and remotes before
-committing or pushing. The repository is public at
-[AngelMsger/fx-devkit](https://github.com/AngelMsger/fx-devkit); `main` is the
-delivery branch and GitHub Actions is its only CI. Change it through a branch and
-pull request with green checks. Never merge predecessor or unrelated histories.
+committing or pushing. The delivery upstream is the internal shared repository;
+`origin` is the verified personal fork and `upstream` is the shared repository.
+The GitHub repository uses remote `github` for the separately gated public channel.
+Push only to `origin` and merge through a pull request; an empty shared repository
+requires task-specific authorization for its initial seed. Never merge predecessor
+or unrelated histories. Keep actual remote URLs in Git configuration.
 
 Work in the target checkout or an isolated worktree. Workspace migration,
 publication and tags need task-specific authorization. User authorization takes
@@ -204,16 +206,21 @@ internal coordinates under their separate scanner policy; credential/personnel
 protections are not relaxed. Exported profiles carry settings and personal
 layers, never trust records, caches, manifest clones or credentials.
 
-The project is always `fx-devkit`, its package is `@angelmsger/fx` on npmjs and
-its binary is always `fx`. GitHub Actions publishes tagged releases with npm
-trusted publishing and deploys the website to GitHub Pages; see
-[delivery](docs/delivery.md). Keep credentials in platform configuration, never
-source or package metadata. The license is Apache-2.0.
+The project is always `fx-devkit` and its binary is always `fx`. Maintain two
+channels from the same code: internal `@fx/devkit` through Jenkins/private Registry
+and private Dokploy; public `@angelmsger/fx` through GitHub Actions/npmjs and GitHub
+Pages. The source checkout defaults to internal metadata. CI selects metadata with
+`scripts/select-distribution.mjs`; never commit public build metadata over the
+internal baseline. Public deployment/publication stays gated by
+`PUBLIC_RELEASE_ENABLED` while external release is on hold. User documentation
+must render the matching installation commands for its channel in all four languages.
+Keep private endpoints and credentials in platform configuration, never generic
+source or package metadata. Use Apache-2.0 consistently in both distributions.
 
 Runtime Registry discovery follows npm's effective user/global scope and default
-configuration, with `FX_REGISTRY` as an optional override, and falls back to npmjs.
-Project npmrc cannot redirect global self-update. Publication targets npmjs only;
-package metadata carries no Registry. Keep the
+configuration, with `FX_REGISTRY` as an optional override. Project npmrc cannot
+redirect global self-update. Publication still requires an explicit private
+coordinate or Jenkins Managed npmrc; package metadata carries no Registry. Keep the
 shared registry policy, version grammar and boundary scanner as the checked
 JavaScript implementations used by scripts and compiled code, so a gate that runs
 before the build decides the same way fx does and no script loads its logic from
@@ -241,7 +248,7 @@ normally need only their description. Inline comments explain a non-obvious
 constraint, not the neighboring statement or another module's rationale.
 If explanation dominates the implementation, improve the abstraction first.
 
-README is the user entry point, CONTRIBUTING.md owns the contribution
+README is the user entry point, CONTRIBUTING.md owns the internal contribution
 workflow, SECURITY.md owns reporting guidance, this file owns agent rules, and design pages
 own current contracts, and `docs/cli/README.md` is generated syntax reference.
 Keep one owner for each fact. Remove feature-history narration and resolved
@@ -287,7 +294,10 @@ If a change has no external impact, state why in its delivery or PR description.
 Run `npm run docs:check`, `npm run site:build` and `npm run site:check` before
 delivering affected changes. The website check verifies source freshness,
 generated routes, internal links/anchors, local assets and JavaScript syntax.
-The Pages workflow checks root and subpath builds and deploys `main`. Keep locale routes, assets, 404 navigation and
+The internal channel uses Dokploy with `docs/website/Dockerfile` as its static
+deployment baseline. The public channel uses the gated GitHub Pages workflow. Both channels
+check root and subpath builds; the supplied NGINX container
+serves at the origin root. Keep locale routes, assets, 404 navigation and
 canonical/hreflang URLs consistent. Only reviewed main revisions deploy. Hosting
 configuration and maintainer delivery procedures never enter user documentation.
 Keep the website static without a server-side application runtime.
