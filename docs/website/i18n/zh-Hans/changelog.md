@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- fx 仅以 `@angelmsger/fx` 发布在 npmjs 上。自更新和版本检查默认使用 npmjs，并继续遵循 npm 或 `FX_REGISTRY` 中配置的有效镜像。`@fx/devkit` 包及其私有 Registry 分发渠道不再支持，请使用 `npm install -g @angelmsger/fx` 重新安装。
+
 ## 0.10.0 (2026-10-10)
 
 - 不带目标的 `fx can` 列出当前工作区可以查询的能力：manifest 可绑定的每个能力一行，环境级能力按平台实例各一行，包含作用域、provider、配套工具和用途。未绑定的能力保留一行，provider 为空。该列表只读取绑定；查询单个能力时仍会检查就绪状态。

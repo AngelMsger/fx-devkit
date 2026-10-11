@@ -24,9 +24,9 @@ it('reads private metadata using native npm userconfig and environment-backed au
         status !== 200
           ? { error: 'Fixture access denied' }
           : {
-              name: '@fx/devkit',
+              name: '@angelmsger/fx',
               'dist-tags': { latest: '0.4.0' },
-              versions: { '0.4.0': { name: '@fx/devkit', version: '0.4.0' } },
+              versions: { '0.4.0': { name: '@angelmsger/fx', version: '0.4.0' } },
             },
       ),
     );
@@ -44,7 +44,7 @@ it('reads private metadata using native npm userconfig and environment-backed au
     await writeFile(global, '');
     await writeFile(
       config,
-      `@fx:registry=${registry}\nregistry=https://registry.npmjs.org/\n//127.0.0.1:${address.port}/team/:_authToken=\${DEMO_NPM_TOKEN}\n`,
+      `@angelmsger:registry=${registry}\nregistry=https://registry.npmjs.org/\n//127.0.0.1:${address.port}/team/:_authToken=\${DEMO_NPM_TOKEN}\n`,
     );
     const env = {
       HOME: root,
@@ -57,25 +57,25 @@ it('reads private metadata using native npm userconfig and environment-backed au
       FX_REGISTRY_TOKEN: 'unused-legacy-token',
     };
     const process = new NodeProcess();
-    expect(await new NpmRegistryLocator(process, env, root).resolve('@fx/devkit')).toEqual({
+    expect(await new NpmRegistryLocator(process, env, root).resolve('@angelmsger/fx')).toEqual({
       registry,
       source: 'npm_scope',
     });
     const client = new NpmRegistry(process, { registry, env, userHome: root, timeoutMs: 5000 });
-    expect(await client.latest('@fx/devkit')).toBe('0.4.0');
+    expect(await client.latest('@angelmsger/fx')).toBe('0.4.0');
     expect(requests.length).toBeGreaterThan(0);
     for (const request of requests)
       expect({ ...request, url: decodeURIComponent(request.url ?? '') }).toEqual({
-        url: '/team/@fx/devkit',
+        url: '/team/@angelmsger/fx',
         authorization: 'Bearer fixture-secret',
       });
     status = 401;
-    await expect(client.latest('@fx/devkit')).rejects.toMatchObject({
+    await expect(client.latest('@angelmsger/fx')).rejects.toMatchObject({
       category: 'auth',
       code: 'REGISTRY_HTTP_FAILED',
     });
     status = 503;
-    await expect(client.latest('@fx/devkit')).rejects.toMatchObject({
+    await expect(client.latest('@angelmsger/fx')).rejects.toMatchObject({
       category: 'server',
       code: 'REGISTRY_HTTP_FAILED',
     });

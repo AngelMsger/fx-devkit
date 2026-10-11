@@ -151,7 +151,7 @@ async function stage(
         manifest: new ManifestUpdateCheck(probe, h.git),
         self: {
           current: '1.0.0',
-          packageName: '@fx/devkit',
+          packageName: '@angelmsger/fx',
           registry: 'https://npm.example.com',
         },
         enabled: options.updates ?? true,

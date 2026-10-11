@@ -1,11 +1,19 @@
 {
-  "name": "@fx/devkit",
+  "name": "@angelmsger/fx",
   "version": "0.10.0",
   "description": "Manifest-driven multi-repository workspaces for people and coding agents",
   "license": "Apache-2.0",
+  "homepage": "https://angelmsger.github.io/fx-devkit/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AngelMsger/fx-devkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AngelMsger/fx-devkit/issues"
+  },
   "type": "module",
   "bin": {
-    "fx": "./bin/fx.js"
+    "fx": "bin/fx.js"
   },
   "files": [
     "bin",
@@ -23,7 +31,7 @@
     "npm": "11.9.0"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json",
@@ -41,7 +49,8 @@
     "site:build": "npm --prefix docs/website run build",
     "site:check": "npm --prefix docs/website run check",
     "site:dev": "npm --prefix docs/website run dev",
-    "check:examples": "node scripts/check-public-examples.mjs"
+    "check:examples": "node scripts/check-public-examples.mjs",
+    "release": "node scripts/publish.mjs"
   },
   "dependencies": {
     "@oclif/core": "^5.0.0",

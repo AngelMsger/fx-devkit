@@ -1,12 +1,12 @@
 {
   "heroAudience": "FOR HUMANS. FOR AGENTS.",
-  "preRelease": "INTERNAL RELEASE",
+  "preRelease": "PREVIEW RELEASE",
   "heroMany": "Many repos.",
   "heroOne": "One ",
   "heroWorkspace": "workspace.",
   "heroLead": "One shared manifest to sync your repositories, connect your tools, and give coding agents the context they need.",
   "readDocs": "Read the docs",
-  "installNote": "Already configured your team’s npm registry?",
+  "installNote": "Requires Node.js 22 or later.",
   "releaseLink": "Registry setup & installation guide ↗",
   "copy": "Copy",
   "copyInstall": "Copy install command",
@@ -128,8 +128,6 @@
       "description": "Query and maintain an existing workspace with fx."
     }
   },
-  "publicRelease": "PUBLIC RELEASE PAUSED",
-  "publicInstallNote": "Public publication is paused. Use your team’s internal package.",
   "installTitle": "Install fx",
   "navInstall": "Install fx",
   "demoTitle": "One workspace. Three ways in.",

@@ -27,51 +27,19 @@ administrator privileges or Developer Mode. See [platform support](support.md#pl
 
 ## Install
 
-<!-- distribution:internal -->
+### From npmjs
 
-### Internal package
-
-The internal distribution uses `@fx/devkit` through your team's private Registry. Obtain its URL and npm
-access from your team. Existing npm scope configuration is reused; `FX_REGISTRY`
-is an optional override, not a required installation setting. The public npm
-release is on hold. These commands require the version to be available in that Registry.
+fx is published as `@angelmsger/fx` on npmjs and provides the `fx` command:
 
 ```sh
-npm login --registry=https://npm.example.com/ --scope=@fx
-npm install -g @fx/devkit
+npm install -g @angelmsger/fx
 fx --version
 ```
 
-The URL above is fictional. `npm login --scope=@fx --registry=...` associates the
-scope with that Registry. If it is already configured, only the install command
-is needed. `fx self info --format json` reports the effective `registry` and
-`registry_source` without changing npm configuration.
-
-In PowerShell, use `.cmd` entries if local policy blocks `.ps1` shims:
-
-```powershell
-npm.cmd login --registry=https://npm.example.com/ --scope=@fx
-npm.cmd install -g @fx/devkit
-fx.cmd --version
-```
-
-<!-- /distribution -->
-
-<!-- distribution:public -->
-
-### Public package
-
-The public distribution uses `@angelmsger/fx` from npmjs. It does not require your
-team's private Registry. Public publication is currently on hold; use this command
-only once your selected release is available.
-
-```sh
-npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
-fx --version
-```
-
-In PowerShell, use `npm.cmd` and `fx.cmd` if the execution policy blocks `.ps1` shims.
-<!-- /distribution -->
+If your npm configuration points `@angelmsger` or the default Registry at a mirror,
+fx installs and updates from that mirror. `fx self info --format json` reports the
+effective `registry` and `registry_source`. In PowerShell, use `npm.cmd` and
+`fx.cmd` if the execution policy blocks `.ps1` shims.
 
 ### Run from source
 

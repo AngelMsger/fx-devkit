@@ -38,33 +38,12 @@ You also need a team manifest. Use an existing source or
 
 ## Install
 
-The internal package is `@fx/devkit`; the separately gated public package is
-`@angelmsger/fx`. Both provide `fx`. Public publication is currently paused.
-
-<!-- distribution:internal -->
-
-For the internal package, use your team's existing npm configuration. If its
-`@fx` scope is not configured yet, sign in once with the team Registry URL.
-The URL below is fictional:
+Install the `@angelmsger/fx` package from npmjs. It provides the `fx` command:
 
 ```sh
-npm login --registry=https://npm.example.com/ --scope=@fx
-npm install -g @fx/devkit
+npm install -g @angelmsger/fx
 fx --version
 ```
-
-<!-- /distribution -->
-
-<!-- distribution:public -->
-
-When a public release is available, install from npmjs:
-
-```sh
-npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
-fx --version
-```
-
-<!-- /distribution -->
 
 See the [installation guide](docs/user-guide.md#install) for source installations,
 PowerShell commands and Registry routing. For updates, use

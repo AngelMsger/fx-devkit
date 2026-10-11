@@ -12,7 +12,7 @@ does not change those capabilities or require publishing a team's manifest.
 - Use [architecture and contracts](../design/README.md) for implementation behavior.
 - Follow [installation guidance](../../README.md#install) for an existing package
   or a local source build. A version in package.json does not prove publication;
-  the team's private installation source determines registry access and availability.
+  check npmjs for the released versions.
 - Inspect [Windows limits](../design/windows.md) and native host trust separately.
   Source code or generated configuration alone does not establish native activation.
 - Keep live trial receipts, deployment coordinates and authorization decisions in

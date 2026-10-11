@@ -1,7 +1,7 @@
 // @ts-check
 // Shared JavaScript keeps the same registry policy available to runtime adapters
-// and pre-build publication guards. Private coordinates come only from configuration.
-import { PUBLIC_REGISTRY, packageChannel } from '../../domain/distribution.js';
+// and pre-build publication guards. Mirror coordinates come only from configuration.
+import { PUBLIC_REGISTRY } from '../../domain/distribution.js';
 
 /** @param {unknown} value @returns {string | null} */
 function registryUrl(value) {
@@ -20,7 +20,7 @@ function registryUrl(value) {
   }
 }
 
-/** @param {unknown} value @returns {string | null} */
+/** A configured registry that is not a public npm host, such as a team mirror. @param {unknown} value @returns {string | null} */
 export function privateRegistry(value) {
   const registry = registryUrl(value);
   if (!registry) return null;
@@ -40,15 +40,12 @@ export function registryArguments({ packageName, registry, packageOnly = false }
   ];
 }
 
-/** @param {string} packageName @param {unknown} configured */
-export function publicationRegistry(packageName, configured) {
-  if (packageChannel(packageName) === 'internal') return privateRegistry(configured);
-  // Public artifacts must never be redirected to a private destination by ambient config.
+/** Releases go to npmjs only; ambient config never redirects them. @param {unknown} configured */
+export function publicationRegistry(configured) {
   return configured === undefined || isPublicRegistry(configured) ? PUBLIC_REGISTRY : null;
 }
-/** @param {string} packageName @param {unknown} configured */
-export function runtimeRegistry(packageName, configured) {
-  if (packageChannel(packageName) === 'internal') return privateRegistry(configured);
+/** Updates default to npmjs and follow a valid configured mirror. @param {unknown} configured */
+export function runtimeRegistry(configured) {
   if (configured === undefined || isPublicRegistry(configured)) return PUBLIC_REGISTRY;
   return registryUrl(configured);
 }
