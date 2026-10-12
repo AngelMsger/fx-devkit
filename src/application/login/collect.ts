@@ -4,6 +4,7 @@
 
 import { planSetup, type RecipeSource } from '../../domain/setup/planner.js';
 import type { SetupPlan } from '../../domain/setup/types.js';
+import type { ProviderDescriptor, Vars } from '../../ports/provider.js';
 import { serviceRecipes } from '../services/recipes.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -28,8 +29,7 @@ export function collectRecipes(deps: WorkspaceDeps, setup: LoginDeps): RecipeSou
       );
       continue;
     }
-    for (const recipe of setup.describeProvider(binding.provider)?.recipes ?? [])
-      sources.push({ recipe, vars: binding.vars });
+    sources.push(...sourcesOf(descriptor, binding.vars));
   }
   for (const binding of deps.ctx.platforms) {
     if (binding.provider === null) continue;
@@ -43,14 +43,14 @@ export function collectRecipes(deps: WorkspaceDeps, setup: LoginDeps): RecipeSou
         const onEnv = spec.platforms?.[binding.platform];
         if (!onEnv) continue;
         if (!binding.service && !onEnv.service) {
-          const vars = {
+          const vars = recipeVars(descriptor, {
             ...binding.vars,
             ...onEnv.vars,
             env,
             ...Object.fromEntries(
               Object.entries(onEnv.setup ?? {}).map(([key, value]) => [`setup.${key}`, value]),
             ),
-          };
+          });
           sources.push(
             ...descriptor.recipes.map((recipe) => ({
               recipe: { ...recipe, perEnv: false },
@@ -71,10 +71,23 @@ export function collectRecipes(deps: WorkspaceDeps, setup: LoginDeps): RecipeSou
       }
       continue;
     }
-    for (const recipe of setup.describeProvider(binding.provider)?.recipes ?? [])
-      sources.push({ recipe, vars: binding.vars, platform: binding.platform });
+    sources.push(...sourcesOf(descriptor, binding.vars, binding.platform));
   }
   return sources;
+}
+
+// A provider's recipes read the binding's variables and what the provider derives from them.
+function recipeVars(descriptor: ProviderDescriptor<unknown> | undefined, vars: Vars): Vars {
+  return { ...vars, ...descriptor?.recipeVars?.(vars) };
+}
+
+function sourcesOf(
+  descriptor: ProviderDescriptor<unknown> | undefined,
+  vars: Vars,
+  platform?: string,
+): RecipeSource[] {
+  const all = recipeVars(descriptor, vars);
+  return (descriptor?.recipes ?? []).map((recipe) => ({ recipe, vars: all, platform }));
 }
 
 export function buildPlan(
