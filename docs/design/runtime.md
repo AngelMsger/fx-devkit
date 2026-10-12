@@ -297,7 +297,7 @@ leave preparation incomplete even when every selected checkout synchronized.
 
 Canonical resource entries are `agent skills`, `tool inventory`, `hook enable/disable`,
 `manifest repo-set` and `manifest record-probe`; prior spellings remain compatible.
-Standalone `skill` operations keep the oa-cli companion surface. Agent mutations
+Standalone `skill` operations keep the agent-clis companion surface. Agent mutations
 report global scope and affected workspaces; repo/env selection reports workspace
 scope. Inventory/history are FX_HOME-wide. Tool installation/update requires either
 names or `--all`; the latter selects missing enabled tools for install and all enabled

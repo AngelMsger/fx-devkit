@@ -227,7 +227,7 @@ entry. The owning user contract is [installation history](../user-guide.md#tool-
 ## Standalone companion lifecycle
 
 `skill install/uninstall/path/status/show` work without WorkspaceDeps. Target flags
-follow the maintained oa-cli family: repeatable/comma-separated `--agent`, optional
+follow the maintained agent-clis family: repeatable/comma-separated `--agent`, optional
 `--project`, mutually exclusive `--dir` as a Skill parent. Writes detect targets;
 inspection enumerates all hosts. AgentHostSpec owns native paths and project
 markers. Standalone detection ignores workspace selection; init/sync retain it.
