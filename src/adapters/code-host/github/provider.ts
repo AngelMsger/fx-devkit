@@ -183,7 +183,7 @@ export class GitHubCodeHost implements CodeHost {
     return this.vars['host'] ?? '';
   }
 
-  // https://github.com and ssh://git@github.com both name github.com.
+  // An https:// or an ssh:// clone prefix names its host; anything else means github.com.
   private get hostname(): string {
     try {
       return new URL(this.host).hostname || DEFAULT_HOSTNAME;
@@ -201,7 +201,7 @@ export const githubProvider: ProviderDescriptor<CodeHost> = {
   vars: [
     {
       name: 'host',
-      desc: 'git clone prefix, e.g. https://github.com or ssh://git@github.com',
+      desc: 'git clone prefix, e.g. https://github.com, or an ssh:// prefix for SSH clones',
       required: true,
     },
   ],
