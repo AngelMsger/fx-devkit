@@ -17,6 +17,7 @@ export interface ReleasePolicy {
   readonly since: string;
   readonly ci: CiEnvs | undefined;
   readonly bots: readonly string[];
+  readonly note: string | undefined;
 }
 
 export const DEFAULT_TARGETS = ['main', 'master'] as const;
@@ -32,6 +33,7 @@ const OFF: ReleasePolicy = {
   since: DEFAULT_SINCE,
   ci: undefined,
   bots: [],
+  note: undefined,
 };
 
 type Shared = NonNullable<Workspace['release']>;
@@ -50,6 +52,7 @@ export function releasePolicyOf(workspace: Workspace, name: string): ReleasePoli
     since: shared.since ?? DEFAULT_SINCE,
     ci: ciEnvsOf(shared, own),
     bots: shared.bots ?? [],
+    note: own.note,
   };
 }
 

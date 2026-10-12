@@ -74,7 +74,7 @@ describe('command resolution', () => {
       'status',
       'can',
       'where',
-      'release',
+      'release check',
       'completion',
     ].map((c) => everyday.indexOf(`  ${c} `));
     expect(positions.every((p, i) => p > -1 && (i === 0 || p > (positions[i - 1] ?? 0)))).toBe(

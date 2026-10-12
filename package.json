@@ -113,6 +113,9 @@
       },
       "workspace": {
         "description": "Workspace identities: discover, inspect, relocate, rebind and unregister"
+      },
+      "release": {
+        "description": "Release checklist: what each repository would release, and whether it is ready"
       }
     }
   },

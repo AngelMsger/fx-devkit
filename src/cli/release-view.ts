@@ -1,10 +1,20 @@
-// The release checklist as a person reads it: one block per repository with its checks
-// under it, so whatever holds a repository back reads in one place. Repositories with
-// nothing to report share one closing line unless --details asks for their checks. A
-// finding every repository shares, such as a tool nobody signed in to, is said once
-// above them. The report itself stays the machine interface.
+// The release checklist as a person reads it: one block per repository, opening with
+// what its release would carry (the version, both branch heads and how many commits
+// are not merged yet, whose heads let the code host's own tools list them), then its
+// checks, so whatever holds a repository back reads in one place. Repositories with
+// nothing to report close the output one line each, saying what they would release,
+// unless --details asks for their checks. A finding every repository shares, such as
+// a tool nobody signed in to, is said once above them. The report itself stays the
+// machine interface.
 
-import type { ReleaseFinding, ReleaseReport } from '../domain/release/types.js';
+import type {
+  ReleaseFinding,
+  ReleaseHead,
+  ReleaseReport,
+  ReleaseRepo,
+  Unmerged,
+} from '../domain/release/types.js';
+import { shortSha } from '../domain/workspace/commits.js';
 
 import type { Display } from './render/display.js';
 import { gap, widthOf } from './render/width.js';
@@ -24,26 +34,105 @@ const NARROWEST_MESSAGE = 24;
 export function releaseText(report: ReleaseReport, view: ReleaseView): string {
   const { display } = view;
   const { findings } = report;
-  if (findings.length === 0) return `${display.paint('quiet', '(none)')}\n`;
-  const repos = [...new Set(findings.map((f) => f.id))];
+  // Every repository is named with what it would ship, even when the findings it has
+  // are all said once for every repository.
+  const repos = [...new Set([...report.repos.map((r) => r.name), ...findings.map((f) => f.id)])];
+  if (repos.length === 0) return `${display.paint('quiet', '(none)')}\n`;
   const shared = repos.length > 1 ? sharedFindings(findings, repos.length) : [];
   const own = (repo: string): ReleaseFinding[] =>
     findings.filter((f) => f.id === repo && !shared.some((s) => sameFinding(s, f)));
   const passed = (repo: string): boolean => own(repo).every((f) => f.level === 'ok');
-  const listed = repos.filter((repo) => own(repo).length > 0);
-  const expanded = view.details ? listed : listed.filter((repo) => !passed(repo));
-  const quiet = listed.filter((repo) => !expanded.includes(repo));
-  const row = rowOf(display, Math.max(...findings.map((f) => widthOf(f.group))));
+  const expanded = view.details ? repos : repos.filter((repo) => !passed(repo));
+  const quiet = repos.filter((repo) => !expanded.includes(repo));
+  const row = rowOf(display, Math.max(0, ...findings.map((f) => widthOf(f.group))));
+  const described = new Map(report.repos.map((r) => [r.name, r]));
   const sections = [
     ...(shared.length === 0
       ? []
       : [[display.paint('strong', 'Every repository'), ...shared.flatMap(row)]]),
-    ...expanded.map((repo) => [heading(display, repo, own(repo)), ...own(repo).flatMap(row)]),
+    ...expanded.map((repo) => [
+      heading(display, repo, own(repo)),
+      ...carried(display, described.get(repo)),
+      ...own(repo).flatMap(row),
+    ]),
     ...(quiet.length === 0
       ? []
-      : [okLines(display, shared.length === 0 ? 'All checks ok:' : 'Otherwise ok:', quiet)]),
+      : [
+          okLines(
+            display,
+            shared.length === 0 ? 'All checks ok' : 'Otherwise ok',
+            quiet.map((repo) => described.get(repo) ?? repo),
+          ),
+        ]),
   ];
   return `${sections.map((lines) => lines.join('\n')).join('\n\n')}\n`;
+}
+
+// What the release would ship, from the branch it ships from: the version that branch
+// declares, its head, and whether everything on the source branch is merged into it.
+interface Shipping {
+  readonly version: string | undefined;
+  readonly text: string;
+}
+
+function shipping(repo: ReleaseRepo): Shipping | undefined {
+  const { source, target } = repo;
+  if (source === null) return undefined;
+  if (target === null) return { version: source.version ?? undefined, text: headText(source) };
+  const own =
+    source.version === null || source.version === target.version ? '' : ` (${source.version})`;
+  return {
+    version: target.version ?? undefined,
+    text: mergeText(target, source, repo.unmerged, own),
+  };
+}
+
+// "main a1a1a1a, dev d1d1d1d not merged: 2 commits by 1 person", or "dev merged".
+function mergeText(
+  target: ReleaseHead,
+  source: ReleaseHead,
+  unmerged: Unmerged | null,
+  own: string,
+): string {
+  const lands = headText(target);
+  if (unmerged?.commits === 0) return `${lands}, ${source.branch} merged`;
+  const from = `${headText(source)}${own}`;
+  if (unmerged === null) return `${lands}, ${from}`;
+  const people = `${unmerged.authors} ${unmerged.authors === 1 ? 'person' : 'people'}`;
+  return `${lands}, ${from} not merged: ${plural(unmerged.commits, 'commit')} by ${people}`;
+}
+
+function headText(head: ReleaseHead): string {
+  return `${head.branch} ${shortSha(head.sha)}`;
+}
+
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
+function sentence(shipped: Shipping): string {
+  return shipped.version === undefined ? shipped.text : `${shipped.version}  ${shipped.text}`;
+}
+
+// The release sentence and the manifest's note, under a heading.
+function carried(display: Display, repo: ReleaseRepo | undefined): string[] {
+  if (repo === undefined) return [];
+  const room = Math.max(display.room(widthOf(INDENT)), NARROWEST_MESSAGE);
+  const shipped = shipping(repo);
+  const lines =
+    shipped === undefined ? [] : display.wrap(sentence(shipped), room).map((l) => `${INDENT}${l}`);
+  return [...lines, ...remarks(display, repo, INDENT)];
+}
+
+// What the host could not say about the repository, then the manifest's note.
+function remarks(display: Display, repo: ReleaseRepo, indent: string): string[] {
+  const room = Math.max(display.room(widthOf(indent)), NARROWEST_MESSAGE);
+  return [
+    ...repo.unanswered.map((u) => `${u.field} unknown: ${u.reason}`),
+    ...(repo.note === null ? [] : [`note: ${repo.note}`]),
+  ]
+    .flatMap((said) => display.wrap(said, room))
+    .map((l) => `${indent}${display.paint('quiet', l)}`);
 }
 
 // A problem every repository has in common, the same words and the same fix.
@@ -98,9 +187,42 @@ function rowOf(display: Display, width: number): (f: ReleaseFinding) => string[]
   };
 }
 
-function okLines(display: Display, label: string, repos: readonly string[]): string[] {
-  const room = Math.max(display.room(widthOf(INDENT)), NARROWEST_MESSAGE);
-  const [first = '', ...rest] = display.wrap(`${label} ${repos.join(', ')}`, room);
-  const painted = `${display.paint('ok', label)}${first.slice(label.length)}`;
-  return [painted, ...rest.map((line) => `${INDENT}${line}`)];
+// The repositories with nothing to report, one line each with what they would ship.
+function okLines(
+  display: Display,
+  label: string,
+  repos: readonly (ReleaseRepo | string)[],
+): string[] {
+  const rows = repos.map((repo) =>
+    typeof repo === 'string'
+      ? { name: repo, shipped: undefined, repo: undefined }
+      : { name: repo.name, shipped: shipping(repo), repo },
+  );
+  const width = Math.max(...rows.map((r) => widthOf(r.name)));
+  const versions = rows.flatMap((r) =>
+    r.shipped?.version === undefined ? [] : [r.shipped.version],
+  );
+  const versionWidth = versions.length === 0 ? 0 : Math.max(...versions.map(widthOf));
+  const lead = widthOf(INDENT) + width + widthOf(GUTTER);
+  const room = Math.max(display.room(lead), NARROWEST_MESSAGE);
+  const under = ' '.repeat(lead);
+  return [
+    display.paint('ok', label),
+    ...rows.flatMap(({ name, shipped, repo }) => {
+      const said = shipped === undefined ? '' : aligned(shipped, versionWidth);
+      const [first = '', ...rest] = said === '' ? [] : display.wrap(said, room);
+      return [
+        `${INDENT}${name}${first === '' ? '' : `${gap(name, width)}${GUTTER}${first}`}`,
+        ...rest.map((l) => `${under}${l}`),
+        ...(repo === undefined ? [] : remarks(display, repo, under)),
+      ];
+    }),
+  ];
+}
+
+// The version in a column of its own, so the branches line up beneath each other.
+function aligned(shipped: Shipping, versionWidth: number): string {
+  if (versionWidth === 0) return shipped.text;
+  const version = shipped.version ?? '';
+  return `${version}${gap(version, versionWidth)}${GUTTER}${shipped.text}`;
 }

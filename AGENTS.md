@@ -275,7 +275,7 @@ internal design/evaluation documents, fx package-release procedures, maintainer
 validation checklists, personal preview bindings, or build-source metadata as user
 documentation. Do not add indirect links to excluded documents from public pages,
 translations, homepage sections, navigation or sitemaps. Explain how users operate
-fx (including checking their own repositories with `fx release`), not how the
+fx (including checking their own repositories with `fx release check`), not how the
 maintainer builds or publishes fx. Personal machine paths, preview project IDs and
 credential configuration belong outside the public repository.
 

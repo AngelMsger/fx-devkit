@@ -1,5 +1,6 @@
-// Evaluate the release checklist, retaining failed or unavailable checks as findings.
-// Checks run concurrently; the fixed order is the report's, not the execution's.
+// Evaluate the release checklist, retaining failed or unavailable checks as findings,
+// beside what each repository's release would carry. Checks run concurrently; the
+// fixed order is the report's, not the execution's.
 // Selection and gate warming follow docs/design/release.md, "Selection and order".
 
 import { DevkitError } from '../../domain/errors.js';
@@ -10,6 +11,7 @@ import {
   CHECKS,
   type Check,
   type ReleaseFinding,
+  type ReleaseRepo,
   type ReleaseReport,
 } from '../../domain/release/types.js';
 import { windowMs } from '../../domain/release/window.js';
@@ -26,6 +28,7 @@ import { checkErrors } from './errors.js';
 import { gatherFacts, type CheckContext, type FactsOutcome } from './facts.js';
 import { Gates } from './gates.js';
 import { checkMerge } from './merge.js';
+import { describeRepo } from './repo.js';
 
 export interface ReleaseInput {
   readonly repos?: readonly string[] | undefined;
@@ -61,13 +64,19 @@ export class Release {
     const checks = CHECKS.filter((c) => input.only === undefined || input.only.includes(c));
     const repos = this.select(input);
     await this.warmGates(repos, checks, input);
-    const findings = await Tally.during(this.deps.activity, 'repos', (tally) => {
+    const results = await Tally.during(this.deps.activity, 'repos', (tally) => {
       tally.plan(repos.length);
       return pooled(repos, input.jobs, (repo) =>
         tally.unit(repo.name, () => this.checkRepo(repo, checks, input)),
       );
     });
-    return report(CHECKS, findings.flat());
+    return {
+      ...report(
+        CHECKS,
+        results.flatMap((r) => r.findings),
+      ),
+      repos: results.map((r) => r.repo),
+    };
   }
 
   // The name came from the person, so it is answered once, not per repository.
@@ -132,7 +141,7 @@ export class Release {
     repo: ResolvedRepo,
     checks: readonly Check[],
     input: ReleaseInput,
-  ): Promise<ReleaseFinding[]> {
+  ): Promise<{ findings: ReleaseFinding[]; repo: ReleaseRepo }> {
     const shared = releasePolicyOf(this.deps.ctx.manifest.workspace.result.doc, repo.name);
     const ctx: CheckContext = {
       deps: this.deps,
@@ -145,7 +154,11 @@ export class Release {
     const facts = checks.some((c) => c !== 'errors')
       ? await gatherFacts(ctx)
       : { kind: 'error' as const, reason: 'not asked' };
-    return Promise.all(checks.map((check) => CHECKERS[check](ctx, facts)));
+    const [findings, described] = await Promise.all([
+      Promise.all(checks.map((check) => CHECKERS[check](ctx, facts))),
+      describeRepo(ctx, facts),
+    ]);
+    return { findings, repo: described };
   }
 }
 

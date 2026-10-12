@@ -16,6 +16,8 @@ export interface ErrorsInput {
   readonly repo: string;
   readonly env: string;
   readonly slug: string;
+  // The project as the tracker names it, such as "Sentry issues for fx-api".
+  readonly label: string;
   readonly since: string;
   readonly now: Date;
   readonly issues: readonly Issue[];
@@ -46,33 +48,28 @@ export function errorsFinding(input: ErrorsInput): ReleaseFinding {
       url: i.url,
     })),
   };
-  const where = `${input.slug} (${input.env})`;
-  const [level, message] = verdict(input, fresh.length, undated, where);
+  const [level, said] = verdict(input, fresh.length, undated);
+  const message = `${said} (${input.label})`;
   return releaseFinding('errors', input.repo, level, message, {
     evidence,
     coverage: input.capped || undated > 0 ? 'incomplete' : 'checked',
   });
 }
 
-function verdict(
-  input: ErrorsInput,
-  fresh: number,
-  undated: number,
-  where: string,
-): [Level, string] {
-  const window = `first seen in the last ${input.since} in ${where}`;
+function verdict(input: ErrorsInput, fresh: number, undated: number): [Level, string] {
+  const window = `first seen in ${input.env} in the last ${input.since}`;
   if (fresh > 0) {
     const floor = input.capped ? 'at least ' : '';
     return ['fail', `${floor}${fresh} unresolved issue${fresh === 1 ? '' : 's'} ${window}`];
   }
   // Without a first-seen date nothing can be said about when it appeared.
   if (undated > 0)
-    return ['warn', `${undated} unresolved issue${undated === 1 ? '' : 's'} in ${where} undated`];
-  // The tracker stopped at the ceiling: what it did not send is unread, not absent.
-  if (input.capped)
     return [
       'warn',
-      `${where} has more unresolved issues than fx asked for; none of them ${window}`,
+      `${undated} unresolved issue${undated === 1 ? '' : 's'} in ${input.env} undated`,
     ];
+  // The tracker stopped at the ceiling: what it did not send is unread, not absent.
+  if (input.capped)
+    return ['warn', `more unresolved issues than fx asked for; none of them ${window}`];
   return ['ok', `no unresolved issue ${window}`];
 }

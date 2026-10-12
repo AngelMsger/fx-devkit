@@ -21,3 +21,8 @@ export interface CommitRange {
   readonly from: string;
   readonly to: string;
 }
+
+// How a person names a commit: its first seven hexadecimal digits.
+export function shortSha(sha: string): string {
+  return sha.slice(0, 7);
+}

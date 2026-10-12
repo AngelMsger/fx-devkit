@@ -118,7 +118,7 @@ For everyday updates use `fx sync`; `fx status` shows repository state. To work 
 | List capabilities              | `fx can`                                              |
 | Check a capability             | `fx can <capability> --env <environment>`             |
 | Refresh guides and Skills      | `fx sync --only docs,skills`                          |
-| Inspect release checks         | `fx release --format json`                            |
+| Check what is ready to release | `fx release check`                                    |
 
 Use `repo list`, `env list`, `agent list` and `tool list` to discover valid names.
 Use `repo select` and `env select` to choose an exact set, `--all` to follow the
@@ -126,7 +126,8 @@ team's full set including future additions, or `--none` to select nothing.
 `pick/unpick` add or remove individual names. First-time setup can limit cloning
 with `fx init ./work --from <manifest-repository> --repos example-api,example-web --dry-run`.
 `where` prints coordinates and commands; it does not execute those commands.
-`release` reports on your repositories; it does not publish packages or deploy them.
+`release check` shows what each repository would release and whether it is ready; it
+never publishes or deploys.
 The [CLI reference](docs/cli/README.md) and `fx <command> --help` own exact syntax.
 
 ## For coding agents
@@ -143,7 +144,7 @@ pending writes; inspect them before retrying.
 step fails. Read those results alongside stderr errors before retrying; the
 [user guide](docs/user-guide.md) describes the result and recovery fields.
 
-`init`, `sync`, `doctor` and `release` summarize JSON by default; the
+`init`, `sync`, `doctor` and `release check` summarize JSON by default; the
 [user guide](docs/user-guide.md#for-coding-agents) explains the full and projected
 views. Keep stdout separate from diagnostic stderr. Do not repeat a write just to
 obtain a different view of its output.

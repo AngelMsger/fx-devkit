@@ -42,7 +42,7 @@ import McpList from './mcp/list.js';
 import McpShow from './mcp/show.js';
 import MemberList from './member/list.js';
 import MemberShow from './member/show.js';
-import ReleaseCommand from './release.js';
+import ReleaseCheckCommand from './release/check.js';
 import RepoAdd from './repo/add.js';
 import RepoFork from './repo/fork.js';
 import RepoList from './repo/list.js';
@@ -97,7 +97,7 @@ const CANONICAL_COMMANDS = {
   status: StatusCommand,
   can: CanCommand,
   where: WhereCommand,
-  release: ReleaseCommand,
+  'release:check': ReleaseCheckCommand,
   completion: CompletionCommand,
   'repo:list': RepoList,
   'repo:show': RepoShow,
@@ -175,7 +175,7 @@ export const EVERYDAY = [
   'status',
   'can',
   'where',
-  'release',
+  'release:check',
   'completion',
 ] as const;
 
