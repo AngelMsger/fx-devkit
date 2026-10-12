@@ -46,13 +46,13 @@ Every command accepts these.
 | `--command-shell` | shell for generated commands (does not change execution) (one of: auto, posix, powershell, cmd; env: FX_COMMAND_SHELL) |
 | `--details` | include all report details; fact queries already return their full result (default: false) |
 | `--fields` | comma-separated dot paths to keep in the output, e.g. name,obs.svc |
-| `--format` | output format (one of: human, json, ndjson; env: FX_FORMAT) |
+| `--format` | output format; agents use json (one of: human, json, ndjson; env: FX_FORMAT) |
 | `--no-header` | omit column headings from human list output (default: false) |
 | `--no-input` | never prompt; fail with a structured error instead (default: false) |
 | `--quiet` | suppress notices on stderr; errors are still reported (default: false) |
 | `--verbose` | diagnostic detail on stderr (default: false) |
 | `--workspace` | select a registered name or root directory; otherwise use cwd then default_workspace; global commands still cover this FX_HOME (env: FX_WORKSPACE) |
-| `--yes` | assume yes for confirmations (default: false) |
+| `--yes` | assume yes for confirmations, including trust for new manifest commands (default: false) |
 
 ## `fx init`
 

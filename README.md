@@ -143,12 +143,10 @@ pending writes; inspect them before retrying.
 step fails. Read those results alongside stderr errors before retrying; the
 [user guide](docs/user-guide.md) describes the result and recovery fields.
 
-`init`, `sync`, `doctor` and `release` summarize JSON by default. Use `--details`
-for full results or `--fields` to select fields from those results in any output
-format. Explicit projection emits one report object in JSON/NDJSON and selected
-key/value pairs in human output. Keep stdout
-separate from diagnostic stderr. Do not repeat a write just to obtain a different
-view of its output.
+`init`, `sync`, `doctor` and `release` summarize JSON by default; the
+[user guide](docs/user-guide.md#for-coding-agents) explains the full and projected
+views. Keep stdout separate from diagnostic stderr. Do not repeat a write just to
+obtain a different view of its output.
 
 For `init`, `sync` and `doctor`, read `preparation.state` and the scoped blockers.
 Incomplete preparation exits 12; continuation is `fx init --resume --workspace <name>`.

@@ -252,7 +252,9 @@ If explanation dominates the implementation, improve the abstraction first.
 README is the user entry point, CONTRIBUTING.md owns the internal contribution
 workflow, SECURITY.md owns reporting guidance, this file owns agent rules, and design pages
 own current contracts, and `docs/cli/README.md` is generated syntax reference.
-Keep one owner for each fact. Remove feature-history narration and resolved
+Keep one owner for each fact. A flag's meaning lives in its definition, which feeds
+`--help` and the generated reference; other documents link there rather than
+restate it. Remove feature-history narration and resolved
 blockers from maintained guidance. Keep team-specific plans, raw reports, traces and private source patches outside
 this repository. Preserve their originals in the team's private evidence store.
 Public validation notes describe scope and limits without identifying deployments,
@@ -361,9 +363,7 @@ Check the final diff and preserve unrelated work. Push only to the verified
 
 ## Existing-login reuse
 
-Keep team context names and public service setup separate from native identity
-association. Family adapters run the companion's verified `auth reuse` preparation
-before credential readiness, in init and in every explicit sync, so that nobody has
-to know to ask for it. An unavailable reuse result is not authentication
-proof; a failed reuse blocks dependent sign-in. Never read/copy native secrets or
-add a parallel identity store in fx. Keep native error recovery in setup reports.
+Family adapters run the companion's `auth reuse` before credential readiness, in
+init and every explicit sync; fx never reads or copies native secrets or keeps a
+parallel identity store. [Setup](docs/design/setup.md#existing-login-reuse) owns
+the full contract.
