@@ -481,10 +481,13 @@ require a Skill-loaded environment declaration. The full
 stdout contains results; stderr contains progress, notices and structured errors.
 Use `--format json` and capture both streams. Workflow JSON keeps the preparation
 verdict and every blocker; `--details` adds full stage evidence. Human output starts
-with the task result and next action. On a terminal it adds colour and symbols, fits
-tables to the width and prints an error as text; a pipe or a file receives plain text
-and the JSON error envelope, and `NO_COLOR` removes the colour. While a command
-works, the terminal also shows one status line with the time elapsed, how far
+with the task result and next action. Human `release` output gives each repository with
+a failing or warning check its own block with all of its checks, states a problem every
+repository shares once above them, and names the repositories whose checks all passed
+on one closing line; `--details` lists their checks too. On a terminal, human output
+adds colour and symbols, fits tables to the width and prints an error as text; a pipe or a file
+receives plain text and the JSON error envelope, and `NO_COLOR` removes the colour.
+While a command works, the terminal also shows one status line with the time elapsed, how far
 counted work has come and what it is waiting on; the line disappears when the
 command ends, and a pipe, a file, JSON output and `--quiet` never receive it. While
 git or an installer runs, which may ask for a host key or a passphrase on the same

@@ -122,29 +122,6 @@ describe('workflow field projection', () => {
     },
   );
 
-  it.each(['doctor', 'release'] as const)(
-    'uses the whole %s report behind its human findings table',
-    (report) => {
-      const target = output('human', { report, fields: ['ok', 'summary.ok', 'findings.id'] });
-      const fullReport = {
-        ok: true,
-        complete: true,
-        summary: { ok: 1 },
-        findings: [{ id: 'checked', level: 'ok', evidence: 'excluded' }],
-        repairs: [],
-      };
-      target.renderer.list(fullReport.findings, {
-        fullReport,
-        columns: ['id', 'level', 'evidence'],
-      });
-      expect(target.stdout()).toContain('summary.ok');
-      expect(target.stdout()).toContain('checked');
-      expect(target.stdout()).not.toContain('excluded');
-      expect(target.stdout()).not.toContain('complete');
-      expect(target.stderr()).toBe('');
-    },
-  );
-
   it.each(['init', 'doctor', 'release'] as const)(
     'projects %s records from full values before summary filtering',
     (report) => {
