@@ -250,7 +250,8 @@ structured collection contract.
 
 The team-skills generated guide region is rendered from current manifest Skill
 frontmatter. Application reads metadata; domain templates render escaped text.
-Source guides use relative links, derived root guides resolve source locations.
+Source guides use relative links; a derived root guide resolves each one that
+names a file inside the source, and leaves the rest as written.
 Existing guides keep their prose and receive a missing-region notice until their
 maintainer adds the markers. Companion installers do not edit AGENTS.md.
 

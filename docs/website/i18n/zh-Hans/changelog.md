@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- manifest 设置 `go.workspace: true` 时，在工作区根目录维护 `go.work`。`fx init` 和 `fx sync` 会以这些模块要求的最新 `go` 版本，列出所有已选择且顶层有 `go.mod` 的 checkout，使每个模块基于同级仓库的 checkout 构建。尚未克隆的仓库不会列入，fx 只替换或删除自己写的 `go.work`，`fx sync --only go` 只刷新这个文件。在这样的工作区中，`go.work` 与 `go.work.sum` 不再算作多余的根目录条目。
+- 源 AGENTS.md 中指向 manifest 源内文件的相对链接（例如 `CONTRIBUTING.md`），在派生到工作区根目录的指南中全部解析为源文件路径。此前只解析指向 `README.md`、`docs/` 和 `skills/` 的链接，其余链接会指向根目录中不存在的文件。
+- 当所有仓库都写明 `upstream` 时，`fx manifest lint` 不再要求声明代码托管 provider，因为这样的工作区不会用到代码托管。
+
 ## 0.10.1 (2026-10-12)
 
 - 在 npmjs 发布公开包 `@angelmsger/fx`，并为每个版本标签在 GitHub Release 附上 tarball。内部的 `@fx/devkit` 渠道保持不变。

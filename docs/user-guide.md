@@ -206,7 +206,8 @@ selected repositories match the filter.
 
 The workspace root is not a Git repository, so `fx status` also returns
 `stray_entries`: files and directories at the root that are not a checkout, a
-derived guide, agent or service configuration, or the workbench. `fx doctor`
+derived guide, the Go workspace fx keeps, agent or service configuration, or the
+workbench. `fx doctor`
 lists each one in its `root` group as a warning that does not affect readiness.
 
 Sync preserves working files and branches. Read the planned action: tracked

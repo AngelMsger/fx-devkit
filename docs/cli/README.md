@@ -101,7 +101,7 @@ Flags:
 |---|---|
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
-| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, services, setup, docs, skills, hooks, mcp, tools) |
+| `--only` | run selected stages (repeatable or comma-separated) (repeatable; one of: repos, services, setup, docs, go, skills, hooks, mcp, tools) |
 | `--refresh-manifest / --no-refresh-manifest` | pull the manifest repository first; --no-refresh-manifest skips it (default: true) |
 
 Examples:

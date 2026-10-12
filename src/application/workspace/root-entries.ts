@@ -5,6 +5,7 @@
 import path from 'node:path';
 
 import { CLAUDE_GUIDE, DERIVED_GUIDE } from '../../domain/docs/derived.js';
+import { GO_WORK, GO_WORK_SUM } from '../../domain/workspace/go-work.js';
 import {
   accountedNames,
   isStray,
@@ -17,6 +18,7 @@ import { collectRecipes } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 
 import type { WorkspaceDeps } from './deps.js';
+import { goWorkspaceEnabled } from './go-work.js';
 
 export interface RootInventory {
   readonly hosts: readonly Pick<AgentHost, 'projectPaths'>[];
@@ -31,6 +33,7 @@ export async function strayRootEntries(
   const accounted = accountedNames([
     DERIVED_GUIDE,
     CLAUDE_GUIDE,
+    ...(goWorkspaceEnabled(deps) ? [GO_WORK, GO_WORK_SUM] : []),
     ...ctx.manifest.workspace.result.doc.repos.map((repo) => repo.path ?? repo.name),
     ...ctx.workspace.repos.map((repo) =>
       path.relative(ctx.root, path.resolve(ctx.root, repo.path)),

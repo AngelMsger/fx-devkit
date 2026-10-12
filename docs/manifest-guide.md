@@ -334,7 +334,9 @@ Keep each team Skill at `skills/<name>/SKILL.md`, with frontmatter `name` and
 New guide skeletons include the region. Existing guides without it receive a
 missing-region notice; fx does not insert blocks into human prose automatically.
 The manifest source uses relative links. Workspace-derived guides use resolved
-source links so manual discovery does not depend on a host-specific Skill link.
+source links so manual discovery does not depend on a host-specific Skill link;
+the same goes for any relative link in the source guide that names a file of the
+source, such as `CONTRIBUTING.md`.
 Metadata changes, additions and removals are picked up by `fx sync --only docs,skills`.
 The catalog is a discovery aid, not proof of native installation or loaded context.
 It applies at the workspace root and does not modify business-repository guides.
@@ -361,6 +363,31 @@ markers beside your other workspace rules to place it there instead:
 <!-- fx:begin workspace-layout -->
 <!-- fx:end workspace-layout -->
 ```
+
+## Keep a Go workspace at the root
+
+When several repositories are Go modules that build against each other, ask fx to
+keep a `go.work` at the workspace root:
+
+```yaml
+schema_version: 2
+min_cli: '0.11.0'
+go:
+  workspace: true
+```
+
+`fx init` and `fx sync` then list in `go.work` every selected repository whose
+checkout has a `go.mod` at its top, at the newest `go` version those modules
+require. Each module builds against its siblings' checkouts instead of the
+versions its `go.mod` pins; build with `GOWORK=off` to use the pinned ones. A
+repository that is not selected or not cloned yet is left out, so the file never
+names a missing module. `fx sync --only go` refreshes the file alone.
+
+fx marks the file on its first line and replaces or removes only a `go.work` it
+wrote. A person's own `go.work` is reported and left alone; move it aside to let
+fx keep the file. Without the setting, the next sync removes the `go.work` fx
+wrote. `go.work` and `go.work.sum` belong to the workspace, so `fx doctor` does
+not report them as stray.
 
 ## Public service presets
 

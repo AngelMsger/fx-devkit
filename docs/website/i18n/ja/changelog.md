@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- manifest に `go.workspace: true` を指定すると、ワークスペースルートに `go.work` を保ちます。`fx init` と `fx sync` は、最上位に `go.mod` がある選択済みの checkout をすべて、それらが要求する最新の `go` バージョンで列挙するため、各モジュールは兄弟リポジトリの checkout を使ってビルドされます。まだクローンしていないリポジトリは含めず、fx は自分が書いた `go.work` だけを置換・削除します。`fx sync --only go` でこのファイルだけを更新できます。このワークスペースでは `go.work` と `go.work.sum` を余分なルートエントリとして扱いません。
+- ソースの AGENTS.md にある相対リンクのうち、`CONTRIBUTING.md` のように manifest ソースのファイルを指すものは、ワークスペースルートに派生したガイドですべて解決します。これまでは `README.md`、`docs/`、`skills/` へのリンクだけが解決され、それ以外はルートにないファイルを指していました。
+- すべてのリポジトリが `upstream` を指定している場合、`fx manifest lint` はコードホストの provider を求めなくなりました。そのようなワークスペースはコードホストを使いません。
+
 ## 0.10.1 (2026-10-12)
 
 - 公開パッケージ `@angelmsger/fx` を npmjs で公開し、各バージョンタグの GitHub Release に tarball を添付します。内部の `@fx/devkit` チャネルは変わりません。
