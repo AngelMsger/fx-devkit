@@ -13,7 +13,8 @@ provenance in a private record outside this repository.
 Preserve existing changes and verify repository identity and remotes before
 committing or pushing. The delivery upstream is the internal shared repository;
 `origin` is the verified personal fork and `upstream` is the shared repository.
-The GitHub repository uses remote `github` for the separately gated public channel.
+The public GitHub repository uses remote `github` and receives the reviewed `main`
+and release tags, so both code hosts carry the same history.
 Push only to `origin` and merge through a pull request; an empty shared repository
 requires task-specific authorization for its initial seed. Never merge predecessor
 or unrelated histories. Keep actual remote URLs in Git configuration.
@@ -163,7 +164,7 @@ own branches and histories.
   tree. Windows uses junctions; do not silently substitute copies. The bundled
   fx Skill is a copy recognized by its name and version frontmatter. An unversioned
   same-name directory is foreign.
-- Standalone Skill commands follow the oa-cli target surface and work without a workspace.
+- Standalone Skill commands follow the agent-clis target surface and work without a workspace.
   Explicit install refreshes recognized copies; init/sync never downgrade them.
   Shared manifest Skill sources are not companion installation destinations.
   The generated team-skills guide region owns the root discovery catalog.
@@ -211,8 +212,8 @@ channels from the same code: internal `@fx/devkit` through Jenkins/private Regis
 and private Dokploy; public `@angelmsger/fx` through GitHub Actions/npmjs and GitHub
 Pages. The source checkout defaults to internal metadata. CI selects metadata with
 `scripts/select-distribution.mjs`; never commit public build metadata over the
-internal baseline. Public deployment/publication stays gated by
-`PUBLIC_RELEASE_ENABLED` while external release is on hold. User documentation
+internal baseline. The public workflows (`ci.yml`, `release.yml`, `pages.yml`) follow
+the sibling CLIs' release contract; see [releasing](docs/releasing.md). User documentation
 must render the matching installation commands for its channel in all four languages.
 Keep private endpoints and credentials in platform configuration, never generic
 source or package metadata. Use Apache-2.0 consistently in both distributions.
@@ -297,7 +298,7 @@ Run `npm run docs:check`, `npm run site:build` and `npm run site:check` before
 delivering affected changes. The website check verifies source freshness,
 generated routes, internal links/anchors, local assets and JavaScript syntax.
 The internal channel uses Dokploy with `docs/website/Dockerfile` as its static
-deployment baseline. The public channel uses the gated GitHub Pages workflow. Both channels
+deployment baseline. The public channel uses the GitHub Pages workflow. Both channels
 check root and subpath builds; the supplied NGINX container
 serves at the origin root. Keep locale routes, assets, 404 navigation and
 canonical/hreflang URLs consistent. Only reviewed main revisions deploy. Hosting

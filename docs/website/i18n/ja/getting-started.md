@@ -23,7 +23,7 @@ macOS と Linux をサポートします。Windows のネイティブアダプ�
 
 <!-- distribution:internal -->
 
-fx はチームのプライベート Registry で配布し、公開リリースは保留中です。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
+fx はチームのプライベート Registry で配布します。チームから Registry URL と npm のアクセス権を取得してください。既存の npm scope 設定を再利用でき、`FX_REGISTRY` は任意の上書きです。以下の URL は架空で、パッケージが Registry に存在する必要があります。
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -39,7 +39,7 @@ fx --version
 
 ### 公開パッケージ
 
-公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。公開は現在保留中のため、対象バージョンの提供開始後に実行してください。
+公開版は npmjs の `@angelmsger/fx` を使用します。チームのプライベート Registry は不要です。
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
@@ -259,7 +259,7 @@ fx skill status
 
 `fx self info --format json` から始めます。初期化では返された `initialization_guide` を読み、同じ実行ファイルを使い続けます。Skill 読み込み済みの環境変数は不要です。[完全な Skill](../skills/fx-workspace/SKILL.md) はその他のタスクを説明します。
 
-`--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。端末では色と記号を加え、表を幅に合わせ、エラーをテキストで表示します。パイプやファイルにはプレーンテキストと JSON のエラーエンベロープを出力し、`NO_COLOR` で色を消せます。コマンドの実行中は、端末に経過時間、数えられる作業の進み具合、待っている対象を示すステータス行を 1 行表示します。この行はコマンドの終了とともに消え、パイプ、ファイル、JSON 出力、`--quiet` には出力しません。git やインストーラーの実行中は、同じ端末でホスト鍵やパスフレーズを尋ねられることがあるため、ステータス行は描き直さず、5 秒ごとに 1 行として出力します。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
+`--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。`release` の human 出力は、失敗または警告のチェックがあるリポジトリごとにブロックを分けてそのすべてのチェックを示し、すべてのリポジトリに共通する問題はその上に 1 回だけ示し、すべてのチェックが通ったリポジトリは最後の 1 行にまとめます。`--details` を付けると、それらのチェックも一覧します。端末では色と記号を加え、表を幅に合わせ、エラーをテキストで表示します。パイプやファイルにはプレーンテキストと JSON のエラーエンベロープを出力し、`NO_COLOR` で色を消せます。コマンドの実行中は、端末に経過時間、数えられる作業の進み具合、待っている対象を示すステータス行を 1 行表示します。この行はコマンドの終了とともに消え、パイプ、ファイル、JSON 出力、`--quiet` には出力しません。git やインストーラーの実行中は、同じ端末でホスト鍵やパスフレーズを尋ねられることがあるため、ステータス行は描き直さず、5 秒ごとに 1 行として出力します。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
 
 | 結果               | 完了の判定                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------ |

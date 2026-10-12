@@ -1,8 +1,10 @@
-# Validate every proposed website change; publish the reviewed default branch.
-name: Public website
+# Validate every proposed website change; deploy the default branch to GitHub Pages.
+# Set Settings -> Pages -> Source to "GitHub Actions" once.
+name: Pages
 on:
   pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
 env:
   FX_DISTRIBUTION: public
@@ -38,22 +40,22 @@ jobs:
         env:
           SITE_BASE_PATH: /fx-devkit/
       - name: Configure Pages
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
         id: pages
         uses: actions/configure-pages@v5
       - name: Build deployment artifact
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
         run: npm run site:build && npm run site:check
         env:
           SITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
           SITE_ORIGIN: ${{ steps.pages.outputs.origin }}
       - name: Upload Pages artifact
-        if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
         uses: actions/upload-pages-artifact@v4
         with:
           path: docs/website/dist
   deploy:
-    if: vars.PUBLIC_RELEASE_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
     needs: build
     runs-on: ubuntu-latest
     permissions:

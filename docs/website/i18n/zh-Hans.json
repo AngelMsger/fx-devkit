@@ -128,8 +128,8 @@
       "description": "使用 fx 查询和维护已有工作区。"
     }
   },
-  "publicRelease": "公开发布暂停",
-  "publicInstallNote": "公开发布暂缓，请使用团队提供的内部包。",
+  "publicRelease": "公开预览版",
+  "publicInstallNote": "可从 npmjs 安装，需要 Node.js 22 或更高版本。",
   "installTitle": "安装 fx",
   "navInstall": "安装 fx",
   "demoTitle": "一个工作区，三种打开方式。",

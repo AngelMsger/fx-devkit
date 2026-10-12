@@ -23,7 +23,7 @@
 
 <!-- distribution:internal -->
 
-fx 透過團隊的私有 Registry 分發，暫不推進公開發佈。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
+fx 透過團隊的私有 Registry 分發。請向團隊取得 Registry 位址與 npm 存取權限；既有 npm scope 設定可直接重用，`FX_REGISTRY` 僅作為選用覆寫。以下 URL 為虛構範例，安裝前需確認 Registry 已提供該套件。
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -39,7 +39,7 @@ fx --version
 
 ### 公開套件
 
-對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。目前公開發佈暫緩，請於目標版本提供後執行。
+對外分發使用 npmjs 上的 `@angelmsger/fx`，不需團隊私有 Registry。
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/
@@ -259,7 +259,7 @@ fx skill status
 
 先執行 `fx self info --format json`。初始化任務讀取傳回的 `initialization_guide`，並持續使用同一準確入口；無需宣告已載入 Skill 的環境變數。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任務的路由。
 
-使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。在終端上還會加上顏色與符號、依寬度收窄表格，並以文字顯示錯誤；管線或檔案取得純文字和 JSON 錯誤信封，`NO_COLOR` 去掉顏色。命令執行期間，終端上還會有一行狀態列，顯示已用時間、可計數工作的進度與正在等待的對象；命令結束後這一行消失，管線、檔案、JSON 輸出與 `--quiet` 都不會收到它。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時狀態列不再原地重繪，改為每五秒列印一行。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
+使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。`release` 的 human 輸出為每個有失敗或警告檢查的儲存庫單獨列一塊，列出它的全部檢查；所有儲存庫共有的問題只在它們上方說明一次；全部檢查都通過的儲存庫合併在最後一行。`--details` 也會列出這些儲存庫的檢查。在終端上還會加上顏色與符號、依寬度收窄表格，並以文字顯示錯誤；管線或檔案取得純文字和 JSON 錯誤信封，`NO_COLOR` 去掉顏色。命令執行期間，終端上還會有一行狀態列，顯示已用時間、可計數工作的進度與正在等待的對象；命令結束後這一行消失，管線、檔案、JSON 輸出與 `--quiet` 都不會收到它。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時狀態列不再原地重繪，改為每五秒列印一行。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
 | 結果               | 完成判定                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------- |

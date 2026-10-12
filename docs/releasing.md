@@ -1,12 +1,16 @@
-# Distribution channels
+# Releasing
 
 The project is always **fx-devkit** and the executable is always **fx**. One codebase
 and version serve two distributions:
 
-| Channel  | npm package      | Package delivery           | Website         |
-| -------- | ---------------- | -------------------------- | --------------- |
-| Internal | `@fx/devkit`     | Jenkins → private Registry | Private Dokploy |
-| Public   | `@angelmsger/fx` | GitHub Actions → npmjs     | GitHub Pages    |
+| Channel  | Code host         | npm package      | Package delivery                   | Website         |
+| -------- | ----------------- | ---------------- | ---------------------------------- | --------------- |
+| Internal | Private code host | `@fx/devkit`     | Jenkins → private Registry         | Private Dokploy |
+| Public   | GitHub            | `@angelmsger/fx` | GitHub Actions → npmjs (+ Release) | GitHub Pages    |
+
+Both code hosts carry the same history. No private address, credential or
+deployment coordinate is committed: the internal channel reads them from Jenkins
+and platform configuration, the public channel needs none.
 
 The maintained checkout defaults to internal metadata. `scripts/select-distribution.mjs`
 selects the package name, access and public metadata in a disposable CI checkout;
@@ -16,7 +20,9 @@ credentials are never written by this script. The license remains Apache-2.0.
 ## Internal delivery
 
 Use the internal shared repository as `upstream`, your personal fork as `origin`,
-and the former GitHub remote as `github`. Push to `origin` and merge through a PR.
+and the public GitHub repository as `github`. Push to `origin` and merge through a
+PR; then push the reviewed `main` and its release tags to `github` so both hosts
+carry the same history.
 An empty shared repository needs an explicitly authorized initial seed. Never
 import predecessor history; actual URLs stay in Git/platform configuration.
 
@@ -43,22 +49,41 @@ managed files or pass credentials through Docker build arguments.
 Configure Dokploy using the [static container guide](website/README.md). Deploy the
 reviewed revision after Jenkins succeeds. The runtime contains user pages only.
 
-## Public delivery (currently paused)
+## Public delivery
 
-`.github/workflows/npm.yml` selects public metadata, runs the checks and validates
-packaging with `--dry-run`. Real publication requires a `v<version>` tag and the
-repository variable `PUBLIC_RELEASE_ENABLED=true`. `.github/workflows/pages.yml`
-builds public documentation and uses the same gate for Pages deployment. Leave the
-variable unset while external release is on hold; no real npmjs or Pages release
-is authorized merely by preparing this configuration.
+The public channel follows the same contract as the sibling CLIs
+(`bitbucket-cli`, `confluence-cli`, ...): pull requests and `main` run
+`.github/workflows/ci.yml`; pushing a `v<version>` tag to GitHub runs
+`.github/workflows/release.yml`; `.github/workflows/pages.yml` deploys `main` to
+GitHub Pages. Every workflow first selects public metadata with
+`scripts/select-distribution.mjs public`.
 
-Before enabling publication, configure npm trusted publishing for the public
-package and this repository's `npm.yml` workflow. The workflow uses GitHub OIDC
-(`id-token: write`), not an internal npm token or Managed file. Confirm initial
-package/scope ownership and the trusted publisher's allowed publish action. Enable
-GitHub Pages with GitHub Actions as its source. Official references:
+The release workflow checks that the tag matches `package.json`, runs the quality
+gates and tests, creates (or refreshes) the GitHub Release with the packed tarball
+and `checksums.txt`, then publishes `@angelmsger/fx` to npmjs through
+`scripts/publish.mjs`. It is idempotent: a version already on npmjs is skipped,
+so a failed run can be re-run.
+
+Publication uses npm trusted publishing (OIDC); there is no npm token or
+repository secret. One-time setup:
+
+1. The package must exist before a trusted publisher can be attached. Publish
+   the first version from a maintainer machine on the public checkout:
+   `node scripts/select-distribution.mjs public`, `npm ci`, `npm login`, then
+   `node scripts/publish.mjs`. Discard the metadata change afterwards.
+2. On npmjs, open `@angelmsger/fx` → Settings → Trusted Publisher → GitHub
+   Actions: organization or user `AngelMsger`, repository `fx-devkit`, workflow
+   `release.yml`, environment blank.
+3. In the GitHub repository, set Settings → Pages → Source to _GitHub Actions_.
+
+Keep these constraints, shared with the sibling CLIs: no `registry-url` on
+`actions/setup-node` (its empty-token `.npmrc` disables the OIDC exchange); Node
+24 for npm ≥ 11.5.1; `repository.url` casing must match `AngelMsger/fx-devkit`
+for provenance. Official references:
 [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
 [Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+A native Windows acceptance job (`windows` in `ci.yml`) runs on manual dispatch.
 
 ## Documentation and acceptance
 

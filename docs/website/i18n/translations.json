@@ -1,9 +1,9 @@
 {
   "ja": {
-    "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
+    "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "a1699fc8150ba25165ac4c6a096c67fd2c98d0bf765e47c6d775899ccbd065df"
+      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -19,14 +19,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7d9a2faaee0a2f9a095f3840cf023bfc4667b347fa485967660eb3fd73e4bf26"
+      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
     }
   },
   "zh-Hans": {
-    "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
+    "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "a1699fc8150ba25165ac4c6a096c67fd2c98d0bf765e47c6d775899ccbd065df"
+      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -42,14 +42,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7d9a2faaee0a2f9a095f3840cf023bfc4667b347fa485967660eb3fd73e4bf26"
+      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
     }
   },
   "zh-Hant": {
-    "_catalog_sha256": "e71725e5ca4e1b03124655daf89a6ff859e32c2a3c51d1d9dc83a4e31b91f13f",
+    "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "a1699fc8150ba25165ac4c6a096c67fd2c98d0bf765e47c6d775899ccbd065df"
+      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -65,7 +65,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "7d9a2faaee0a2f9a095f3840cf023bfc4667b347fa485967660eb3fd73e4bf26"
+      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
     }
   }
 }

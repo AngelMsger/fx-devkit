@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## 0.10.1 (2026-10-12)
+
+### Added
+
+- Publish the public `@angelmsger/fx` package to npmjs and attach its tarball to a
+  GitHub Release for each version tag. The internal `@fx/devkit` channel is
+  unchanged.
+
+### Changed
+
+- Group the human output of `fx release` by repository. Each repository with a
+  failing or warning check gets its own block listing all of its checks, a problem
+  every repository shares, such as a tool nobody has signed in to, is stated once
+  above them with the command that resolves it, and the repositories whose checks all
+  passed share one closing line. `--details` lists their checks too. JSON and NDJSON
+  output are unchanged.
+
 ## 0.10.0 (2026-10-10)
 
 ### Added
