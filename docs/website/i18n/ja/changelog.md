@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- ワークスペースを GitHub に結び付けられるようになりました。code-host provider `github` と ci provider `github-actions` はどちらも GitHub CLI `gh` を使います。`gh` はツールカタログに加わり、両方で 1 回のサインインを共有します。`fx release` は Bitbucket や Jenkins と同じように、ブランチ、コミット、ファイル、ブランチの最新の workflow 実行を GitHub から読み取ります。ci の環境は、数える実行を 1 つのブランチと 1 つのトリガーに絞り込めます。fx から pull request を作成する機能は、GitHub ではまだ使えません。
+- ワークスペースを GitHub に結び付けられるようになりました。code-host provider `github` と ci provider `github-actions` はどちらも GitHub CLI `gh` を使います。`gh` はツールカタログに加わり、両方でホストごとに 1 回のサインインを共有します。`fx release` は Bitbucket や Jenkins と同じように、ブランチ、コミット、ファイル、ブランチの最新の workflow 実行を GitHub から読み取ります。ci の環境は、数える実行を 1 つのブランチと 1 つのトリガーに絞り込めます。fx から pull request を作成する機能は、GitHub ではまだ使えません。
 
 ## 0.10.1 (2026-10-12)
 

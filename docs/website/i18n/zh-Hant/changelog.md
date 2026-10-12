@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- 工作區可以繫結 GitHub。程式碼託管 provider `github` 與 ci provider `github-actions` 都透過 GitHub CLI `gh` 運作；`gh` 加入工具目錄，兩者共用一次登入。`fx release` 如同對 Bitbucket 與 Jenkins，從 GitHub 讀取分支、提交、檔案以及某個分支最近一次 workflow 執行；ci 環境可以把計入的執行限定為一個分支和一種觸發方式。在 GitHub 上暫時還無法透過 fx 建立 pull request。
+- 工作區可以繫結 GitHub。程式碼託管 provider `github` 與 ci provider `github-actions` 都透過 GitHub CLI `gh` 運作；`gh` 加入工具目錄，兩者在每個主機上共用一次登入。`fx release` 如同對 Bitbucket 與 Jenkins，從 GitHub 讀取分支、提交、檔案以及某個分支最近一次 workflow 執行；ci 環境可以把計入的執行限定為一個分支和一種觸發方式。在 GitHub 上暫時還無法透過 fx 建立 pull request。
 
 ## 0.10.1 (2026-10-12)
 

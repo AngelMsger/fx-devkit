@@ -42,7 +42,7 @@ if (args[0] === 'auth' && args[1] === 'status') process.exit(0);
 const flag = (name) => args[args.indexOf(name) + 1];
 if (args[0] === 'run' && args[1] === 'list') {
   if (flag('--workflow') !== 'ci.yml') { process.stderr.write('HTTP 404: workflow not found\\n'); process.exit(1); }
-  const broken = flag('--repo') === 'octo/a' && flag('--branch') === 'dev';
+  const broken = flag('--repo') === 'github.com/octo/a' && flag('--branch') === 'dev';
   out([{ number: broken ? 4 : 9, status: 'completed', conclusion: broken ? 'failure' : 'success',
     startedAt: '2999-01-01T00:00:00Z', url: 'https://github.example/actions/runs/' + (broken ? 4 : 9) }]);
   process.exit(0);
@@ -193,7 +193,7 @@ describe('release on GitHub', () => {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as string[])
-      .filter((args) => args[0] === 'run' && args.includes('octo/b'));
+      .filter((args) => args[0] === 'run' && args.includes('github.com/octo/b'));
     expect(runs.map((args) => args.slice(6, 10))).toEqual(
       expect.arrayContaining([
         ['--branch', 'dev', '--limit', '1'],

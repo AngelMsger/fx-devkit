@@ -12,21 +12,37 @@ export const BINARY = 'gh';
 
 export type { CliCall } from '../family/cli.js';
 
-// One sign-in serves both providers; the same step from either is planned once.
+export const DEFAULT_HOSTNAME = 'github.com';
+
+// gh signs in per host, so the step is per host too: a binding names its host through
+// `hostname` (see `recipeVars`), the same host from both providers is planned once, and
+// two hosts are two steps. Only the active account of that host is checked, the one gh
+// will use.
 export const GH_RECIPES: readonly SetupRecipe[] = [
   {
-    id: 'login',
+    id: 'login-{hostname}',
     tool: BINARY,
     perEnv: false,
     kind: 'run',
     phase: 'authenticate',
-    title: 'Log in to GitHub',
+    title: 'Log in to GitHub at {hostname}',
     instructions:
       'Signs gh in through the browser or with a token. fx reads repositories and Actions runs with that sign-in; private repositories need the repo scope gh asks for by default.',
-    run: ['auth', 'login'],
-    verify: { command: ['auth', 'status'] },
+    run: ['auth', 'login', '--hostname', '{hostname}'],
+    verify: { command: ['auth', 'status', '--active', '--hostname', '{hostname}'] },
   },
 ];
+
+// gh's own [HOST/]OWNER/NAME. Left without a host, gh would pick one from GH_HOST or
+// its configuration, so a bare OWNER/NAME is spelled out as github.com's.
+export function qualifiedRepository(repository: string): {
+  readonly hostname: string;
+  readonly repository: string;
+} {
+  const parts = repository.split('/');
+  if (parts.length > 2) return { hostname: parts[0] ?? DEFAULT_HOSTNAME, repository };
+  return { hostname: DEFAULT_HOSTNAME, repository: `${DEFAULT_HOSTNAME}/${repository}` };
+}
 
 export interface GhCallOptions {
   readonly timeoutMs?: number | undefined;

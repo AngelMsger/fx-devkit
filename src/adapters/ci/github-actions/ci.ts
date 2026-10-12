@@ -9,7 +9,7 @@ import type { Vars } from '../../../domain/template.js';
 import type { Build, BuildStatus, Ci } from '../../../ports/ci.js';
 import type { Process } from '../../../ports/process.js';
 import { EXIT, objectOf, queryFailed, stringAt, unreadableError } from '../../family/cli.js';
-import { BINARY, GhCli } from '../../github/gh.js';
+import { BINARY, GhCli, qualifiedRepository } from '../../github/gh.js';
 import { TemplatePlatform } from '../../platform/template-platform.js';
 
 export const ID = 'github-actions';
@@ -43,15 +43,15 @@ export class GitHubActionsCi implements Ci {
   constructor(private readonly process: Process) {}
 
   locate(vars: Vars): Coordinate {
-    return this.platform.locate(vars);
+    return this.platform.locate(qualified(vars));
   }
 
   probe(vars: Vars): ProbeVector | undefined {
-    return this.platform.probe(vars);
+    return this.platform.probe(qualified(vars));
   }
 
   async lastBuild(vars: Vars): Promise<Build | undefined> {
-    const { repository = '', workflow = '', branch, event } = vars;
+    const { repository = '', workflow = '', branch, event } = qualified(vars);
     const what = `the last run of ${workflow} in ${repository}${branch ? ` on ${branch}` : ''}`;
     const call = await new GhCli(this.process).call(
       [
@@ -84,6 +84,15 @@ export class GitHubActionsCi implements Ci {
       url: stringAt(run, 'url') ?? null,
     };
   }
+}
+
+// Every command, run or printed, names the repository's host, so GH_HOST cannot send
+// it elsewhere.
+function qualified(vars: Vars): Vars {
+  const { repository } = vars;
+  return repository === undefined
+    ? vars
+    : { ...vars, repository: qualifiedRepository(repository).repository };
 }
 
 function statusOf(run: Record<string, unknown>): BuildStatus {

@@ -225,7 +225,7 @@ envs:
         confidence: unverified
 ```
 
-ci の platform は、各環境をビルドする job を指定します。`jenkins-cli` は環境ごとに job の `path` を受け取ります。`github-actions` も `gh` を使います。platform でリポジトリを指定し、各環境でその環境をビルドする workflow と、実行を数えるブランチとトリガーを指定します。これにより、pull request や手動実行が正式なビルドの代わりに数えられることはありません。
+ci の platform は、各環境をビルドする job を指定します。`jenkins-cli` は環境ごとに job の `path` を受け取ります。`github-actions` も `gh` を使います。platform でリポジトリを `OWNER/NAME`（GitHub Enterprise サーバーでは `HOST/OWNER/NAME`）として指定し、各環境でその環境をビルドする workflow と、実行を数えるブランチとトリガーを指定します。これにより、pull request や手動実行が正式なビルドの代わりに数えられることはありません。
 
 ```yaml
 platforms:

@@ -3,7 +3,7 @@
 
 import type { Ci } from '../../../ports/ci.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';
-import { BINARY, GH_RECIPES } from '../../github/gh.js';
+import { BINARY, GH_RECIPES, qualifiedRepository } from '../../github/gh.js';
 
 import { GitHubActionsCi, ID } from './ci.js';
 
@@ -15,7 +15,7 @@ export const githubActionsProvider: ProviderDescriptor<Ci> = {
   vars: [
     {
       name: 'repository',
-      desc: 'OWNER/NAME of the repository the workflows live in, may use {repo}',
+      desc: '[HOST/]OWNER/NAME of the repository the workflows live in (github.com without a host), may use {repo}',
       required: true,
     },
   ],
@@ -32,5 +32,6 @@ export const githubActionsProvider: ProviderDescriptor<Ci> = {
       required: false,
     },
   ],
+  recipeVars: (vars) => ({ hostname: qualifiedRepository(vars['repository'] ?? '').hostname }),
   create: (deps) => new GitHubActionsCi(deps.process),
 };

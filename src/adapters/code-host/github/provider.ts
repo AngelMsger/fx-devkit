@@ -24,6 +24,7 @@ import type { AdapterDeps, ProviderDescriptor, Vars } from '../../../ports/provi
 import { EXIT, objectOf, queryFailed, stringAt, unreadableError } from '../../family/cli.js';
 import {
   BINARY,
+  DEFAULT_HOSTNAME,
   GH_RECIPES,
   GhCli,
   jsonLines,
@@ -32,7 +33,6 @@ import {
 } from '../../github/gh.js';
 
 const QUERY = { timeoutMs: 15_000 } as const;
-const DEFAULT_HOSTNAME = 'github.com';
 // The fields of a commit the release check reads, so a commit's diff never crosses the pipe.
 const COMMIT =
   '{sha, author: .commit.author.name, date: .commit.committer.date, message: .commit.message, parents: [.parents[].sha]}';
@@ -79,12 +79,28 @@ export class GitHubCodeHost implements CodeHost {
   async fork(ref: RepoRef): Promise<ForkResult> {
     const { user } = await this.whoami();
     const url = this.forkUrl(user, ref);
-    const existing = await this.api(`repos/${user}/${ref.name}`, ['--jq', '.fork'], QUERY);
-    if (existing.code === 0 && existing.stdout.trim() === 'true') return { url, created: false };
-    // A repository of that name that is not a fork would make gh pick another name.
-    if (existing.code === 0) throw forkFailed(ref, `${user}/${ref.name} exists and is not a fork`);
+    const existing = await this.api(
+      `repos/${user}/${ref.name}`,
+      ['--jq', '{fork, parent: .parent.full_name, source: .source.full_name}'],
+      QUERY,
+    );
+    if (existing.code === 0) {
+      // Being a fork does not say of which repository: only one forked from this
+      // upstream, or from a fork whose network starts at it, can carry its pull requests.
+      const found = objectOf(existing.data) ?? {};
+      const of = [stringAt(found, 'parent'), stringAt(found, 'source')];
+      if (of.some((name) => name?.toLowerCase() === slug(ref).toLowerCase()))
+        return { url, created: false };
+      // A repository of that name that is not this fork would make gh pick another name.
+      throw forkFailed(
+        ref,
+        found['fork'] === true
+          ? `${user}/${ref.name} is a fork of ${of[0] ?? 'another repository'}`
+          : `${user}/${ref.name} exists and is not a fork`,
+      );
+    }
     const call = await this.gh.call(
-      ['repo', 'fork', this.repository(ref), '--clone=false', '--remote=false'],
+      ['repo', 'fork', `${this.hostname}/${slug(ref)}`, '--clone=false', '--remote=false'],
       QUERY,
     );
     if (call.code !== 0) throw forkFailed(ref, call.error?.message ?? `exit ${call.code}`);
@@ -164,32 +180,22 @@ export class GitHubCodeHost implements CodeHost {
     return `https://${this.hostname}/${slug(ref)}`;
   }
 
-  // gh signs in per host; naming the one the binding names keeps a GitHub Enterprise
-  // workspace from asking github.com.
+  // gh signs in per host and would otherwise pick one from GH_HOST or its configuration,
+  // so every call names the host the binding names, github.com included.
   private api(
     path: string,
     args: readonly string[],
     options: GhCallOptions = QUERY,
   ): Promise<CliCall> {
-    const host = this.hostname === DEFAULT_HOSTNAME ? [] : ['--hostname', this.hostname];
-    return this.gh.call(['api', ...host, ...args, path], options);
-  }
-
-  private repository(ref: RepoRef): string {
-    return this.hostname === DEFAULT_HOSTNAME ? slug(ref) : `${this.hostname}/${slug(ref)}`;
+    return this.gh.call(['api', '--hostname', this.hostname, ...args, path], options);
   }
 
   private get host(): string {
     return this.vars['host'] ?? '';
   }
 
-  // An https:// or an ssh:// clone prefix names its host; anything else means github.com.
   private get hostname(): string {
-    try {
-      return new URL(this.host).hostname || DEFAULT_HOSTNAME;
-    } catch {
-      return DEFAULT_HOSTNAME;
-    }
+    return hostnameOf(this.host);
   }
 }
 
@@ -205,8 +211,18 @@ export const githubProvider: ProviderDescriptor<CodeHost> = {
       required: true,
     },
   ],
+  recipeVars: (vars) => ({ hostname: hostnameOf(vars['host'] ?? '') }),
   create: (deps, vars) => new GitHubCodeHost(deps, vars),
 };
+
+// An https:// or an ssh:// clone prefix names its host; anything else means github.com.
+function hostnameOf(host: string): string {
+  try {
+    return new URL(host).hostname || DEFAULT_HOSTNAME;
+  } catch {
+    return DEFAULT_HOSTNAME;
+  }
+}
 
 function records(call: CliCall, what: string): Record<string, unknown>[] {
   const rows = jsonLines(call.stdout)?.map(objectOf);

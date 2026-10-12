@@ -6,7 +6,7 @@
 
 - Bind a workspace to GitHub. The `github` code-host provider and the
   `github-actions` ci provider both drive the GitHub CLI `gh`, which joins the
-  tool catalog with one sign-in for both. `fx release` reads branches, commits,
+  tool catalog with one sign-in per host for both. `fx release` reads branches, commits,
   files and the last workflow run of a branch from GitHub just as it does from
   Bitbucket and Jenkins; a ci environment can narrow the runs it counts to one
   branch and one trigger. Opening pull requests through fx is not available on

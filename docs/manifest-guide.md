@@ -325,9 +325,10 @@ envs:
 
 A ci platform names the job that builds each environment. `jenkins-cli` takes a
 job `path` per environment. `github-actions` drives `gh` as well: the platform
-names the repository, and each environment names the workflow and the branch and
-trigger whose runs build it, so a pull request or a manual run does not stand in
-for the build of record.
+names the repository as `OWNER/NAME`, or `HOST/OWNER/NAME` on a GitHub Enterprise
+server, and each environment names the workflow and the branch and trigger whose
+runs build it, so a pull request or a manual run does not stand in for the build
+of record.
 
 ```yaml
 platforms:

@@ -225,7 +225,7 @@ envs:
         confidence: unverified
 ```
 
-ci 平台指定建置每個環境的 job。`jenkins-cli` 在每個環境接收一個 job `path`。`github-actions` 同樣透過 `gh` 運作：平台指定儲存庫，每個環境指定 workflow，以及計入的執行所屬的分支與觸發方式，如此 pull request 或手動執行就不會被當成正式建置。
+ci 平台指定建置每個環境的 job。`jenkins-cli` 在每個環境接收一個 job `path`。`github-actions` 同樣透過 `gh` 運作：平台以 `OWNER/NAME`（GitHub Enterprise 伺服器上為 `HOST/OWNER/NAME`）指定儲存庫，每個環境指定 workflow，以及計入的執行所屬的分支與觸發方式，如此 pull request 或手動執行就不會被當成正式建置。
 
 ```yaml
 platforms:

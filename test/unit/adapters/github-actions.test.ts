@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { GitHubActionsCi } from '../../../src/adapters/ci/github-actions/ci.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
 
-const RUNS = ['gh', 'run', 'list', '--repo', 'octo/tool', '--workflow', 'ci.yml'];
+const RUNS = ['gh', 'run', 'list', '--repo', 'github.com/octo/tool', '--workflow', 'ci.yml'];
 const vars = { repository: 'octo/tool', workflow: 'ci.yml' };
 const runs = (...data: unknown[]) => ({ code: 0, stdout: JSON.stringify(data), stderr: '' });
 const run = (fields: Record<string, unknown>) => ({
@@ -19,10 +19,20 @@ describe('GitHubActionsCi', () => {
     const ci = new GitHubActionsCi(new FakeProcess());
     const narrowed = { ...vars, branch: 'main', event: 'push' };
     expect(ci.locate(narrowed)).toMatchObject({
-      label: 'GitHub Actions workflow ci.yml in octo/tool',
+      label: 'GitHub Actions workflow ci.yml in github.com/octo/tool',
       command: [...RUNS, '--branch', 'main', '--event', 'push'],
     });
     expect(ci.probe(vars)?.command).toEqual(RUNS);
+  });
+
+  it('names github.com for a bare OWNER/NAME, so GH_HOST cannot redirect it, and keeps a named host', () => {
+    const ci = new GitHubActionsCi(new FakeProcess());
+    expect(ci.locate(vars).command.slice(3, 5)).toEqual(['--repo', 'github.com/octo/tool']);
+    const enterprise = { ...vars, repository: 'github.example.com/octo/tool' };
+    expect(ci.locate(enterprise).command.slice(3, 5)).toEqual([
+      '--repo',
+      'github.example.com/octo/tool',
+    ]);
   });
 
   it('reads the latest run of the branch and trigger: number, status, start and page', async () => {

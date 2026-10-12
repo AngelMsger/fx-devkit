@@ -140,7 +140,7 @@ describe('GitHubCodeHost queries', () => {
     });
   });
 
-  it('asks the host the binding names and builds its URLs from it', async () => {
+  it('asks the host the binding names, github.com included, and builds its URLs from it', async () => {
     const proc = new FakeProcess().always(out('me'));
     const enterprise = host(proc, { host: 'ssh://git@github.example.com' });
     expect((await enterprise.whoami()).user).toBe('me');
@@ -153,19 +153,39 @@ describe('GitHubCodeHost queries', () => {
     expect(enterprise.upstreamUrl(ref)).toBe('ssh://git@github.example.com/octo/tool.git');
     expect(enterprise.forkUrl('me', ref)).toBe('ssh://git@github.example.com/me/tool.git');
     expect(enterprise.webUrl(ref)).toBe('https://github.example.com/octo/tool');
+    // Left out, gh would ask whichever host GH_HOST or its configuration names.
     const dotcom = new FakeProcess().always(out('me'));
     await host(dotcom).whoami();
-    expect(dotcom.soleCallTo(['gh', 'api']).vector).not.toContain('--hostname');
+    expect(dotcom.soleCallTo(['gh', 'api']).vector.slice(0, 4)).toEqual([
+      'gh',
+      'api',
+      '--hostname',
+      'github.com',
+    ]);
   });
 
-  it('forks once: an existing fork is reused, a same-named repository is refused', async () => {
-    const reuse = new FakeProcess()
-      .when(api('user'), out('me'))
-      .when(api('repos/me/tool'), out('true'));
-    expect(await host(reuse).fork(ref)).toEqual({
-      url: 'https://github.com/me/tool.git',
-      created: false,
-    });
+  it('forks once: a fork of this upstream is reused, any other same-named repository is refused', async () => {
+    const existing = (found: Record<string, unknown>) =>
+      new FakeProcess().when(api('user'), out('me')).when(api('repos/me/tool'), out(found));
+    const reused = { url: 'https://github.com/me/tool.git', created: false };
+    expect(
+      await host(existing({ fork: true, parent: 'octo/tool', source: 'octo/tool' })).fork(ref),
+    ).toEqual(reused);
+    // Forked from another fork of the same network, and named in a different case.
+    expect(
+      await host(existing({ fork: true, parent: 'bob/tool', source: 'Octo/Tool' })).fork(ref),
+    ).toEqual(reused);
+    for (const found of [
+      { fork: true, parent: 'unrelated/tool', source: 'unrelated/tool' },
+      { fork: false, parent: null, source: null },
+    ]) {
+      const taken = existing(found);
+      await expect(host(taken).fork(ref)).rejects.toMatchObject({
+        code: 'FORK_FAILED',
+        message: expect.stringContaining(found.fork ? 'a fork of unrelated/tool' : 'not a fork'),
+      });
+      expect(taken.calledWith(['gh', 'repo', 'fork'])).toBe(false);
+    }
     const create = new FakeProcess()
       .when(api('user'), out('me'))
       .when(api('repos/me/tool'), http(404, 'Not Found'))
@@ -178,15 +198,10 @@ describe('GitHubCodeHost queries', () => {
       'gh',
       'repo',
       'fork',
-      'octo/tool',
+      'github.com/octo/tool',
       '--clone=false',
       '--remote=false',
     ]);
-    const taken = new FakeProcess()
-      .when(api('user'), out('me'))
-      .when(api('repos/me/tool'), out('false'));
-    await expect(host(taken).fork(ref)).rejects.toMatchObject({ code: 'FORK_FAILED' });
-    expect(taken.calledWith(['gh', 'repo', 'fork'])).toBe(false);
   });
 
   it('declines contribution workflows instead of half-running them', async () => {
