@@ -107,7 +107,7 @@ it('projects init and sync preview/apply reports without exposing unrequested de
 it('projects doctor and release summaries across JSON, NDJSON and human output', () => {
   const f = fixture();
   expect(fx([...f.init, '--format', 'json'], f.env).status).toBe(0);
-  for (const command of [['doctor'], ['release', 'api', '--only', 'deps']]) {
+  for (const command of [['doctor'], ['release', 'check', 'api', '--only', 'deps']]) {
     const fields =
       command[0] === 'doctor'
         ? 'preparation.state,coverage,summary,findings.group'

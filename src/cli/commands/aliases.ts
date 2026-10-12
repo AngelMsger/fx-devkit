@@ -8,6 +8,7 @@ export const COMMAND_ALIASES = {
   'skill:list': 'agent:skills',
   'tool:installed': 'tool:inventory',
   'manifest:set': 'manifest:repo-set',
+  release: 'release:check',
 } as const;
 
 export function compatibilityTarget(id: string): string | undefined {

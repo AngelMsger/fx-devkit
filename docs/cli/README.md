@@ -15,7 +15,7 @@ Use `fx <command> --help` for the exact syntax supported by your executable.
 | `fx status` | Show every tracked repository: branch, cleanliness, position against upstream |
 | `fx can` | Whether a capability or tool can be used right now; when not, what a person must do first |
 | `fx where` | Locate repository coordinates; optionally probe or record their existence |
-| `fx release` | Check release readiness: dependencies, branches, builds and unresolved errors, one finding each |
+| `fx release check` | Show what each repository would release and check it: dependencies, branches, builds and unresolved errors. Read-only |
 | `fx completion` | Print a shell completion script for bash, zsh, fish or PowerShell |
 
 ## Topics
@@ -29,6 +29,7 @@ Use `fx <command> --help` for the exact syntax supported by your executable.
 | `fx manifest` | Shared manifest: validate, explain, edit repository fields and record probe evidence |
 | `fx mcp` | Workspace MCP resources, projections and readiness |
 | `fx member` | People: list them, show who a name refers to |
+| `fx release` | Release checklist: what each repository would release, and whether it is ready |
 | `fx repo` | Repositories: list, show, pick, register, fork, open |
 | `fx self` | The fx tool itself: info, update |
 | `fx skill` | Bundled fx companion Skill: install, inspect and remove without a workspace |
@@ -240,9 +241,9 @@ fx where fx-example-api --env test --format json
 fx where fx-example-api --env test --platform jenkins --probe --record --dry-run
 ```
 
-## `fx release`
+## `fx release check`
 
-Check release readiness: dependencies, branches, builds and unresolved errors, one finding each
+Show what each repository would release and check it: dependencies, branches, builds and unresolved errors. Read-only
 
 Arguments:
 
@@ -263,8 +264,9 @@ Flags:
 Examples:
 
 ```bash
-fx release --format json
-fx release fx-example-api --only merge --format json   # the commits behind the finding
+fx release check
+fx release check --format json
+fx release check fx-example-api --only merge --format json   # the commits behind the finding
 ```
 
 ## `fx completion`
@@ -1304,6 +1306,7 @@ These names remain executable. Help and command-name completion prefer their can
 | `fx skill list` | `fx agent skills` |
 | `fx tool installed` | `fx tool inventory` |
 | `fx manifest set` | `fx manifest repo-set` |
+| `fx release` | `fx release check` |
 
 ## `fx hook inject`
 
@@ -1324,3 +1327,7 @@ Alias of `fx tool inventory`.
 ## `fx manifest set`
 
 Alias of `fx manifest repo-set`.
+
+## `fx release`
+
+Alias of `fx release check`.

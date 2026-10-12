@@ -21,6 +21,7 @@ const side = (
   side: which,
   env: which === 'source' ? 'dev' : 'prod',
   branch: which === 'source' ? 'dev' : 'main',
+  sha: which === 'source' ? 'd1d1d1d1d1d1' : 'a1a1a1a1a1a1',
   path: `services/a/${which === 'source' ? 'dev' : 'main'}`,
   build: b,
   head,
@@ -39,15 +40,18 @@ describe('judgeBuild', () => {
 });
 
 describe('ciFinding', () => {
-  it('passes when both jobs succeeded after the head commit', () => {
+  it('passes when both jobs succeeded after the head commit, and names that commit', () => {
     const out = ciFinding('a', [
       side('source', build('success')),
       side('target', build('success')),
     ]);
     expect(out).toMatchObject({ group: 'ci', id: 'a', level: 'ok' });
     expect(out.message).toBe(
-      'dev #7 succeeded after the head commit; main #7 succeeded after the head commit',
+      'dev #7 succeeded, started after d1d1d1d; main #7 succeeded, started after a1a1a1a',
     );
+    expect(out.evidence).toMatchObject({
+      builds: [{ head: 'd1d1d1d1d1d1' }, { head: 'a1a1a1a1a1a1' }],
+    });
   });
 
   it('fails on a failed job, and on a success that predates the head commit', () => {
@@ -58,7 +62,7 @@ describe('ciFinding', () => {
     const stale = ciFinding('a', [side('target', build('success', '2026-09-02T08:00:00Z'))]);
     expect(stale).toMatchObject({
       level: 'fail',
-      message: 'main #7 succeeded before the head commit',
+      message: 'main #7 succeeded but started before a1a1a1a',
     });
     expect(stale.evidence).toMatchObject({ builds: [{ side: 'target', current: false }] });
   });
@@ -74,6 +78,11 @@ describe('ciFinding', () => {
     const out = ciFinding('a', [side('source', undefined), side('target', build('success'))]);
     expect(out).toMatchObject({ level: 'warn', coverage: 'incomplete' });
     expect(out.message).toContain('dev: no job services/a/dev');
+    // The platform's own name for the job, when it gives one, is what a person reads.
+    const named = ciFinding('a', [
+      { ...side('source', undefined), job: 'Jenkins job services/a/dev' },
+    ]);
+    expect(named.message).toBe('dev: no Jenkins job services/a/dev');
     const bad = ciFinding('a', [side('source', undefined), side('target', build('aborted'))]);
     expect(bad).toMatchObject({ level: 'fail', coverage: 'incomplete' });
   });
@@ -123,7 +132,7 @@ describe('ciFinding', () => {
     const undated = ciFinding('a', [side('source', build('success', null))]);
     expect(undated).toMatchObject({
       level: 'warn',
-      message: 'dev #7 succeeded, undated against the head commit',
+      message: 'dev #7 succeeded, undated against d1d1d1d',
       coverage: 'incomplete',
     });
     expect(ciFinding('a', [side('source', build('success'), null)]).level).toBe('warn');

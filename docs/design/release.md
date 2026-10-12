@@ -1,10 +1,32 @@
 # Release checklist
 
-`fx release` asks four questions of every covered repository — dependencies,
-merge agreement, CI and unresolved errors — and answers them as one report.
+`fx release check` says what every covered repository would release and asks four
+questions of it — dependencies, merge agreement, CI and unresolved errors — and
+answers them as one report. It is read-only: a team runs it while it prepares a
+release, typically until every source branch is merged into its target, and it
+never merges, tags, publishes or deploys. `fx release` remains a compatibility name.
 Severity and coverage stay independent: [setup](setup.md) owns what `ok` and
 `complete` mean, and a check nobody could answer is a warning with incomplete
 coverage, never a pass.
+
+The checklist knows capabilities, not providers. It asks the code host for
+branches, a range of commits, one commit and one file, the CI platform for a job's
+last build and the error tracker for open issues; whichever providers the manifest
+binds answer, and a person reads each platform's own name for the job or project it
+was asked about.
+
+## What a release ships
+
+Every verdict names what it is about. For each repository the report carries the
+head commit of the source and the target branch, the version each head declares
+and the people's commits on the source not merged into the target yet. The version
+is read from the same dependency file the dependency check reads, and the parser is
+as shallow as that one: it finds the version a person wrote (`package.json`, the
+`[project]` or Poetry table of `pyproject.toml`, the project or parent `<version>`
+of `pom.xml` with one `${property}` resolved, a top-level Gradle `version` or
+`gradle.properties`) and does not run the build. This description judges nothing:
+whatever the host could not say stays null, and the findings say why. The questions
+it shares with the checks are asked once per repository.
 
 ## Policy resolution
 
@@ -41,8 +63,8 @@ so variables are read too; one nothing uses ships nowhere and is only named.
 ## Merge agreement
 
 The branches a release moves between must agree in both directions: what the
-source has and the target lacks is unreleased work, what the target has and the
-source lacks is a hotfix nobody brought back. Merge commits and bot commits are
+source has and the target lacks is work not merged into the release yet, what the
+target has and the source lacks is a hotfix nobody merged back. Merge commits and bot commits are
 noise on that question; people's commits are the evidence, attributed through the
 members document when it knows them. A direction nobody could compare is reported
 as unanswered and does not undo what the other direction saw.
@@ -53,7 +75,8 @@ A branch counts as built when its job's latest build succeeded and started no
 earlier than the branch's head commit: a green build of an older commit says
 nothing about what is about to ship. The build carries no revision — the CI
 platforms fx drives do not report one — so this is an ordering of times, and the
-message says so rather than claiming the build was of that commit.
+message names the head commit the build started after rather than claiming the
+build was of that commit.
 
 Both sides of the release are checked, the source job and the target job, and
 both must pass. A side nobody can date and a side whose job the platform does not

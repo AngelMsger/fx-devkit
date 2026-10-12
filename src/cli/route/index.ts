@@ -41,7 +41,10 @@ export function normalizeArgv(argv: readonly string[], commandIds: readonly stri
       return words.length ? [...words, ...globals, ...argv.slice(i)] : [...argv];
     words.push(token);
     const attempted = words.join(' ');
-    if (commandIds.includes(attempted)) return [...words, ...globals, ...argv.slice(i + 1)];
+    // A command may share its name with a topic (`release`, `release check`): the
+    // longer name wins when the next word completes it.
+    if (commandIds.includes(attempted) && !commandIds.includes(`${attempted} ${argv[i + 1]}`))
+      return [...words, ...globals, ...argv.slice(i + 1)];
     if (!commandIds.some((id) => id.startsWith(`${attempted} `)))
       return globals.length === 0 ? [...argv] : [...words, ...globals, ...argv.slice(i + 1)];
   }

@@ -253,7 +253,7 @@ trust records or manifest checkouts.
 A capability describes an intent such as code hosting, CI, logs or error tracking.
 A provider implements it through its companion CLI. The manifest binds capabilities
 to providers and environment-specific coordinates. Use `can` for readiness,
-`where` for service coordinates, and `release` for the declared release checklist.
+`where` for service coordinates, and `release check` for the declared release checklist.
 
 A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
 `calendar`, `meeting`, `task` and `worklog` once; an environment binds
@@ -430,7 +430,7 @@ Flags describe whether they accept repeated or comma-separated values.
 | Create/adopt and maintain a workspace         | `init`, `sync`, `status`                                                           |
 | Discover or change workspace registrations    | `workspace list/show/unregister/relocate/rebind`                                   |
 | Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                           |
-| Find service coordinates and release evidence | `where`, `release`                                                                 |
+| Find service coordinates and release evidence | `where`, `release check`                                                           |
 | Browse and select repositories                | `repo list/show/select`, `repo pick/unpick`                                        |
 | Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                                |
 | Select environments and agents                | `env list/show/select/pick/unpick`, `agent list/pick/unpick`                       |
@@ -481,10 +481,13 @@ require a Skill-loaded environment declaration. The full
 stdout contains results; stderr contains progress, notices and structured errors.
 Use `--format json` and capture both streams. Workflow JSON keeps the preparation
 verdict and every blocker; `--details` adds full stage evidence. Human output starts
-with the task result and next action. Human `release` output gives each repository with
-a failing or warning check its own block with all of its checks, states a problem every
-repository shares once above them, and names the repositories whose checks all passed
-on one closing line; `--details` lists their checks too. On a terminal, human output
+with the task result and next action. Human `release check` output opens each
+repository with what it would ship: the version its target branch declares, the head
+commits of both branches, and the commits on the source branch not merged into the
+target yet. Each repository with a failing or warning check gets its own block with all
+of its checks, a problem every repository shares is stated once above them, and the
+repositories whose checks all passed close the output one line each; `--details` lists
+their checks too. On a terminal, human output
 adds colour and symbols, fits tables to the width and prints an error as text; a pipe or a file
 receives plain text and the JSON error envelope, and `NO_COLOR` removes the colour.
 While a command works, the terminal also shows one status line with the time elapsed, how far
@@ -501,7 +504,7 @@ fx sync --format json --fields operation,preparation.state,items,summary
 | Result                   | Completion decision                                                                |
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | `init`, `sync`, `doctor` | `preparation.state`: `planned`, `ready`, or `incomplete`, for `preparation.scope`. |
-| `release`                | `ok`, `complete` and the findings; it does not publish or deploy.                  |
+| `release check`          | `ok`, `complete`, the findings and `repos`; it does not publish or deploy.         |
 | `can`                    | `status` and the handoff for that capability.                                      |
 
 Ready preparation exits 0; incomplete preparation exits 12. Preview is only a

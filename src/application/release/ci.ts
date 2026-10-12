@@ -46,7 +46,14 @@ async function side(
   branch: Branch | undefined,
   env: string,
 ): Promise<BuildSide> {
-  const blank = { side: which, env, branch: branch?.name, build: undefined, head: null };
+  const blank = {
+    side: which,
+    env,
+    branch: branch?.name,
+    sha: branch?.sha ?? null,
+    build: undefined,
+    head: null,
+  };
   if (branch === undefined) return { ...blank, path: null };
   const gate = await ctx.gates.through('ci', env);
   if (!gate.open) return { ...blank, path: null, reason: gate.reason };
@@ -58,15 +65,19 @@ async function side(
     platform: ci.binding.platform,
     environments: environmentsOf(ctx.deps.ctx),
     binding: ci.binding,
+    locate: (vars) => ci.platform.locate(vars),
   });
   if (coordinate.status === 'not_covered') return { ...blank, path: null };
-  const path = coordinate.vars['path'] ?? '';
+  // What a person reads is the platform's own name for the job; `path` stays in the
+  // evidence for the programs that already read it.
+  const job = coordinate.label;
+  const path = coordinate.vars['path'] ?? job;
   const [build, head] = await Promise.all([
     settled(() => ci.platform.lastBuild(coordinate.vars)),
     settled(() => facts.host.commit(facts.ref, branch.sha)),
   ]);
-  if (build.reason !== undefined) return { ...blank, path, reason: build.reason };
-  return { ...blank, path, build: build.value, head: head.value?.date ?? null };
+  if (build.reason !== undefined) return { ...blank, path, job, reason: build.reason };
+  return { ...blank, path, job, build: build.value, head: head.value?.date ?? null };
 }
 
 // A query's own outcome, so two of them can be told apart afterwards.

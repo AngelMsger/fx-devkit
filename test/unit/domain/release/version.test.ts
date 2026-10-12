@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+
+import { declaredVersion } from '../../../../src/domain/release/version.js';
+
+describe('declaredVersion', () => {
+  it('reads the version a package.json declares, and nothing from a broken one', () => {
+    expect(declaredVersion('package.json', '{"name":"api","version":"1.3.0"}')).toBe('1.3.0');
+    expect(declaredVersion('package.json', '{"name":"api"}')).toBeUndefined();
+    expect(declaredVersion('package.json', '{"version":')).toBeUndefined();
+  });
+
+  it('prefers the [project] table of pyproject.toml, then Poetry, never a dependency', () => {
+    const poetry = '[tool.poetry]\nname = "api"\nversion = "0.4.1"\n';
+    expect(declaredVersion('pyproject.toml', poetry)).toBe('0.4.1');
+    const both = `[tool.black]\nversion = "24"\n${poetry}[project]\nversion = '0.5.0'\n`;
+    expect(declaredVersion('pyproject.toml', both)).toBe('0.5.0');
+    expect(declaredVersion('pyproject.toml', '[tool.black]\nversion = "24"\n')).toBeUndefined();
+  });
+
+  it("reads the project's own <version>, else its parent's, and resolves one property", () => {
+    const pom = (own: string) => `<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <!-- <version>9.9.9</version> -->
+  <parent><groupId>g</groupId><artifactId>p</artifactId><version>2.0.0</version></parent>
+  <artifactId>api</artifactId>
+  ${own}
+  <properties><revision>1.4.0-SNAPSHOT</revision></properties>
+  <dependencies>
+    <dependency><artifactId>x</artifactId><version>3.0.0</version></dependency>
+  </dependencies>
+</project>`;
+    expect(declaredVersion('pom.xml', pom('<version>1.3.0</version>'))).toBe('1.3.0');
+    expect(declaredVersion('pom.xml', pom(''))).toBe('2.0.0');
+    expect(declaredVersion('pom.xml', pom('<version>${revision}</version>'))).toBe(
+      '1.4.0-SNAPSHOT',
+    );
+  });
+
+  it('reads a top-level Gradle version and gradle.properties, not an indented one', () => {
+    expect(declaredVersion('build.gradle', "plugins { id 'java' }\nversion = '1.2.0'\n")).toBe(
+      '1.2.0',
+    );
+    expect(declaredVersion('build.gradle', "version '1.2.1'\n")).toBe('1.2.1');
+    expect(declaredVersion('build.gradle.kts', 'version = "1.2.2"\n')).toBe('1.2.2');
+    expect(declaredVersion('build.gradle', "allprojects {\n  version = '0.0.1'\n}\n")).toBe(
+      undefined,
+    );
+    expect(declaredVersion('gradle.properties', 'group=g\nversion=1.2.3\n')).toBe('1.2.3');
+  });
+
+  it('knows no version in a file that cannot declare one', () => {
+    expect(declaredVersion('requirements.txt', 'httpx==0.27\n')).toBeUndefined();
+  });
+});

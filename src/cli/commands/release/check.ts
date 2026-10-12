@@ -1,18 +1,19 @@
 import { Flags } from '@oclif/core';
 
-import { Release } from '../../application/release/index.js';
-import { CHECKS, type Check } from '../../domain/release/types.js';
-import { FxCommand } from '../base.js';
-import { argument, jobsFlag, listFlag } from '../flags.js';
-import { RELEASE_CODES, reportNotice } from '../notices.js';
-import { releaseText } from '../release-view.js';
+import { Release } from '../../../application/release/index.js';
+import { CHECKS, type Check } from '../../../domain/release/types.js';
+import { FxCommand } from '../../base.js';
+import { argument, jobsFlag, listFlag } from '../../flags.js';
+import { RELEASE_CODES, reportNotice } from '../../notices.js';
+import { releaseText } from '../../release-view.js';
 
-export default class ReleaseCommand extends FxCommand {
+export default class ReleaseCheckCommand extends FxCommand {
   static override description =
-    'Check release readiness: dependencies, branches, builds and unresolved errors, one finding each';
+    'Show what each repository would release and check it: dependencies, branches, builds and unresolved errors. Read-only';
   static override examples = [
-    '<%= config.bin %> release --format json',
-    '<%= config.bin %> release fx-example-api --only merge --format json   # the commits behind the finding',
+    '<%= config.bin %> release check',
+    '<%= config.bin %> release check --format json',
+    '<%= config.bin %> release check fx-example-api --only merge --format json   # the commits behind the finding',
   ];
   static override strict = false;
   static override args = {
@@ -27,7 +28,7 @@ export default class ReleaseCommand extends FxCommand {
   };
 
   async run(): Promise<void> {
-    const { argv, flags } = await this.parse(ReleaseCommand);
+    const { argv, flags } = await this.parse(ReleaseCheckCommand);
     const report = await new Release(await this.workspaceDeps(), this.loginDeps()).execute({
       repos: argv.length === 0 ? undefined : (argv as string[]),
       tags: flags.tag,
@@ -45,6 +46,8 @@ export default class ReleaseCommand extends FxCommand {
         }),
       );
     else this.renderer.record(report);
-    this.renderer.notice(reportNotice(report, RELEASE_CODES, ['fx release <repo> --format json']));
+    this.renderer.notice(
+      reportNotice(report, RELEASE_CODES, ['fx release check <repo> --format json']),
+    );
   }
 }

@@ -20,6 +20,7 @@ const base = {
   repo: 'a',
   env: 'test',
   slug: 'fx-a-test',
+  label: 'Sentry issues for fx-a-test',
   since: '14d',
   now: new Date('2026-09-03T00:00:00Z'),
 };
@@ -39,7 +40,8 @@ describe('errorsFinding', () => {
       id: 'a',
       level: 'fail',
       coverage: 'incomplete',
-      message: '1 unresolved issue first seen in the last 14d in fx-a-test (test)',
+      message:
+        '1 unresolved issue first seen in test in the last 14d (Sentry issues for fx-a-test)',
     });
     expect(out.evidence).toMatchObject({
       slug: 'fx-a-test',
@@ -60,7 +62,7 @@ describe('errorsFinding', () => {
     expect(out).toMatchObject({
       level: 'warn',
       coverage: 'incomplete',
-      message: '1 unresolved issue in fx-a-test (test) undated',
+      message: '1 unresolved issue in test undated (Sentry issues for fx-a-test)',
     });
     expect(out.evidence).toMatchObject({ undated: 1, issues: [] });
   });

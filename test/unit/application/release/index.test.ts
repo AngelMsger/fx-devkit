@@ -175,7 +175,7 @@ describe('Release', () => {
     const merge = (await run(s)).findings.find(
       (f) => f.group === 'merge' && f.id === 'fx-example-api',
     );
-    expect(merge?.message).toBe('1 commit on dev not on main');
+    expect(merge?.message).toBe('1 commit on dev not merged into main');
     expect(merge?.evidence).toMatchObject({
       source: 'dev',
       target: 'main',
@@ -209,13 +209,52 @@ describe('Release', () => {
     expect(legacy[2]?.message).toContain('not checked');
   });
 
-  it('runs only the checks asked for, and asks nothing else', async () => {
+  it('runs only the checks asked for, and asks no other platform', async () => {
     const s = await stage();
     const report = await run(s, { only: ['merge'] as Check[] });
     expect(new Set(report.findings.map((f) => f.group))).toEqual(new Set(['merge']));
-    expect(s.codeHost.queries.some((q) => q.startsWith('file '))).toBe(false);
     expect(s.ci.asked).toEqual([]);
     expect(s.tracker.asked).toEqual([]);
+    // What each release would carry is still said: it is what the checks are about.
+    expect(report.repos.find((r) => r.name === 'fx-example-api')?.source?.sha).toBe('d1');
+  });
+
+  it('says what each release would carry: both heads, their versions and the commits going out', async () => {
+    const s = await stage();
+    s.codeHost.files.set(
+      'fx/fx-example-api d1:package.json',
+      '{"version":"1.3.0","dependencies":{"x":"1.0.0-dev"}}',
+    );
+    s.codeHost.files.set('fx/fx-example-api m1:package.json', '{"version":"1.2.0"}');
+    const report = await run(s);
+    expect(report.repos.map((r) => r.name)).toEqual([
+      'fx-example-api',
+      'fx-example-data',
+      'fx-example-legacy',
+    ]);
+    const [api, data, legacy] = report.repos;
+    expect(api).toMatchObject({
+      source: { branch: 'dev', sha: 'd1', message: 'head', version: '1.3.0' },
+      target: { branch: 'main', sha: 'm1', version: '1.2.0' },
+      version_file: 'package.json',
+      // The bot's commit is left out, as the merge check leaves it out.
+      changes: [{ sha: 'c1', author: { id: 'alice', name: 'Alice' }, message: 'feat: m-1 thing' }],
+      note: null,
+    });
+    // A requirements file declares no version, and a single branch has no target.
+    expect(data).toMatchObject({
+      source: { branch: 'master', version: null },
+      target: null,
+      version_file: null,
+      changes: null,
+    });
+    // A repository without its source branch carries nothing anyone could name.
+    expect(legacy).toMatchObject({ source: null, target: null, changes: null });
+    // The checks and the summary share the host's answers rather than asking twice.
+    const asked = (q: string) => s.codeHost.queries.filter((x) => x === q).length;
+    expect(asked('file fx/fx-example-api d1:package.json')).toBe(1);
+    expect(asked('commit fx/fx-example-api d1')).toBe(1);
+    expect(asked('compare fx/fx-example-api m1..d1')).toBe(1);
   });
 
   it('selects by name or tag, and refuses a name it does not know', async () => {
@@ -360,7 +399,7 @@ describe('Release', () => {
     expect(ci?.level).toBe('warn');
     expect(ci?.message).toContain('target: jenkins-cli is not covered for prod');
     // The source side was still asked, and still says what it found.
-    expect(ci?.message).toContain('dev #3 succeeded after the head commit');
+    expect(ci?.message).toContain('dev #3 succeeded, started after d1');
   });
 
   it('will not choose between two platforms serving the same capability in one environment', async () => {

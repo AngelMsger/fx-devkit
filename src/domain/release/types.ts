@@ -1,5 +1,6 @@
 // The four things a release checklist asks of a repository, as the groups
-// of a report whose ids are repository names.
+// of a report whose ids are repository names, and what each repository's
+// release would carry, so a verdict always names what it was about.
 
 import { finding, type Finding, type FindingExtra, type Level, type Report } from '../report.js';
 
@@ -7,7 +8,47 @@ export const CHECKS = ['deps', 'merge', 'ci', 'errors'] as const;
 export type Check = (typeof CHECKS)[number];
 
 export type ReleaseFinding = Finding<Check>;
-export type ReleaseReport = Report<Check>;
+
+export interface Author {
+  readonly id: string | null;
+  readonly name: string;
+}
+
+// A commit as a release names it: by the person behind it where the members document knows them.
+export interface AttributedCommit {
+  readonly sha: string;
+  readonly author: Author;
+  readonly date: string;
+  readonly message: string;
+}
+
+// A branch head as a release sees it: the commit, and the version declared there.
+export interface ReleaseHead {
+  readonly branch: string;
+  readonly sha: string;
+  // null when the host did not describe the commit.
+  readonly date: string | null;
+  readonly message: string | null;
+  // null when the repository declares no version fx can read at this commit.
+  readonly version: string | null;
+}
+
+export interface ReleaseRepo {
+  readonly name: string;
+  // The branch a release is cut from and the one it lands on. null when the host
+  // was not asked, did not answer or has no such branch; the findings say which.
+  readonly source: ReleaseHead | null;
+  readonly target: ReleaseHead | null;
+  // Where the versions were read; null when no file declares one.
+  readonly version_file: string | null;
+  // People's commits on the source and not on the target: what the release would
+  // carry. null when the branches were not compared.
+  readonly changes: readonly AttributedCommit[] | null;
+  // Why the manifest lets this repository deviate from the workspace policy.
+  readonly note: string | null;
+}
+
+export type ReleaseReport = Report<Check> & { readonly repos: readonly ReleaseRepo[] };
 
 export function releaseFinding(
   check: Check,

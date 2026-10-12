@@ -1,7 +1,9 @@
 // What every code-host-backed check needs to know about one repository,
 // fetched once: where it lives, which branches it has, and which of them
-// are the release's source and target. Not knowing is an outcome the checks
-// turn into findings, never an exception that stops the report.
+// are the release's source and target. Later questions to the host are
+// remembered for the repository, so no two checks ask the same one. Not
+// knowing is an outcome the checks turn into findings, never an exception
+// that stops the report.
 
 import { asDevkitError } from '../../domain/errors.js';
 import type { ResolvedRepo } from '../../domain/manifest/local.js';
@@ -51,7 +53,7 @@ export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
   if (ref === undefined)
     return { kind: 'error', reason: 'no code-host reference: neither a project nor an upstream' };
   try {
-    const host = ctx.deps.codeHost();
+    const host = remembering(ctx.deps.codeHost());
     const branches = await host.branches(ref);
     const named = (name: string | undefined): Branch | undefined =>
       name === undefined ? undefined : branches.find((b) => b.name === name);
@@ -64,6 +66,27 @@ export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
   } catch (err) {
     return { kind: 'error', reason: asDevkitError(err).message };
   }
+}
+
+// One question asked once per repository: the checks and the release summary read
+// the same heads, files and range, and a failed answer is the same failure for each.
+function remembering(host: CodeHostQueries): CodeHostQueries {
+  const asked = new Map<string, Promise<unknown>>();
+  const once = <T>(key: string, ask: () => Promise<T>): Promise<T> => {
+    let answer = asked.get(key) as Promise<T> | undefined;
+    if (answer === undefined) {
+      answer = ask();
+      asked.set(key, answer);
+    }
+    return answer;
+  };
+  return {
+    branches: (ref) => host.branches(ref),
+    compare: (ref, range) =>
+      once(`compare ${range.from}..${range.to}`, () => host.compare(ref, range)),
+    commit: (ref, sha) => once(`commit ${sha}`, () => host.commit(ref, sha)),
+    readFile: (ref, path, at) => once(`file ${at}:${path}`, () => host.readFile(ref, path, at)),
+  };
 }
 
 // The finding a check makes when the facts never arrived.

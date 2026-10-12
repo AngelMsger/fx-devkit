@@ -166,7 +166,7 @@ fx manifest schema --kind tools
 
 ### 能力、提供者與配套工具
 
-capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provider 透過配套 CLI 實作。manifest 繫結能力、提供者和環境座標。`can` 查詢就緒狀態，`where` 查詢座標，`release` 查詢宣告的發佈檢查項目。
+capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provider 透過配套 CLI 實作。manifest 繫結能力、提供者和環境座標。`can` 查詢就緒狀態，`where` 查詢座標，`release check` 查詢宣告的發佈檢查項目。
 
 工作區級能力一次繫結：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`meeting`、`task`、`worklog`；環境級能力按平台實例繫結：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。不帶目標的 `fx can` 列出這些能力以及目前工作區裡各由誰提供；`fx manifest providers` 列出已繫結的內容和每個能力可選的 provider。`calendar` 是行程與忙閒所在；`meeting` 是承載線上會議及其錄製、紀要的會議系統，在一個產品排行程、在另一個產品開會的團隊兩者都繫結。
 
@@ -244,7 +244,7 @@ fx skill status
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
 | 建立、同步和檢查工作區 | `init`、`sync`、`status`                                                                             |
 | 設定存取並檢查就緒     | `login`、`doctor`、`can`                                                                             |
-| 查詢環境座標與發佈證據 | `where`、`release`                                                                                   |
+| 查詢環境座標與發佈證據 | `where`、`release check`                                                                             |
 | 管理儲存庫             | `repo list/show/pick/unpick/add/remove/fork/open`                                                    |
 | 管理環境與 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                                                |
 | 管理工具和 Skill       | `tool list/show/install/update/history/inventory`、`agent skills`                                    |
@@ -259,12 +259,12 @@ fx skill status
 
 先執行 `fx self info --format json`。初始化任務讀取傳回的 `initialization_guide`，並持續使用同一準確入口；無需宣告已載入 Skill 的環境變數。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任務的路由。
 
-使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。`release` 的 human 輸出為每個有失敗或警告檢查的儲存庫單獨列一塊，列出它的全部檢查；所有儲存庫共有的問題只在它們上方說明一次；全部檢查都通過的儲存庫合併在最後一行。`--details` 也會列出這些儲存庫的檢查。在終端上還會加上顏色與符號、依寬度收窄表格，並以文字顯示錯誤；管線或檔案取得純文字和 JSON 錯誤信封，`NO_COLOR` 去掉顏色。命令執行期間，終端上還會有一行狀態列，顯示已用時間、可計數工作的進度與正在等待的對象；命令結束後這一行消失，管線、檔案、JSON 輸出與 `--quiet` 都不會收到它。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時狀態列不再原地重繪，改為每五秒列印一行。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
+使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。`release check` 的 human 輸出在每個儲存庫開頭先說明它將發佈的內容：目標分支宣告的版本、兩個分支的最新提交，以及來源分支上尚未合併到目標分支的提交。每個有失敗或警告檢查的儲存庫單獨列一塊，列出它的全部檢查；所有儲存庫共有的問題只在它們上方說明一次；全部檢查都通過的儲存庫在最後各占一行。`--details` 也會列出這些儲存庫的檢查。在終端上還會加上顏色與符號、依寬度收窄表格，並以文字顯示錯誤；管線或檔案取得純文字和 JSON 錯誤信封，`NO_COLOR` 去掉顏色。命令執行期間，終端上還會有一行狀態列，顯示已用時間、可計數工作的進度與正在等待的對象；命令結束後這一行消失，管線、檔案、JSON 輸出與 `--quiet` 都不會收到它。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時狀態列不再原地重繪，改為每五秒列印一行。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
 | 結果               | 完成判定                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | `init/sync/doctor` | `preparation.state` 為 `planned`、`ready` 或 `incomplete`，僅針對 `preparation.scope`。 |
-| `release`          | 讀取 `ok`、`complete` 與檢查項目；此命令不發佈或部署。                                  |
+| `release check`    | 讀取 `ok`、`complete`、檢查項目與 `repos`；此命令不發佈或部署。                         |
 | `can`              | 讀取目標能力的 `status` 和接手指引。                                                    |
 
 準備就緒結束代碼為 0，未完成為 12；預覽只是計畫。設定或執行異常保留原分類結束代碼，也可能傳回部分 stdout。`doctor.coverage` 單獨描述診斷涵蓋範圍；選用宿主啟用未驗證不會阻塞必要工作，檔案存在也不證明啟用。
