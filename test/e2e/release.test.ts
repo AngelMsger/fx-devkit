@@ -252,8 +252,10 @@ describe('release', () => {
     const run = fx(['release', 'check'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
     expect(run.stdout).toMatch(
-      /^a {2}4 fail\n {2}main [0-9a-f]{7}, dev [0-9a-f]{7} not merged: 1 commit\n {4}[0-9a-f]{7} feat: m-1 more \(Alice\)\n {2}deps {4}fail {2}package\.json: x 1\.0\.0-dev/m,
+      /^a {2}4 fail\n {2}main [0-9a-f]{7}, dev [0-9a-f]{7} not merged: 1 commit by 1 person\n {2}deps {4}fail {2}package\.json: x 1\.0\.0-dev/m,
     );
+    // The count says how much; the code host lists them for whoever asks.
+    expect(run.stdout).not.toContain('feat: m-1 more');
     expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not merged into main$/m);
     expect(run.stdout.trimEnd().split('\n').slice(-2)).toEqual([
       'All checks ok',
@@ -273,9 +275,9 @@ describe('release', () => {
     expect(repos[0]).toMatchObject({
       source: { branch: 'dev', message: 'feat: m-1 more', version: null },
       target: { branch: 'main', message: 'one' },
-      changes: [{ author: { id: 'alice', name: 'Alice' }, message: 'feat: m-1 more' }],
+      unmerged: { commits: 1, authors: 1 },
     });
-    expect(repos[1]).toMatchObject({ changes: [], note: null });
+    expect(repos[1]).toMatchObject({ unmerged: { commits: 0, authors: 0 }, note: null });
     // The summary still leaves the passing findings out; what ships is not a finding.
     expect(run.json()).toMatchObject({ output_mode: 'summary' });
   });

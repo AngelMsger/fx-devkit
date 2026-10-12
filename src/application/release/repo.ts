@@ -1,11 +1,11 @@
 // What one repository's release would carry: the head of each branch, the version
-// declared at each head, and the people's commits the source has and the target
+// declared at each head, and how many people's commits the source has and the target
 // lacks. It describes, it does not judge; whatever it cannot learn is null, and the
 // checks' findings already say why.
 
 import { DEPENDENCY_FILES } from '../../domain/release/deps.js';
-import { attributed, peopleCommits } from '../../domain/release/merge.js';
-import type { ReleaseHead, ReleaseRepo } from '../../domain/release/types.js';
+import { attributed, peopleCommits, unmergedOf } from '../../domain/release/merge.js';
+import type { AttributedCommit, ReleaseHead, ReleaseRepo } from '../../domain/release/types.js';
 import {
   declaredVersion,
   GRADLE_PROPERTIES,
@@ -21,7 +21,7 @@ export async function describeRepo(ctx: CheckContext, outcome: FactsOutcome): Pr
     source: null,
     target: null,
     version_file: null,
-    changes: null,
+    unmerged: null,
     note: ctx.policy.note ?? null,
   };
   if (outcome.kind !== 'facts') return blank;
@@ -42,7 +42,7 @@ export async function describeRepo(ctx: CheckContext, outcome: FactsOutcome): Pr
     source: sourceHead,
     target: targetHead,
     version_file: versioned ? (file ?? null) : null,
-    changes: changes ?? null,
+    unmerged: changes === undefined ? null : unmergedOf(changes),
   };
 }
 
@@ -86,7 +86,7 @@ async function changesBetween(
   facts: RepoFacts,
   from: string,
   to: string,
-): Promise<ReleaseRepo['changes']> {
+): Promise<AttributedCommit[]> {
   const commits = await facts.host.compare(facts.ref, { from, to });
   return peopleCommits(commits, ctx.policy.bots).map((c) => attributed(ctx.members, c));
 }

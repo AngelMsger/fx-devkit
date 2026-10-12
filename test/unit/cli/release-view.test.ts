@@ -35,7 +35,7 @@ const unknown = (name: string): ReleaseRepo => ({
   source: null,
   target: null,
   version_file: null,
-  changes: null,
+  unmerged: null,
   note: null,
 });
 
@@ -133,21 +133,13 @@ it('paints levels, keeps passing checks quiet and wraps a long message under its
   ]);
 });
 
-it('opens each repository with what it would ship, and lists the commits not merged yet', () => {
+it('opens each repository with what it would ship, and counts the commits not merged yet', () => {
   const api: ReleaseRepo = {
     ...unknown('api'),
     source: head('dev', 'd1d1d1d1d1', '1.3.0'),
     target: head('main', 'a1a1a1a1a1', '1.2.0'),
     version_file: 'package.json',
-    changes: [
-      {
-        sha: 'c1c1c1c1c1',
-        author: { id: 'alice', name: 'Alice' },
-        date: '',
-        message: 'feat: one\n\nbody',
-      },
-      { sha: 'c2c2c2c2c2', author: { id: null, name: 'bob' }, date: '', message: 'fix: two' },
-    ],
+    unmerged: { commits: 2, authors: 2 },
     note: 'releases from dev while the migration lasts',
   };
   const web: ReleaseRepo = {
@@ -155,7 +147,7 @@ it('opens each repository with what it would ship, and lists the commits not mer
     source: head('dev', 'e1e1e1e1e1', '2.0.1'),
     target: head('main', 'f1f1f1f1f1', '2.0.1'),
     version_file: 'package.json',
-    changes: [],
+    unmerged: { commits: 0, authors: 0 },
   };
   const tool: ReleaseRepo = { ...unknown('tool'), source: head('master', 'b1b1b1b1b1', null) };
   const text = releaseText(
@@ -173,9 +165,7 @@ it('opens each repository with what it would ship, and lists the commits not mer
   expect(text).toBe(
     [
       'api  1 fail',
-      '  1.2.0  main a1a1a1a, dev d1d1d1d (1.3.0) not merged: 2 commits',
-      '    c1c1c1c feat: one (Alice)',
-      '    c2c2c2c fix: two (bob)',
+      '  1.2.0  main a1a1a1a, dev d1d1d1d (1.3.0) not merged: 2 commits by 2 people',
       '  note: releases from dev while the migration lasts',
       '  merge  fail  2 commits on dev not merged into main',
       '',
@@ -188,28 +178,24 @@ it('opens each repository with what it would ship, and lists the commits not mer
   );
 });
 
-it('counts the commits beyond the ones a block names', () => {
-  const many = Array.from({ length: 12 }, (_, i) => ({
-    sha: `c${i}`.padEnd(10, '0'),
-    author: { id: null, name: 'alice' },
-    date: '',
-    message: `feat: ${i}`,
-  }));
+it('counts the commits and the people behind them, however many there are', () => {
   const text = releaseText(
     checklist(
-      [releaseFinding('merge', 'api', 'fail', '12 commits on dev not merged into main')],
+      [releaseFinding('merge', 'api', 'fail', '120 commits on dev not merged into main')],
       [
         {
           ...unknown('api'),
           source: head('dev', 'd1d1d1d1d1', null),
           target: head('main', 'a1a1a1a1a1', null),
-          changes: many,
+          unmerged: { commits: 120, authors: 1 },
         },
       ],
     ),
     { display: PLAIN, details: false },
-  ).split('\n');
-  expect(text[1]).toBe('  main a1a1a1a, dev d1d1d1d not merged: 12 commits');
-  expect(text.filter((line) => line.startsWith('    c'))).toHaveLength(10);
-  expect(text).toContain('    and 2 more');
+  );
+  expect(text.split('\n').slice(0, 3)).toEqual([
+    'api  1 fail',
+    '  main a1a1a1a, dev d1d1d1d not merged: 120 commits by 1 person',
+    '  merge  fail  120 commits on dev not merged into main',
+  ]);
 });

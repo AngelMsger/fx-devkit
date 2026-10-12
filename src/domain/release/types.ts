@@ -33,6 +33,12 @@ export interface ReleaseHead {
   readonly version: string | null;
 }
 
+export interface Unmerged {
+  readonly commits: number;
+  // The people behind those commits.
+  readonly authors: number;
+}
+
 export interface ReleaseRepo {
   readonly name: string;
   // The branch a release is cut from and the one it lands on. null when the host
@@ -41,9 +47,10 @@ export interface ReleaseRepo {
   readonly target: ReleaseHead | null;
   // Where the versions were read; null when no file declares one.
   readonly version_file: string | null;
-  // People's commits on the source and not on the target: what the release would
-  // carry. null when the branches were not compared.
-  readonly changes: readonly AttributedCommit[] | null;
+  // How much the next merge would bring: people's commits on the source and not on the
+  // target, counted; the two heads name the range for whoever wants the list. null when
+  // the branches were not compared.
+  readonly unmerged: Unmerged | null;
   // Why the manifest lets this repository deviate from the workspace policy.
   readonly note: string | null;
 }

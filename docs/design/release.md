@@ -19,7 +19,12 @@ was asked about.
 
 Every verdict names what it is about. For each repository the report carries the
 head commit of the source and the target branch, the version each head declares
-and the people's commits on the source not merged into the target yet. The version
+and how many people's commits on the source are not merged into the target yet, and
+by how many people. It counts them rather than listing them: a team that merges at
+the end of a cycle can have hundreds, and the two heads name the range for whoever
+wants the list, read with the code host's own tools. That count is what the next merge
+brings, not everything the next version contains, which also holds what was merged
+since the last release. The version
 is read from the same dependency file the dependency check reads, and the parser is
 as shallow as that one: it finds the version a person wrote (`package.json`, the
 `[project]` or Poetry table of `pyproject.toml`, the project or parent `<version>`

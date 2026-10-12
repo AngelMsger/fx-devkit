@@ -1,12 +1,19 @@
 // The release checklist as a person reads it: one block per repository, opening with
-// what its release would carry (the version, both branch heads and the commits going
-// out), then its checks, so whatever holds a repository back reads in one place.
-// Repositories with nothing to report close the output one line each, saying what they
-// would release, unless --details asks for their checks. A finding every repository
-// shares, such as a tool nobody signed in to, is said once above them. The report
-// itself stays the machine interface.
+// what its release would carry (the version, both branch heads and how many commits
+// are not merged yet, whose heads let the code host's own tools list them), then its
+// checks, so whatever holds a repository back reads in one place. Repositories with
+// nothing to report close the output one line each, saying what they would release,
+// unless --details asks for their checks. A finding every repository shares, such as
+// a tool nobody signed in to, is said once above them. The report itself stays the
+// machine interface.
 
-import type { ReleaseFinding, ReleaseReport, ReleaseRepo } from '../domain/release/types.js';
+import type {
+  ReleaseFinding,
+  ReleaseHead,
+  ReleaseReport,
+  ReleaseRepo,
+  Unmerged,
+} from '../domain/release/types.js';
 import { shortSha } from '../domain/workspace/commits.js';
 
 import type { Display } from './render/display.js';
@@ -23,8 +30,6 @@ const GUTTER = '  ';
 const LEVEL_WIDTH = 'fail'.length;
 // Below this a wrapped message is a column of fragments; the terminal may wrap it instead.
 const NARROWEST_MESSAGE = 24;
-// The commits going out a block names; the rest are counted.
-const LISTED_COMMITS = 10;
 
 export function releaseText(report: ReleaseReport, view: ReleaseView): string {
   const { display } = view;
@@ -70,50 +75,52 @@ interface Shipping {
 }
 
 function shipping(repo: ReleaseRepo): Shipping | undefined {
-  const { source, target, changes } = repo;
+  const { source, target } = repo;
   if (source === null) return undefined;
-  if (target === null)
-    return {
-      version: source.version ?? undefined,
-      text: `${source.branch} ${shortSha(source.sha)}`,
-    };
-  const lands = `${target.branch} ${shortSha(target.sha)}`;
-  const version = target.version ?? undefined;
-  if (changes !== null && changes.length === 0)
-    return { version, text: `${lands}, ${source.branch} merged` };
+  if (target === null) return { version: source.version ?? undefined, text: headText(source) };
   const own =
     source.version === null || source.version === target.version ? '' : ` (${source.version})`;
-  const from = `${source.branch} ${shortSha(source.sha)}${own}`;
-  if (changes === null) return { version, text: `${lands}, ${from}` };
-  const count = `${changes.length} commit${changes.length === 1 ? '' : 's'}`;
-  return { version, text: `${lands}, ${from} not merged: ${count}` };
+  return {
+    version: target.version ?? undefined,
+    text: mergeText(target, source, repo.unmerged, own),
+  };
+}
+
+// "main a1a1a1a, dev d1d1d1d not merged: 2 commits by 1 person", or "dev merged".
+function mergeText(
+  target: ReleaseHead,
+  source: ReleaseHead,
+  unmerged: Unmerged | null,
+  own: string,
+): string {
+  const lands = headText(target);
+  if (unmerged?.commits === 0) return `${lands}, ${source.branch} merged`;
+  const from = `${headText(source)}${own}`;
+  if (unmerged === null) return `${lands}, ${from}`;
+  const people = `${unmerged.authors} ${unmerged.authors === 1 ? 'person' : 'people'}`;
+  return `${lands}, ${from} not merged: ${plural(unmerged.commits, 'commit')} by ${people}`;
+}
+
+function headText(head: ReleaseHead): string {
+  return `${head.branch} ${shortSha(head.sha)}`;
+}
+
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
 }
 
 function sentence(shipped: Shipping): string {
   return shipped.version === undefined ? shipped.text : `${shipped.version}  ${shipped.text}`;
 }
 
-// The release sentence, the commits going out and the manifest's note, under a heading.
+// The release sentence and the manifest's note, under a heading.
 function carried(display: Display, repo: ReleaseRepo | undefined): string[] {
   if (repo === undefined) return [];
   const room = Math.max(display.room(widthOf(INDENT)), NARROWEST_MESSAGE);
   const shipped = shipping(repo);
   const lines =
     shipped === undefined ? [] : display.wrap(sentence(shipped), room).map((l) => `${INDENT}${l}`);
-  const changes = repo.changes ?? [];
-  const deeper = `${INDENT}${INDENT}`;
-  const commits = changes.slice(0, LISTED_COMMITS).map((c) => {
-    const subject = c.message.split('\n')[0] ?? '';
-    const line = display.clip(`${subject} (${c.author.name})`, display.room(widthOf(deeper) + 8));
-    return `${deeper}${display.paint('quiet', shortSha(c.sha))} ${line}`;
-  });
-  const more = changes.length - commits.length;
-  return [
-    ...lines,
-    ...commits,
-    ...(more > 0 ? [`${deeper}${display.paint('quiet', `and ${more} more`)}`] : []),
-    ...noted(display, repo, INDENT),
-  ];
+  return [...lines, ...noted(display, repo, INDENT)];
 }
 
 function noted(display: Display, repo: ReleaseRepo, indent: string): string[] {

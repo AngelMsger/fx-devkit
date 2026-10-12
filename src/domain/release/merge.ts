@@ -10,6 +10,7 @@ import {
   type AttributedCommit,
   type Author,
   type ReleaseFinding,
+  type Unmerged,
 } from './types.js';
 
 // One direction of the comparison: the commits, or why they are unknown.
@@ -93,6 +94,13 @@ export function peopleCommits(commits: readonly Commit[], bots: readonly string[
 
 export function attributed(members: Members | undefined, c: Commit): AttributedCommit {
   return { sha: c.sha, author: authorOf(members, c.author), date: c.date, message: c.message };
+}
+
+export function unmergedOf(commits: readonly AttributedCommit[]): Unmerged {
+  return {
+    commits: commits.length,
+    authors: new Set(commits.map((c) => c.author.id ?? c.author.name)).size,
+  };
 }
 
 function authorOf(members: Members | undefined, name: string): Author {

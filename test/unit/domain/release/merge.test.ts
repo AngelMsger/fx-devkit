@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Members } from '../../../../src/domain/manifest/types.js';
-import { judgeMerge } from '../../../../src/domain/release/merge.js';
+import { attributed, judgeMerge, unmergedOf } from '../../../../src/domain/release/merge.js';
 import type { Commit } from '../../../../src/ports/code-host.js';
 
 const members: Members = {
@@ -120,5 +120,15 @@ describe('judgeMerge', () => {
       behind: { commits: [] },
     });
     expect(out.evidence).toMatchObject({ ahead: [{ author: { id: null, name: 'Alice' } }] });
+  });
+
+  it('counts the people behind unmerged commits by who they are, not by each git name', () => {
+    const commits = [
+      commit('c1', 'Alice', 'feat: one'),
+      commit('c2', 'alice-z', 'feat: two'),
+      commit('c3', 'carol', 'fix: three'),
+    ].map((c) => attributed(members, c));
+    expect(unmergedOf(commits)).toEqual({ commits: 3, authors: 2 });
+    expect(unmergedOf([])).toEqual({ commits: 0, authors: 0 });
   });
 });

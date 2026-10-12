@@ -219,7 +219,7 @@ describe('Release', () => {
     expect(report.repos.find((r) => r.name === 'fx-example-api')?.source?.sha).toBe('d1');
   });
 
-  it('says what each release would carry: both heads, their versions and the commits going out', async () => {
+  it('says what each release would carry: both heads, their versions and how much is not merged', async () => {
     const s = await stage();
     s.codeHost.files.set(
       'fx/fx-example-api d1:package.json',
@@ -237,8 +237,8 @@ describe('Release', () => {
       source: { branch: 'dev', sha: 'd1', message: 'head', version: '1.3.0' },
       target: { branch: 'main', sha: 'm1', version: '1.2.0' },
       version_file: 'package.json',
-      // The bot's commit is left out, as the merge check leaves it out.
-      changes: [{ sha: 'c1', author: { id: 'alice', name: 'Alice' }, message: 'feat: m-1 thing' }],
+      // Counted, not listed; the bot's commit is left out, as the merge check leaves it out.
+      unmerged: { commits: 1, authors: 1 },
       note: null,
     });
     // A requirements file declares no version, and a single branch has no target.
@@ -246,10 +246,10 @@ describe('Release', () => {
       source: { branch: 'master', version: null },
       target: null,
       version_file: null,
-      changes: null,
+      unmerged: null,
     });
     // A repository without its source branch carries nothing anyone could name.
-    expect(legacy).toMatchObject({ source: null, target: null, changes: null });
+    expect(legacy).toMatchObject({ source: null, target: null, unmerged: null });
     // The checks and the summary share the host's answers rather than asking twice.
     const asked = (q: string) => s.codeHost.queries.filter((x) => x === q).length;
     expect(asked('file fx/fx-example-api d1:package.json')).toBe(1);

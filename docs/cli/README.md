@@ -266,7 +266,7 @@ Examples:
 ```bash
 fx release check
 fx release check --format json
-fx release check fx-example-api --only merge --format json   # the commits behind the finding
+fx release check fx-example-api --only merge
 ```
 
 ## `fx completion`

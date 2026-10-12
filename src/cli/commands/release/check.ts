@@ -13,7 +13,7 @@ export default class ReleaseCheckCommand extends FxCommand {
   static override examples = [
     '<%= config.bin %> release check',
     '<%= config.bin %> release check --format json',
-    '<%= config.bin %> release check fx-example-api --only merge --format json   # the commits behind the finding',
+    '<%= config.bin %> release check fx-example-api --only merge',
   ];
   static override strict = false;
   static override args = {
