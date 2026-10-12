@@ -28,8 +28,17 @@ jobs:
       - run: npm test && npm run test:bun && npm run test:e2e
       - run: node scripts/check-package.mjs
       - run: npm run site:build && npm run site:check
+      # npm refuses even a dry run over a published version, so between a
+      # release and the next version bump there is nothing to validate.
       - name: Validate public packaging without publishing
-        run: node scripts/publish.mjs --dry-run
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "$name@$version is already published; skipping"
+          else
+            node scripts/publish.mjs --dry-run
+          fi
 
   # Native Windows acceptance (docs/design/windows.md). Manual until the suite
   # passes on windows-latest; Jenkinsfile.windows is the internal equivalent.
