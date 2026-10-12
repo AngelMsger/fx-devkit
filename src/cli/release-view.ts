@@ -34,16 +34,17 @@ const NARROWEST_MESSAGE = 24;
 export function releaseText(report: ReleaseReport, view: ReleaseView): string {
   const { display } = view;
   const { findings } = report;
-  if (findings.length === 0) return `${display.paint('quiet', '(none)')}\n`;
-  const repos = [...new Set(findings.map((f) => f.id))];
+  // Every repository is named with what it would ship, even when the findings it has
+  // are all said once for every repository.
+  const repos = [...new Set([...report.repos.map((r) => r.name), ...findings.map((f) => f.id)])];
+  if (repos.length === 0) return `${display.paint('quiet', '(none)')}\n`;
   const shared = repos.length > 1 ? sharedFindings(findings, repos.length) : [];
   const own = (repo: string): ReleaseFinding[] =>
     findings.filter((f) => f.id === repo && !shared.some((s) => sameFinding(s, f)));
   const passed = (repo: string): boolean => own(repo).every((f) => f.level === 'ok');
-  const listed = repos.filter((repo) => own(repo).length > 0);
-  const expanded = view.details ? listed : listed.filter((repo) => !passed(repo));
-  const quiet = listed.filter((repo) => !expanded.includes(repo));
-  const row = rowOf(display, Math.max(...findings.map((f) => widthOf(f.group))));
+  const expanded = view.details ? repos : repos.filter((repo) => !passed(repo));
+  const quiet = repos.filter((repo) => !expanded.includes(repo));
+  const row = rowOf(display, Math.max(0, ...findings.map((f) => widthOf(f.group))));
   const described = new Map(report.repos.map((r) => [r.name, r]));
   const sections = [
     ...(shared.length === 0
@@ -120,14 +121,17 @@ function carried(display: Display, repo: ReleaseRepo | undefined): string[] {
   const shipped = shipping(repo);
   const lines =
     shipped === undefined ? [] : display.wrap(sentence(shipped), room).map((l) => `${INDENT}${l}`);
-  return [...lines, ...noted(display, repo, INDENT)];
+  return [...lines, ...remarks(display, repo, INDENT)];
 }
 
-function noted(display: Display, repo: ReleaseRepo, indent: string): string[] {
-  if (repo.note === null) return [];
+// What the host could not say about the repository, then the manifest's note.
+function remarks(display: Display, repo: ReleaseRepo, indent: string): string[] {
   const room = Math.max(display.room(widthOf(indent)), NARROWEST_MESSAGE);
-  return display
-    .wrap(`note: ${repo.note}`, room)
+  return [
+    ...repo.unanswered.map((u) => `${u.field} unknown: ${u.reason}`),
+    ...(repo.note === null ? [] : [`note: ${repo.note}`]),
+  ]
+    .flatMap((said) => display.wrap(said, room))
     .map((l) => `${indent}${display.paint('quiet', l)}`);
 }
 
@@ -210,7 +214,7 @@ function okLines(
       return [
         `${INDENT}${name}${first === '' ? '' : `${gap(name, width)}${GUTTER}${first}`}`,
         ...rest.map((l) => `${under}${l}`),
-        ...(repo === undefined ? [] : noted(display, repo, under)),
+        ...(repo === undefined ? [] : remarks(display, repo, under)),
       ];
     }),
   ];

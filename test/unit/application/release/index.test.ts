@@ -240,6 +240,7 @@ describe('Release', () => {
       // Counted, not listed; the bot's commit is left out, as the merge check leaves it out.
       unmerged: { commits: 1, authors: 1 },
       note: null,
+      unanswered: [],
     });
     // A requirements file declares no version, and a single branch has no target.
     expect(data).toMatchObject({
@@ -255,6 +256,19 @@ describe('Release', () => {
     expect(asked('file fx/fx-example-api d1:package.json')).toBe(1);
     expect(asked('commit fx/fx-example-api d1')).toBe(1);
     expect(asked('compare fx/fx-example-api m1..d1')).toBe(1);
+  });
+
+  it('says which question to the host failed, even one no check asks', async () => {
+    const s = await stage();
+    s.codeHost.files.set('fx/fx-example-api d1:package.json', '{"version":"1.3.0"}');
+    // Only the description reads the target's version, so only it can say this failed.
+    s.codeHost.fileFailures.set('fx/fx-example-api m1:package.json', new Error('timed out'));
+    const report = await run(s);
+    expect(report.repos.find((r) => r.name === 'fx-example-api')).toMatchObject({
+      source: { version: '1.3.0' },
+      target: { version: null },
+      unanswered: [{ field: 'target.version', reason: expect.stringContaining('timed out') }],
+    });
   });
 
   it('selects by name or tag, and refuses a name it does not know', async () => {

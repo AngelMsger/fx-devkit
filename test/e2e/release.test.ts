@@ -219,6 +219,16 @@ describe('release', () => {
     const report = one.json() as Report;
     expect(report.findings.map((f) => `${f.group}:${f.id}:${f.level}`)).toEqual(['merge:b:ok']);
     expect(report.ok).toBe(true);
+    // A global flag between the topic and the command does not make `check` a repository.
+    const flagged = fx(
+      ['release', '--format', 'json', 'check', 'b', '--only', 'merge'],
+      s.env,
+      s.ws,
+    );
+    expect(flagged.status, flagged.stderr).toBe(0);
+    expect((flagged.json() as { repos: { name: string }[] }).repos.map((r) => r.name)).toEqual([
+      'b',
+    ]);
     const nope = fx(['release', 'check', '--details', 'nope', '--format', 'json'], s.env, s.ws);
     expect(nope.status).toBe(6);
     expect(nope.error().code).toBe('REPO_NOT_FOUND');
@@ -277,7 +287,11 @@ describe('release', () => {
       target: { branch: 'main', message: 'one' },
       unmerged: { commits: 1, authors: 1 },
     });
-    expect(repos[1]).toMatchObject({ unmerged: { commits: 0, authors: 0 }, note: null });
+    expect(repos[1]).toMatchObject({
+      unmerged: { commits: 0, authors: 0 },
+      note: null,
+      unanswered: [],
+    });
     // The summary still leaves the passing findings out; what ships is not a finding.
     expect(run.json()).toMatchObject({ output_mode: 'summary' });
   });

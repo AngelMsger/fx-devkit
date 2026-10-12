@@ -1,6 +1,8 @@
 // The version a repository declares for itself, read from the same dependency file
-// the deps check reads. Like those parsers this one is shallow: it finds the version
-// a person wrote, it does not run the build that might compute another one.
+// the deps check reads. It finds the version a person wrote, it does not run the build
+// that might compute another one; TOML is parsed, and comments never count.
+
+import { parse } from 'smol-toml';
 
 export type VersionReader = (text: string) => string | undefined;
 
@@ -37,18 +39,21 @@ function packageVersion(text: string): string | undefined {
 
 // [project] is the standard table; Poetry projects keep theirs under [tool.poetry].
 function pyprojectVersion(text: string): string | undefined {
-  let table = '';
-  const found = new Map<string, string>();
-  for (const line of text.split('\n')) {
-    const header = /^\s*\[([^\]]+)\]\s*$/.exec(line);
-    if (header?.[1] !== undefined) {
-      table = header[1].trim();
-      continue;
-    }
-    const version = /^\s*version\s*=\s*["']([^"']+)["']/.exec(line)?.[1];
-    if (version !== undefined && !found.has(table)) found.set(table, version);
+  let doc: unknown;
+  try {
+    doc = parse(text);
+  } catch {
+    // A file that is not TOML declares nothing fx can read.
+    return undefined;
   }
-  return found.get('project') ?? found.get('tool.poetry');
+  return stringAt(doc, ['project', 'version']) ?? stringAt(doc, ['tool', 'poetry', 'version']);
+}
+
+function stringAt(doc: unknown, path: readonly string[]): string | undefined {
+  let at = doc;
+  for (const key of path)
+    at = typeof at === 'object' && at !== null ? (at as Record<string, unknown>)[key] : undefined;
+  return typeof at === 'string' ? at : undefined;
 }
 
 // The project's own <version>, else the one it inherits from <parent>; a single
@@ -83,12 +88,38 @@ function pomValues(text: string): Map<string, string> {
 
 // `version = '1.2.3'` (Groovy also allows `version '1.2.3'`) at the top level of the build.
 function gradleVersion(text: string): string | undefined {
-  for (const line of text.split('\n'))
+  for (const line of withoutComments(text).split('\n'))
     if (!line.startsWith(' ') && !line.startsWith('\t')) {
       const version = /^version\s*=?\s*["']([^"']+)["']/.exec(line)?.[1];
       if (version !== undefined) return version;
     }
   return undefined;
+}
+
+// A build script without its // and /* */ comments; a string such as '**/*.java' keeps
+// what looks like one, and a block comment keeps its line breaks.
+function withoutComments(text: string): string {
+  let kept = '';
+  let quote: string | undefined;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i] ?? '';
+    if (quote !== undefined) {
+      const escaped = c === '\\' ? (text[i + 1] ?? '') : '';
+      kept += c + escaped;
+      i += escaped.length;
+      if (c === quote) quote = undefined;
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      kept += c;
+    } else if (text.startsWith('//', i) || text.startsWith('/*', i)) {
+      const block = text[i + 1] === '*';
+      const end = block ? text.indexOf('*/', i + 2) : text.indexOf('\n', i);
+      const stop = end === -1 ? text.length : end + (block ? 2 : 0);
+      kept += block ? text.slice(i, stop).replace(/[^\n]/g, '') : '';
+      i = stop - 1;
+    } else kept += c;
+  }
+  return kept;
 }
 
 function propertiesVersion(text: string): string | undefined {

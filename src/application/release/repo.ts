@@ -1,11 +1,18 @@
 // What one repository's release would carry: the head of each branch, the version
 // declared at each head, and how many people's commits the source has and the target
-// lacks. It describes, it does not judge; whatever it cannot learn is null, and the
-// checks' findings already say why.
+// lacks. It describes, it does not judge. Whatever it cannot learn is null, and when
+// that is because a question to the host failed, `unanswered` says which and why: some
+// of these questions, such as the target's version, no check asks.
 
+import { asDevkitError } from '../../domain/errors.js';
 import { DEPENDENCY_FILES } from '../../domain/release/deps.js';
 import { attributed, peopleCommits, unmergedOf } from '../../domain/release/merge.js';
-import type { AttributedCommit, ReleaseHead, ReleaseRepo } from '../../domain/release/types.js';
+import type {
+  AttributedCommit,
+  ReleaseHead,
+  ReleaseRepo,
+  Unanswered,
+} from '../../domain/release/types.js';
 import {
   declaredVersion,
   GRADLE_PROPERTIES,
@@ -23,18 +30,20 @@ export async function describeRepo(ctx: CheckContext, outcome: FactsOutcome): Pr
     version_file: null,
     unmerged: null,
     note: ctx.policy.note ?? null,
+    unanswered: [],
   };
   if (outcome.kind !== 'facts') return blank;
   const { facts } = outcome;
   const { source, target } = facts;
   if (source === undefined) return blank;
-  const file = await quietly(() => versionFileAt(facts, source.sha));
+  const asked = new Questions();
+  const file = await asked.about('version_file', () => versionFileAt(facts, source.sha));
   const [sourceHead, targetHead, changes] = await Promise.all([
-    headOf(facts, source, file),
-    target === undefined ? null : headOf(facts, target, file),
+    headOf(asked, facts, source, 'source', file),
+    target === undefined ? null : headOf(asked, facts, target, 'target', file),
     target === undefined
       ? undefined
-      : quietly(() => changesBetween(ctx, facts, target.sha, source.sha)),
+      : asked.about('unmerged', () => changesBetween(ctx, facts, target.sha, source.sha)),
   ]);
   const versioned = sourceHead.version !== null || (targetHead?.version ?? null) !== null;
   return {
@@ -43,17 +52,50 @@ export async function describeRepo(ctx: CheckContext, outcome: FactsOutcome): Pr
     target: targetHead,
     version_file: versioned ? (file ?? null) : null,
     unmerged: changes === undefined ? null : unmergedOf(changes),
+    unanswered: asked.unanswered(),
   };
 }
 
+// The order the report names what it could not learn, whatever order the host failed in.
+const FIELDS = [
+  'version_file',
+  'source.commit',
+  'source.version',
+  'target.commit',
+  'target.version',
+  'unmerged',
+];
+
+// The questions put to the host, keeping the reason for each one that failed.
+class Questions {
+  private readonly failed: Unanswered[] = [];
+
+  async about<T>(field: string, ask: () => Promise<T>): Promise<T | undefined> {
+    try {
+      return await ask();
+    } catch (err) {
+      this.failed.push({ field, reason: asDevkitError(err).message });
+      return undefined;
+    }
+  }
+
+  unanswered(): Unanswered[] {
+    return [...this.failed].sort((a, b) => FIELDS.indexOf(a.field) - FIELDS.indexOf(b.field));
+  }
+}
+
 async function headOf(
+  asked: Questions,
   facts: RepoFacts,
   branch: Branch,
+  side: 'source' | 'target',
   file: string | undefined,
 ): Promise<ReleaseHead> {
   const [commit, version] = await Promise.all([
-    quietly(() => facts.host.commit(facts.ref, branch.sha)),
-    file === undefined ? undefined : quietly(() => versionAt(facts, file, branch.sha)),
+    asked.about(`${side}.commit`, () => facts.host.commit(facts.ref, branch.sha)),
+    file === undefined
+      ? undefined
+      : asked.about(`${side}.version`, () => versionAt(facts, file, branch.sha)),
   ]);
   return {
     branch: branch.name,
@@ -93,13 +135,4 @@ async function changesBetween(
 
 function gradle(file: string): boolean {
   return file.startsWith('build.gradle');
-}
-
-// Whatever the host could not say stays unknown here; the checks report the failure.
-async function quietly<T>(ask: () => Promise<T>): Promise<T | undefined> {
-  try {
-    return await ask();
-  } catch {
-    return undefined;
-  }
 }

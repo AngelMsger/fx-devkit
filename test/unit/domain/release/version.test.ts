@@ -17,6 +17,16 @@ describe('declaredVersion', () => {
     expect(declaredVersion('pyproject.toml', '[tool.black]\nversion = "24"\n')).toBeUndefined();
   });
 
+  it('reads TOML as TOML: commented headers, dynamic versions and other tables', () => {
+    expect(declaredVersion('pyproject.toml', '[project] # metadata\nversion = "1.0.0"\n')).toBe(
+      '1.0.0',
+    );
+    const dynamic =
+      '[project]\ndynamic = ["version"]\n[tool.other] # settings\nversion = "9.9.9"\n';
+    expect(declaredVersion('pyproject.toml', dynamic)).toBeUndefined();
+    expect(declaredVersion('pyproject.toml', '[project\nversion = "1"')).toBeUndefined();
+  });
+
   it("reads the project's own <version>, else its parent's, and resolves one property", () => {
     const pom = (own: string) => `<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -46,6 +56,14 @@ describe('declaredVersion', () => {
       undefined,
     );
     expect(declaredVersion('gradle.properties', 'group=g\nversion=1.2.3\n')).toBe('1.2.3');
+  });
+
+  it('never takes a Gradle version from a comment, nor mistakes a glob for one', () => {
+    const block = "/*\nversion = '0.1.0'\n*/\n// version = '0.0.9'\nversion = '1.2.3'\n";
+    expect(declaredVersion('build.gradle', block)).toBe('1.2.3');
+    const glob =
+      "sourceSets { main { java { include '**/*.java' } } }\nversion = '1.2.4' // bumped\n";
+    expect(declaredVersion('build.gradle', glob)).toBe('1.2.4');
   });
 
   it('knows no version in a file that cannot declare one', () => {

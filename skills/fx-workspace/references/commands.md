@@ -179,7 +179,8 @@ structured recovery errors before post-repair findings are collected.
 [--jobs]` covers repositories selected by manifest release policy; `fx release` is its
 compatibility name. It is read-only: it never merges, tags, publishes or deploys.
 
-Each `repos[]` entry is `{name, source, target, version_file, unmerged, note}`. `source`
+Each `repos[]` entry is `{name, source, target, version_file, unmerged, note,
+unanswered}`. `source`
 and `target` are the branch heads `{branch, sha, date, message, version}`; `version` is
 what the repository's dependency file declares at that commit, null when it declares
 none. `target` is null for a repository releasing from one branch, and both are null
@@ -187,7 +188,11 @@ when the code host was not asked or did not answer, which the findings explain.
 `unmerged` is `{commits, authors}`: how many people's commits the source has that the
 target lacks, and how many people wrote them; null when not compared. To read those
 commits, ask the code host's own CLI for the range from `target.sha` to `source.sha`;
-`fx repo show <repo>` gives where the repository lives on the host.
+`fx repo show <repo>` gives where the repository lives on the host. `unanswered[]` lists
+each question to the code host that failed as `{field, reason}`, where `field` is the
+value left null (`version_file`, `source.commit`, `source.version`, `target.commit`,
+`target.version`, `unmerged`); a null without an entry means the repository declares
+none.
 
 Evidence is grouped by check:
 

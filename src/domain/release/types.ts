@@ -53,6 +53,16 @@ export interface ReleaseRepo {
   readonly unmerged: Unmerged | null;
   // Why the manifest lets this repository deviate from the workspace policy.
   readonly note: string | null;
+  // The questions to the code host that failed, so a null above is not mistaken for
+  // "declares nothing" or "nothing to merge".
+  readonly unanswered: readonly Unanswered[];
+}
+
+export interface Unanswered {
+  // The field left null: version_file, source.commit (its date and message),
+  // source.version, the same two for target, or unmerged.
+  readonly field: string;
+  readonly reason: string;
 }
 
 export type ReleaseReport = Report<Check> & { readonly repos: readonly ReleaseRepo[] };

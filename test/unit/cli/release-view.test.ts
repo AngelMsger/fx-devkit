@@ -37,6 +37,7 @@ const unknown = (name: string): ReleaseRepo => ({
   version_file: null,
   unmerged: null,
   note: null,
+  unanswered: [],
 });
 
 const head = (branch: string, sha: string, version: string | null): ReleaseHead => ({
@@ -197,5 +198,51 @@ it('counts the commits and the people behind them, however many there are', () =
     'api  1 fail',
     '  main a1a1a1a, dev d1d1d1d not merged: 120 commits by 1 person',
     '  merge  fail  120 commits on dev not merged into main',
+  ]);
+});
+
+it('names every repository with what it would ship, even when all its findings are shared', () => {
+  const behind = (name: string, sha: string): ReleaseRepo => ({
+    ...unknown(name),
+    source: head('dev', `d${sha}`, '1.3.0'),
+    target: head('main', `m${sha}`, '1.2.0'),
+    unmerged: { commits: 1, authors: 1 },
+  });
+  const merge = (repo: string) =>
+    releaseFinding('merge', repo, 'fail', '1 commit on dev not merged into main');
+  const report = checklist(
+    [merge('api'), merge('web')],
+    [behind('api', '111111'), behind('web', '222222')],
+  );
+  const lines = [
+    'Every repository',
+    '  merge  fail  1 commit on dev not merged into main',
+    '',
+    'Otherwise ok',
+    '  api  1.2.0  main m111111, dev d111111 (1.3.0) not merged: 1 commit by 1 person',
+    '  web  1.2.0  main m222222, dev d222222 (1.3.0) not merged: 1 commit by 1 person',
+    '',
+  ];
+  expect(releaseText(report, { display: PLAIN, details: false })).toBe(lines.join('\n'));
+  const detailed = releaseText(report, { display: PLAIN, details: true });
+  expect(detailed).toContain('api  ok\n  1.2.0  main m111111, dev d111111 (1.3.0) not merged');
+  expect(detailed).toContain('web  ok\n  1.2.0  main m222222');
+});
+
+it('says which question to the host failed, beside the note', () => {
+  const api: ReleaseRepo = {
+    ...unknown('api'),
+    source: head('dev', 'd1d1d1d1d1', '1.3.0'),
+    target: head('main', 'a1a1a1a1a1', null),
+    unmerged: { commits: 0, authors: 0 },
+    note: 'frozen until the audit',
+    unanswered: [{ field: 'target.version', reason: 'timed out reading package.json' }],
+  };
+  const text = releaseText(checklist(passing('api'), [api]), { display: PLAIN, details: false });
+  expect(text.split('\n').slice(0, 4)).toEqual([
+    'All checks ok',
+    '  api  main a1a1a1a, dev merged',
+    '       target.version unknown: timed out reading package.json',
+    '       note: frozen until the audit',
   ]);
 });

@@ -42,8 +42,8 @@ export function normalizeArgv(argv: readonly string[], commandIds: readonly stri
     words.push(token);
     const attempted = words.join(' ');
     // A command may share its name with a topic (`release`, `release check`): the
-    // longer name wins when the next word completes it.
-    if (commandIds.includes(attempted) && !commandIds.includes(`${attempted} ${argv[i + 1]}`))
+    // longer name wins when the next word, past any global flags, completes it.
+    if (commandIds.includes(attempted) && !commandIds.includes(`${attempted} ${nextWord(argv, i)}`))
       return [...words, ...globals, ...argv.slice(i + 1)];
     if (!commandIds.some((id) => id.startsWith(`${attempted} `)))
       return globals.length === 0 ? [...argv] : [...words, ...globals, ...argv.slice(i + 1)];
@@ -80,6 +80,16 @@ export function routeArgv(
   if (stray !== undefined) return unknown(`${topic} ${stray}`, children, `${topic} --help`);
   if (scan.strayFlag !== undefined) return { kind: 'stray-flag', topic, flag: scan.strayFlag };
   return { kind: 'run' };
+}
+
+// The first argv entry after `index` that no global flag owns.
+function nextWord(argv: readonly string[], index: number): string | undefined {
+  for (let i = index + 1; i < argv.length; i += 1) {
+    const taken = globalAt(argv, i);
+    if (taken === undefined) return argv[i];
+    i = taken.last;
+  }
+  return undefined;
 }
 
 // A global flag that oclif can be handed as it stands, with the argv entries it owns.
