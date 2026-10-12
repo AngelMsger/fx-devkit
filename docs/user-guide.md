@@ -33,8 +33,8 @@ administrator privileges or Developer Mode. See [platform support](support.md#pl
 
 The internal distribution uses `@fx/devkit` through your team's private Registry. Obtain its URL and npm
 access from your team. Existing npm scope configuration is reused; `FX_REGISTRY`
-is an optional override, not a required installation setting. The public npm
-release is on hold. These commands require the version to be available in that Registry.
+is an optional override, not a required installation setting. These commands
+require the version to be available in that Registry.
 
 ```sh
 npm login --registry=https://npm.example.com/ --scope=@fx
@@ -62,8 +62,7 @@ fx.cmd --version
 ### Public package
 
 The public distribution uses `@angelmsger/fx` from npmjs. It does not require your
-team's private Registry. Public publication is currently on hold; use this command
-only once your selected release is available.
+team's private Registry.
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/

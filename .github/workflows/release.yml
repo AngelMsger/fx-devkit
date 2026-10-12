@@ -1,0 +1,58 @@
+# Public release: pushing a v<version> tag to GitHub publishes @angelmsger/fx.
+# Same contract as the sibling CLIs (docs/releasing.md); the internal channel
+# publishes @fx/devkit from Jenkinsfile on the private code host.
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # OIDC token for npm trusted publishing
+env:
+  FX_DISTRIBUTION: public
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+      # No registry-url: it writes an .npmrc with an empty token, and npm then
+      # skips the trusted-publishing exchange. Node 24 bundles npm >= 11.5.1.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.14.0
+          package-manager-cache: false
+      - run: node scripts/select-distribution.mjs public
+      - run: node scripts/check-release.mjs
+      - run: npm ci
+      - run: npm --prefix docs/website ci
+      - run: npm run lint && npm run typecheck && npm run docs:check
+      - run: npm test && npm run test:e2e
+      - run: npm run build && node scripts/check-package.mjs
+
+      # Idempotent: a re-run refreshes the assets of an existing release.
+      - name: Create or update the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/release"
+          (cd "$RUNNER_TEMP/release" && sha256sum *.tgz > checksums.txt)
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$RUNNER_TEMP"/release/* --clobber
+          else
+            gh release create "$TAG_NAME" "$RUNNER_TEMP"/release/* --title "$TAG_NAME" --generate-notes
+          fi
+
+      # Trusted publishing (OIDC): no token. Skipped when the version is
+      # already on npmjs, so the workflow can be re-run safely.
+      - name: Publish to npmjs
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "$name@$version is already published; skipping"
+          else
+            node scripts/publish.mjs
+          fi

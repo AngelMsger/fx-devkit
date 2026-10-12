@@ -8,7 +8,7 @@ if (process.argv.length !== 3)
   throw new Error('Usage: node scripts/select-distribution.mjs internal|public');
 const file = new URL('../package.json', import.meta.url);
 const pkg = JSON.parse(readFileSync(file, 'utf8'));
-if (pkg.bin?.fx !== './bin/fx.js') throw new Error('Unexpected fx binary configuration.');
+if (pkg.bin?.fx !== 'bin/fx.js') throw new Error('Unexpected fx binary configuration.');
 pkg.name = selected.packageName;
 pkg.publishConfig = { access: selected.access };
 for (const key of ['homepage', 'repository', 'bugs']) delete pkg[key];

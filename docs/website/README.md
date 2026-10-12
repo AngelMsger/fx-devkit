@@ -66,16 +66,14 @@ Only `docs/website/dist/` is deployable; build state and source files stay outsi
 
 Set `FX_DISTRIBUTION=public` for the npmjs package name and public installation
 instructions. The Pages workflow validates root and repository-subpath routes,
-builds against Pages origin metadata, and deploys only with
-`PUBLIC_RELEASE_ENABLED=true`. Leave this gate unset while public release is on
-hold. Public builds use the public repository link and allow indexing; internal
+builds against Pages origin metadata, and deploys `main`. Public builds use the public repository link and allow indexing; internal
 builds use the optional platform-supplied source link and discourage indexing.
 Neither indexing metadata nor private repository visibility provides website access control.
 
 Channel-specific Markdown is wrapped in `<!-- distribution:internal -->` or
 `<!-- distribution:public -->` blocks, closed by `<!-- /distribution -->`.
 The source README can show both; deployed user pages show only their own channel.
-Keep both blocks and the matching translations accurate. See [delivery](../delivery.md)
+Keep both blocks and the matching translations accurate. See [releasing](../releasing.md)
 for maintainer-side configuration; it is not a user website route.
 
 ## Languages and translation coverage

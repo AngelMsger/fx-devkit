@@ -10,7 +10,7 @@ test('the site accepts user guides and rejects maintainer source documents', () 
     'AGENTS.md',
     'CONTRIBUTING.md',
     'docs/public-release.md',
-    'docs/delivery.md',
+    'docs/releasing.md',
     'docs/validation.md',
     'docs/design/runtime.md',
     'docs/eval/README.md',

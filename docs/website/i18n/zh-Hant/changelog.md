@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 在 npmjs 發佈公開套件 `@angelmsger/fx`，並為每個版本標籤在 GitHub Release 附上 tarball。內部的 `@fx/devkit` 管道維持不變。
+
 ## 0.10.0 (2026-10-10)
 
 - 不帶目標的 `fx can` 列出目前工作區可以查詢的能力：manifest 可繫結的每個能力一列，環境級能力按平台實例各一列，包含作用域、provider、配套工具和用途。未繫結的能力保留一列，provider 為空。該清單只讀取繫結；查詢單一能力時仍會檢查就緒狀態。

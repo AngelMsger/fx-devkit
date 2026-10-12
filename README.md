@@ -38,8 +38,8 @@ You also need a team manifest. Use an existing source or
 
 ## Install
 
-The internal package is `@fx/devkit`; the separately gated public package is
-`@angelmsger/fx`. Both provide `fx`. Public publication is currently paused.
+The internal package is `@fx/devkit`; the public package is `@angelmsger/fx` on
+npmjs. Both provide `fx`.
 
 <!-- distribution:internal -->
 
@@ -57,7 +57,7 @@ fx --version
 
 <!-- distribution:public -->
 
-When a public release is available, install from npmjs:
+Install from npmjs:
 
 ```sh
 npm install -g @angelmsger/fx --registry=https://registry.npmjs.org/ --@angelmsger:registry=https://registry.npmjs.org/

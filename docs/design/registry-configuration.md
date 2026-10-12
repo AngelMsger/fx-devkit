@@ -8,8 +8,7 @@ the distribution and npm scope; `src/domain/distribution.js` owns that mapping.
 | `@fx/devkit`     | No guessed public source | Private Registry selected by injected npmrc or `FX_REGISTRY` | restricted |
 | `@angelmsger/fx` | npmjs                    | npmjs only                                                   | public     |
 
-Public release remains gated as described in [delivery](../delivery.md).
-Preparing a public artifact does not publish it.
+Both channels are released as described in [releasing](../releasing.md).
 
 ## Runtime selection
 
@@ -67,4 +66,4 @@ Runtime discovery does not relax either publication boundary.
 metadata/README/LICENSE and source maps. Both channel artifacts must pass.
 Tests cover a real npm client using isolated configuration and a loopback Registry;
 actual release acceptance still requires the Registry and installation checks in
-[delivery](../delivery.md).
+[releasing](../releasing.md).

@@ -128,8 +128,8 @@
       "description": "fx で既存のワークスペースを照会・保守します。"
     }
   },
-  "publicRelease": "公開リリースは停止中",
-  "publicInstallNote": "公開は現在停止中です。チームの内部パッケージを利用してください。",
+  "publicRelease": "公開プレビュー",
+  "publicInstallNote": "npmjs からインストールできます。Node.js 22 以降が必要です。",
   "installTitle": "インストール",
   "navInstall": "インストール",
   "demoTitle": "ひとつの環境、3つの使い方。",
