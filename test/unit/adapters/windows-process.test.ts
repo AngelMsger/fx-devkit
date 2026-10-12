@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -99,6 +99,28 @@ describe('portable command execution', () => {
     expect(JSON.parse(result.stdout)).toEqual({ args, stdin: '中文\r\n', env: 'value' });
     expect(existsSync(marker)).toBe(false);
   });
+
+  it.runIf(process.platform === 'win32')(
+    'lets a batch file read its own parameters, as mvn.cmd does',
+    async () => {
+      const dir = tempDir('fx-batch reader-');
+      writeFileSync(
+        path.join(dir, 'reader.cmd'),
+        '@echo off\r\nif "%~1" == "-f" (echo flag:%~2) else (echo other:%~1)\r\n',
+      );
+      const run = new NodeProcess();
+      const env = { PATH: dir };
+      for (const [args, stdout] of [
+        [['-f', 'pom.xml'], 'flag:pom.xml\r\n'],
+        [['a b'], 'other:a b\r\n'],
+        [['50%'], 'other:50%\r\n'],
+      ] as const) {
+        const result = await run.run(['reader', ...args], { env, timeoutMs: 5000 });
+        expect(result.code, result.stderr).toBe(0);
+        expect(result.stdout).toBe(stdout);
+      }
+    },
+  );
 
   it('cleans up helpers when a command is aborted', async () => {
     const dir = tempDir('fx-tree-');

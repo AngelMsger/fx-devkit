@@ -22,9 +22,11 @@ Command presentation is independent of execution, as specified in the
 The process adapter shares one resolver between detection and execution. It
 handles PATH casing, PATHEXT order, explicit paths and invocation environment
 overrides. Bare names search PATH only, not an implicit current directory.
-Native executables launch directly. A batch shim runs under cmd.exe, which parses
-its arguments again where the shim expands `%*`, so fx escapes each argument for
-both parses.
+Native executables launch directly. A batch file runs under cmd.exe, and its
+arguments are read again by the batch itself (`%~1`) or, where it forwards `%*`,
+by cmd and the program it starts. fx quotes each argument so every reader sees it
+whole: inner quotes doubled, percent signs kept from expansion, delayed expansion
+off.
 No caller-facing raw-shell option is introduced. Missing commands remain exit
 127, and piped output remains byte-decoded UTF-8 with diagnostics separate.
 

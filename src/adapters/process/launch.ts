@@ -1,8 +1,10 @@
 // Start an executable that findExecutable resolved. A batch file runs under cmd.exe,
-// which parses the command line once and again wherever the batch expands %*, as the
-// shims npm, Scoop and Chocolatey install do. cross-spawn escapes for that second parse
-// only under node_modules/.bin, so fx starts every batch file itself, with each
-// argument escaped for both parses, and leaves everything else to cross-spawn.
+// which reads the command line first. The batch then reads each argument itself
+// (`%~1`) or hands them all on (`%*`, as the shims npm, Scoop and Chocolatey install
+// do), and cmd reads them again on that line. Caret escaping, as cross-spawn applies
+// it, suits only one of those readers, so fx starts every batch file itself, with each
+// argument inside quotes where cmd leaves metacharacters alone, and leaves everything
+// else to cross-spawn. The encoding follows Rust's standard library (CVE-2024-24576).
 
 import { spawn as spawnNode, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import path from 'node:path';
@@ -10,8 +12,6 @@ import path from 'node:path';
 import spawn from 'cross-spawn';
 
 const BATCH = /\.(?:bat|cmd)$/i;
-// cross-spawn's escaping (lib/util/escape.js), from https://qntm.org/cmd.
-const META = /([()\][%!^"`<>&|;, *?])/g;
 
 export function launch(
   executable: string,
@@ -20,21 +20,19 @@ export function launch(
 ): ChildProcess {
   if (process.platform !== 'win32' || !BATCH.test(executable))
     return spawn(executable, [...args], options);
-  const line = [escapeMeta(path.normalize(executable)), ...args.map(batchArgument)].join(' ');
-  return spawnNode(process.env['comspec'] ?? 'cmd.exe', ['/d', '/s', '/c', `"${line}"`], {
+  const line = [path.normalize(executable), ...args].map(batchArgument).join(' ');
+  // /v:off keeps !name! literal whatever delayed expansion the registry turns on.
+  return spawnNode(process.env['comspec'] ?? 'cmd.exe', ['/d', '/v:off', '/s', '/c', `"${line}"`], {
     ...options,
     windowsVerbatimArguments: true,
   });
 }
 
+// One quoted argument that cmd, the batch and the program it starts all read whole.
+// A quote inside is doubled, so cmd never sees one unbalanced and the program's parser
+// reads the pair back as one; backslashes are doubled only in a run before a quote.
+// Each percent sign is followed by an empty expansion, so no %name% survives to expand.
 function batchArgument(arg: string): string {
-  return escapeMeta(escapeMeta(quoted(arg)));
-}
-
-// The program's own reading of its command line: backslashes are literal except in
-// a run before a quote, so such a run is doubled, before an inner quote and before
-// the closing one.
-function quoted(arg: string): string {
   let text = '"';
   let slashes = 0;
   for (const char of arg) {
@@ -42,12 +40,9 @@ function quoted(arg: string): string {
       slashes += 1;
       continue;
     }
-    text += '\\'.repeat(char === '"' ? slashes * 2 + 1 : slashes) + char;
+    if (char === '"') text += '\\'.repeat(slashes * 2) + '""';
+    else text += '\\'.repeat(slashes) + (char === '%' ? '%%cd:~,%' : char);
     slashes = 0;
   }
   return text + '\\'.repeat(slashes * 2) + '"';
-}
-
-function escapeMeta(text: string): string {
-  return text.replace(META, '^$1');
 }
