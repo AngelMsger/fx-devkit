@@ -28,10 +28,24 @@ export function launch(
 }
 
 function batchArgument(arg: string): string {
-  // Backslashes before a quote, or before the closing quote added below, are doubled.
-  // The lookahead keeps both patterns linear on long runs of backslashes.
-  const quoted = arg.replace(/(?=(\\+?)?)\1"/g, '$1$1\\"').replace(/(?=(\\+?)?)\1$/, '$1$1');
-  return escapeMeta(escapeMeta(`"${quoted}"`));
+  return escapeMeta(escapeMeta(quoted(arg)));
+}
+
+// The program's own reading of its command line: backslashes are literal except in
+// a run before a quote, so such a run is doubled, before an inner quote and before
+// the closing one.
+function quoted(arg: string): string {
+  let text = '"';
+  let slashes = 0;
+  for (const char of arg) {
+    if (char === '\\') {
+      slashes += 1;
+      continue;
+    }
+    text += '\\'.repeat(char === '"' ? slashes * 2 + 1 : slashes) + char;
+    slashes = 0;
+  }
+  return text + '\\'.repeat(slashes * 2) + '"';
 }
 
 function escapeMeta(text: string): string {

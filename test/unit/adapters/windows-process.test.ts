@@ -79,6 +79,8 @@ describe('portable command execution', () => {
       'a"b',
       "a'b",
       'C:\\space dir\\',
+      'C:\\dir\\\\',
+      'a\\\\"b',
       '&|<>^%!()',
       '%PATH%',
       '!PATH!',
