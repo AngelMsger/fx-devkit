@@ -98,6 +98,15 @@ describe('lintManifest', () => {
     ]);
   });
 
+  it('asks for no code host when every repository names its upstream', () => {
+    const workspace: Workspace = {
+      schema_version: 2,
+      defaults: { branch: 'main' },
+      repos: [{ name: 'a', upstream: 'https://git.example.com/team/a.git' }],
+    };
+    expect(lintManifest({ providers, workspace })).toEqual([]);
+  });
+
   it('flags fields that restate a default', () => {
     const workspace: Workspace = {
       schema_version: 2,

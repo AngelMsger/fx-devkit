@@ -22,8 +22,9 @@ import type { ToolInstalled } from '../tool/installed.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { syncGoWork } from '../workspace/go-work.js';
 
-import { documentChecks, skillChecks, toolChecks } from './checks.js';
+import { documentChecks, goWorkChecks, skillChecks, toolChecks } from './checks.js';
 import type { StageResult, SyncStages } from './types.js';
 
 export interface SyncStageInput {
@@ -52,6 +53,7 @@ const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageRe
       posture: input.posture,
     }),
   docs: docsStage,
+  go: goStage,
   skills: skillsStage,
   hooks: async (input) => (await hooksStage(input)) ?? { summary: { unsupported: 0 }, checks: [] },
   mcp: async (input) =>
@@ -131,6 +133,15 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
       files: out.files,
       ...(rules?.details === undefined ? {} : { rules: rules.details }),
     },
+  };
+}
+
+async function goStage(input: SyncStageInput): Promise<StageResult> {
+  const out = await syncGoWork(input.deps, { dryRun: input.dryRun, posture: input.posture });
+  return {
+    summary: { modules: out.modules.length, go_work: out.file?.action ?? 'none' },
+    checks: goWorkChecks(out),
+    details: { ...out },
   };
 }
 

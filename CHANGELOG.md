@@ -4,6 +4,12 @@
 
 ### Added
 
+- Keep a `go.work` at the workspace root when the manifest sets `go.workspace: true`.
+  `fx init` and `fx sync` list every selected checkout that has a `go.mod` at the
+  newest `go` version they require, so each module builds against its siblings'
+  checkouts. A repository not cloned yet is left out, fx replaces or removes only
+  the `go.work` it wrote, and `fx sync --only go` refreshes it alone. `go.work` and
+  `go.work.sum` no longer count as stray root entries in such a workspace.
 - Bind a workspace to GitHub. The `github` code-host provider and the
   `github-actions` ci provider both drive the GitHub CLI `gh`, which joins the
   tool catalog with one sign-in per host for both. `fx release check` reads
@@ -27,6 +33,15 @@
   job or project in CI and error messages. CI evidence gains `head`.
 - Show a repository's `release.note` in the release report, as the manifest schema
   describes.
+
+### Fixed
+
+- Resolve every relative link in the source AGENTS.md that names a file of the
+  manifest source, such as `CONTRIBUTING.md`, in the guide derived at the
+  workspace root. Only links into `README.md`, `docs/` and `skills/` resolved
+  before, so the others pointed at files the root does not have.
+- Stop `fx manifest lint` from asking for a code-host provider when every
+  repository names its `upstream`, since such a workspace reaches no code host.
 
 ## 0.10.1 (2026-10-12)
 

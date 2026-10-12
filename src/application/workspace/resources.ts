@@ -5,6 +5,7 @@ import path from 'node:path';
 import { CLAUDE_GUIDE, DERIVED_GUIDE, marker } from '../../domain/docs/derived.js';
 import { DevkitError } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
+import { GO_WORK, isDerivedGoWork } from '../../domain/workspace/go-work.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { LinkProjectionStore } from '../../ports/projection.js';
 import { applyHarnessChange, readHarnessState } from '../harness/apply.js';
@@ -209,6 +210,14 @@ export class WorkspaceResources {
         ...(before.text === null ? {} : { text: before.text }),
       });
     }
+    const goWork = await this.harness.files.read({ root: input.root, relative: GO_WORK });
+    if (goWork.kind !== 'absent')
+      files.push({
+        kind: 'go_work',
+        file: path.join(input.root, GO_WORK),
+        owned: !input.shared?.length && goWork.text !== null && isDerivedGoWork(goWork.text),
+        ...(goWork.text === null ? {} : { text: goWork.text }),
+      });
     const target = teamSkillsRoot(input.manifestDir);
     const successor =
       input.shared?.length === 1 ? teamSkillsRoot(input.shared[0]!.manifestDir) : undefined;

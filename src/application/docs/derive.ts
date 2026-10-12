@@ -75,12 +75,16 @@ export class DeriveDocs {
     return output;
   }
 
+  // A relative link means a file of the manifest source, as long as one is there;
+  // the derived guide sits elsewhere, so it gets the resolved path.
   private async sourceLinks(text: string): Promise<string> {
-    const links = [
-      ...text.matchAll(/\]\((<?)((?:\.\/)?(?:README\.md|(?:docs|skills)\/[^)#>]+))([^)]*)\)/g),
-    ];
+    const { manifestDir } = this.deps.ctx;
+    const links = [...text.matchAll(/\]\((<?)((?![#/~]|[a-z][\w+.-]*:)[^)#>]+)([^)]*)\)/gi)];
     for (const match of links) {
-      const target = path.resolve(this.deps.ctx.manifestDir, decodeLink(match[2]!));
+      const target = path.resolve(manifestDir, decodeLink(match[2]!));
+      const relative = path.relative(manifestDir, target);
+      const outside = relative === '..' || relative.startsWith(`..${path.sep}`);
+      if (relative === '' || outside || path.isAbsolute(relative)) continue;
       if (!(await this.deps.fs.exists(target))) continue;
       const suffix = match[3]!.replace(/>$/, '');
       text = text.replace(match[0], `](<${target}${suffix}>)`);

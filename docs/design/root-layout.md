@@ -38,6 +38,7 @@ A first-level entry of the root is accounted for when it is one of:
 - the first path segment of a declared repository, selected or not, of a
   repository registered on this machine, or of the manifest source repository;
 - the derived guide, or a person's own `CLAUDE.md` beside it;
+- `go.work` and `go.work.sum`, when the manifest keeps a Go workspace;
 - the first segment of a project path that any host in the `AgentHostSpec`
   inventory reads, whether or not that agent is selected;
 - a file that a bound provider declares as its service preparation;

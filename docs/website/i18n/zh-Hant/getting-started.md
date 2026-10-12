@@ -139,7 +139,7 @@ fx env select --all
 
 `fx status` 標明工作區並顯示未追蹤檔案數。`fx status --dirty` 同時查找已追蹤檔案的修改與新建的未追蹤檔案。JSON 保留 `dirty` 表示已追蹤檔案或索引修改，新增 `uncommitted` 表示任一類未提交工作。被忽略檔案不計入未追蹤工作。空結果說明是未選擇儲存庫，還是沒有儲存庫符合篩選。
 
-工作區根目錄不是 Git 儲存庫，因此 `fx status` 還會回傳 `stray_entries`：根目錄下既不是 checkout、派生指南、Agent 或服務設定，也不是工作台的檔案與目錄。`fx doctor` 在 `root` 群組中逐項列出，等級為警告，不影響就緒判定。
+工作區根目錄不是 Git 儲存庫，因此 `fx status` 還會回傳 `stray_entries`：根目錄下既不是 checkout、派生指南、fx 維護的 Go 工作區、Agent 或服務設定，也不是工作台的檔案與目錄。`fx doctor` 在 `root` 群組中逐項列出，等級為警告，不影響就緒判定。
 
 sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
 

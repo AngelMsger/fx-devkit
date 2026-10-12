@@ -40,7 +40,8 @@ function lintWorkspace(doc: Workspace, ownedRepos: readonly string[] | undefined
   const add = (code: string, path: string, message: string): void => {
     findings.push({ kind: 'workspace', code, path, message });
   };
-  if (doc.providers === undefined) {
+  // A workspace whose every repository names its upstream reaches no code host.
+  if (doc.providers === undefined && doc.repos.some((repo) => repo.upstream === undefined)) {
     add(
       'PROVIDERS_MISSING',
       'providers',

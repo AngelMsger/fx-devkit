@@ -8,6 +8,7 @@ import type { RenderedFile } from '../docs/rendered.js';
 import type { SkillStageOutput } from '../skill/types.js';
 import type { ToolStatus } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import type { GoWorkOutput } from '../workspace/go-work.js';
 
 export function documentChecks(files: readonly RenderedFile[]): PreparationCheck[] {
   return files.map((file) =>
@@ -20,6 +21,22 @@ export function documentChecks(files: readonly RenderedFile[]): PreparationCheck
       { resource: file.path, owner: 'user', ...(file.failure ? { failure: file.failure } : {}) },
     ),
   );
+}
+
+// A person's own go.work stays in charge of their builds; that is worth a warning,
+// not a blocker.
+export function goWorkChecks(output: GoWorkOutput): PreparationCheck[] {
+  const { file } = output;
+  if (file === null) return [];
+  const foreign = file.action === 'foreign';
+  return [
+    preparationCheck(
+      `go:${file.path}`,
+      foreign ? 'blocked' : 'ready',
+      foreign ? 'An existing go.work was not written by fx' : file.result,
+      { resource: file.path, owner: 'user', required: !foreign },
+    ),
+  ];
 }
 
 export function skillChecks(

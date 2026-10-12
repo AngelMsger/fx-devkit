@@ -190,6 +190,17 @@ export const workspaceSchema = z
       .optional()
       .describe('code-host projects this workspace draws on, and who grants access to each'),
     repos: z.array(repoSchema).describe('the repositories that make up the workspace'),
+    go: z
+      .strictObject({
+        workspace: z
+          .boolean()
+          .optional()
+          .describe(
+            'true keeps a go.work at the workspace root over every Go module checked out there',
+          ),
+      })
+      .optional()
+      .describe('how fx treats the Go modules among the repositories'),
     release: releaseSchema.optional(),
     workflows: z
       .array(z.unknown())

@@ -2,11 +2,14 @@
 
 ## [Unreleased]
 
+- manifest 設定 `go.workspace: true` 時，在工作區根目錄維護 `go.work`。`fx init` 與 `fx sync` 會以這些模組要求的最新 `go` 版本，列出所有已選取且頂層有 `go.mod` 的 checkout，讓每個模組以同層儲存庫的 checkout 建置。尚未複製的儲存庫不會列入，fx 只取代或移除自己寫的 `go.work`，`fx sync --only go` 只更新這個檔案。在這樣的工作區中，`go.work` 與 `go.work.sum` 不再算作多餘的根目錄項目。
 - 工作區可以繫結 GitHub。程式碼託管 provider `github` 與 ci provider `github-actions` 都透過 GitHub CLI `gh` 運作；`gh` 加入工具目錄，兩者在每個主機上共用一次登入。`fx release check` 如同對 Bitbucket 與 Jenkins，從 GitHub 讀取分支、提交、檔案以及某個分支最近一次 workflow 執行；ci 環境可以把計入的執行限定為一個分支和一種觸發方式。在 GitHub 上暫時還無法透過 fx 建立 pull request。
 - 將 `fx release` 改名為 `fx release check`，讓名稱表明它檢查發佈而不是執行發佈。`fx release` 作為相容名稱繼續可用。
 - 說明每次發佈將交付的內容。`fx release check` 在每個儲存庫開頭列出目標分支宣告的版本、兩個分支的最新提交，以及來源分支上尚未合併到目標分支的提交數和作者人數；全部檢查都通過的儲存庫也在最後各用一行說明同樣的內容。JSON 報告新增包含這些資訊的 `repos[]`，摘要中也有；既有欄位不變。
 - CI 結論註明它對照的提交，合併檢查改為「未合併到 main」和「未合併回 dev」，CI 與錯誤訊息使用各平台自己的作業或專案名稱。CI 證據新增 `head`。
 - 依 manifest 結構描述的說明，在發佈報告中顯示儲存庫的 `release.note`。
+- 來源 AGENTS.md 中指向 manifest 來源內檔案的相對連結（例如 `CONTRIBUTING.md`），在派生至工作區根目錄的指南中全部解析為來源檔案路徑。先前只解析指向 `README.md`、`docs/` 與 `skills/` 的連結，其餘連結會指向根目錄中不存在的檔案。
+- 當所有儲存庫都寫明 `upstream` 時，`fx manifest lint` 不再要求宣告程式碼託管 provider，因為這樣的工作區不會用到程式碼託管。
 
 ## 0.10.1 (2026-10-12)
 
