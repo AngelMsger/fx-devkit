@@ -5,6 +5,7 @@
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterAll } from 'vitest';
 
@@ -12,8 +13,22 @@ import { afterAll } from 'vitest';
 // long name git and fs.promises.realpath report, so tests compare like with like.
 const sessionRoot = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-test-')));
 // Windows removes a file only once every handle on it closes, so files a process
-// that just ended still held can leave a directory briefly not empty.
-afterAll(() => rmSync(sessionRoot, { recursive: true, force: true, maxRetries: 10 }));
+// that just ended still held can leave a directory briefly not empty. It also
+// refuses to remove a directory a running process still works in, which Node
+// reports as "Permission denied" and does not retry. A hook's detached background
+// worker can outlive the test that started it, so there removal keeps trying.
+afterAll(async () => {
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    try {
+      rmSync(sessionRoot, { recursive: true, force: true, maxRetries: 10 });
+      return;
+    } catch (error) {
+      if (process.platform !== 'win32' || Date.now() > deadline) throw error;
+      await delay(500);
+    }
+  }
+}, 120_000);
 
 // The prefix carries its own separator: mkdtemp appends six random characters.
 export function tempDir(prefix: string): string {
