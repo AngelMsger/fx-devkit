@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { shellLine } from '../../src/domain/shell.js';
+
 import { freshHome, fx, packageName } from './harness.js';
 
 // stderr carries one JSON record per notice.
@@ -209,7 +211,15 @@ describe('fx config', () => {
     );
     // A registration is pinned to the root's real path, whatever the profile spells.
     const pinned = path.join(realpathSync(home), 'ws');
-    const step = `fx init ${pinned} --name team --from https://git.example.com/team/manifest.git`;
+    const step = shellLine([
+      'fx',
+      'init',
+      pinned,
+      '--name',
+      'team',
+      '--from',
+      'https://git.example.com/team/manifest.git',
+    ]);
 
     const preview = fx(['config', 'import', profile, '--dry-run', '--format', 'json'], {
       FX_HOME: home,

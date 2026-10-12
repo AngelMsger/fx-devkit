@@ -87,7 +87,11 @@ export class DeriveDocs {
       if (relative === '' || outside || path.isAbsolute(relative)) continue;
       if (!(await this.deps.fs.exists(target))) continue;
       const suffix = match[3]!.replace(/>$/, '');
-      text = text.replace(match[0], `](<${target}${suffix}>)`);
+      // Markdown reads a backslash before punctuation as an escape (`\.fx` loses
+      // its backslash), so a Windows path is linked with forward slashes, which
+      // Windows also accepts.
+      const link = target.split(path.sep).join('/');
+      text = text.replace(match[0], `](<${link}${suffix}>)`);
     }
     return text;
   }

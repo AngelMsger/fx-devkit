@@ -5,7 +5,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { renderCliReference } from './cli-reference.mjs';
 
@@ -13,10 +13,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const target = path.join(root, 'docs', 'cli', 'README.md');
 const check = process.argv.includes('--check');
 
-const { COMMANDS, COMMAND_ALIASES, EVERYDAY } = await import(
-  path.join(root, 'dist', 'cli', 'commands', 'index.js')
-);
-const { globalFlags } = await import(path.join(root, 'dist', 'cli', 'flags.js'));
+// import() takes a URL; a Windows path would read as one with a drive-letter scheme.
+const built = (/** @type {string[]} */ ...parts) =>
+  pathToFileURL(path.join(root, 'dist', ...parts)).href;
+const { COMMANDS, COMMAND_ALIASES, EVERYDAY } = await import(built('cli', 'commands', 'index.js'));
+const { globalFlags } = await import(built('cli', 'flags.js'));
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 const output = renderCliReference({

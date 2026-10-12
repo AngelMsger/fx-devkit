@@ -105,19 +105,24 @@ describe('extension and supervisor ownership', () => {
     await expectStopped(f.heartbeat);
   });
 
-  it('reaps the worker when its supervisor receives termination', async () => {
-    const f = fixture(30000);
-    const controller = spawn(process.execPath, [f.controller], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    controllers.push(controller);
-    await waitForHeartbeat(f.heartbeat);
-    const exited = once(controller, 'exit');
-    controller.kill('SIGTERM');
-    const [code] = await exited;
-    expect(code).toBe(0);
-    await expectStopped(f.heartbeat);
-  });
+  // Windows has no termination signal a process can handle: kill() ends the supervisor
+  // outright. Tree cleanup there is covered by the session shutdown case below.
+  it.skipIf(process.platform === 'win32')(
+    'reaps the worker when its supervisor receives termination',
+    async () => {
+      const f = fixture(30000);
+      const controller = spawn(process.execPath, [f.controller], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      controllers.push(controller);
+      await waitForHeartbeat(f.heartbeat);
+      const exited = once(controller, 'exit');
+      controller.kill('SIGTERM');
+      const [code] = await exited;
+      expect(code).toBe(0);
+      await expectStopped(f.heartbeat);
+    },
+  );
 
   it('cancels a pending bridge when its native session is shut down', async () => {
     const f = fixture(30000);

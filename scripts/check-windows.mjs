@@ -32,9 +32,37 @@ try {
     ['pwsh.exe', ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']],
   ];
   for (const [name, args] of prerequisites) check(name, name, args);
+  // The stages after the prerequisites are independent, so all of them run and one
+  // pass shows every stage that fails.
+  /** @type {string[]} */
+  const failed = [];
+  /** @param {() => void} stage */
+  const attempt = (stage) => {
+    try {
+      stage();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failed.push(message);
+      console.error(message);
+    }
+  };
   for (const script of ['lint', 'typecheck', 'test', 'test:bun', 'test:e2e', 'docs:check'])
-    check(script, 'npm', ['run', script]);
-  check('package-boundary', process.execPath, ['scripts/check-package.mjs']);
+    attempt(() => check(script, 'npm', ['run', script]));
+  attempt(() => check('package-boundary', process.execPath, ['scripts/check-package.mjs']));
+  attempt(() => installed());
+  if (failed.length > 0) throw new Error(`${failed.length} check(s) failed.`);
+  report.ok = true;
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+} finally {
+  mkdirSync(path.dirname(reportFile), { recursive: true });
+  writeFileSync(reportFile, JSON.stringify(report, null, 2) + '\n');
+  console.error(`Windows acceptance report: ${reportFile}`);
+}
+
+// Pack, install the tarball into an isolated prefix, and run its .cmd entry.
+function installed() {
   const packed = check(
     'pack',
     'npm',
@@ -63,14 +91,6 @@ try {
     FX_UPDATE_CHECK: '0',
   };
   check('installed-cmd', binary, ['self', 'info', '--format', 'json'], false, env);
-  report.ok = true;
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-} finally {
-  mkdirSync(path.dirname(reportFile), { recursive: true });
-  writeFileSync(reportFile, JSON.stringify(report, null, 2) + '\n');
-  console.error(`Windows acceptance report: ${reportFile}`);
 }
 
 /**

@@ -12,6 +12,10 @@
 - 依 manifest 結構描述的說明，在發佈報告中顯示儲存庫的 `release.note`。
 - 來源 AGENTS.md 中指向 manifest 來源內檔案的相對連結（例如 `CONTRIBUTING.md`），在派生至工作區根目錄的指南中全部解析為來源檔案路徑。先前只解析指向 `README.md`、`docs/` 與 `skills/` 的連結，其餘連結會指向根目錄中不存在的檔案。
 - 當所有儲存庫都寫明 `upstream` 時，`fx manifest lint` 不再要求宣告程式碼託管 provider，因為這樣的工作區不會用到程式碼託管。
+- Windows 透過批次檔（npm、Scoop、Chocolatey 安裝的 `.cmd`）啟動配套 CLI 時，所有引數都原樣傳入。cmd.exe 不再解譯引數中的 `&`、`|`、`%`、`^` 等字元。
+- 以 Windows 路徑給出的本機 Git 遠端（如 `C:\host\fx\api.git`）會被讀取為專案與名稱，因此匯入、接管、分叉與 `fx source push` 都能使用它。在 stdin 套件與來源貢獻中，manifest 文件在所有平台上都以正斜線命名，匯入寫入的儲存庫路徑也使用正斜線。
+- PowerShell hook 不再把工作結果寫入 Agent 的上下文，不再把帶位元組順序標記的輸入交給 fx，也不再把進度記錄寫到 stderr。
+- 在 Windows 上派生的指南中，指向來源檔案的連結也使用正斜線。`fx self info` 將內建工具目錄顯示為檔案路徑，安裝路徑包含空格時也是如此。
 
 ## 0.10.1 (2026-10-12)
 

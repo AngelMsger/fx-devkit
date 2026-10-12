@@ -3,12 +3,11 @@
 
 import type { ChildProcess } from 'node:child_process';
 
-import spawn from 'cross-spawn';
-
 import { DevkitError } from '../../domain/errors.js';
 import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
 
 import { findExecutable, mergeEnvironment } from './executable.js';
+import { launch } from './launch.js';
 import { supervisedRole } from './supervision.js';
 import { terminateChild } from './terminate.js';
 
@@ -92,7 +91,7 @@ export class NodeProcess implements Process {
     return new Promise((resolve, reject) => {
       const bounded = isBounded(options);
       const ownGroup = leavesSession(options);
-      const child = spawn(binary, args, {
+      const child = launch(binary, args, {
         cwd: options.cwd,
         env: options.env,
         windowsHide: true,
@@ -152,7 +151,7 @@ export class NodeProcess implements Process {
     options: RunOptions,
   ): Promise<ProcessResult> {
     return new Promise((resolve, reject) => {
-      const child = spawn(binary, args, {
+      const child = launch(binary, args, {
         cwd: options.cwd,
         env: options.env,
         stdio: 'inherit',

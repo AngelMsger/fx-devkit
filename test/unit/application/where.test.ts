@@ -7,6 +7,7 @@ import { TemplatePlatform } from '../../../src/adapters/platform/template-platfo
 import { Where } from '../../../src/application/where.js';
 import { describeProvider } from '../../../src/composition/registry.js';
 import type { LocalLayer } from '../../../src/domain/manifest/types.js';
+import { shellLine } from '../../../src/domain/shell.js';
 import type { Platform } from '../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
@@ -110,7 +111,13 @@ describe('Where', () => {
         platforms: { kubectl: kube },
       });
       const home = path.resolve('/home/Example User');
-      const vector = ['kubectl', '--kubeconfig', `${home}/.kube/config.dev`, 'get', 'pods'];
+      const vector = [
+        'kubectl',
+        '--kubeconfig',
+        path.join(home, '.kube/config.dev'),
+        'get',
+        'pods',
+      ];
       h.process.on(vector, { code: 0, stdout: '{}', stderr: '' });
       const where = new Where(h.deps, { ...fakeLoginDeps({}), home });
       const [row] = await where.execute({
@@ -121,7 +128,7 @@ describe('Where', () => {
         probe: true,
       });
       expect(h.process.calls.map((call) => call.vector)).toEqual([vector]);
-      const expanded = "kubectl --kubeconfig '/home/Example User/.kube/config.dev' get pods";
+      const expanded = shellLine(vector);
       expect(row).toMatchObject({
         command: customTemplate ? manifestCommand : expanded,
         probed: expanded,

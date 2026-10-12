@@ -1,13 +1,19 @@
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
+import { tempDir } from '../../temp.js';
 
 const node = process.execPath;
-const echoArgs = 'process.stdout.write(JSON.stringify(process.argv.slice(1)))';
 
 describe('NodeProcess', () => {
   it('passes every argument verbatim, without a shell', async () => {
-    const result = await new NodeProcess().run([node, '-e', echoArgs, 'a b', 'c;d', '$HOME']);
+    // A script file, not -e: Bun on Windows numbers the arguments of -e differently.
+    const echoArgs = path.join(tempDir('fx-node-process-'), 'echo.js');
+    writeFileSync(echoArgs, 'process.stdout.write(JSON.stringify(process.argv.slice(2)))');
+    const result = await new NodeProcess().run([node, echoArgs, 'a b', 'c;d', '$HOME']);
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual(['a b', 'c;d', '$HOME']);
   });

@@ -44,6 +44,19 @@
   before, so the others pointed at files the root does not have.
 - Stop `fx manifest lint` from asking for a code-host provider when every
   repository names its `upstream`, since such a workspace reaches no code host.
+- Pass every argument intact to a companion that Windows starts through a batch
+  file (`.cmd`, as npm, Scoop and Chocolatey install them). cmd.exe no longer
+  interprets characters such as `&`, `|`, `%` or `^` in an argument.
+- Read a local Git remote given as a Windows path, such as `C:\host\fx\api.git`,
+  as project and name, so import, adoption, forks and `fx source push` work with it.
+  Manifest documents are named with forward slashes in stdin bundles and source
+  contributions on every platform, and import writes repository paths with them.
+- Stop the PowerShell hook from writing task results into the agent's context,
+  passing fx its input with a byte order mark, and writing progress records to
+  stderr.
+- Link source files with forward slashes in guides derived on Windows, and report
+  the bundled tools catalog in `fx self info` as a file path, also when the install
+  path contains spaces.
 
 ## 0.10.1 (2026-10-12)
 

@@ -83,7 +83,9 @@ describe('source parity', () => {
           .split('\n')
           .slice(1)
           .join('\n')
-          .replaceAll(materialized, '<managed-source>'),
+          .replaceAll(materialized, '<managed-source>')
+          // Derived links spell the path with forward slashes on Windows too.
+          .replaceAll(materialized.split(path.sep).join('/'), '<managed-source>'),
       );
     }
     expect(new Set(guides).size).toBe(1);

@@ -22,7 +22,12 @@ Command presentation is independent of execution, as specified in the
 The process adapter shares one resolver between detection and execution. It
 handles PATH casing, PATHEXT order, explicit paths and invocation environment
 overrides. Bare names search PATH only, not an implicit current directory.
-Native executables launch directly; cross-spawn handles batch shims and escaping.
+Native executables launch directly. A batch file runs under cmd.exe, and its
+arguments are read again by the batch itself (`%~1`) or, where it forwards `%*`,
+by cmd and the program it starts. fx quotes each argument, so cmd leaves it alone
+and the batch reads it unchanged; where an argument's own quote ends cmd's quoting,
+special characters are escaped for both reads. Percent signs are kept from
+expansion and delayed expansion is off.
 No caller-facing raw-shell option is introduced. Missing commands remain exit
 127, and piped output remains byte-decoded UTF-8 with diagnostics separate.
 
@@ -82,7 +87,8 @@ npm, Git, Bun, Windows PowerShell 5.1 and PowerShell 7 installed. It runs qualit
 gates, unit suites under Node and Bun, end-to-end tests, command-reference checks,
 the package scanner, and installs a local tarball into an isolated prefix to
 exercise its `.cmd` entry. It never publishes or installs globally. Missing
-prerequisites and failed checks return nonzero. The temporary report records
+prerequisites stop the run; every later check runs even after one fails, and any
+failure returns nonzero. The temporary report records
 the platform, runtime, each completed check and overall outcome.
 `FX_WINDOWS_REPORT` can select a report destination; the Windows Jenkins entry
 archives this report even when a check fails.
