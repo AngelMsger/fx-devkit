@@ -3,37 +3,29 @@
 // it is the single error boundary: whatever escapes a command leaves through
 // the renderer's error contract on stderr and a category exit code.
 
-import path from 'node:path';
-
 import { Command, Errors } from '@oclif/core';
 
 import { readSettings } from '../application/config/settings.js';
 import type { DoctorExtension } from '../application/doctor/types.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
-import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
+import type { ManifestContext } from '../application/manifest/context.js';
 import { resolveManifestDir } from '../application/manifest/locate.js';
 import { resolvePosture, type WritePosture } from '../application/safety/posture.js';
-import { replacementFor } from '../application/safety/replace-files.js';
-import { TrustGate } from '../application/safety/trust.js';
+import type { TrustGate } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync/types.js';
-import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
+import { toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
-import { WorkspaceContext } from '../application/workspace-context.js';
+import type { WorkspaceContext } from '../application/workspace-context.js';
 import { fxExecutable } from '../composition/bundled.js';
-import { CommandWiring } from '../composition/command-wiring.js';
-import {
-  createContainer,
-  skillDeps,
-  workspaceDeps,
-  type Container,
-} from '../composition/container.js';
+import { CommandWiring, resolveInputFor } from '../composition/command-wiring.js';
+import { createContainer, type Container } from '../composition/container.js';
 import type { HarnessCommandInput } from '../composition/harness.js';
-import { updateChecks, type UpdateChecks } from '../composition/update.js';
+import type { UpdateChecks } from '../composition/update.js';
 import { causeChain } from '../domain/diagnostics.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 import { DEFAULT_FORMAT, isFormat, type Format } from '../domain/format.js';
@@ -80,11 +72,7 @@ export abstract class FxCommand extends Command {
   private updateCheckOn = false;
   private quietOn = false;
   private located: WorkspaceContext | undefined;
-  // One instance each per execution: a second TrustGate would ask again for
-  // approval the first one already holds.
   private commandWiring: CommandWiring | undefined;
-  private trust: TrustGate | undefined;
-  private replaceFiles: ReplaceFiles | undefined;
   private operationLease: Lease | undefined;
   private selection: ResolveInput['selection'];
 
@@ -263,27 +251,21 @@ export abstract class FxCommand extends Command {
         ...action.argv.slice(1),
         ...(this.format === 'human' ? [] : ['--format', this.format]),
       ],
-      env: {
-        FX_HOME: path.resolve(this.container.fxHome),
-        HOME: path.resolve(this.container.userHome),
-        USERPROFILE: path.resolve(this.container.userHome),
-        ...(process.env.FX_AGENTS !== undefined ? { FX_AGENTS: process.env.FX_AGENTS } : {}),
-      },
+      env: this.wiring().recoveryEnv(),
     };
   }
 
   protected async workspaceDeps(): Promise<WorkspaceDeps> {
-    return workspaceDeps(this.container, {
-      ctx: await this.workspace(),
-      reporter: this.reporter,
-      cliVersion: this.config.version,
-      user: this.configUser,
-      commandShell: this.commandShell,
-    });
+    return this.wiring().workspaceDeps(await this.workspace());
   }
 
   protected harnessInput(): HarnessCommandInput {
-    return {
+    return this.wiring().harnessInput();
+  }
+
+  // Built on first use, after init has settled the invocation it describes.
+  private wiring(): CommandWiring {
+    this.commandWiring ??= new CommandWiring({
       container: this.container,
       resolve: this.resolveInput(),
       env: process.env,
@@ -291,18 +273,10 @@ export abstract class FxCommand extends Command {
       noInput: this.noInput,
       yes: this.yes,
       posture: this.posture,
-    };
-  }
-
-  private wiring(): CommandWiring {
-    this.commandWiring ??= new CommandWiring({
       commandShell: this.commandShell,
-      ...this.harnessInput(),
       reporter: this.reporter,
-      replace: this.replacement(),
-      trust: this.trustGate(),
-      agents: this.configAgents,
-      user: this.user,
+      agents: this.configAgentList,
+      user: this.configUser,
     });
     return this.commandWiring;
   }
@@ -319,28 +293,14 @@ export abstract class FxCommand extends Command {
   protected stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
     return this.wiring().stages(deps, dryRun);
   }
-
   protected skillDeps(): SkillDeps {
-    return skillDeps(this.container, this.configAgents);
+    return this.wiring().skillDeps();
   }
-
   protected replacement(): ReplaceFiles {
-    this.replaceFiles ??= replacementFor(
-      this.container.fs,
-      this.container.prompter(this.noInput),
-      this.reporter,
-      this.yes,
-    );
-    return this.replaceFiles;
+    return this.wiring().replacement();
   }
-
   protected trustGate(): TrustGate {
-    this.trust ??= new TrustGate(
-      this.container.trust,
-      this.container.prompter(this.noInput),
-      this.container.clock,
-    );
-    return this.trust;
+    return this.wiring().trustGate();
   }
 
   // Tool commands work outside a workspace too, on the bundled baseline.
@@ -354,24 +314,17 @@ export abstract class FxCommand extends Command {
         message: 'not inside a workspace; using the bundled toolchain baseline',
         nextSteps: ['fx init <dir> --from <source>'],
       });
-      return bundledToolchain(this.container.bundledTools(), this.config.version);
+      return this.wiring().bundledToolchain();
     }
   }
 
   protected async workspace(): Promise<WorkspaceContext> {
-    this.located = await WorkspaceContext.locate({
-      ...this.resolveInput(),
-      git: this.container.git,
-      localStore: this.container.localStore,
-      bundledTools: this.container.bundledTools,
-      providers: this.container.providers,
-      cliVersion: this.config.version,
-    });
+    this.located = await this.wiring().locateWorkspace();
     return this.located;
   }
 
   protected updateChecks(): UpdateChecks {
-    return updateChecks(this.container);
+    return this.wiring().updateChecks();
   }
 
   protected skipUpdateChecks(): void {
@@ -385,17 +338,8 @@ export abstract class FxCommand extends Command {
   protected async fxUpdateInput(
     options: { resolveRegistry?: boolean } = {},
   ): Promise<FxUpdateInput> {
-    const pjson = this.config.pjson as { name: string };
-    const location =
-      options.resolveRegistry === false
-        ? undefined
-        : await this.container.registryLocator.resolve(pjson.name);
-    return {
-      current: this.config.version,
-      packageName: pjson.name,
-      registry: location?.registry ?? null,
-      ...(location ? { registrySource: location.source } : {}),
-    };
+    const { name } = this.config.pjson as { name: string };
+    return this.wiring().fxUpdateInput(name, options.resolveRegistry !== false);
   }
 
   protected override async finally(err: Error | undefined): Promise<void> {
@@ -423,29 +367,17 @@ export abstract class FxCommand extends Command {
   }
 
   protected manifestContext(dir: string): Promise<ManifestContext> {
-    return loadManifestContext({
-      dir,
-      fs: this.container.fs,
-      bundledTools: this.container.bundledTools,
-      providers: this.container.providers,
-      cliVersion: this.config.version,
-      reporter: this.reporter,
-      diagnostics: this.container.diagnostics,
-    });
+    return this.wiring().manifestContext(dir);
   }
 
   protected resolveInput(): ResolveInput {
-    return {
+    return resolveInputFor(this.container, {
       cwd: process.cwd(),
-      ...(this.selection === undefined ? {} : { selection: this.selection }),
-      commandShell: this.commandShell,
+      selection: this.selection,
       name: this.workspaceName,
-      config: this.container.config,
-      fs: this.container.fs,
+      commandShell: this.commandShell,
       reporter: this.reporter,
-      diagnostics: this.container.diagnostics,
-      manifestDirFor: this.container.manifestDirFor,
-    };
+    });
   }
 
   protected override async catch(err: unknown): Promise<never> {
