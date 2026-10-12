@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.10.1 (2026-10-12)
+
 ### Added
 
 - Publish the public `@angelmsger/fx` package to npmjs and attach its tarball to a
