@@ -36,7 +36,7 @@ test('public content cannot link retired maintainer routes or expose personal/bu
 test('user release checks and ordinary fx settings remain documented', () => {
   assert.doesNotThrow(() =>
     assertPublicContent(
-      'Run fx release --format json to check your repositories. Use FX_HOME to relocate ~/.fx.',
+      'Run fx release check to see what your repositories would release. Use FX_HOME to relocate ~/.fx.',
       'user-guide',
     ),
   );

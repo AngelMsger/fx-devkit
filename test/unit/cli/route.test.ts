@@ -39,6 +39,31 @@ describe('routeArgv', () => {
     });
   });
 
+  it('prefers the longer command over a compatibility name, past global flags between them', () => {
+    const release = ['release', 'release check'];
+    expect(normalizeArgv(['release', '--format', 'json', 'check', 'b'], release)).toEqual([
+      'release',
+      'check',
+      '--format',
+      'json',
+      'b',
+    ]);
+    expect(normalizeArgv(['release', '--format=json', '--quiet', 'check', 'b'], release)).toEqual([
+      'release',
+      'check',
+      '--format=json',
+      '--quiet',
+      'b',
+    ]);
+    // A word that completes no longer name stays the shorter command's argument.
+    expect(normalizeArgv(['release', '--format', 'json', 'b'], release)).toEqual([
+      'release',
+      '--format',
+      'json',
+      'b',
+    ]);
+  });
+
   it('runs a known command, including one followed by its own arguments', () => {
     expect(routeArgv(['config', 'get', 'format', '--explain'], ids)).toEqual({ kind: 'run' });
     expect(routeArgv(['status'], ids)).toEqual({ kind: 'run' });

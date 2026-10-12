@@ -3,7 +3,7 @@
     "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
+      "source_sha256": "223105034ea0dc26d2492c1a96bf98a22ed9b2a4ac1769dc47effe7ef61d9f76"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -19,14 +19,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
+      "source_sha256": "1d947bf230893428de812bdb601e5b7f17138e382b0a62bb37f9826bf55c00b7"
     }
   },
   "zh-Hans": {
     "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
+      "source_sha256": "223105034ea0dc26d2492c1a96bf98a22ed9b2a4ac1769dc47effe7ef61d9f76"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -42,14 +42,14 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
+      "source_sha256": "1d947bf230893428de812bdb601e5b7f17138e382b0a62bb37f9826bf55c00b7"
     }
   },
   "zh-Hant": {
     "_catalog_sha256": "683a4aecf239546eb00346b63b9a0300ce7dbf5e47217bc479834a7132102431",
     "docs/user-guide.md": {
       "file": "getting-started.md",
-      "source_sha256": "db28b49f3c5fae23495cfd1869bfd319422f07aeec2c1aa703171a5491e14996"
+      "source_sha256": "223105034ea0dc26d2492c1a96bf98a22ed9b2a4ac1769dc47effe7ef61d9f76"
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
@@ -65,7 +65,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
+      "source_sha256": "1d947bf230893428de812bdb601e5b7f17138e382b0a62bb37f9826bf55c00b7"
     }
   }
 }

@@ -1,4 +1,4 @@
-// fx release on GitHub end to end: the code host and CI are bound to the github and
+// fx release check on GitHub end to end: the code host and CI are bound to the github and
 // github-actions providers, and a stand-in gh answers the API from bare repositories,
 // so the release check runs unchanged against a host it was not written for.
 
@@ -164,7 +164,7 @@ function stage(): { ws: string; env: Record<string, string>; log: string } {
 describe('release on GitHub', () => {
   it('answers every check from gh alone, with the same verdicts as any other host', () => {
     const s = stage();
-    const run = fx(['release', '--details', '--format', 'json'], s.env, s.ws);
+    const run = fx(['release', 'check', '--details', '--format', 'json'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
     const findings = (run.json() as { findings: Finding[] }).findings;
     const level = Object.fromEntries(findings.map((f) => [`${f.group}:${f.id}`, f.level]));

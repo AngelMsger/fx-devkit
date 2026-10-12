@@ -6,11 +6,27 @@
 
 - Bind a workspace to GitHub. The `github` code-host provider and the
   `github-actions` ci provider both drive the GitHub CLI `gh`, which joins the
-  tool catalog with one sign-in per host for both. `fx release` reads branches, commits,
-  files and the last workflow run of a branch from GitHub just as it does from
-  Bitbucket and Jenkins; a ci environment can narrow the runs it counts to one
-  branch and one trigger. Opening pull requests through fx is not available on
-  GitHub yet.
+  tool catalog with one sign-in per host for both. `fx release check` reads
+  branches, commits, files and the last workflow run of a branch from GitHub just
+  as it does from Bitbucket and Jenkins; a ci environment can narrow the runs it
+  counts to one branch and one trigger. Opening pull requests through fx is not
+  available on GitHub yet.
+
+### Changed
+
+- Rename `fx release` to `fx release check`, so the name says it checks a release
+  rather than making one. `fx release` keeps working as a compatibility name.
+- Say what each release would ship. `fx release check` opens each repository with
+  the version its target branch declares, the head commits of both branches and how
+  many commits on the source branch are not merged into the target yet, by how many
+  people; repositories whose checks all passed close the output one line each with the
+  same. JSON reports gain `repos[]` with these facts, summaries included; every
+  existing field is unchanged.
+- Name the commit a CI build is judged against, say "not merged into main" and "not
+  merged back into dev" in the merge check, and use each platform's own name for the
+  job or project in CI and error messages. CI evidence gains `head`.
+- Show a repository's `release.note` in the release report, as the manifest schema
+  describes.
 
 ## 0.10.1 (2026-10-12)
 

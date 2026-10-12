@@ -5,7 +5,7 @@ import { hasExceptionalEvidence } from './exceptional.js';
 
 // The commands whose result is a workflow report. The registry checks that each
 // of them is a command that exists.
-export const REPORT_COMMANDS = ['init', 'sync', 'doctor', 'release'] as const;
+export const REPORT_COMMANDS = ['init', 'sync', 'doctor', 'release:check'] as const;
 export type ReportCommand = (typeof REPORT_COMMANDS)[number];
 const COLLECTIONS = new Set([
   'items',

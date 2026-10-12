@@ -192,7 +192,7 @@ describe('lintManifest', () => {
     ).toEqual([['RELEASE_ENV_UNSET', 'release.env']]);
   });
 
-  it('names the checklist repositories whose errors fx release cannot see', () => {
+  it('names the checklist repositories whose errors fx release check cannot see', () => {
     const workspace = loadWorkspace(
       text('v2-full/workspace.yaml')
         .replace('    obs: { svc: example-api }\n', '    obs: { covered: false }\n')

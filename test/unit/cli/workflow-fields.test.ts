@@ -122,7 +122,7 @@ describe('workflow field projection', () => {
     },
   );
 
-  it.each(['init', 'doctor', 'release'] as const)(
+  it.each(['init', 'doctor', 'release:check'] as const)(
     'projects %s records from full values before summary filtering',
     (report) => {
       for (const details of [false, true]) {

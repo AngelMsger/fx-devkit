@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
-- ワークスペースを GitHub に結び付けられるようになりました。code-host provider `github` と ci provider `github-actions` はどちらも GitHub CLI `gh` を使います。`gh` はツールカタログに加わり、両方でホストごとに 1 回のサインインを共有します。`fx release` は Bitbucket や Jenkins と同じように、ブランチ、コミット、ファイル、ブランチの最新の workflow 実行を GitHub から読み取ります。ci の環境は、数える実行を 1 つのブランチと 1 つのトリガーに絞り込めます。fx から pull request を作成する機能は、GitHub ではまだ使えません。
+- ワークスペースを GitHub に結び付けられるようになりました。code-host provider `github` と ci provider `github-actions` はどちらも GitHub CLI `gh` を使います。`gh` はツールカタログに加わり、両方でホストごとに 1 回のサインインを共有します。`fx release check` は Bitbucket や Jenkins と同じように、ブランチ、コミット、ファイル、ブランチの最新の workflow 実行を GitHub から読み取ります。ci の環境は、数える実行を 1 つのブランチと 1 つのトリガーに絞り込めます。fx から pull request を作成する機能は、GitHub ではまだ使えません。
+- `fx release` を `fx release check` に改名し、リリースを行うのではなく確認するコマンドであることを名前で示します。`fx release` は互換名として引き続き動作します。
+- 各リリースで出荷される内容を示します。`fx release check` は各リポジトリの最初に、対象ブランチが宣言しているバージョン、両ブランチの先頭コミット、まだ対象ブランチにマージされていないソースブランチのコミット数とその作成者数を示し、すべてのチェックが通ったリポジトリも最後に 1 行ずつ同じ内容を示します。JSON レポートには、要約も含めてこれらを持つ `repos[]` が加わり、既存のフィールドは変わりません。
+- CI の判定が基準にしたコミットを示し、マージのチェックは「main にマージされていない」「dev にマージし戻されていない」と表現し、CI とエラーのメッセージでは各プラットフォーム自身のジョブ名やプロジェクト名を使います。CI の根拠に `head` が加わります。
+- manifest スキーマの説明どおり、リポジトリの `release.note` をリリースレポートに表示します。
 
 ## 0.10.1 (2026-10-12)
 

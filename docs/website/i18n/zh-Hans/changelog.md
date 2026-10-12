@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
-- 工作区可以绑定 GitHub。代码托管 provider `github` 和 ci provider `github-actions` 都通过 GitHub CLI `gh` 工作；`gh` 加入工具目录，两者在每个主机上共用一次登录。`fx release` 像对 Bitbucket 和 Jenkins 一样，从 GitHub 读取分支、提交、文件以及某个分支最近一次 workflow 运行；ci 环境可以把计入的运行限定为一个分支和一种触发方式。在 GitHub 上暂时还不能通过 fx 创建 pull request。
+- 工作区可以绑定 GitHub。代码托管 provider `github` 和 ci provider `github-actions` 都通过 GitHub CLI `gh` 工作；`gh` 加入工具目录，两者在每个主机上共用一次登录。`fx release check` 像对 Bitbucket 和 Jenkins 一样，从 GitHub 读取分支、提交、文件以及某个分支最近一次 workflow 运行；ci 环境可以把计入的运行限定为一个分支和一种触发方式。在 GitHub 上暂时还不能通过 fx 创建 pull request。
+- 将 `fx release` 改名为 `fx release check`，让名字表明它检查发布而不是执行发布。`fx release` 作为兼容名称继续可用。
+- 说明每次发布将交付的内容。`fx release check` 在每个仓库开头列出目标分支声明的版本、两个分支的最新提交，以及源分支上尚未合并到目标分支的提交数和作者人数；全部检查都通过的仓库也在最后各用一行说明同样的内容。JSON 报告新增包含这些信息的 `repos[]`，摘要中也有；已有字段不变。
+- CI 结论注明它对照的提交，合并检查改为“未合并到 main”和“未合并回 dev”，CI 和错误消息使用各平台自己的作业或项目名称。CI 证据新增 `head`。
+- 按 manifest 模式的说明，在发布报告中显示仓库的 `release.note`。
 
 ## 0.10.1 (2026-10-12)
 

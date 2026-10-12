@@ -1,4 +1,4 @@
-// fx release end to end: a local-git host holding two repositories, one
+// fx release check end to end: a local-git host holding two repositories, one
 // with everything wrong and one with nothing wrong, shims standing in for
 // jenkins-cli and sentry, and a temporary FX_HOME.
 
@@ -178,7 +178,7 @@ else process.exit(2);
 describe('release', () => {
   it('reports every check of every repository with the evidence, and never fails the command', () => {
     const s = stage();
-    const run = fx(['release', '--details', '--format', 'json'], s.env, s.ws);
+    const run = fx(['release', 'check', '--details', '--format', 'json'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
     const report = run.json() as Report;
     const level = Object.fromEntries(report.findings.map((f) => [`${f.group}:${f.id}`, f.level]));
@@ -194,7 +194,7 @@ describe('release', () => {
     });
     expect(report.ok).toBe(false);
     const merge = report.findings.find((f) => f.group === 'merge' && f.id === 'a');
-    expect(merge?.message).toBe('1 commit on dev not on main');
+    expect(merge?.message).toBe('1 commit on dev not merged into main');
     expect(merge?.evidence).toMatchObject({
       ahead: [{ author: { id: 'alice', name: 'Alice' }, message: 'feat: m-1 more' }],
       behind: [],
@@ -211,7 +211,7 @@ describe('release', () => {
   it('narrows to one repository and one check, and refuses a name it does not know', () => {
     const s = stage();
     const one = fx(
-      ['release', '--details', 'b', '--only', 'merge', '--format', 'json'],
+      ['release', 'check', '--details', 'b', '--only', 'merge', '--format', 'json'],
       s.env,
       s.ws,
     );
@@ -219,7 +219,17 @@ describe('release', () => {
     const report = one.json() as Report;
     expect(report.findings.map((f) => `${f.group}:${f.id}:${f.level}`)).toEqual(['merge:b:ok']);
     expect(report.ok).toBe(true);
-    const nope = fx(['release', '--details', 'nope', '--format', 'json'], s.env, s.ws);
+    // A global flag between the topic and the command does not make `check` a repository.
+    const flagged = fx(
+      ['release', '--format', 'json', 'check', 'b', '--only', 'merge'],
+      s.env,
+      s.ws,
+    );
+    expect(flagged.status, flagged.stderr).toBe(0);
+    expect((flagged.json() as { repos: { name: string }[] }).repos.map((r) => r.name)).toEqual([
+      'b',
+    ]);
+    const nope = fx(['release', 'check', '--details', 'nope', '--format', 'json'], s.env, s.ws);
     expect(nope.status).toBe(6);
     expect(nope.error().code).toBe('REPO_NOT_FOUND');
   });
@@ -227,7 +237,7 @@ describe('release', () => {
   it('turns an error tracker a person has not logged in to into warnings with a handoff, nothing else changes', () => {
     const s = stage();
     const run = fx(
-      ['release', '--details', '--format', 'json'],
+      ['release', 'check', '--details', '--format', 'json'],
       { ...s.env, FAKE_SENTRY_OK: '1' },
       s.ws,
     );
@@ -247,15 +257,42 @@ describe('release', () => {
     ]);
   });
 
-  it('shows a person each repository with its checks, and the ready ones on one line', () => {
+  it('shows a person what each repository would ship, its checks, and the ready ones one line each', () => {
     const s = stage();
-    const run = fx(['release'], s.env, s.ws);
+    const run = fx(['release', 'check'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
-    expect(run.stdout).toMatch(/^a {2}4 fail\n {2}deps {4}fail {2}package\.json: x 1\.0\.0-dev/m);
-    expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not on main$/m);
-    expect(run.stdout.trimEnd().split('\n').at(-1)).toBe('All checks ok: b');
-    const all = fx(['release', '--details', 'b'], s.env, s.ws);
-    expect(all.stdout).toMatch(/^b {2}ok\n/);
+    expect(run.stdout).toMatch(
+      /^a {2}4 fail\n {2}main [0-9a-f]{7}, dev [0-9a-f]{7} not merged: 1 commit by 1 person\n {2}deps {4}fail {2}package\.json: x 1\.0\.0-dev/m,
+    );
+    // The count says how much; the code host lists them for whoever asks.
+    expect(run.stdout).not.toContain('feat: m-1 more');
+    expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not merged into main$/m);
+    expect(run.stdout.trimEnd().split('\n').slice(-2)).toEqual([
+      'All checks ok',
+      expect.stringMatching(/^ {2}b {2}main [0-9a-f]{7}, dev merged$/),
+    ]);
+    const all = fx(['release', 'check', '--details', 'b'], s.env, s.ws);
+    expect(all.stdout).toMatch(/^b {2}ok\n {2}main [0-9a-f]{7}, dev merged\n/);
     expect(all.stdout).toMatch(/^ {2}merge {3}ok {4}dev and main agree$/m);
+  });
+
+  it('says in the report what each repository would ship, and still answers to its old name', () => {
+    const s = stage();
+    const run = fx(['release', '--format', 'json'], s.env, s.ws);
+    expect(run.status, run.stderr).toBe(0);
+    const { repos } = run.json() as { repos: Record<string, unknown>[] };
+    expect(repos.map((r) => r['name'])).toEqual(['a', 'b']);
+    expect(repos[0]).toMatchObject({
+      source: { branch: 'dev', message: 'feat: m-1 more', version: null },
+      target: { branch: 'main', message: 'one' },
+      unmerged: { commits: 1, authors: 1 },
+    });
+    expect(repos[1]).toMatchObject({
+      unmerged: { commits: 0, authors: 0 },
+      note: null,
+      unanswered: [],
+    });
+    // The summary still leaves the passing findings out; what ships is not a finding.
+    expect(run.json()).toMatchObject({ output_mode: 'summary' });
   });
 });

@@ -27,6 +27,7 @@ export function checkErrors(ctx: CheckContext): Promise<ReleaseFinding> {
       platform: tracker.binding.platform,
       environments: environmentsOf(ctx.deps.ctx),
       binding: tracker.binding,
+      locate: (vars) => tracker.platform.locate(vars),
     });
     if (coordinate.status === 'not_covered')
       return notChecked(
@@ -41,7 +42,10 @@ export function checkErrors(ctx: CheckContext): Promise<ReleaseFinding> {
     return errorsFinding({
       repo,
       env,
+      // What a person reads is the platform's own name for the project; `slug` stays in
+      // the evidence for the programs that already read it.
       slug: coordinate.vars['slug'] ?? coordinate.label,
+      label: coordinate.label,
       since: ctx.policy.since,
       now: ctx.now,
       issues: page.issues,

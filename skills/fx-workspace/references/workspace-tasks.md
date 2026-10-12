@@ -23,7 +23,7 @@ covered by the [Skill reference](commands.md#standalone-companion-skill).
 
 ## Read a result before continuing
 
-- `init`, `sync`, `doctor`, `release` default to JSON summaries. `omitted` counts
+- `init`, `sync`, `doctor`, `release check` default to JSON summaries. `omitted` counts
   normal rows/evidence; exceptions and recovery remain. Start with the summary;
   use `--fields` for needed evidence or `--details` when all rows are necessary.
   Explicit `--fields` projects the full result in any format: JSON/NDJSON emit one
@@ -34,8 +34,9 @@ covered by the [Skill reference](commands.md#standalone-companion-skill).
   retains all blockers and exits 12. Follow `preparation.next`; `next_actions` are Agent work, while `resume` waits
   for changed prerequisites.
   Optional activation stays separate. Doctor's `coverage` describes diagnostics.
-- For `release`, inspect `ok`, coverage `complete` and warning/failure findings.
-  It can exit zero with failures and does not publish anything.
+- For `release check`, inspect `ok`, coverage `complete`, warning/failure findings and
+  `repos[]`, what each repository would ship. It can exit zero with failures and does
+  not publish anything.
 - For `login`, retain `summary`, `problems` and step recovery fields. `handoff`
   needs input; `blocked` has an unfinished prerequisite; `not_started` was not attempted.
 - Read partial stdout after a nonzero exit. It preserves completed effects and
@@ -120,7 +121,7 @@ stand in for `fx`; `self update` cannot repair an entry that cannot execute.
 | Inspect one repository and owners          | `fx repo show <repo>`; `fx member show <name>`                                           |
 | Find service diagnostics                   | `fx where <repo> --env <env>`                                                            |
 | Check tools/access                         | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                 |
-| Inspect repository release criteria        | `fx release <repo> --only merge --details`                                               |
+| Inspect repository release criteria        | `fx release check <repo> --only merge --details`                                         |
 | Install/update a companion                 | `fx tool install <tool> --dry-run`; `fx tool update <tool> --dry-run`                    |
 | Review tool provenance                     | `fx tool history [tool]`; `fx tool inventory`                                            |
 | Inspect host resources                     | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                    |
@@ -149,7 +150,7 @@ includes untracked files; `dirty` itself keeps its tracked-change meaning and
 Use `--format json` for results and `--help` for exact arguments. The table's
 `pick/unpick` notation means separate commands. Bare topics show their commands;
 help and completion prefer canonical names while preserving compatibility aliases.
-`release` evaluates a checklist; it does not publish packages or deploy services.
+`release check` evaluates a checklist; it does not publish packages or deploy services.
 
 ## What sync will and will not do
 
