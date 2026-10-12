@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.10.1).
+Command syntax for the current source (package version 0.11.0).
 See the [version history](../../CHANGELOG.md) for changes between releases.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 

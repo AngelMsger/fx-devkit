@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.11.0 (2026-10-12)
+
 - manifest 设置 `go.workspace: true` 时，在工作区根目录维护 `go.work`。`fx init` 和 `fx sync` 会以这些模块要求的最新 `go` 版本，列出所有已选择且顶层有 `go.mod` 的 checkout，使每个模块基于同级仓库的 checkout 构建。尚未克隆的仓库不会列入，fx 只替换或删除自己写的 `go.work`，`fx sync --only go` 只刷新这个文件。在这样的工作区中，`go.work` 与 `go.work.sum` 不再算作多余的根目录条目。
 - 工作区可以绑定 GitHub。代码托管 provider `github` 和 ci provider `github-actions` 都通过 GitHub CLI `gh` 工作；`gh` 加入工具目录，两者在每个主机上共用一次登录。`fx release check` 像对 Bitbucket 和 Jenkins 一样，从 GitHub 读取分支、提交、文件以及某个分支最近一次 workflow 运行；ci 环境可以把计入的运行限定为一个分支和一种触发方式。在 GitHub 上暂时还不能通过 fx 创建 pull request。
 - 将 `fx release` 改名为 `fx release check`，让名字表明它检查发布而不是执行发布。`fx release` 作为兼容名称继续可用。

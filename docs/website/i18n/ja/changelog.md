@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.11.0 (2026-10-12)
+
 - manifest に `go.workspace: true` を指定すると、ワークスペースルートに `go.work` を保ちます。`fx init` と `fx sync` は、最上位に `go.mod` がある選択済みの checkout をすべて、それらが要求する最新の `go` バージョンで列挙するため、各モジュールは兄弟リポジトリの checkout を使ってビルドされます。まだクローンしていないリポジトリは含めず、fx は自分が書いた `go.work` だけを置換・削除します。`fx sync --only go` でこのファイルだけを更新できます。このワークスペースでは `go.work` と `go.work.sum` を余分なルートエントリとして扱いません。
 - ワークスペースを GitHub に結び付けられるようになりました。code-host provider `github` と ci provider `github-actions` はどちらも GitHub CLI `gh` を使います。`gh` はツールカタログに加わり、両方でホストごとに 1 回のサインインを共有します。`fx release check` は Bitbucket や Jenkins と同じように、ブランチ、コミット、ファイル、ブランチの最新の workflow 実行を GitHub から読み取ります。ci の環境は、数える実行を 1 つのブランチと 1 つのトリガーに絞り込めます。fx から pull request を作成する機能は、GitHub ではまだ使えません。
 - `fx release` を `fx release check` に改名し、リリースを行うのではなく確認するコマンドであることを名前で示します。`fx release` は互換名として引き続き動作します。

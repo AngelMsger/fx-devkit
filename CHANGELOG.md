@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.11.0 (2026-10-12)
+
 ### Added
 
 - Keep a `go.work` at the workspace root when the manifest sets `go.workspace: true`.
