@@ -65,8 +65,6 @@ export function resolveInputFor(container: Container, scope: ResolveScope): Reso
 }
 
 export class CommandWiring {
-  // One instance each per invocation: a second TrustGate would ask again for
-  // approval the first one already holds.
   private trust: TrustGate | undefined;
   private replace: ReplaceFiles | undefined;
 
