@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 工作区可以绑定 GitHub。代码托管 provider `github` 和 ci provider `github-actions` 都通过 GitHub CLI `gh` 工作；`gh` 加入工具目录，两者在每个主机上共用一次登录。`fx release` 像对 Bitbucket 和 Jenkins 一样，从 GitHub 读取分支、提交、文件以及某个分支最近一次 workflow 运行；ci 环境可以把计入的运行限定为一个分支和一种触发方式。在 GitHub 上暂时还不能通过 fx 创建 pull request。
+
 ## 0.10.1 (2026-10-12)
 
 - 在 npmjs 发布公开包 `@angelmsger/fx`，并为每个版本标签在 GitHub Release 附上 tarball。内部的 `@fx/devkit` 渠道保持不变。

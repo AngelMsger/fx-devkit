@@ -46,6 +46,15 @@ tools:
     desc: Issues, comments, transitions and worklogs in Jira
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli
+  - name: gh
+    min_version: '2.50.0'
+    desc: Repositories, branches and Actions runs on GitHub
+    install:
+      - { via: brew, spec: gh }
+      - { via: manual }
+    skill: { command: [] }
+    auth: { command: [auth, status] }
+    docs: https://cli.github.com/
   - name: sentry
     min_version: '0.44.1'
     desc: Issues, events and releases in Sentry

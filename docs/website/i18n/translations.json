@@ -7,7 +7,7 @@
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6823b721f4e7bf52638222a9fd573c2e14e4b1657556705a188090ad23553b52"
+      "source_sha256": "04b60d5adedf86388407671d9973e7c569afd05387668ace3918309ec299460b"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -19,7 +19,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
+      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
     }
   },
   "zh-Hans": {
@@ -30,7 +30,7 @@
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6823b721f4e7bf52638222a9fd573c2e14e4b1657556705a188090ad23553b52"
+      "source_sha256": "04b60d5adedf86388407671d9973e7c569afd05387668ace3918309ec299460b"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -42,7 +42,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
+      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
     }
   },
   "zh-Hant": {
@@ -53,7 +53,7 @@
     },
     "docs/manifest-guide.md": {
       "file": "manifest-guide.md",
-      "source_sha256": "6823b721f4e7bf52638222a9fd573c2e14e4b1657556705a188090ad23553b52"
+      "source_sha256": "04b60d5adedf86388407671d9973e7c569afd05387668ace3918309ec299460b"
     },
     "docs/user-privacy.md": {
       "file": "private-manifest.md",
@@ -65,7 +65,7 @@
     },
     "CHANGELOG.md": {
       "file": "changelog.md",
-      "source_sha256": "329a5bf590f894d44e8f9ca5efd1f70a3556f46d3342d5794708a3a9b07f0fe8"
+      "source_sha256": "149e9004477780cd4c00a8374b93d764763c011f2743a38e3b542cbcb02a288e"
     }
   }
 }

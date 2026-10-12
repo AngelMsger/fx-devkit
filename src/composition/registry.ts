@@ -9,9 +9,11 @@ import { AGENT_SPECS, type AgentHostSpec } from '../adapters/agent-host/specs.js
 import { TomlMcpCodec } from '../adapters/agent-host/toml-mcp.js';
 import { larkCalendarProvider } from '../adapters/calendar/lark-calendar/provider.js';
 import { wecomCalendarProvider } from '../adapters/calendar/wecom-calendar/provider.js';
+import { githubActionsProvider } from '../adapters/ci/github-actions/provider.js';
 import { jenkinsCliProvider } from '../adapters/ci/jenkins-cli/provider.js';
 import { kubectlProvider } from '../adapters/cluster/kubectl/provider.js';
 import { bitbucketCliProvider } from '../adapters/code-host/bitbucket-cli/provider.js';
+import { githubProvider } from '../adapters/code-host/github/provider.js';
 import { localGitProvider } from '../adapters/code-host/local-git/provider.js';
 import { sentryProvider } from '../adapters/error-tracker/sentry/provider.js';
 import { larkProvider } from '../adapters/im/lark/provider.js';
@@ -171,11 +173,13 @@ function ids(capability: CapabilityName): string {
 // built-in providers exist, and insertion order is listing order, so the lines
 // below decide how `fx manifest providers` and every "Available:" hint read.
 register(bitbucketCliProvider);
+register(githubProvider);
 register(localGitProvider);
 register(sentryProvider);
 register(openobserveCliProvider);
 register(prometheusCliProvider);
 register(jenkinsCliProvider);
+register(githubActionsProvider);
 register(kubectlProvider);
 register(feishuProjectProvider);
 register(jiraCliProvider);
