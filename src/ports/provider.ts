@@ -28,6 +28,9 @@ export type Vars = Readonly<Record<string, string>>;
 
 export interface ProviderDescriptor<P> extends ProviderFacts {
   readonly recipes: readonly SetupRecipe[];
+  // Values the recipes read that the provider works out from a binding's own variables,
+  // e.g. the host name inside a clone URL.
+  readonly recipeVars?: (vars: Vars) => Vars;
   readonly service?: (settings: ServiceSettings) => ServiceDefinition;
   readonly vars: readonly VarSpec[];
   // A reference provider creates a pure entry coordinate, not a live business client.

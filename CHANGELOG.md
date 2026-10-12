@@ -10,6 +10,13 @@
   checkouts. A repository not cloned yet is left out, fx replaces or removes only
   the `go.work` it wrote, and `fx sync --only go` refreshes it alone. `go.work` and
   `go.work.sum` no longer count as stray root entries in such a workspace.
+- Bind a workspace to GitHub. The `github` code-host provider and the
+  `github-actions` ci provider both drive the GitHub CLI `gh`, which joins the
+  tool catalog with one sign-in per host for both. `fx release` reads branches, commits,
+  files and the last workflow run of a branch from GitHub just as it does from
+  Bitbucket and Jenkins; a ci environment can narrow the runs it counts to one
+  branch and one trigger. Opening pull requests through fx is not available on
+  GitHub yet.
 
 ### Fixed
 
