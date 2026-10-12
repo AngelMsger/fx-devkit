@@ -19,7 +19,7 @@ export interface GoModule {
 export const isDerivedGoWork = (text: string): boolean => text.startsWith(PREFIX);
 
 export function goDirective(goMod: string): string | undefined {
-  return /^go[ \t]+([^\s/]+)/m.exec(goMod)?.[1];
+  return /^[ \t]*go[ \t]+([^\s/]+)/m.exec(goMod)?.[1];
 }
 
 // Null when no module is checked out: an empty go.work would only break builds.
@@ -35,24 +35,61 @@ export function renderGoWork(modules: readonly GoModule[]): string | null {
     ...(go === undefined ? [] : ['', `go ${go}`]),
     '',
     'use (',
-    ...uses.map((use) => `\t${use}`),
+    ...uses.map((use) => `\t${goToken(use)}`),
     ')',
     '',
   ].join('\n');
 }
 
-// Go versions are not semver: `1.21` names the language, `1.21rc1` a release
-// candidate and `1.21.0` its first release. Only the numbers decide here; the
-// first spelling of an equal version is kept.
+// Go reads a token that would split, start a comment or hold an unprintable
+// character only as a quoted string literal, and a JSON string is one.
+function goToken(text: string): string {
+  const bare = !/["'`()[\]{},]|\/\/|\/\*|[^\p{L}\p{M}\p{N}\p{P}\p{S}]/u.test(text);
+  return bare ? text : JSON.stringify(text);
+}
+
 function newer(a: string | undefined, b: string | undefined): string | undefined {
   if (a === undefined) return b;
   if (b === undefined) return a;
-  const [x, y] = [numbers(a), numbers(b)];
-  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return (x[i] ?? 0) > (y[i] ?? 0) ? a : b;
-  return a;
+  return compareGoVersions(a, b) < 0 ? b : a;
 }
 
-function numbers(version: string): number[] {
-  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(version);
-  return [1, 2, 3].map((group) => Number(match?.[group] ?? 0));
+interface GoVersion {
+  readonly major: string;
+  readonly minor: string;
+  readonly patch: string;
+  readonly kind: string;
+  readonly pre: string;
+}
+
+// Go's own order: the language version `1.21` sorts before its release candidate
+// `1.21rc1`, which sorts before the release `1.21.0`. Before 1.21 a missing patch
+// means `.0`. A malformed version sorts before every valid one.
+function compareGoVersions(a: string, b: string): number {
+  const [x, y] = [parseGoVersion(a), parseGoVersion(b)];
+  for (const field of ['major', 'minor', 'patch'] as const) {
+    const order = compareNumbers(x[field], y[field]);
+    if (order !== 0) return order;
+  }
+  if (x.kind !== y.kind) return x.kind < y.kind ? -1 : 1;
+  return compareNumbers(x.pre, y.pre);
+}
+
+function parseGoVersion(text: string): GoVersion {
+  const number = '(0|[1-9]\\d*)';
+  const match = new RegExp(`^${number}(?:\\.${number}(?:\\.${number}|([a-z]+)${number}?)?)?$`).exec(
+    text,
+  );
+  if (match === null) return { major: '', minor: '', patch: '', kind: '', pre: '' };
+  const [, major = '', minor, patch, kind = '', pre = ''] = match;
+  if (minor === undefined) return { major, minor: '0', patch: '0', kind, pre };
+  const defaultPatch = kind === '' && compareNumbers(minor, '21') < 0 ? '0' : '';
+  return { major, minor, patch: patch ?? defaultPatch, kind, pre };
+}
+
+// Decimal strings without leading zeros; the empty string sorts first.
+function compareNumbers(a: string, b: string): number {
+  if (a.length !== b.length) return a.length < b.length ? -1 : 1;
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
 }

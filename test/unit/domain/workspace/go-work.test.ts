@@ -12,6 +12,8 @@ describe('go.work', () => {
       goDirective('module example.com/api\n\ngo 1.24.0 // floor\n\ntoolchain go1.25.1\n'),
     ).toBe('1.24.0');
     expect(goDirective('module example.com/api\n\ngo\t1.22\n')).toBe('1.22');
+    expect(goDirective('module example.com/api\n\n  go 1.24.0\n')).toBe('1.24.0');
+    expect(goDirective('module example.com/api\n\n\tgo 1.24.0\n')).toBe('1.24.0');
     expect(goDirective('module example.com/api\n// go 1.30\n')).toBeUndefined();
   });
 
@@ -40,13 +42,33 @@ describe('go.work', () => {
     expect(isDerivedGoWork(text!)).toBe(true);
   });
 
-  it('compares go versions by their numbers, so 1.10 is newer than 1.9', () => {
-    expect(
-      renderGoWork([
-        { path: 'a', go: '1.9.7' },
-        { path: 'b', go: '1.10' },
-      ]),
-    ).toContain('\ngo 1.10\n');
+  it('picks the version Go orders newest, whichever module comes first', () => {
+    const goLine = (versions: string[]): string | undefined =>
+      /\ngo (\S+)\n/.exec(
+        renderGoWork(versions.map((go, i) => ({ path: `m${i}`, go }))) ?? '',
+      )?.[1];
+    const pairs: [older: string, newest: string][] = [
+      ['1.9.7', '1.10'],
+      ['1.24', '1.24rc1'],
+      ['1.24rc1', '1.24rc2'],
+      ['1.24beta1', '1.24rc1'],
+      ['1.24rc2', '1.24.0'],
+      ['1.24', '1.24.0'],
+      ['1.24.9', '1.24.10'],
+    ];
+    for (const [older, newest] of pairs) {
+      expect(goLine([older, newest])).toBe(newest);
+      expect(goLine([newest, older])).toBe(newest);
+    }
+  });
+
+  it('quotes a path Go would otherwise read as more than one token', () => {
+    const text = renderGoWork([
+      { path: 'src/my cli', go: undefined },
+      { path: 'src/a"b', go: undefined },
+      { path: 'src/kit', go: undefined },
+    ]);
+    expect(text).toContain('use (\n\t"./src/a\\"b"\n\t./src/kit\n\t"./src/my cli"\n)\n');
   });
 
   it('writes no go line when no module declares one, and nothing without a module', () => {
