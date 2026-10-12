@@ -46,6 +46,9 @@ async function stage(files: Record<string, string> = {}) {
   };
 }
 
+// Derived links to source files use forward slashes on every platform.
+const linked = (file: string): string => file.split(path.sep).join('/');
+
 describe('RenderRegions, inside a checkout of the manifest repository', () => {
   it('derives a live Skill catalog with descriptions and readable source links', async () => {
     const skillPath = `${MANIFEST_DIR}/skills/review/SKILL.md`;
@@ -61,7 +64,7 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(source).not.toContain('Private body');
     await s.derive.execute(write);
     const derived = (await s.h.fs.readText(AGENTS))!;
-    expect(derived).toContain(`[SKILL.md](<${skillPath}>)`);
+    expect(derived).toContain(`[SKILL.md](<${linked(skillPath)}>)`);
     expect(derived).toContain('Human routing.');
     expect((await s.derive.execute(write)).files.every((f) => f.action === 'unchanged')).toBe(true);
     await s.h.fs.remove(skillPath);
@@ -80,7 +83,7 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     });
     await s.derive.execute(write);
     const result = await s.h.fs.readText(AGENTS);
-    expect(result).toContain(`](<${MANIFEST_DIR}/docs/guide.md#entry>)`);
+    expect(result).toContain(`](<${linked(MANIFEST_DIR)}/docs/guide.md#entry>)`);
     expect(result).toContain('[repo](../service/README.md) [web](https://example.com)');
   });
   it('creates the document from the skeleton, then leaves it alone', async () => {

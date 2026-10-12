@@ -3,9 +3,8 @@
 // bridge reports the status it observed; landing it on the process is the
 // entry point's job.
 
-import spawn from 'cross-spawn';
-
 import { findExecutable, mergeEnvironment } from './executable.js';
+import { launch } from './launch.js';
 import { terminateChild } from './terminate.js';
 
 // A shell reports a command it could not find as 127, and MCP hosts read that
@@ -18,7 +17,7 @@ export async function runStdioBridge(vector: readonly string[]): Promise<{ exitC
   const env = mergeEnvironment(process.env);
   const executable = await findExecutable(binary, { env });
   if (!executable) return { exitCode: COMMAND_NOT_FOUND };
-  const child = spawn(executable, args, { env, stdio: 'inherit', windowsHide: true });
+  const child = launch(executable, args, { env, stdio: 'inherit', windowsHide: true });
   const stop = (): void => terminateChild(child);
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.once(signal, stop);
   const exitCode = await new Promise<number>((resolve) => {

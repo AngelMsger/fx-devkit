@@ -17,7 +17,10 @@ export function powershellVector(script: string): readonly string[] {
 export function windowsHookCommand(vector: readonly string[], owner: string): string {
   const [binary = '', ...args] = vector;
   const commandLine = args.map(nativeQuote).join(' ');
+  // A progress record (PowerShell's first-use module preparation, say) would reach
+  // stderr serialized as CLIXML.
   const script = `# fx-owner:${owner}
+$ProgressPreference = 'SilentlyContinue'
 $ErrorActionPreference = 'Stop'
 try {
   $s = New-Object System.Diagnostics.ProcessStartInfo

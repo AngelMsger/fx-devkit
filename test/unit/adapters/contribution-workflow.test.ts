@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe('native contribution workflow with a durable journal', () => {
   it('validates only the candidate and can reload its completed operation without another push', async () => {
-    const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-contribution-workflow-')));
+    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-contribution-workflow-')));
     roots.push(home);
     const source = path.join(home, 'workspaces/test/source');
     mkdirSync(path.join(source, 'manifest'), { recursive: true });

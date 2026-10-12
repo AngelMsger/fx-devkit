@@ -180,7 +180,8 @@ export class Import {
         remoteHeads[remote] = await this.deps.git.remoteHead(dir, remote);
     }
     return {
-      rel: path.relative(root, dir),
+      // A manifest path uses forward slashes on every platform.
+      rel: path.relative(root, dir).split(path.sep).join('/'),
       name: path.basename(dir),
       remotes,
       branch: (await this.deps.git.status(dir)).branch,

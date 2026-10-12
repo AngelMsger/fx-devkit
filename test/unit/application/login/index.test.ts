@@ -175,7 +175,7 @@ describe('Verifier', () => {
     const file = plan.steps.find((x) => x.id === 'kubectl.kubeconfig@dev')!;
     expect(await verifier.verify(file)).toEqual({
       ok: false,
-      detail: `${HOME}/.kube/dev is missing`,
+      detail: `${path.join(HOME, '.kube/dev')} is missing`,
     });
     await s.h.fs.writeText(`${HOME}/.kube/dev`, 'k');
     expect((await verifier.verify(file)).ok).toBe(true);

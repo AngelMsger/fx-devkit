@@ -122,7 +122,7 @@ describe('automatic workspace synchronization', () => {
     ]);
   });
   it('observes what sits at the root outside the workbench, by name and without a lease', async () => {
-    const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-background-root-')));
+    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-background-root-')));
     const root = path.join(home, 'workspace');
     mkdirSync(path.join(root, '.workbench/tmp'), { recursive: true });
     mkdirSync(path.join(root, 'example'));
@@ -166,7 +166,7 @@ describe('automatic workspace synchronization', () => {
     }
   });
   it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
-    const home = realpathSync(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));
+    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));
     const root = path.join(home, 'workspace');
     mkdirSync(root);
     const container = createContainer({ FX_HOME: home });

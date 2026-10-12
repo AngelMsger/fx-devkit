@@ -152,7 +152,7 @@ describe('SystemGit against real git', () => {
       ahead: 0,
       behind: 0,
     });
-    expect(await sut.toplevel(dir)).toBe(realpathSync(dir));
+    expect(await sut.toplevel(dir)).toBe(realpathSync.native(dir));
     expect(await sut.toplevel(tmpdir())).toBeUndefined();
   });
 

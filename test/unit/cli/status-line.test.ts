@@ -7,6 +7,9 @@ import { createRenderer } from '../../../src/cli/render/index.js';
 import { statusLineOn, type StatusLine } from '../../../src/cli/render/status-line.js';
 import { FakeTerminal } from '../../fakes/fake-terminal.js';
 
+// A terminal that draws symbols: every one but the legacy Windows console does.
+const SYMBOLS = { env: {}, platform: 'linux' } as const;
+
 // What the terminal shows once every redraw has been applied: the lines that stayed,
 // then whatever is on the last line.
 function screen(terminal: FakeTerminal): string[] {
@@ -178,7 +181,7 @@ describe('a status line', () => {
 
   it('stays away from a result that stopped short of the end of its line', () => {
     const terminal = new FakeTerminal(100, false);
-    const renderer = createRenderer('human', { out: terminal, err: terminal, env: {} });
+    const renderer = createRenderer('human', { out: terminal, err: terminal, ...SYMBOLS });
     renderer.status!.start('manifest schema');
     vi.advanceTimersByTime(600);
     renderer.text('{ "type": "object" }');
@@ -189,7 +192,11 @@ describe('a status line', () => {
 
   it('hands the terminal over, with the steps that had begun written down first', () => {
     const terminal = new FakeTerminal(100, false);
-    const renderer = createRenderer('human', { out: new FakeTerminal(), err: terminal, env: {} });
+    const renderer = createRenderer('human', {
+      out: new FakeTerminal(),
+      err: terminal,
+      ...SYMBOLS,
+    });
     const status = renderer.status!;
     status.start('login');
     vi.advanceTimersByTime(600);
@@ -209,7 +216,11 @@ describe('a status line', () => {
 
   it('speaks for what is under way and leaves every outcome on screen', () => {
     const terminal = new FakeTerminal(100, false);
-    const renderer = createRenderer('human', { out: new FakeTerminal(), err: terminal, env: {} });
+    const renderer = createRenderer('human', {
+      out: new FakeTerminal(),
+      err: terminal,
+      ...SYMBOLS,
+    });
     renderer.status!.start('sync');
     renderer.progress({ id: 'api', state: 'start', detail: 'fast_forward' });
     renderer.progress({ id: 'repos', state: 'running', total: 2, completed: 0 });
@@ -229,7 +240,11 @@ describe('a status line', () => {
 
   it('lets every record through as a line while it is not running', () => {
     const terminal = new FakeTerminal(100, false);
-    const renderer = createRenderer('human', { out: new FakeTerminal(), err: terminal, env: {} });
+    const renderer = createRenderer('human', {
+      out: new FakeTerminal(),
+      err: terminal,
+      ...SYMBOLS,
+    });
     renderer.progress({ id: 'api', state: 'start', detail: 'clone' });
     expect(screen(terminal)).toEqual([`  ${'api'.padEnd(24)} start  clone`, '']);
   });
