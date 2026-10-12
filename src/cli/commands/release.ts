@@ -1,10 +1,11 @@
 import { Flags } from '@oclif/core';
 
 import { Release } from '../../application/release/index.js';
-import { CHECKS, RELEASE_FINDING_COLUMNS, type Check } from '../../domain/release/types.js';
+import { CHECKS, type Check } from '../../domain/release/types.js';
 import { FxCommand } from '../base.js';
 import { argument, jobsFlag, listFlag } from '../flags.js';
 import { RELEASE_CODES, reportNotice } from '../notices.js';
+import { releaseText } from '../release-view.js';
 
 export default class ReleaseCommand extends FxCommand {
   static override description =
@@ -35,7 +36,15 @@ export default class ReleaseCommand extends FxCommand {
       since: flags.since,
       jobs: flags.jobs,
     });
-    this.renderReport(report, RELEASE_FINDING_COLUMNS);
+    // --fields selects from the report itself, in every format.
+    if (this.format === 'human' && this.renderOptions.fields === undefined)
+      this.renderer.text(
+        releaseText(report, {
+          display: this.renderer.display.out,
+          details: this.renderOptions.details === true,
+        }),
+      );
+    else this.renderer.record(report);
     this.renderer.notice(reportNotice(report, RELEASE_CODES, ['fx release <repo> --format json']));
   }
 }

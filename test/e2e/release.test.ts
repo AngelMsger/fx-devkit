@@ -247,12 +247,15 @@ describe('release', () => {
     ]);
   });
 
-  it('prints the same columns as doctor for a person', () => {
+  it('shows a person each repository with its checks, and the ready ones on one line', () => {
     const s = stage();
-    const run = fx(['release', '--details', 'b'], s.env, s.ws);
+    const run = fx(['release'], s.env, s.ws);
     expect(run.status, run.stderr).toBe(0);
-    expect(run.stdout).toMatch(/^group\s+level\s+id\s+message\s+fix/m);
-    expect(run.stdout).toMatch(/^merge\s+ok\s+b\s+dev and main agree/m);
-    expect(run.stdout.split('\n').filter((l) => l !== '')).toHaveLength(6);
+    expect(run.stdout).toMatch(/^a {2}4 fail\n {2}deps {4}fail {2}package\.json: x 1\.0\.0-dev/m);
+    expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not on main$/m);
+    expect(run.stdout.trimEnd().split('\n').at(-1)).toBe('All checks ok: b');
+    const all = fx(['release', '--details', 'b'], s.env, s.ws);
+    expect(all.stdout).toMatch(/^b {2}ok\n/);
+    expect(all.stdout).toMatch(/^ {2}merge {3}ok {4}dev and main agree$/m);
   });
 });

@@ -94,7 +94,10 @@ results. Application values remain complete. --details
 returns those values; explicit --fields projects them before any summary filter.
 Init/sync/doctor emit a single structured result in JSON/NDJSON; their default human
 view shows the task verdict, blockers and the next action. --details exposes the full
-report. Release and ordinary collection commands retain their existing views.
+report. Release's human view groups findings by repository: a repository with a failing
+or warning check lists all of its checks, a non-ok finding every repository shares is
+stated once above them, and repositories whose checks all passed share one closing line
+unless --details lists them too. Ordinary collection commands retain their tables.
 With --fields, every workflow report uses its complete top-level result as the
 projection source, including sync's items and trailer fields and doctor/release's
 findings and summary. JSON and NDJSON emit one projected object; human output uses

@@ -32,8 +32,6 @@ export interface ListOptions {
   // Merged into the JSON envelope, emitted as a final NDJSON record, or shown
   // below the human table. Notices use the separate diagnostic stream.
   readonly trailer?: Readonly<Record<string, unknown>>;
-  // A human findings table may display only one part of the workflow report.
-  readonly fullReport?: object;
 }
 
 // `describe` gives one key its own human lines, for a nested structure the
@@ -171,7 +169,7 @@ function renderList(
 ): void {
   const { format, options, display } = rendering;
   if (options.report !== undefined && options.fields !== undefined) {
-    const result = shapeResult(rendering, opts.fullReport ?? envelope(items, opts)) as object;
+    const result = shapeResult(rendering, envelope(items, opts)) as object;
     line(rendering, format === 'human' ? humanRecord(result, display) : JSON.stringify(result));
     return;
   }
