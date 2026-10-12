@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.10.1 (2026-10-12)
+
 - 在 npmjs 发布公开包 `@angelmsger/fx`，并为每个版本标签在 GitHub Release 附上 tarball。内部的 `@fx/devkit` 渠道保持不变。
 - `fx release` 的 human 输出按仓库分组。每个有失败或警告检查的仓库单独列一块，列出它的全部检查；所有仓库共有的问题（例如没有人登录的工具）连同解决它的命令只在它们上方说明一次；全部检查都通过的仓库合并在最后一行。`--details` 也会列出这些仓库的检查。JSON 和 NDJSON 输出保持不变。
 
