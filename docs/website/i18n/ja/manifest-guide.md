@@ -109,7 +109,7 @@ repos:
     desc: Example API service
 ```
 
-架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。もう一つの実装済み code-host provider、`local-git` はローカルの bare リポジトリ用であり、任意の Git ホスティングサービスのアダプターではありません。
+架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。ほかに実装済みの code-host provider は 2 つあります。`github` は GitHub CLI `gh` を使い、`host` には `https://github.com` のような clone のプレフィックスを指定します（GitHub Enterprise サーバーも同じ方法で指定します）。`local-git` はローカルの bare リポジトリのディレクトリ用で、任意の Git ホスティングサービスのアダプターではありません。
 
 `fx manifest providers` は各能力と、その結び付けを一覧します。1 つの能力に複数の実装があり得ます。`issue-tracker` は `feishu-project` か `jira-cli`、`knowledge-base` は `confluence` か `lark-wiki` を選べます。1 つの連携 CLI が複数の能力を担うこともでき、lark-cli は `im` と `knowledge-base` の両方を担いますが、インストールも確認も 1 回だけです。
 
@@ -225,6 +225,21 @@ envs:
         confidence: unverified
 ```
 
+ci の platform は、各環境をビルドする job を指定します。`jenkins-cli` は環境ごとに job の `path` を受け取ります。`github-actions` も `gh` を使います。platform でリポジトリを `OWNER/NAME`（GitHub Enterprise サーバーでは `HOST/OWNER/NAME`）として指定し、各環境でその環境をビルドする workflow と、実行を数えるブランチとトリガーを指定します。これにより、pull request や手動実行が正式なビルドの代わりに数えられることはありません。
+
+```yaml
+platforms:
+  actions:
+    provider: github-actions
+    capability: ci
+    vars: { repository: 'example/{repo}' }
+envs:
+  prod:
+    platforms:
+      actions:
+        vars: { workflow: ci.yml, branch: main, event: push }
+```
+
 ## AGENTS.md にチーム Skill を宣言する
 
 各 Skill を `skills/<name>/SKILL.md` に置き、frontmatter に `name` と `description` を記述します。ソースの AGENTS.md の希望する位置に次の領域を追加します。
@@ -234,7 +249,7 @@ envs:
 <!-- fx:end team-skills -->
 ```
 
-`fx manifest render` が名前、利用条件、ソースへのリンクを生成します。新規ガイドには領域を含めます。既存ガイドにない場合は追加を案内し、人が書いた文章には自動挿入しません。ソースガイドは相対リンク、派生したルートガイドは解決済みソースパスを使うため、特定ホストの Skill リンクに依存しません。`fx sync --only docs,skills` が追加、削除、メタデータ変更を反映します。カタログは探索の補助であり、ネイティブのインストールやロードを証明しません。対象はワークスペースルートのみで、業務リポジトリのガイドは変更しません。
+`fx manifest render` が名前、利用条件、ソースへのリンクを生成します。新規ガイドには領域を含めます。既存ガイドにない場合は追加を案内し、人が書いた文章には自動挿入しません。ソースガイドは相対リンク、派生したルートガイドは解決済みソースパスを使うため、特定ホストの Skill リンクに依存しません。ソースガイドの相対リンクのうち `CONTRIBUTING.md` のようにソース内のファイルを指すものも、同じように解決します。`fx sync --only docs,skills` が追加、削除、メタデータ変更を反映します。カタログは探索の補助であり、ネイティブのインストールやロードを証明しません。対象はワークスペースルートのみで、業務リポジトリのガイドは変更しません。
 
 文書の書き込み前に、計画時のファイルスナップショットと比較します。`DOCS_WRITE_CONFLICT` は並行編集または安全に置換できないパスを保持したことを示します。パスを確認し、親がリンクなら実際のディレクトリを使って、プレビュー後に再試行してください。各行の `action` は計画、`result` は `planned`、`done`、`skipped`、`failed`、`not_started` です。非ゼロ終了前に一部の書き込みが完了している場合があるため、stdout の `files`（sync では `stage_details.docs.files`、init では `sync.stage_details.docs.files`）を確認してください。再試行では変更のないファイルを省略します。承認済みの外部文書の置換では、元のファイル、ディレクトリ、リンク自体を未使用の同階層 `.fx-backup[-N]` に移動し、既存のバックアップを保持します。
 
@@ -246,6 +261,21 @@ envs:
 <!-- fx:begin workspace-layout -->
 <!-- fx:end workspace-layout -->
 ```
+
+## ルートに Go ワークスペースを保つ
+
+互いを使ってビルドする Go モジュールのリポジトリが複数ある場合は、ワークスペースルートの `go.work` を fx に保たせます。
+
+```yaml
+schema_version: 2
+min_cli: '0.11.0'
+go:
+  workspace: true
+```
+
+`fx init` と `fx sync` は、選択済みで最上位に `go.mod` がある checkout をすべて `go.work` に列挙し、それらのモジュールが要求する最新の `go` バージョンを指定します。各モジュールは `go.mod` が固定したバージョンではなく、兄弟リポジトリの checkout を使ってビルドされます。固定したバージョンでビルドするには `GOWORK=off` を指定します。未選択またはまだクローンしていないリポジトリは含めないため、存在しないモジュールを指すことはありません。`fx sync --only go` でこのファイルだけを更新できます。
+
+fx は 1 行目のマーカーで自分が書いた `go.work` を識別し、それだけを置換・削除します。本人が書いた `go.work` は報告するだけで変更しません。fx に保たせる場合は退避してください。設定を外すと、次の sync で fx が書いた `go.work` を削除します。`go.work` と `go.work.sum` はワークスペースの一部として扱われ、`fx doctor` は余分なエントリとして報告しません。
 
 ## 公開サービスプリセット {#public-service-presets}
 

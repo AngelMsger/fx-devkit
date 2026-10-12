@@ -34,6 +34,7 @@ import { resolveCommandShell, type ResolvedShell } from '../domain/shell.js';
 import type { Lease } from '../ports/lock.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
+import { compatibilityTarget } from './commands/aliases.js';
 import { globalFlags } from './flags.js';
 import { invocationFormat, UNDECIDED_FORMAT } from './invocation-format.js';
 import { preparationText } from './preparation-view.js';
@@ -111,7 +112,8 @@ export abstract class FxCommand extends Command {
     }
     this.format = format ?? DEFAULT_FORMAT;
     this.renderOptions = {
-      report: reportCommand(this.id),
+      // A compatibility name reports like the command it stands for.
+      report: reportCommand(compatibilityTarget(this.id ?? '') ?? this.id),
       details: flags['details'] === true,
       fields: parseFields(flags.fields),
       quiet: flags.quiet,

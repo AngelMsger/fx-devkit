@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Members } from '../../../../src/domain/manifest/types.js';
-import { judgeMerge } from '../../../../src/domain/release/merge.js';
+import { attributed, judgeMerge, unmergedOf } from '../../../../src/domain/release/merge.js';
 import type { Commit } from '../../../../src/ports/code-host.js';
 
 const members: Members = {
@@ -40,13 +40,16 @@ describe('judgeMerge', () => {
       ahead: { commits: [commit('1', 'Alice', 'feat: x')] },
       behind: { commits: [] },
     });
-    expect(ahead).toMatchObject({ level: 'fail', message: '1 commit on dev not on main' });
+    expect(ahead).toMatchObject({ level: 'fail', message: '1 commit on dev not merged into main' });
     const behind = judgeMerge({
       ...base,
       ahead: { commits: [] },
       behind: { commits: [commit('2', 'Alice', 'fix: y'), commit('3', 'Alice', 'fix: z')] },
     });
-    expect(behind).toMatchObject({ level: 'fail', message: '2 commits on main not on dev' });
+    expect(behind).toMatchObject({
+      level: 'fail',
+      message: '2 commits on main not merged back into dev',
+    });
   });
 
   it('ignores merge commits and bot commits but counts them as filtered', () => {
@@ -93,7 +96,7 @@ describe('judgeMerge', () => {
       behind: { commits: undefined, reason: 'bitbucket-cli could not compare dev..main' },
     });
     expect(blind).toMatchObject({ level: 'fail', coverage: 'incomplete' });
-    expect(blind.message).toContain('1 commit on dev not on main');
+    expect(blind.message).toContain('1 commit on dev not merged into main');
     expect(blind.message).toContain('could not compare dev..main');
     expect(blind.evidence).toMatchObject({ unknown: ['dev..main'] });
 
@@ -117,5 +120,15 @@ describe('judgeMerge', () => {
       behind: { commits: [] },
     });
     expect(out.evidence).toMatchObject({ ahead: [{ author: { id: null, name: 'Alice' } }] });
+  });
+
+  it('counts the people behind unmerged commits by who they are, not by each git name', () => {
+    const commits = [
+      commit('c1', 'Alice', 'feat: one'),
+      commit('c2', 'alice-z', 'feat: two'),
+      commit('c3', 'carol', 'fix: three'),
+    ].map((c) => attributed(members, c));
+    expect(unmergedOf(commits)).toEqual({ commits: 3, authors: 2 });
+    expect(unmergedOf([])).toEqual({ commits: 0, authors: 0 });
   });
 });

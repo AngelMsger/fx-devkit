@@ -124,7 +124,6 @@ function fromRecipe(
   vars: Vars,
   env?: string,
 ): SetupStep | PlanProblem {
-  const id = stepId(tool.name, recipe.id, env);
   const missing = new Set<string>();
   const vector = (parts: readonly string[] | undefined): readonly string[] | undefined => {
     if (parts === undefined) return undefined;
@@ -132,15 +131,20 @@ function fromRecipe(
     done.missing.forEach((m) => missing.add(m));
     return [tool.binary, ...done.vector];
   };
-  const text = (template: string | undefined): string | undefined => {
-    if (template === undefined) return undefined;
+  const filled = (template: string): string => {
     const done = substitute(template, vars);
     done.missing.forEach((m) => missing.add(m));
     return done.text;
   };
+  const text = (template: string | undefined): string | undefined =>
+    template === undefined ? undefined : filled(template);
+  // An id may name what the step is scoped to, such as a host: steps for two hosts
+  // stay two, and the same host from two bindings is still one step.
+  const id = stepId(tool.name, filled(recipe.id), env);
   const run = vector(recipe.run);
   const expects = text(recipe.expects?.path);
   const verify = check(recipe.verify, vector, text, (failure) => advised(failure, vars));
+  const requires = (recipe.requires ?? []).map((dep) => stepId(tool.name, filled(dep), env));
   if (missing.size > 0) {
     return {
       step: id,
@@ -165,7 +169,7 @@ function fromRecipe(
     ...(recipe.open === undefined || open.missing.length > 0 ? {} : { open: open.text }),
     ...(expects === undefined ? {} : { expects: { path: expects } }),
     verify,
-    requires: (recipe.requires ?? []).map((dep) => stepId(tool.name, dep, env)),
+    requires,
     origin: commandOrigin(tool),
     required: tool.required,
   };

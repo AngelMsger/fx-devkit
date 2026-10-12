@@ -26,6 +26,6 @@ export function windowMs(text: string): number {
   if (ms !== undefined) return ms;
   throw new DevkitError('usage', 'BAD_SINCE', `"${text}" is not a window`, {
     hint: 'Write an amount and a unit: 14d, 48h, 2w.',
-    nextSteps: ['fx release --since 14d'],
+    nextSteps: ['fx release check --since 14d'],
   });
 }

@@ -106,7 +106,8 @@ export function renderCliReference(registry) {
   }
 
   // Everyday commands first, in their own order; then each topic in alphabetical
-  // order with its commands as the registry lists them.
+  // order with its commands as the registry lists them. An everyday command that
+  // belongs to a topic is described once, among the everyday ones.
   /** @param {string} id */
   const topicOf = (id) => (id.includes(':') ? (id.split(':')[0] ?? null) : null);
   const topics = [
@@ -118,7 +119,11 @@ export function renderCliReference(registry) {
   ].sort();
   const ordered = [
     ...registry.everyday.map((id) => /** @type {[string, CommandSpec]} */ ([id, commands[id]])),
-    ...topics.flatMap((topic) => Object.entries(commands).filter(([id]) => topicOf(id) === topic)),
+    ...topics.flatMap((topic) =>
+      Object.entries(commands).filter(
+        ([id]) => topicOf(id) === topic && !registry.everyday.includes(id),
+      ),
+    ),
   ];
 
   const lines = [

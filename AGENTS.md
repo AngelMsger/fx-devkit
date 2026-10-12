@@ -18,6 +18,9 @@ and release tags, so both code hosts carry the same history.
 Push only to `origin` and merge through a pull request; an empty shared repository
 requires task-specific authorization for its initial seed. Never merge predecessor
 or unrelated histories. Keep actual remote URLs in Git configuration.
+A checkout fx clones for the agent-clis family workspace has the public GitHub
+repository as `upstream`; there, changes merge through GitHub pull requests, and
+the internal repositories are remotes the maintainer adds by hand.
 
 Work in the target checkout or an isolated worktree. Workspace migration,
 publication and tags need task-specific authorization. User authorization takes
@@ -152,8 +155,8 @@ own branches and histories.
   origin separate from definition provenance; updating external tools never transfers
   ownership. Legacy evidence remains unknown rather than inferred.
 - Source prose is preserved; missing regions are appended to generated target guides.
-  Only marked guides, owned Skill links/copies and receipted host resources are
-  managed. Preserve foreign files/entries; supported replacement requires
+  Only marked guides, a marked `go.work`, owned Skill links/copies and receipted host
+  resources are managed. Preserve foreign files/entries; supported replacement requires
   confirmation and backup. Recheck plans before writing and preserve recovery
   journals rather than guessing through unrecognized state.
 - Keep stored schemas aligned with their domain types and preserve each store's
@@ -272,7 +275,7 @@ internal design/evaluation documents, fx package-release procedures, maintainer
 validation checklists, personal preview bindings, or build-source metadata as user
 documentation. Do not add indirect links to excluded documents from public pages,
 translations, homepage sections, navigation or sitemaps. Explain how users operate
-fx (including checking their own repositories with `fx release`), not how the
+fx (including checking their own repositories with `fx release check`), not how the
 maintainer builds or publishes fx. Personal machine paths, preview project IDs and
 credential configuration belong outside the public repository.
 

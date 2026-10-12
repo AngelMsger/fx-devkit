@@ -12,7 +12,7 @@ file even when the fx command is read-only.
 
 ## Workflow report views
 
-The four workflow reports (`init`, `sync`, `doctor`, `release`) default to compact
+The four workflow reports (`init`, `sync`, `doctor`, `release check`) default to compact
 JSON. `output_mode: summary` and `omitted` describe the view; omitted counts are
 not pagination. All warning/failure rows and exact pending command vectors remain.
 `--details` returns the full application result; explicit `--fields` projects it.
@@ -157,9 +157,10 @@ same ambiguous setup. Doctor marks its missing verification as incomplete.
 `fx doctor` returns `preparation`, diagnostic `coverage` (`complete` or `incomplete`),
 `summary {ok, warn, fail}` and `findings[]`. The preparation verdict owns task completion;
 optional host activation can remain unverified. An incomplete verdict exits 12.
-`fx release` retains `ok`, `complete`, summary and findings and exits zero when its
+`fx release check` retains `ok`, `complete`, summary and findings and exits zero when its
 checklist was produced. Findings carry group, id, level, coverage, message, fix and
-handoff; full results also carry evidence. For `can`, inspect its capability status.
+handoff; full results also carry evidence. `repos[]` says what each release would ship,
+in summaries too. For `can`, inspect its capability status.
 
 Doctor groups are `repos`, `root`, `tools`, `login`, `agents`, `manifest`, `self`,
 `hooks`, `mcp` and `rules`. `root` lists entries at the workspace root that nothing
@@ -174,19 +175,36 @@ repair rows; use `--details` to inspect all attempts. Each attempt is
 structured recovery errors before post-repair findings are collected.
 `completed` means the repair ran, not that the subsequent check passed.
 
-`fx release [<repo>...] [--tag] [--only deps,merge,ci,errors] [--env] [--since]
-[--jobs]` covers repositories selected by manifest release policy. Its evidence
-is grouped by check:
+`fx release check [<repo>...] [--tag] [--only deps,merge,ci,errors] [--env] [--since]
+[--jobs]` covers repositories selected by manifest release policy; `fx release` is its
+compatibility name. It is read-only: it never merges, tags, publishes or deploys.
+
+Each `repos[]` entry is `{name, source, target, version_file, unmerged, note,
+unanswered}`. `source`
+and `target` are the branch heads `{branch, sha, date, message, version}`; `version` is
+what the repository's dependency file declares at that commit, null when it declares
+none. `target` is null for a repository releasing from one branch, and both are null
+when the code host was not asked or did not answer, which the findings explain.
+`unmerged` is `{commits, authors}`: how many people's commits the source has that the
+target lacks, and how many people wrote them; null when not compared. To read those
+commits, ask the code host's own CLI for the range from `target.sha` to `source.sha`;
+`fx repo show <repo>` gives where the repository lives on the host. `unanswered[]` lists
+each question to the code host that failed as `{field, reason}`, where `field` is the
+value left null (`version_file`, `source.commit`, `source.version`, `target.commit`,
+`target.version`, `unmerged`); a null without an entry means the repository declares
+none.
+
+Evidence is grouped by check:
 
 | Group    | Evidence                                                                                                                                  |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `merge`  | `source`, `target`, `ahead[]`, `behind[]`, `filtered`, `unknown[]` directions; commits have `sha`, `author {id, name}`, `date`, `message` |
 | `deps`   | `file`, `offending[] {name, version, section, runtime}`                                                                                   |
-| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, current}`; null `path` means no declared job                         |
+| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, head, current}`; null `path` means no declared job                   |
 | `errors` | `env`, `slug`, `since`, `capped`, `undated`, `issues[] {short_id, title, level, first_seen, last_seen, count, url}`                       |
 
-CI `current` compares build start time with branch-head time. This adapter result
-has no built-commit field, so it is a freshness heuristic, not revision verification.
+CI `current` compares build start time with the time of the branch head `head`. The CI
+result has no built-commit field, so it is a freshness heuristic, not revision verification.
 Use the companion's SCM/build details when the task requires an exact commit match.
 The full report's merge/dependency/issue evidence is available with `--details`.
 

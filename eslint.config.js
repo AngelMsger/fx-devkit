@@ -25,11 +25,12 @@ const zones = Object.entries(forbidden).flatMap(([target, froms]) =>
 );
 
 // Inner layers may calculate paths and fingerprints, but all IO goes through
-// ports. YAML/Zod are allowed only in the declarative configuration codecs.
-const innerImports = (codecs = false) => ({
+// ports. YAML/Zod are allowed only in the declarative configuration codecs, and TOML
+// only where a release reads the version a repository declares.
+const innerImports = (formats = []) => ({
   patterns: [
     {
-      regex: `^(?!(?:\\.{1,2}/|node:(?:path(?:/posix|/win32)?|crypto)$${codecs ? '|(?:yaml|zod)$' : ''}))`,
+      regex: `^(?!(?:\\.{1,2}/|node:(?:path(?:/posix|/win32)?|crypto)$${formats.length > 0 ? `|(?:${formats.join('|')})$` : ''}))`,
       message: 'Inner layers use ports for IO and domain codecs for configuration formats.',
     },
   ],
@@ -103,7 +104,11 @@ export default tseslint.config(
       'src/domain/config/**/*.ts',
       'src/domain/import/render.ts',
     ],
-    rules: { 'no-restricted-imports': ['error', innerImports(true)] },
+    rules: { 'no-restricted-imports': ['error', innerImports(['yaml', 'zod'])] },
+  },
+  {
+    files: ['src/domain/release/version.ts'],
+    rules: { 'no-restricted-imports': ['error', innerImports(['smol-toml'])] },
   },
   {
     // A fake records calls so a test can say which ones ran, not in what

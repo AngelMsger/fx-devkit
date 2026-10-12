@@ -77,14 +77,25 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
 
   it('resolves existing source document links while leaving business and external references intact', async () => {
     const s = await stage({
-      [ORIGIN]:
+      [ORIGIN]: [
         '[guide](docs/guide.md#entry) [repo](../service/README.md) [web](https://example.com)',
+        '[contributing](CONTRIBUTING.md) [repos](./manifest/workspace.yaml) [api](api/README.md)',
+        '[layer](../local.yaml) [top](#entry) [mail](mailto:team@example.com)',
+      ].join('\n'),
       [`${MANIFEST_DIR}/docs/guide.md`]: '# entry',
+      [`${MANIFEST_DIR}/CONTRIBUTING.md`]: '# contributing',
+      [path.join(MANIFEST_DIR, '..', 'local.yaml')]: 'scope: {}',
     });
     await s.derive.execute(write);
     const result = await s.h.fs.readText(AGENTS);
     expect(result).toContain(`](<${linked(MANIFEST_DIR)}/docs/guide.md#entry>)`);
+    expect(result).toContain(`[contributing](<${linked(MANIFEST_DIR)}/CONTRIBUTING.md>)`);
+    expect(result).toContain(`[repos](<${linked(MANIFEST_DIR)}/manifest/workspace.yaml>)`);
     expect(result).toContain('[repo](../service/README.md) [web](https://example.com)');
+    expect(result).toContain('[api](api/README.md)');
+    expect(result).toContain(
+      '[layer](../local.yaml) [top](#entry) [mail](mailto:team@example.com)',
+    );
   });
   it('creates the document from the skeleton, then leaves it alone', async () => {
     const s = await stage();

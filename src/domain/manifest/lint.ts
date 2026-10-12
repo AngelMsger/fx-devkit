@@ -40,7 +40,8 @@ function lintWorkspace(doc: Workspace, ownedRepos: readonly string[] | undefined
   const add = (code: string, path: string, message: string): void => {
     findings.push({ kind: 'workspace', code, path, message });
   };
-  if (doc.providers === undefined) {
+  // A workspace whose every repository names its upstream reaches no code host.
+  if (doc.providers === undefined && doc.repos.some((repo) => repo.upstream === undefined)) {
     add(
       'PROVIDERS_MISSING',
       'providers',
@@ -153,7 +154,7 @@ function lintRelease(
         kind: 'workspace',
         code: 'RELEASE_ENV_UNSET',
         path: 'release.env',
-        message: 'names no environment, so fx release never checks errors',
+        message: 'names no environment, so fx release check never checks errors',
       },
     ];
   }
@@ -173,7 +174,7 @@ function lintRelease(
         kind: 'workspace' as const,
         code: 'RELEASE_COVERAGE_GAP',
         path: `repos[${i}].release`,
-        message: `has no error tracker coordinate in ${env}; fx release reports its errors as not checked`,
+        message: `has no error tracker coordinate in ${env}; fx release check reports its errors as not checked`,
       },
     ];
   });

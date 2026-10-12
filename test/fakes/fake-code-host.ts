@@ -35,6 +35,8 @@ export class FakeCodeHost implements CodeHost {
   commits = new Map<string, Commit>();
   // `<project>/<name> <ref>:<path>` → file text.
   files = new Map<string, string>();
+  // The same keys as `files`, for a read that fails.
+  fileFailures = new Map<string, Error>();
   failure: Error | undefined;
 
   constructor(private readonly host = 'ssh://git@git.example.com:12345') {}
@@ -109,6 +111,8 @@ export class FakeCodeHost implements CodeHost {
 
   async readFile(ref: RepoRef, path: string, at: string): Promise<string | undefined> {
     this.ask(`file ${key(ref)} ${at}:${path}`);
+    const failure = this.fileFailures.get(`${key(ref)} ${at}:${path}`);
+    if (failure !== undefined) throw failure;
     return this.files.get(`${key(ref)} ${at}:${path}`);
   }
 

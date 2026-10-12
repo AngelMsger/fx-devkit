@@ -64,6 +64,7 @@ describe.skipIf(process.platform === 'win32')('native shell completion', () => {
   it('skips global values when locating command words and completes enum values', () => {
     expect(complete(['fx', '--workspace', 'repo', 'tool', 'inv'])).toEqual(['inventory']);
     expect(complete(['fx', 'repo', '--format', 'json', 'sh'])).toEqual(['show']);
+    expect(complete(['fx', 'release', 'check', '--only', 'm'])).toEqual(['merge']);
     expect(complete(['fx', 'release', '--only', 'm'])).toEqual(['merge']);
     expect(complete(['fx', 'repo', 'show', '--workspace', 're'])).toEqual([]);
   });
@@ -78,6 +79,8 @@ describe.skipIf(process.platform === 'win32')('native shell completion', () => {
     expect(complete(['fx', 'hook', 'inject', '--d'])).toEqual(['--details', '--dry-run']);
     expect(complete(['fx', 'tool', 'installed', '--format', 'j'])).toEqual(['json']);
     expect(complete(['fx', 'skill', 'list', '--a'])).toEqual(['--allow-writes', '--agent']);
+    expect(complete(['fx', 'release', ''])).toEqual(['check']);
+    expect(complete(['fx', 'rel'])).toEqual(['release']);
   });
 });
 

@@ -88,6 +88,22 @@ describe('stray root entries', () => {
     ]);
   });
 
+  it('accounts for go.work and go.work.sum only where the manifest keeps a Go workspace', async () => {
+    const files = { 'go.work': 'go 1.25.0\n', 'go.work.sum': '' };
+    const without = await root(files);
+    expect((await strayRootEntries(without.deps, inventory)).map((e) => e.name)).toEqual([
+      'go.work',
+      'go.work.sum',
+    ]);
+    const h = await harness({
+      workspace: `${WORKSPACE}go: {workspace: true}\n`,
+      files: Object.fromEntries(
+        Object.entries(files).map(([name, text]) => [path.join(ROOT, name), text]),
+      ),
+    });
+    expect(await strayRootEntries(h.deps, inventory)).toEqual([]);
+  });
+
   it('warns without blocking preparation, and offers a command only for an unregistered checkout', async () => {
     const h = await root({
       'demo.html': '<html>',

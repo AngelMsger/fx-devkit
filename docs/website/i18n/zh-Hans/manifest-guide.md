@@ -109,7 +109,7 @@ repos:
     desc: Example API service
 ```
 
-将虚构的域名、项目、仓库和分支替换为已确认的值。Git 克隆需要 Git 访问权限, API 操作需要 Bitbucket 配套 CLI，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。另一个已实现的代码托管 provider `local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。
+将虚构的域名、项目、仓库和分支替换为已确认的值。Git 克隆需要 Git 访问权限, API 操作需要 Bitbucket 配套 CLI，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。其他已实现的代码托管 provider 有两个：`github` 通过 GitHub CLI `gh` 工作，其 `host` 是 `https://github.com` 这样的克隆前缀（GitHub Enterprise 服务器也用同样方式指定）；`local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。
 
 `fx manifest providers` 列出每个能力及其绑定。一个能力可以有多个实现——`issue-tracker` 可选 `feishu-project` 或 `jira-cli`，`knowledge-base` 可选 `confluence` 或 `lark-wiki`；一个配套 CLI 也可以服务多个能力，lark-cli 就同时服务 `im` 与 `knowledge-base`，它仍然只安装和检查一次。
 
@@ -225,6 +225,21 @@ envs:
         confidence: unverified
 ```
 
+ci 平台指定构建每个环境的 job。`jenkins-cli` 在每个环境接收一个 job `path`。`github-actions` 同样通过 `gh` 工作：平台以 `OWNER/NAME`（GitHub Enterprise 服务器上为 `HOST/OWNER/NAME`）指定仓库，每个环境指定 workflow，以及计入的运行所属的分支和触发方式，这样 pull request 或手动运行就不会被当作正式构建。
+
+```yaml
+platforms:
+  actions:
+    provider: github-actions
+    capability: ci
+    vars: { repository: 'example/{repo}' }
+envs:
+  prod:
+    platforms:
+      actions:
+        vars: { workflow: ci.yml, branch: main, event: push }
+```
+
 ## 在 AGENTS.md 中声明团队 Skill
 
 每个团队 Skill 放在 `skills/<name>/SKILL.md`，frontmatter 提供 `name` 和 `description`。在源 AGENTS.md 中需要目录的位置加入：
@@ -234,7 +249,7 @@ envs:
 <!-- fx:end team-skills -->
 ```
 
-`fx manifest render` 自动填入名称、触发说明和源文件链接。新建指南默认带有该区域；已有指南缺少时只提示维护者添加，不自动插入人写内容。源指南使用相对链接，派生到工作区根的指南使用解析后的源路径，不依赖某个宿主的 Skill 链接。`fx sync --only docs,skills` 会更新新增、删除及元数据变化。目录帮助发现，不证明宿主已经安装或加载。仅覆盖工作区根，不修改业务仓库指南。
+`fx manifest render` 自动填入名称、触发说明和源文件链接。新建指南默认带有该区域；已有指南缺少时只提示维护者添加，不自动插入人写内容。源指南使用相对链接，派生到工作区根的指南使用解析后的源路径，不依赖某个宿主的 Skill 链接。源指南中指向源内文件的其他相对链接（例如 `CONTRIBUTING.md`）也同样解析。`fx sync --only docs,skills` 会更新新增、删除及元数据变化。目录帮助发现，不证明宿主已经安装或加载。仅覆盖工作区根，不修改业务仓库指南。
 
 文档写入前会比较规划时的文件快照。`DOCS_WRITE_CONFLICT` 表示并发编辑或不安全路径已被保留；检查路径，父目录为链接时使用真实目录，再预览并重试。文件行的 `action` 表示计划，`result` 为 `planned`、`done`、`skipped`、`failed` 或 `not_started`。非零退出前可能已有文件写入成功，请先读 stdout 中的 `files`（sync 中为 `stage_details.docs.files`，init 中为 `sync.stage_details.docs.files`）；重试会跳过未变化文件。获准替换外来内容时，原文件、目录或链接本身会移动到未占用的同级 `.fx-backup[-N]`，已有备份保持不变。
 
@@ -246,6 +261,21 @@ envs:
 <!-- fx:begin workspace-layout -->
 <!-- fx:end workspace-layout -->
 ```
+
+## 在根目录维护 Go 工作区
+
+当多个仓库是互相依赖构建的 Go 模块时，可以让 fx 在工作区根目录维护 `go.work`：
+
+```yaml
+schema_version: 2
+min_cli: '0.11.0'
+go:
+  workspace: true
+```
+
+`fx init` 和 `fx sync` 会把所有已选择且顶层有 `go.mod` 的 checkout 写入 `go.work`，并使用这些模块要求的最新 `go` 版本。每个模块基于同级仓库的 checkout 构建，而不是 `go.mod` 固定的版本；需要使用固定版本时以 `GOWORK=off` 构建。未选择或尚未克隆的仓库不会列入，因此文件不会指向缺失的模块。`fx sync --only go` 只刷新这个文件。
+
+fx 通过第一行的标记识别自己写的 `go.work`，只替换或删除这一份。个人自己的 `go.work` 只报告、不修改；要交给 fx 维护，请先把它移开。去掉该设置后，下一次 sync 会删除 fx 写的 `go.work`。`go.work` 与 `go.work.sum` 属于工作区，`fx doctor` 不会把它们报告为多余条目。
 
 ## 公共服务预设 {#public-service-presets}
 
