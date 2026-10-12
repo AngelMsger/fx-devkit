@@ -159,8 +159,11 @@ repos:
 Replace the fictional host, project, repository and branch with verified values.
 Git cloning requires Git access to the configured host; API operations require the Bitbucket companion;
 it is not a live demo service. Use `fx tool show bitbucket-cli` to inspect setup.
-The other implemented code-host provider, `local-git`, works with a directory of
-bare repositories; it is not an adapter for an arbitrary hosted Git service.
+The other implemented code-host providers are `github`, which drives the GitHub CLI
+`gh` and whose `host` is a clone prefix such as `https://github.com` (a GitHub
+Enterprise server is named the same way), and `local-git`, which works with a
+directory of bare repositories; `local-git` is not an adapter for an arbitrary
+hosted Git service.
 
 `fx manifest providers` lists every capability and what is bound to it. A
 capability may have more than one implementation — `issue-tracker` accepts
@@ -318,6 +321,25 @@ envs:
           auth_scheme: none
         vars: { job: 'example-{svc}' }
         confidence: unverified
+```
+
+A ci platform names the job that builds each environment. `jenkins-cli` takes a
+job `path` per environment. `github-actions` drives `gh` as well: the platform
+names the repository, and each environment names the workflow and the branch and
+trigger whose runs build it, so a pull request or a manual run does not stand in
+for the build of record.
+
+```yaml
+platforms:
+  actions:
+    provider: github-actions
+    capability: ci
+    vars: { repository: 'example/{repo}' }
+envs:
+  prod:
+    platforms:
+      actions:
+        vars: { workflow: ci.yml, branch: main, event: push }
 ```
 
 ## Declaring team Skills in AGENTS.md

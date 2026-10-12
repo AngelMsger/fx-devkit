@@ -109,7 +109,7 @@ repos:
     desc: Example API service
 ```
 
-將虛構的網域、專案、儲存庫和分支替換為已確認的值。Git 複製需要 Git 存取權限, API 操作需要 Bitbucket 配套 CLI，並非可連線的示範服務。使用 `fx tool show bitbucket-cli` 查看設定需求。另一個已實作的程式碼託管 provider `local-git` 用於本機 bare 儲存庫目錄，不是任意 Git 託管服務的介接器。
+將虛構的網域、專案、儲存庫和分支替換為已確認的值。Git 複製需要 Git 存取權限, API 操作需要 Bitbucket 配套 CLI，並非可連線的示範服務。使用 `fx tool show bitbucket-cli` 查看設定需求。其他已實作的程式碼託管 provider 有兩個：`github` 透過 GitHub CLI `gh` 運作，其 `host` 是 `https://github.com` 這樣的複製前綴（GitHub Enterprise 伺服器也以相同方式指定）；`local-git` 用於本機 bare 儲存庫目錄，不是任意 Git 託管服務的介接器。
 
 `fx manifest providers` 列出每個能力及其繫結。一個能力可以有多個實作——`issue-tracker` 可選 `feishu-project` 或 `jira-cli`，`knowledge-base` 可選 `confluence` 或 `lark-wiki`；一個配套 CLI 也可以服務多個能力，lark-cli 就同時服務 `im` 與 `knowledge-base`，它仍然只安裝與檢查一次。
 
@@ -223,6 +223,21 @@ envs:
           auth_scheme: none
         vars: { job: 'example-{svc}' }
         confidence: unverified
+```
+
+ci 平台指定建置每個環境的 job。`jenkins-cli` 在每個環境接收一個 job `path`。`github-actions` 同樣透過 `gh` 運作：平台指定儲存庫，每個環境指定 workflow，以及計入的執行所屬的分支與觸發方式，如此 pull request 或手動執行就不會被當成正式建置。
+
+```yaml
+platforms:
+  actions:
+    provider: github-actions
+    capability: ci
+    vars: { repository: 'example/{repo}' }
+envs:
+  prod:
+    platforms:
+      actions:
+        vars: { workflow: ci.yml, branch: main, event: push }
 ```
 
 ## 在 AGENTS.md 宣告團隊 Skill

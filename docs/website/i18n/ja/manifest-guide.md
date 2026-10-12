@@ -109,7 +109,7 @@ repos:
     desc: Example API service
 ```
 
-架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。もう一つの実装済み code-host provider、`local-git` はローカルの bare リポジトリ用であり、任意の Git ホスティングサービスのアダプターではありません。
+架空のホスト、プロジェクト、リポジトリ、ブランチを確認済みの値に置き換えてください。Git clone には Git のアクセス権が必要で, API 操作には Bitbucket 連携 CLI が必要です。接続できるデモサービスではありません。`fx tool show bitbucket-cli` で要件を確認します。ほかに実装済みの code-host provider は 2 つあります。`github` は GitHub CLI `gh` を使い、`host` には `https://github.com` のような clone のプレフィックスを指定します（GitHub Enterprise サーバーも同じ方法で指定します）。`local-git` はローカルの bare リポジトリのディレクトリ用で、任意の Git ホスティングサービスのアダプターではありません。
 
 `fx manifest providers` は各能力と、その結び付けを一覧します。1 つの能力に複数の実装があり得ます。`issue-tracker` は `feishu-project` か `jira-cli`、`knowledge-base` は `confluence` か `lark-wiki` を選べます。1 つの連携 CLI が複数の能力を担うこともでき、lark-cli は `im` と `knowledge-base` の両方を担いますが、インストールも確認も 1 回だけです。
 
@@ -223,6 +223,21 @@ envs:
           auth_scheme: none
         vars: { job: 'example-{svc}' }
         confidence: unverified
+```
+
+ci の platform は、各環境をビルドする job を指定します。`jenkins-cli` は環境ごとに job の `path` を受け取ります。`github-actions` も `gh` を使います。platform でリポジトリを指定し、各環境でその環境をビルドする workflow と、実行を数えるブランチとトリガーを指定します。これにより、pull request や手動実行が正式なビルドの代わりに数えられることはありません。
+
+```yaml
+platforms:
+  actions:
+    provider: github-actions
+    capability: ci
+    vars: { repository: 'example/{repo}' }
+envs:
+  prod:
+    platforms:
+      actions:
+        vars: { workflow: ci.yml, branch: main, event: push }
 ```
 
 ## AGENTS.md にチーム Skill を宣言する
