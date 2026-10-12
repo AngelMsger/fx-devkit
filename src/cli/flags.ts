@@ -19,7 +19,7 @@ export const globalFlags = {
   format: Flags.string({
     options: [...FORMATS],
     env: 'FX_FORMAT',
-    description: 'output format',
+    description: 'output format; agents use json',
     helpGroup: 'GLOBAL',
   }),
   fields: Flags.string({
@@ -44,7 +44,7 @@ export const globalFlags = {
   }),
   yes: Flags.boolean({
     default: false,
-    description: 'assume yes for confirmations',
+    description: 'assume yes for confirmations, including trust for new manifest commands',
     helpGroup: 'GLOBAL',
   }),
   quiet: Flags.boolean({

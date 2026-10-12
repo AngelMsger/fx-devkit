@@ -1,27 +1,11 @@
 # Command reference
 
-The generated repository reference is `docs/cli/README.md`; installed commands
-expose the same flags through `fx <command> --help`. The table lists common flags;
-`--dry-run` belongs to write commands. `--details` is a global view option;
-fact queries already return full results.
+`fx <command> --help` describes every flag the running executable accepts,
+including the global ones, and ends with an `AGENT USAGE` block that restates
+the output and error contract. This guide covers what the help cannot: how to
+read the results.
 
-| Flag                           | Meaning                                                            |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `--format json\|ndjson\|human` | output format; agents use `json`                                   |
-| `--details`                    | full workflow reports; fact queries are already complete           |
-| `--fields a,b.c`               | keep only these dot paths                                          |
-| `--workspace <name-or-root>`   | a registered name or root instead of the workspace containing cwd  |
-| `--no-input`                   | never prompt; a needed answer becomes a structured error           |
-| `--yes`                        | confirm prompts, including trust-on-first-use of manifest commands |
-| `--dry-run`                    | on write commands: print the plan, change nothing                  |
-| `--allow-writes`               | override read-only posture once                                    |
-| `--quiet`                      | drop notices and progress (errors stay)                            |
-
-Every `--help` ends with an `AGENT USAGE` block that restates the output
-and error contract.
-
-Use a registered name or root directory with `--workspace`; an unknown value
-never selects a different default. When a host truncates a large response, use
+An unknown `--workspace` value never selects a different default. When a host truncates a large response, use
 `--fields` on a read-only query to retrieve the required facts. If you capture full
 output, keep it within the task's authorized directory: shell redirection writes a
 file even when the fx command is read-only.

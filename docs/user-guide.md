@@ -511,8 +511,6 @@ required work. A projection file alone does not establish host activation.
 Init executes authorized local preparation itself. Completed setup steps stay
 visible in the result; do not repeat them while authentication is pending.
 
-`--workspace` accepts a registered name or root directory. `--details` can be
-used consistently across commands; fact queries already return full results.
 When capturing output for further analysis, use a location inside the authorized
 task directory; Read-only posture cannot control shell redirection.
 
