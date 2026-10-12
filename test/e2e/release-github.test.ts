@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runtimeTools, systemPath, writeNodeShim } from '../platform.js';
+import { gitExecutable, runtimeTools, systemPath, writeNodeShim } from '../platform.js';
 
 import { freshHome, fx, tempDir } from './harness.js';
 
@@ -28,7 +28,9 @@ const identity = {
 };
 
 // A GitHub API over `<root>/<owner>/<name>.git`: the endpoints the github code host
-// reads, `gh run list` from a fixed table, and every invocation logged.
+// reads, `gh run list` from a fixed table, and every invocation logged. It runs git by
+// its full path: on Windows the git on the test's PATH is a batch file, which
+// execFileSync cannot start.
 const FAKE_GH = `
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -51,7 +53,7 @@ if (args[0] !== 'api') process.exit(2);
 const [endpoint, query = ''] = args[args.length - 1].split('?');
 const [, owner, name, kind, ...rest] = endpoint.split('/');
 const git = (...a) =>
-  execFileSync('git', ['--git-dir', path.join(process.env.FAKE_GH_ROOT, owner, name + '.git'), ...a], {
+  execFileSync(${JSON.stringify(gitExecutable())}, ['--git-dir', path.join(process.env.FAKE_GH_ROOT, owner, name + '.git'), ...a], {
     encoding: 'utf8',
   });
 const commits = (...a) => git('rev-list', '--format=%H%x00%an%x00%cI%x00%P%x00%s', ...a)
