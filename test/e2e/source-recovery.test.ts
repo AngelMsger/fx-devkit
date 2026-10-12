@@ -77,7 +77,7 @@ describe('source contribution recovery through the built binary', () => {
     expect(separate.action).toBe('create');
     expect(separate.branch).not.toBe(first.branch);
     expect(state(f).prs).toHaveLength(2);
-  }, 30000);
+  });
   it('retires merged PRs after a real upstream fast-forward and never pushes to upstream', () => {
     const f = sourceFixture();
     const first = succeeded(push(f));
@@ -91,7 +91,7 @@ describe('source contribution recovery through the built binary', () => {
     expect(next.branch).not.toBe(first.branch);
     expect(git(['rev-parse', 'HEAD'], f.upstream)).toBe(first.commit);
     expect(JSON.parse(journal(f)).operations).toHaveLength(1);
-  }, 30000);
+  });
   it('retires an authoritatively missing branch and preserves records on an unavailable query', () => {
     const f = sourceFixture();
     const first = succeeded(push(f));
@@ -104,7 +104,7 @@ describe('source contribution recovery through the built binary', () => {
     const next = succeeded(push(f));
     expect(next.branch).not.toBe(first.branch);
     expect(JSON.parse(journal(f)).operations).toHaveLength(1);
-  }, 30000);
+  });
   it('does not repeat uncertain PR creation and recovers with its verified URL', () => {
     const f = sourceFixture();
     const failed = push(f, ['notes.md'], [], { FX_TEST_LOSE_PR_RESPONSE: '1' });
@@ -120,7 +120,7 @@ describe('source contribution recovery through the built binary', () => {
     });
     expect(state(f).prs).toHaveLength(1);
     expect(JSON.parse(journal(f)).operations[0].phase).toBe('open');
-  }, 30000);
+  });
   it('recovers an actual successful push whose wrapper lost the response without a second push', async () => {
     const f = sourceFixture();
     const log = await installPushFault(f);
@@ -132,7 +132,7 @@ describe('source contribution recovery through the built binary', () => {
     expect(succeeded(push(f))).toMatchObject({ action: 'resume', commit: operation.commit });
     expect(JSON.parse(readFileSync(log, 'utf8'))).toHaveLength(1);
     expect(state(f).prs).toHaveLength(1);
-  }, 30000);
+  });
   it('rejects a forged fork identity before creating local or remote state', () => {
     const f = sourceFixture();
     const before = sourceFingerprint(f.home);
@@ -143,7 +143,7 @@ describe('source contribution recovery through the built binary', () => {
     expect(
       git(['for-each-ref', '--format=%(refname)', 'refs/heads/fx/contribution'], f.origin),
     ).toBe('');
-  }, 30000);
+  });
   it('refuses a remote advance even when its content tree is unchanged', () => {
     const f = sourceFixture();
     const first = succeeded(push(f));
@@ -158,5 +158,5 @@ describe('source contribution recovery through the built binary', () => {
     expect(sourceFingerprint(f.home)).toBe(before);
     expect(git(['rev-parse', `refs/heads/${first.branch}`], f.origin)).toBe(outside);
     expect(state(f).prs).toHaveLength(1);
-  }, 30000);
+  });
 });

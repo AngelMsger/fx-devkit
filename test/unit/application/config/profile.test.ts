@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigExport } from '../../../../src/application/config/export.js';
 import { ConfigImport } from '../../../../src/application/config/import.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
+import { shellLine } from '../../../../src/domain/shell.js';
 import type { Lock } from '../../../../src/ports/lock.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
@@ -129,8 +130,11 @@ describe('profile export / import', () => {
       written: false,
     });
     expect(dry.next_steps).toEqual([
-      'fx init /ws/fx --name fx --from ssh://git@git.example.com:12345/fx/fx-workspace.git',
-      "fx init /ws/lab --name lab --from '<source>'",
+      shellLine([
+        ...['fx', 'init', path.resolve('/ws/fx'), '--name', 'fx'],
+        ...['--from', 'ssh://git@git.example.com:12345/fx/fx-workspace.git'],
+      ]),
+      shellLine(['fx', 'init', path.resolve('/ws/lab'), '--name', 'lab', '--from', '<source>']),
     ]);
     expect(target.localStore.writes).toEqual([]);
     const done = await new ConfigImport(target).execute({ ...write, text });

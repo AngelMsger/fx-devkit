@@ -18,9 +18,12 @@ const write = {
 };
 
 // A file system where /alias is a symbolic link to the root.
+const ALIAS = path.resolve('/alias');
 class AliasedFs extends FakeFs {
   override async realpath(target: string): Promise<string> {
-    return path.normalize(target.replace(/^\/alias(?=\/|$)/, ROOT));
+    const normal = path.normalize(target);
+    const aliased = normal === ALIAS || normal.startsWith(ALIAS + path.sep);
+    return aliased ? ROOT + normal.slice(ALIAS.length) : normal;
   }
 }
 

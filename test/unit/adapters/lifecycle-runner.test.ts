@@ -49,8 +49,10 @@ describe('independent lifecycle supervision', () => {
           timeoutMs: 1000,
         }),
       ).toBe('');
-      const before = await fs.readFile(heartbeat, 'utf8');
+      // Windows finishes ending a killed tree just after the call returns.
       await delay(100);
+      const before = await fs.readFile(heartbeat, 'utf8');
+      await delay(150);
       expect(await fs.readFile(heartbeat, 'utf8')).toBe(before);
     } finally {
       await fs.rm(root, { recursive: true, force: true });

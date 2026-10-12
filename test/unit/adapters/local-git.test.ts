@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { LocalGitCodeHost } from '../../../src/adapters/code-host/local-git/provider.js';
 import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
+import { repoUrl } from '../../../src/domain/workspace/ref.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { tempDir } from '../../temp.js';
 
@@ -25,7 +26,8 @@ describe('LocalGitCodeHost', () => {
     expect(await sut.whoami()).toEqual({ user: 'alice' });
 
     const first = await sut.fork({ project: 'fx', name: 'a' });
-    expect(first).toEqual({ url: path.join(host, '~alice', 'a.git'), created: true });
+    // The manifest's host/owner/name.git rule, which git also accepts on Windows.
+    expect(first).toEqual({ url: repoUrl(host, '~alice', 'a'), created: true });
     expect(existsSync(path.join(host, '~alice', 'a.git', 'HEAD'))).toBe(true);
     expect(await sut.fork({ project: 'fx', name: 'a' })).toEqual({
       url: first.url,

@@ -14,6 +14,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { stringify } from 'yaml';
 
+import { shellLine } from '../../src/domain/shell.js';
 import { FileLock } from '../../src/infra/lock.js';
 
 import { freshHome, fx, git, manifestDirOf, repository } from './harness.js';
@@ -74,7 +75,9 @@ describe('workspace discovery and lifecycle', () => {
     const failure = s.run(['status', '--workspace', 'alpha']);
     expect(failure.error()).toMatchObject({
       code: 'MANIFEST_MISSING',
-      next_steps: expect.arrayContaining([`fx init '${s.root}' --name alpha --from ${s.source}`]),
+      next_steps: expect.arrayContaining([
+        shellLine(['fx', 'init', s.root, '--name', 'alpha', '--from', s.source]),
+      ]),
     });
     rmSync(manifestDirOf(s.home, 'alpha'), { recursive: true });
     expect(s.run(['workspace', 'show', 'alpha']).json()).toMatchObject({
@@ -218,7 +221,11 @@ describe('workspace resource ownership', () => {
     expect(relocated.status, relocated.stderr).toBe(0);
     expect(existsSync(path.join(moved, '.codex/hooks.json'))).toBe(false);
     expect(fx(['sync', '--only', 'hooks', '--workspace', 'alpha'], env, s.base).status).toBe(0);
-    const hook = readFileSync(path.join(moved, '.codex/hooks.json'), 'utf8');
+    // A Windows hook carries its command as an encoded PowerShell script.
+    const hook = readFileSync(path.join(moved, '.codex/hooks.json'), 'utf8').replace(
+      /-EncodedCommand ([A-Za-z0-9+/]+=*)/g,
+      (_, script: string) => Buffer.from(script, 'base64').toString('utf16le'),
+    );
     expect(hook).toContain(moved);
     expect(hook).not.toContain(s.root);
   });
