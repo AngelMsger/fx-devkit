@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -11,7 +12,7 @@ import type { LifecycleRole } from '../../src/ports/lifecycle-runner.js';
 
 import { tempDir } from './harness.js';
 
-const adapter = path.resolve('dist/adapters/process/node-process.js');
+const adapter = pathToFileURL(path.resolve('dist/adapters/process/node-process.js')).href;
 
 // The companion command outlives its budget; the line after it stands for every
 // later phase of the run.

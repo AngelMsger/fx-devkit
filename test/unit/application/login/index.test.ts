@@ -194,7 +194,7 @@ describe('Verifier', () => {
     expect(s.h.process.soleCallTo(['kubectl']).vector).toEqual([
       'kubectl',
       '--kubeconfig',
-      `${HOME}/.kube/dev`,
+      path.join(HOME, '.kube/dev'),
       '--context',
       'dev',
       'auth',

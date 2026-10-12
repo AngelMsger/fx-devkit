@@ -1,6 +1,6 @@
 import { selfInfo, type WorkspaceInfo } from '../../../application/self/info.js';
 import { showWorkspace } from '../../../application/workspace/discover.js';
-import { bundledSkillDir } from '../../../composition/bundled.js';
+import { bundledSkillDir, bundledToolsPath } from '../../../composition/bundled.js';
 import { asDevkitError, toEnvelope } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
 
@@ -23,7 +23,7 @@ export default class SelfInfoCommand extends FxCommand {
         fxHome: this.container.fxHome,
         configPath: this.container.config.path(),
         trustPath: this.container.trust.path(),
-        bundledTools: new URL('../../../../defaults/tools.yaml', import.meta.url).pathname,
+        bundledTools: bundledToolsPath(),
         bundledSkill: bundledSkillDir(),
         registry: location.registry,
         registrySource: location.registrySource,

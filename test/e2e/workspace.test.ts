@@ -14,6 +14,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { repoUrl } from '../../src/domain/workspace/ref.js';
+
 import { freshHome, fx, git, manifestDirOf, tempDir } from './harness.js';
 
 interface Stage {
@@ -197,7 +199,7 @@ describe('workspace end to end', () => {
 
     const fork = fx(['repo', 'fork', 'a', '--format', 'json'], s.env, s.ws);
     expect(fork.status).toBe(0);
-    expect(fork.json()).toMatchObject({ created: true, url: path.join(s.host, '~alice', 'a.git') });
+    expect(fork.json()).toMatchObject({ created: true, url: repoUrl(s.host, '~alice', 'a') });
     expect(existsSync(path.join(s.host, '~alice', 'a.git', 'HEAD'))).toBe(true);
     expect(fx(['repo', 'fork', 'a', '--format', 'json'], s.env, s.ws).json()).toMatchObject({
       created: false,

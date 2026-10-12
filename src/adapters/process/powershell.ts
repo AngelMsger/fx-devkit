@@ -23,6 +23,13 @@ export function windowsHookCommand(vector: readonly string[], owner: string): st
 $ProgressPreference = 'SilentlyContinue'
 $ErrorActionPreference = 'Stop'
 try {
+  # On a UTF-8 console, Windows PowerShell starts a child's redirected input with a
+  # byte order mark; the same code page without the mark changes nothing else.
+  try {
+    if ([Console]::InputEncoding.CodePage -eq 65001) {
+      [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
+    }
+  } catch {}
   $s = New-Object System.Diagnostics.ProcessStartInfo
   $s.FileName = ${powershellQuote(binary)}
   $s.Arguments = ${powershellQuote(commandLine)}
@@ -37,8 +44,9 @@ try {
   [Console]::OpenStandardInput().CopyTo($p.StandardInput.BaseStream)
   $p.StandardInput.Close()
   $p.WaitForExit()
-  $o.GetAwaiter().GetResult()
-  $e.GetAwaiter().GetResult()
+  # A finished copy yields a value that PowerShell would print to the agent.
+  $null = $o.GetAwaiter().GetResult()
+  $null = $e.GetAwaiter().GetResult()
 } catch {}
 exit 0`;
   return powershellVector(script).join(' ');

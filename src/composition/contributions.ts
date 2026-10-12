@@ -2,7 +2,6 @@
 // code-host provider is built from committed baseline bytes, not dirty source.
 
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 
 import { SnapshotReader } from '../adapters/fs/snapshot-reader.js';
 import { ContributionSystemGit } from '../adapters/git/contribution-system-git.js';
@@ -90,8 +89,7 @@ function codeHostFromBase(
 ): ContributionHost {
   let workspace;
   try {
-    // The base is keyed by Git paths, which use forward slashes on every platform.
-    workspace = loadWorkspace(files[MANIFEST_FILES.workspace.split(path.sep).join('/')] ?? '', {
+    workspace = loadWorkspace(files[MANIFEST_FILES.workspace] ?? '', {
       cliVersion,
       providers: container.providers,
       strict: true,

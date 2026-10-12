@@ -61,10 +61,7 @@ export class ValidateContribution {
     if (findings.length > 0) return { ok: false, findings };
     const view = this.views.open(input.files);
     if (!(await view.reader.exists(path.join(view.root, MANIFEST_FILES.workspace))))
-      return {
-        ok: false,
-        findings: [finding(changePath(MANIFEST_FILES.workspace), 'manifest-missing')],
-      };
+      return { ok: false, findings: [finding(MANIFEST_FILES.workspace, 'manifest-missing')] };
     const options = { dir: view.root, cliVersion: input.cliVersion, providers: this.providers };
     const validation = await new ValidateManifest(view.reader, this.bundledTools).execute({
       ...options,
@@ -76,7 +73,7 @@ export class ValidateContribution {
         document.unknown.length > 0 ||
         document.dropped.length > 0
       )
-        findings.push(finding(changePath(document.path), 'manifest-invalid'));
+        findings.push(finding(document.path, 'manifest-invalid'));
     }
     if (findings.length > 0) return { ok: false, findings };
     const lint = await new LintManifest(
@@ -91,9 +88,4 @@ export class ValidateContribution {
 
 function finding(path: string, rule: string): ContributionFinding {
   return { path, rule, line: null, column: null };
-}
-
-// Findings name a file the way the candidate's changes do, with forward slashes.
-function changePath(file: string): string {
-  return file.split(path.sep).join('/');
 }

@@ -39,6 +39,8 @@ export function repoUrl(host: string, owner: string, name: string): string {
 }
 
 function fileLocation(url: string): string | undefined {
+  // A Windows path, as a local remote often is there, separates with either slash.
+  if (/^(?:[a-z]:[\\/]|\\\\)/i.test(url)) return url.replaceAll('\\', '/');
   if (!/^file:\/\//i.test(url)) return url;
   try {
     const parsed = new URL(url);

@@ -2,7 +2,6 @@
 // accompanying docs, Skills and binary assets without borrowing local paths.
 
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 
 import YAML from 'yaml';
 
@@ -14,9 +13,6 @@ import type { ReplaceFiles } from '../../ports/replace-files.js';
 
 import { FileSource } from './file.js';
 import { assertPayloadPath } from './payload.js';
-
-// Bundle entries are named with forward slashes on every platform.
-const WORKSPACE_ENTRY = MANIFEST_FILES.workspace.split(path.sep).join('/');
 
 interface PayloadFile {
   readonly name: string;
@@ -65,11 +61,11 @@ export class StdinSource implements ManifestSource {
       throw invalid('stdin must contain valid YAML or JSON');
     }
     if (!record(value) || !('source_version' in value))
-      return [{ name: WORKSPACE_ENTRY, bytes: Buffer.from(this.text), executable: false }];
+      return [{ name: MANIFEST_FILES.workspace, bytes: Buffer.from(this.text), executable: false }];
     if (value['source_version'] !== 1 || !record(value['files']))
       throw invalid('Expected source_version: 1 and a files mapping');
     const files = Object.entries(value['files']).map(([name, content]) => decode(name, content));
-    if (!files.some((file) => file.name === WORKSPACE_ENTRY))
+    if (!files.some((file) => file.name === MANIFEST_FILES.workspace))
       throw invalid('The bundle requires manifest/workspace.yaml');
     for (const file of files)
       if (files.some((other) => other.name.startsWith(`${file.name}/`)))

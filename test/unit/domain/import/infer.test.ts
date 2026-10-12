@@ -49,6 +49,13 @@ describe('file URL coordinates', () => {
     expect(hostOf('file:///host%20root/team%20space/api%25.git')).toBe('file:///host%20root');
     expect(refFromUrl('file:///host/team%2Fspace/api.git')).toBeUndefined();
   });
+  it('reads a Windows path with either slash', () => {
+    const ref = { project: 'team space', name: 'api' };
+    expect(refFromUrl('C:\\host root\\team space\\api.git')).toEqual(ref);
+    expect(refFromUrl('C:/host root/team space/api.git')).toEqual(ref);
+    expect(refFromUrl('\\\\server\\share\\team space\\api.git')).toEqual(ref);
+    expect(hostOf('C:\\host root\\team space\\api.git')).toBe('C:\\host root');
+  });
 });
 
 describe('upstream ladder', () => {
