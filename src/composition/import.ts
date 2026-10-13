@@ -1,5 +1,6 @@
 // Supply only evidence-backed provider identification for manifest import.
 
+import { identifyGitHubRemote } from '../adapters/code-host/github/import.js';
 import { identifyLocalGitRemote } from '../adapters/code-host/local-git/import.js';
 import type { ImportDeps } from '../application/import.js';
 import type { Reporter } from '../ports/reporter.js';
@@ -12,6 +13,7 @@ export function importDeps(container: Container, reporter: Reporter): ImportDeps
     fs: container.fs,
     reporter,
     codeHost: (host) => codeHostFor(container, host),
-    identifyProvider: (upstream) => identifyLocalGitRemote(container.process, upstream),
+    identifyProvider: async (upstream) =>
+      identifyGitHubRemote(upstream) ?? (await identifyLocalGitRemote(container.process, upstream)),
   };
 }
