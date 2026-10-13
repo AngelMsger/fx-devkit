@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.11.0 (2026-10-12)
+
 - manifest 设置 `go.workspace: true` 时，在工作区根目录维护 `go.work`。`fx init` 和 `fx sync` 会以这些模块要求的最新 `go` 版本，列出所有已选择且顶层有 `go.mod` 的 checkout，使每个模块基于同级仓库的 checkout 构建。尚未克隆的仓库不会列入，fx 只替换或删除自己写的 `go.work`，`fx sync --only go` 只刷新这个文件。在这样的工作区中，`go.work` 与 `go.work.sum` 不再算作多余的根目录条目。
 - 工作区可以绑定 GitHub。代码托管 provider `github` 和 ci provider `github-actions` 都通过 GitHub CLI `gh` 工作；`gh` 加入工具目录，两者在每个主机上共用一次登录。`fx release check` 像对 Bitbucket 和 Jenkins 一样，从 GitHub 读取分支、提交、文件以及某个分支最近一次 workflow 运行；ci 环境可以把计入的运行限定为一个分支和一种触发方式。在 GitHub 上暂时还不能通过 fx 创建 pull request。
 - 将 `fx release` 改名为 `fx release check`，让名字表明它检查发布而不是执行发布。`fx release` 作为兼容名称继续可用。
@@ -10,6 +12,10 @@
 - 按 manifest 模式的说明，在发布报告中显示仓库的 `release.note`。
 - 源 AGENTS.md 中指向 manifest 源内文件的相对链接（例如 `CONTRIBUTING.md`），在派生到工作区根目录的指南中全部解析为源文件路径。此前只解析指向 `README.md`、`docs/` 和 `skills/` 的链接，其余链接会指向根目录中不存在的文件。
 - 当所有仓库都写明 `upstream` 时，`fx manifest lint` 不再要求声明代码托管 provider，因为这样的工作区不会用到代码托管。
+- Windows 通过批处理文件（npm、Scoop、Chocolatey 安装的 `.cmd`）启动配套 CLI 时，所有参数都原样传入。cmd.exe 不再解释参数中的 `&`、`|`、`%`、`^` 等字符。
+- 以 Windows 路径给出的本地 Git 远程（如 `C:\host\fx\api.git`）会被读取为项目和名称，因此导入、接管、派生和 `fx source push` 都能使用它。在 stdin 包和源贡献中，manifest 文档在所有平台上都以正斜杠命名，导入写入的仓库路径也使用正斜杠。
+- PowerShell hook 不再把任务结果写入 Agent 的上下文，不再把带字节顺序标记的输入交给 fx，也不再把进度记录写到 stderr。
+- 在 Windows 上派生的指南中，指向源文件的链接也使用正斜杠。`fx self info` 将内置工具目录显示为文件路径，安装路径包含空格时也是如此。
 
 ## 0.10.1 (2026-10-12)
 
