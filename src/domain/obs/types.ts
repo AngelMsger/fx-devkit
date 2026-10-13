@@ -33,6 +33,8 @@ export interface Build {
   // ISO 8601; null when the platform did not say.
   readonly startedAt: string | null;
   readonly url: string | null;
+  // The commit the build checked out; null when the platform did not say.
+  readonly commit: string | null;
 }
 
 // What an error tracker says about one open issue.

@@ -1,6 +1,10 @@
 // Jenkins through jenkins-cli: coordinates and probe come from the shared
 // template; the one query reads a job's latest build. A job that is not
-// there is an answer (undefined), a job that cannot be read is an error.
+// there is an answer (undefined), a job that cannot be read is an error. A job
+// path is already one branch's job, so the branch being checked changes
+// nothing here. jenkins-cli names the commit a build checked out from 0.12.0
+// on, and only when it can tell the job's own checkout apart; otherwise the
+// commit stays unknown.
 
 import type { Coordinate, ProbeVector } from '../../../domain/obs/types.js';
 import type { Vars } from '../../../domain/template.js';
@@ -71,6 +75,7 @@ export class JenkinsCi implements Ci {
       status: statusOf(data),
       startedAt: stringAt(data, 'started_at') ?? null,
       url: stringAt(data, 'url') ?? null,
+      commit: stringAt(objectOf(data['revision']) ?? {}, 'sha') ?? null,
     };
   }
 }

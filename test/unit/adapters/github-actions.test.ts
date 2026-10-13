@@ -5,12 +5,14 @@ import { FakeProcess } from '../../fakes/fake-process.js';
 
 const RUNS = ['gh', 'run', 'list', '--repo', 'github.com/octo/tool', '--workflow', 'ci.yml'];
 const vars = { repository: 'octo/tool', workflow: 'ci.yml' };
+const query = { branch: 'main' };
 const runs = (...data: unknown[]) => ({ code: 0, stdout: JSON.stringify(data), stderr: '' });
 const run = (fields: Record<string, unknown>) => ({
   number: 97,
   startedAt: '2026-10-12T07:02:49Z',
   createdAt: '2026-10-12T07:02:40Z',
   url: 'https://github.com/octo/tool/actions/runs/1',
+  headSha: '3f2a1bc0d4e5f60718293a4b5c6d7e8f90a1b2c3',
   ...fields,
 });
 
@@ -35,21 +37,21 @@ describe('GitHubActionsCi', () => {
     ]);
   });
 
-  it('reads the latest run of the branch and trigger: number, status, start and page', async () => {
+  it('reads the latest run of the branch and trigger: number, status, start, page and commit', async () => {
     const proc = new FakeProcess().on(
       RUNS,
       runs(run({ status: 'completed', conclusion: 'success' })),
     );
-    const build = await new GitHubActionsCi(proc).lastBuild({
-      ...vars,
-      branch: 'main',
-      event: 'push',
-    });
+    const build = await new GitHubActionsCi(proc).lastBuild(
+      { ...vars, branch: 'main', event: 'push' },
+      { branch: 'dev' },
+    );
     expect(build).toEqual({
       number: 97,
       status: 'success',
       startedAt: '2026-10-12T07:02:49Z',
       url: 'https://github.com/octo/tool/actions/runs/1',
+      commit: '3f2a1bc0d4e5f60718293a4b5c6d7e8f90a1b2c3',
     });
     const call = proc.soleCallTo(RUNS);
     expect(call.vector.slice(RUNS.length)).toEqual([
@@ -60,9 +62,21 @@ describe('GitHubActionsCi', () => {
       '--limit',
       '1',
       '--json',
-      'number,status,conclusion,startedAt,createdAt,url',
+      'number,status,conclusion,startedAt,createdAt,url,headSha',
     ]);
     expect(call.options.timeoutMs).toBe(15_000);
+  });
+
+  it('counts the runs of the branch being checked when the coordinate names none', async () => {
+    const proc = new FakeProcess().on(
+      RUNS,
+      runs(run({ status: 'completed', conclusion: 'success', headSha: undefined })),
+    );
+    expect((await new GitHubActionsCi(proc).lastBuild(vars, { branch: 'dev' }))?.commit).toBeNull();
+    expect(proc.soleCallTo(RUNS).vector.slice(RUNS.length, RUNS.length + 2)).toEqual([
+      '--branch',
+      'dev',
+    ]);
   });
 
   it.each([
@@ -75,7 +89,7 @@ describe('GitHubActionsCi', () => {
     ['completed', 'action_required', 'unknown'],
   ])('reads a %s run concluded %s as %s', async (status, conclusion, expected) => {
     const proc = new FakeProcess().on(RUNS, runs(run({ status, conclusion })));
-    expect((await new GitHubActionsCi(proc).lastBuild(vars))?.status).toBe(expected);
+    expect((await new GitHubActionsCi(proc).lastBuild(vars, query))?.status).toBe(expected);
   });
 
   it('answers undefined for a missing workflow and for a branch it never ran on', async () => {
@@ -84,14 +98,14 @@ describe('GitHubActionsCi', () => {
       stdout: '',
       stderr: 'HTTP 404: workflow ci.yml not found on the default branch',
     });
-    expect(await new GitHubActionsCi(missing).lastBuild(vars)).toBeUndefined();
+    expect(await new GitHubActionsCi(missing).lastBuild(vars, query)).toBeUndefined();
     const never = new FakeProcess().on(RUNS, runs());
-    expect(await new GitHubActionsCi(never).lastBuild(vars)).toBeUndefined();
+    expect(await new GitHubActionsCi(never).lastBuild(vars, query)).toBeUndefined();
   });
 
   it('throws for a run it cannot number and for a refused sign-in', async () => {
     const unnumbered = new FakeProcess().on(RUNS, runs({ status: 'completed' }));
-    await expect(new GitHubActionsCi(unnumbered).lastBuild(vars)).rejects.toMatchObject({
+    await expect(new GitHubActionsCi(unnumbered).lastBuild(vars, query)).rejects.toMatchObject({
       code: 'PLATFORM_QUERY_FAILED',
     });
     const refused = new FakeProcess().on(RUNS, {
@@ -99,7 +113,7 @@ describe('GitHubActionsCi', () => {
       stdout: '',
       stderr: 'HTTP 401: Bad credentials (https://api.github.com/repos/octo/tool)',
     });
-    await expect(new GitHubActionsCi(refused).lastBuild(vars)).rejects.toMatchObject({
+    await expect(new GitHubActionsCi(refused).lastBuild(vars, query)).rejects.toMatchObject({
       code: 'PLATFORM_AUTH',
     });
   });

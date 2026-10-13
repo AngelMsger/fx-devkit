@@ -80,24 +80,28 @@ async function stage(options: StageOptions = {}) {
     status: 'success',
     startedAt: '2026-09-02T10:00:00Z',
     url: null,
+    commit: null,
   });
   ci.builds.set('services/fx-example-api/master', {
     number: 9,
     status: 'failure',
     startedAt: null,
     url: null,
+    commit: null,
   });
   ci.builds.set('services/fx-example-data/feature%2Fdev', {
     number: 1,
     status: 'success',
     startedAt: '2026-09-02T10:00:00Z',
     url: null,
+    commit: null,
   });
   ci.builds.set('services/fx-example-data/master', {
     number: 2,
     status: 'success',
     startedAt: '2026-09-02T10:00:00Z',
     url: null,
+    commit: null,
   });
   const tracker = new FakeErrorTracker();
   tracker.issuesOf.set('fx-example-api-dev', [
@@ -456,6 +460,28 @@ describe('Release', () => {
     );
     expect(ci?.level).toBe('warn');
     expect(ci?.message).toContain('jenkins-cli offers no lastBuild query');
+  });
+
+  it('judges a build by the commit it checked out and tells the platform which branch it checks', async () => {
+    const s = await stage();
+    // Started before the head commit was written, yet built from it: pushed late.
+    s.ci.builds.set('services/fx-example-data/feature%2Fdev', {
+      number: 1,
+      status: 'success',
+      startedAt: '2026-08-01T00:00:00Z',
+      url: null,
+      commit: 's1',
+    });
+    const report = await run(s, { only: ['ci'] as Check[] });
+    const ci = report.findings.find((f) => f.id === 'fx-example-data');
+    expect(ci).toMatchObject({
+      level: 'ok',
+      message: expect.stringContaining('master #1 succeeded, built s1'),
+    });
+    expect(ci?.evidence).toMatchObject({
+      builds: expect.arrayContaining([expect.objectContaining({ commit: 's1', current: true })]),
+    });
+    expect(s.ci.queries).toContainEqual({ branch: 'master' });
   });
 
   it("lets --env and --since override the manifest's release policy", async () => {

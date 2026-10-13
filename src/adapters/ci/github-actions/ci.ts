@@ -1,12 +1,13 @@
 // GitHub Actions through gh: a job is one workflow of one repository, narrowed to the
-// runs of one branch and one trigger when the coordinate names them. One workflow often
-// runs on pushes, pull requests and by hand, and only the coordinate knows which of
-// those builds what ships. A workflow that is not there is an answer (undefined), a
-// workflow that cannot be read is an error.
+// runs of one branch and one trigger. One workflow often runs on pushes, pull requests
+// and by hand, and only the coordinate knows which of those builds what ships; a
+// coordinate that names no branch counts the runs of the branch being checked. A
+// workflow that is not there is an answer (undefined), a workflow that cannot be read
+// is an error.
 
 import type { Coordinate, ProbeVector } from '../../../domain/obs/types.js';
 import type { Vars } from '../../../domain/template.js';
-import type { Build, BuildStatus, Ci } from '../../../ports/ci.js';
+import type { Build, BuildQuery, BuildStatus, Ci } from '../../../ports/ci.js';
 import type { Process } from '../../../ports/process.js';
 import { EXIT, objectOf, queryFailed, stringAt, unreadableError } from '../../family/cli.js';
 import { BINARY, GhCli, qualifiedRepository } from '../../github/gh.js';
@@ -15,7 +16,7 @@ import { TemplatePlatform } from '../../platform/template-platform.js';
 export const ID = 'github-actions';
 const QUERY = { timeoutMs: 15_000 } as const;
 const RUNS = ['run', 'list', '--repo', '{repository}', '--workflow', '{workflow}'];
-const FIELDS = 'number,status,conclusion,startedAt,createdAt,url';
+const FIELDS = 'number,status,conclusion,startedAt,createdAt,url,headSha';
 
 // A run still on its way, by gh's status; a finished run says how it ended instead.
 const PENDING = new Set(['queued', 'in_progress', 'waiting', 'requested', 'pending']);
@@ -50,8 +51,8 @@ export class GitHubActionsCi implements Ci {
     return this.platform.probe(qualified(vars));
   }
 
-  async lastBuild(vars: Vars): Promise<Build | undefined> {
-    const { repository = '', workflow = '', branch, event } = qualified(vars);
+  async lastBuild(vars: Vars, query: BuildQuery): Promise<Build | undefined> {
+    const { repository = '', workflow = '', branch = query.branch, event } = qualified(vars);
     const what = `the last run of ${workflow} in ${repository}${branch ? ` on ${branch}` : ''}`;
     const call = await new GhCli(this.process).call(
       [
@@ -82,6 +83,7 @@ export class GitHubActionsCi implements Ci {
       status: statusOf(run),
       startedAt: stringAt(run, 'startedAt') ?? stringAt(run, 'createdAt') ?? null,
       url: stringAt(run, 'url') ?? null,
+      commit: stringAt(run, 'headSha') ?? null,
     };
   }
 }

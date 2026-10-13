@@ -28,7 +28,8 @@ const identity = {
 };
 
 // A GitHub API over `<root>/<owner>/<name>.git`: the endpoints the github code host
-// reads, `gh run list` from a fixed table, and every invocation logged. It runs git by
+// reads, `gh run list` from a fixed table whose runs built the branch's head, and every
+// invocation logged. It runs git by
 // its full path: on Windows the git on the test's PATH is a batch file, which
 // execFileSync cannot start.
 const FAKE_GH = `
@@ -45,8 +46,11 @@ const flag = (name) => args[args.indexOf(name) + 1];
 if (args[0] === 'run' && args[1] === 'list') {
   if (flag('--workflow') !== 'ci.yml') { process.stderr.write('HTTP 404: workflow not found\\n'); process.exit(1); }
   const broken = flag('--repo') === 'github.com/octo/a' && flag('--branch') === 'dev';
+  const [, owner, name] = flag('--repo').split('/');
+  const headSha = execFileSync(${JSON.stringify(gitExecutable())}, ['--git-dir', path.join(process.env.FAKE_GH_ROOT, owner, name + '.git'), 'rev-parse', flag('--branch')], { encoding: 'utf8' }).trim();
+  // Started long before the head was written: only the commit says the run built it.
   out([{ number: broken ? 4 : 9, status: 'completed', conclusion: broken ? 'failure' : 'success',
-    startedAt: '2999-01-01T00:00:00Z', url: 'https://github.example/actions/runs/' + (broken ? 4 : 9) }]);
+    startedAt: '2000-01-01T00:00:00Z', url: 'https://github.example/actions/runs/' + (broken ? 4 : 9), headSha }]);
   process.exit(0);
 }
 if (args[0] !== 'api') process.exit(2);
@@ -133,7 +137,8 @@ function stage(): { ws: string; env: Record<string, string>; log: string } {
       'envs:',
       '  dev:',
       '    label: Development',
-      '    platforms: { actions: { vars: { workflow: ci.yml, branch: dev } } }',
+      // No branch: the runs counted are those of the branch being checked.
+      '    platforms: { actions: { vars: { workflow: ci.yml } } }',
       '  prod:',
       '    label: Production',
       '    platforms: { actions: { vars: { workflow: ci.yml, branch: main, event: push } } }',
@@ -186,7 +191,14 @@ describe('release on GitHub', () => {
     });
     expect(findings.find((f) => f.group === 'ci' && f.id === 'b')?.evidence).toMatchObject({
       builds: [
-        { side: 'source', branch: 'dev', number: 9, status: 'success', current: true },
+        {
+          side: 'source',
+          branch: 'dev',
+          number: 9,
+          status: 'success',
+          commit: expect.stringMatching(/^[0-9a-f]{40}$/),
+          current: true,
+        },
         { side: 'target', branch: 'main', number: 9, url: 'https://github.example/actions/runs/9' },
       ],
     });

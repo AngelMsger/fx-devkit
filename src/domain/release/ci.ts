@@ -1,9 +1,10 @@
-// Whether each side of a release is built. Builds carry no revision here, so
-// currency is an ordering of times; see "Build currency" in docs/design/release.md.
+// Whether each side of a release is built: by the commit a build checked out when the
+// platform names it, otherwise by an ordering of times; see "Build currency" in
+// docs/design/release.md.
 
 import type { Build } from '../obs/types.js';
 import { type Coverage, type Level, worst } from '../report.js';
-import { shortSha } from '../workspace/commits.js';
+import { sameCommit, shortSha } from '../workspace/commits.js';
 
 import { releaseFinding, type ReleaseFinding } from './types.js';
 
@@ -20,7 +21,8 @@ export interface BuildSide {
   readonly build: Build | undefined;
   // Why this side went unanswered, when the platform could not be asked.
   readonly reason?: string | undefined;
-  // The branch's head commit, which a current build started after; null without the branch.
+  // The branch's head commit, which a current build checked out or started after; null
+  // without the branch.
   readonly sha: string | null;
   // ISO date of the branch's head commit; null when unknown.
   readonly head: string | null;
@@ -28,15 +30,22 @@ export interface BuildSide {
 
 export interface JudgedBuild {
   readonly status: Build['status'];
-  // null when either date is unknown, so nothing is concluded from it.
+  // null when neither the commit nor both dates are known, so nothing is concluded.
   readonly current: boolean | null;
+  // What `current` was decided by.
+  readonly by: 'commit' | 'time' | null;
 }
 
-export function judgeBuild(build: Build, head: string | null): JudgedBuild {
+// The commit a build checked out answers the question; without it, a build that started
+// no earlier than the head commit was written is the best evidence there is.
+export function judgeBuild(build: Build, head: Pick<BuildSide, 'sha' | 'head'>): JudgedBuild {
+  if (build.commit !== null && head.sha !== null)
+    return { status: build.status, current: sameCommit(build.commit, head.sha), by: 'commit' };
   const started = build.startedAt === null ? NaN : Date.parse(build.startedAt);
-  const at = head === null ? NaN : Date.parse(head);
-  if (Number.isNaN(started) || Number.isNaN(at)) return { status: build.status, current: null };
-  return { status: build.status, current: started >= at };
+  const at = head.head === null ? NaN : Date.parse(head.head);
+  if (Number.isNaN(started) || Number.isNaN(at))
+    return { status: build.status, current: null, by: null };
+  return { status: build.status, current: started >= at, by: 'time' };
 }
 
 export function ciFinding(repo: string, sides: readonly BuildSide[]): ReleaseFinding {
@@ -58,6 +67,7 @@ export function ciFinding(repo: string, sides: readonly BuildSide[]): ReleaseFin
           status: side.build?.status ?? null,
           started_at: side.build?.startedAt ?? null,
           url: side.build?.url ?? null,
+          commit: side.build?.commit ?? null,
           head: side.sha,
           current: verdict.current,
         })),
@@ -90,15 +100,20 @@ function verdictOf(side: BuildSide): { level: Level; message: string; current: b
       message: `${branch}: no ${side.job ?? `job ${side.path}`}`,
       current: null,
     };
-  const { status, current } = judgeBuild(build, side.head);
+  const { status, current, by } = judgeBuild(build, side);
   const which = `${branch} #${build.number}`;
   const head = side.sha === null ? 'the head commit' : shortSha(side.sha);
+  const built = build.commit === null ? head : shortSha(build.commit);
   if (status === 'building') return { level: 'warn', message: `${which} still building`, current };
   // The platform reported a state fx cannot map: it did not say the build
   // failed, so neither does the report.
   if (status === 'unknown')
     return { level: 'warn', message: `${which} in an unreadable state`, current };
   if (status !== 'success') return { level: 'fail', message: `${which} ${status}`, current };
+  if (by === 'commit')
+    return current
+      ? { level: 'ok', message: `${which} succeeded, built ${head}`, current }
+      : { level: 'fail', message: `${which} succeeded but built ${built}, not ${head}`, current };
   if (current === false)
     return { level: 'fail', message: `${which} succeeded but started before ${head}`, current };
   if (current === null)
@@ -111,7 +126,7 @@ function coverageOf(side: BuildSide): Coverage {
   if (side.branch === undefined) return side.side === 'source' ? 'incomplete' : 'not_applicable';
   if (side.path === null) return 'not_applicable';
   if (side.build === undefined || side.build.status === 'unknown') return 'incomplete';
-  if (side.build.status === 'success' && judgeBuild(side.build, side.head).current === null)
+  if (side.build.status === 'success' && judgeBuild(side.build, side).current === null)
     return 'incomplete';
   return 'checked';
 }
