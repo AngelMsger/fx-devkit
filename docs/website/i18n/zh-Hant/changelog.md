@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 - 可以在 GitHub 上建立 pull request。`fx source push` 對託管在 GitHub 上的 manifest 來源與對 Bitbucket 一樣運作：透過 `gh` 把所選檔案推送到經過驗證的個人 fork，並針對其上游建立、重複使用或結束 pull request；`--pr` 接受 pull request 編號或它在 GitHub 上的頁面。
-- `fx import` 能辨識從 github.com 複製的 checkout，並以 `https://github.com` 或 `ssh://git@github.com` 為主機繫結程式碼託管 `github`。仍不會依據遠端推測 GitHub Enterprise 伺服器。
+- `fx import` 能辨識透過 HTTPS 或 SSH 從 github.com 複製的 checkout，並以相應的複製前綴為主機繫結程式碼託管 `github`。仍不會依據遠端推測 GitHub Enterprise 伺服器。
 - 將 `wecom-calendar-cli` 加入工具目錄並作為 `calendar` provider。它是你自己企業微信行事曆的本機鏡像，可連同歷史一起搜尋。`fx can` 檢查每位成員的登入狀態，並把 `wecom-calendar-cli event list` 交給 Agent；是否用 `wecom-calendar-cli sync` 填充鏡像由成員自己決定。
 - 平台提供 CI 建置檢出的提交時，依該提交判定建置。`fx release check` 認為成功建置了分支最新提交的建置通過，建置了其他提交的建置失敗，不再比較建置開始時間與最新提交的寫入時間。GitHub Actions 會提供提交，Jenkins 從 jenkins-cli 0.12.0 起提供；沒有提交時仍依時間判定。CI 證據新增 `commit`。
 - `github-actions` 的 ci 環境可以省略 `branch`。此時 `fx release check` 在每一側計入正在檢查的分支的執行。

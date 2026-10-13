@@ -8,9 +8,9 @@
   on GitHub as it does with Bitbucket: it pushes the selected files to your verified
   personal fork through `gh` and opens, reuses or retires the pull request against
   its upstream, and `--pr` accepts a pull request number or its page on GitHub.
-- Recognize checkouts cloned from github.com in `fx import`, which binds the
-  `github` code host with `https://github.com` or `ssh://git@github.com` as its
-  host. A GitHub Enterprise server is still not guessed from a remote.
+- Recognize checkouts cloned from github.com over HTTPS or SSH in `fx import`,
+  which binds the `github` code host with the matching clone prefix as its host.
+  A GitHub Enterprise server is still not guessed from a remote.
 - Add `wecom-calendar-cli`, a local, searchable mirror of your own WeCom calendars
   with their history, to the tool catalog and as a `calendar` provider. `fx can`
   checks each member's sign-in and hands agents `wecom-calendar-cli event list`;

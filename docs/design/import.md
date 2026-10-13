@@ -60,9 +60,9 @@ repository layout are checked with Git before that provider is selected. File-UR
 project and repository coordinates are decoded exactly once for filesystem
 queries; literal filesystem paths retain their percent characters. Git SSH
 or HTTPS transport alone does not identify a hosted API provider. The one host a
-remote names unambiguously is github.com itself, as `https://github.com/OWNER/NAME`
-or `git@github.com:OWNER/NAME`, which binds the `github` provider; a GitHub
-Enterprise server looks like any other host and is not guessed. Unresolved or
+remote names unambiguously is github.com itself, over HTTPS or SSH, which binds
+the `github` provider; a GitHub Enterprise server looks like any other host and is
+not guessed. Unresolved or
 mixed providers retain every exact upstream URL, omit defaults.host, and carry
 review notes so no implicit Bitbucket binding is activated. Project and branch
 values may still be folded. HTTP(S) remotes containing userinfo or query/fragment

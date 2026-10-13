@@ -5,7 +5,7 @@ import type { ImportProvider } from '../../../domain/import/infer.js';
 import { DEFAULT_HOSTNAME } from '../../github/gh.js';
 
 export function identifyGitHubRemote(upstream: string): ImportProvider | undefined {
-  // git@github.com:owner/name.git, the form GitHub offers for SSH clones.
+  // The scp-like git@HOST:OWNER/NAME.git, the form GitHub offers for SSH clones.
   const scp = /^git@([^/:]+):([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(upstream);
   if (scp !== null)
     return scp[1] === DEFAULT_HOSTNAME
