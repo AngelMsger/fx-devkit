@@ -73,7 +73,10 @@ repository secret. One-time setup:
    `node scripts/publish.mjs`. Discard the metadata change afterwards.
 2. On npmjs, open `@angelmsger/fx` → Settings → Trusted Publisher → GitHub
    Actions: organization or user `AngelMsger`, repository `fx-devkit`, workflow
-   `release.yml`, environment blank.
+   `release.yml`, environment blank, and under Allowed actions also allow
+   publishing directly with `npm publish`. A trusted publisher created after
+   2026-09-03 allows only `npm stage publish` by default, and the release run's
+   publish step then fails with `403 … OIDC permission denied for this action`.
 3. In the GitHub repository, set Settings → Pages → Source to _GitHub Actions_.
 
 Keep these constraints, shared with the sibling CLIs: no `registry-url` on
