@@ -163,13 +163,15 @@ The other implemented code-host providers are `github`, which drives the GitHub 
 `gh` and whose `host` is a clone prefix such as `https://github.com` (a GitHub
 Enterprise server is named the same way), and `local-git`, which works with a
 directory of bare repositories; `local-git` is not an adapter for an arbitrary
-hosted Git service.
+hosted Git service. `bitbucket-cli` and `github` also open the pull requests of
+`fx source push`; `local-git` does not.
 
 `fx manifest providers` lists every capability and what is bound to it. A
 capability may have more than one implementation — `issue-tracker` accepts
 `feishu-project` or `jira-cli`, `knowledge-base` accepts `confluence` or
-`lark-wiki` — and one companion CLI may serve several capabilities, as lark-cli
-does for `im` and `knowledge-base`. It is still installed and checked once.
+`lark-wiki`, `calendar` accepts `lark-calendar`, `wecom-calendar` or
+`wecom-calendar-cli` — and one companion CLI may serve several capabilities, as
+lark-cli does for `im` and `knowledge-base`. It is still installed and checked once.
 
 From the directory containing `team-workspace/`, preview and initialize:
 
@@ -326,9 +328,12 @@ envs:
 A ci platform names the job that builds each environment. `jenkins-cli` takes a
 job `path` per environment. `github-actions` drives `gh` as well: the platform
 names the repository as `OWNER/NAME`, or `HOST/OWNER/NAME` on a GitHub Enterprise
-server, and each environment names the workflow and the branch and trigger whose
-runs build it, so a pull request or a manual run does not stand in for the build
-of record.
+server, and each environment names the workflow and the trigger whose runs build
+it, so a pull request or a manual run does not stand in for the build of record.
+An environment may also name a `branch`; without one, `fx release check` counts
+the runs of the branch it is checking. Release check compares the commit a build
+checked out with the branch head; GitHub Actions always names it, and Jenkins does
+from jenkins-cli 0.12.0 on.
 
 ```yaml
 platforms:
@@ -340,7 +345,7 @@ envs:
   prod:
     platforms:
       actions:
-        vars: { workflow: ci.yml, branch: main, event: push }
+        vars: { workflow: ci.yml, event: push }
 ```
 
 ## Declaring team Skills in AGENTS.md

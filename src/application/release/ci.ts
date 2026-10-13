@@ -73,7 +73,7 @@ async function side(
   const job = coordinate.label;
   const path = coordinate.vars['path'] ?? job;
   const [build, head] = await Promise.all([
-    settled(() => ci.platform.lastBuild(coordinate.vars)),
+    settled(() => ci.platform.lastBuild(coordinate.vars, { branch: branch.name })),
     settled(() => facts.host.commit(facts.ref, branch.sha)),
   ]);
   if (build.reason !== undefined) return { ...blank, path, job, reason: build.reason };

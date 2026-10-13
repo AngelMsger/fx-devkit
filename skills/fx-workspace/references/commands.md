@@ -200,12 +200,14 @@ Evidence is grouped by check:
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `merge`  | `source`, `target`, `ahead[]`, `behind[]`, `filtered`, `unknown[]` directions; commits have `sha`, `author {id, name}`, `date`, `message` |
 | `deps`   | `file`, `offending[] {name, version, section, runtime}`                                                                                   |
-| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, head, current}`; null `path` means no declared job                   |
+| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, commit, head, current}`; null `path` means no declared job           |
 | `errors` | `env`, `slug`, `since`, `capped`, `undated`, `issues[] {short_id, title, level, first_seen, last_seen, count, url}`                       |
 
-CI `current` compares build start time with the time of the branch head `head`. The CI
-result has no built-commit field, so it is a freshness heuristic, not revision verification.
-Use the companion's SCM/build details when the task requires an exact commit match.
+CI `current` compares the commit the build checked out, `commit`, with the branch head
+`head` when the platform names it. A null `commit` (Jenkins before jenkins-cli 0.12.0)
+falls back to comparing the build's start time with the head commit's time, which is a
+freshness heuristic, not revision verification; use the companion's build details then
+when the task requires an exact commit match.
 The full report's merge/dependency/issue evidence is available with `--details`.
 
 Uncovered explicit repositories yield `REPO_NOT_COVERED`, unmatched tags

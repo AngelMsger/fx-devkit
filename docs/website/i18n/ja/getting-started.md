@@ -168,7 +168,7 @@ fx manifest schema --kind tools
 
 capability はコードホスト、CI、ログ、エラー追跡などの目的を表し、provider は連携 CLI を通じて実装します。マニフェストが能力、プロバイダー、環境の座標を結び付けます。`can` は準備状態、`where` は座標、`release check` は宣言されたリリースチェックを返します。
 
-ワークスペース単位で結び付ける能力は `code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`meeting`、`task`、`worklog` です。環境単位で platform ごとに結び付ける能力は `error-tracker`、`log-store`、`metrics`、`ci`、`cluster` です。対象を指定しない `fx can` は、これらの能力と、このワークスペースでそれぞれを提供するものを一覧します。`fx manifest providers` は結び付けの内容と、各能力が受け付ける provider を一覧します。`calendar` は予定と空き時間の所在です。`meeting` はオンライン会議とその録画・議事録を保持する会議システムで、予定の管理と会議の開催を別の製品で行うチームは両方を結び付けます。
+ワークスペース単位で結び付ける能力は `code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`meeting`、`task`、`worklog` です。環境単位で platform ごとに結び付ける能力は `error-tracker`、`log-store`、`metrics`、`ci`、`cluster` です。対象を指定しない `fx can` は、これらの能力と、このワークスペースでそれぞれを提供するものを一覧します。`fx manifest providers` は結び付けの内容と、各能力が受け付ける provider を一覧します。`calendar` は予定と空き時間の所在です。`meeting` はオンライン会議とその録画・議事録を保持する会議システムで、予定の管理と会議の開催を別の製品で行うチームは両方を結び付けます。WeCom では、`wecom-calendar` は WeCom CLI を通じてボットから見える予定を一覧し、`wecom-calendar-cli` は各メンバー自身のカレンダーのローカルミラーを履歴ごと検索します。サインインと `wecom-calendar-cli sync` によるミラーの更新は、各メンバーが自分で行います。
 
 `metrics` は `prometheus-cli` が提供します。座標はサービスの scrape job です。`where` は `up{job="..."}` クエリを出力し、そのサービスのターゲットのラベル集合を返すので、以降のセレクターを書く出発点になります。何にも一致しないセレクターでもクエリは成功するため、メトリクスには存在確認の probe がなく、`where --probe` は推測せず `unknown` を報告します。
 
@@ -234,7 +234,7 @@ fx skill status
 
 ### 共有情報への貢献
 
-`source push` は選択したソースファイルの変更をプレビューまたは提出し、ソース checkout の HEAD、インデックス、作業ファイルを保護します。個人フォークと上流の関係を示す根拠が必要です。実行前に `fx source push --help` と[貢献の契約](cli/README.md#fx-source-push)を確認してください。
+`source push` は選択したソースファイルの変更をプレビューまたは提出し、ソース checkout の HEAD、インデックス、作業ファイルを保護します。個人フォークと上流の関係を示す根拠と、Bitbucket または GitHub にある manifest ソースが必要です。実行前に `fx source push --help` と[貢献の契約](cli/README.md#fx-source-push)を確認してください。
 
 ## 主なコマンド {#commands}
 
@@ -309,15 +309,16 @@ bash、zsh、fish、PowerShell の補完は `fx completion <shell>` で生成し
 
 マニフェストでワークスペースの provider と連携 CLI を選びます。現在の実装は以下のとおりです。
 
-| 能力                       | プロバイダー                                |
-| -------------------------- | ------------------------------------------- |
-| コードホスト               | Bitbucket CLI、ローカル bare Git リポジトリ |
-| CI                         | Jenkins CLI                                 |
-| ログ                       | OpenObserve CLI                             |
-| エラー追跡                 | Sentry CLI                                  |
-| クラスタの発見             | kubectl、読み取り専用の問い合わせ           |
-| 課題と知識                 | Feishu Project、Confluence CLI              |
-| コミュニケーションへの入口 | Lark CLI、WeCom CLI                         |
+| 能力                       | プロバイダー                                            |
+| -------------------------- | ------------------------------------------------------- |
+| コードホスト               | Bitbucket CLI、GitHub CLI、ローカル bare Git リポジトリ |
+| CI                         | Jenkins CLI、GitHub CLI による GitHub Actions           |
+| ログ                       | OpenObserve CLI                                         |
+| エラー追跡                 | Sentry CLI                                              |
+| クラスタの発見             | kubectl、読み取り専用の問い合わせ                       |
+| 課題と知識                 | Feishu Project、Confluence CLI                          |
+| コミュニケーションへの入口 | Lark CLI、WeCom CLI                                     |
+| カレンダー                 | Lark CLI、WeCom CLI、WeCom calendar CLI                 |
 
 `fx manifest providers` と `fx tool list` で実際のバインディングを確認します。コミュニケーションと知識の入口は連携ツールに引き継ぎ、すべての API を fx が仲介するわけではありません。
 

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- GitHub で pull request を作成できるようになりました。`fx source push` は GitHub にある manifest ソースでも Bitbucket と同じように動作します。選択したファイルを `gh` を通じて検証済みの個人フォークに push し、上流に対する pull request を作成、再利用、または終了します。`--pr` には pull request の番号か GitHub 上のページを指定できます。
+- `fx import` が github.com から HTTPS または SSH でクローンした checkout を認識し、対応する clone のプレフィックスをホストとして code-host `github` を結び付けます。GitHub Enterprise サーバーは、引き続きリモートから推測しません。
+- 自分の WeCom カレンダーを履歴ごと検索できるローカルミラー `wecom-calendar-cli` を、ツールカタログと `calendar` の provider に追加しました。`fx can` は各メンバーのサインインを確認し、エージェントに `wecom-calendar-cli event list` を渡します。`wecom-calendar-cli sync` でミラーを満たすかどうかはメンバー自身が決めます。
+- プラットフォームが CI のビルドがチェックアウトしたコミットを示す場合は、そのコミットでビルドを判定します。`fx release check` は、ブランチの先頭コミットをビルドして成功したビルドを合格とし、別のコミットのビルドは不合格とします。ビルドの開始時刻と先頭コミットの作成時刻は比較しません。GitHub Actions はコミットを示し、Jenkins は jenkins-cli 0.12.0 以降で示します。コミットがわからない場合は、これまでどおり時刻で判定します。CI の根拠に `commit` が加わります。
+- `github-actions` の ci 環境で `branch` を省略できるようになりました。その場合、`fx release check` は各側で確認しているブランチの実行を数えます。
+
 ## 0.11.0 (2026-10-12)
 
 - manifest に `go.workspace: true` を指定すると、ワークスペースルートに `go.work` を保ちます。`fx init` と `fx sync` は、最上位に `go.mod` がある選択済みの checkout をすべて、それらが要求する最新の `go` バージョンで列挙するため、各モジュールは兄弟リポジトリの checkout を使ってビルドされます。まだクローンしていないリポジトリは含めず、fx は自分が書いた `go.work` だけを置換・削除します。`fx sync --only go` でこのファイルだけを更新できます。このワークスペースでは `go.work` と `go.work.sum` を余分なルートエントリとして扱いません。

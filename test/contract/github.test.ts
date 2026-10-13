@@ -49,7 +49,7 @@ describe.skipIf(!live || repository === undefined || workflow === undefined)(
     const vars = { repository: repository ?? '', workflow: workflow ?? '' };
 
     it('reads the last run of a workflow on a branch, and none of one that does not exist', async () => {
-      const build = await ci.lastBuild({ ...vars, branch: 'main' });
+      const build = await ci.lastBuild(vars, { branch: 'main' });
       expect(build).toEqual(
         expect.objectContaining({
           number: expect.any(Number),
@@ -57,9 +57,12 @@ describe.skipIf(!live || repository === undefined || workflow === undefined)(
             /^(success|failure|unstable|aborted|building|not_built|unknown)$/,
           ),
           url: expect.stringContaining('/actions/runs/'),
+          commit: expect.stringMatching(/^[0-9a-f]{40}$/),
         }),
       );
-      expect(await ci.lastBuild({ ...vars, workflow: 'definitely-not-here.yml' })).toBeUndefined();
+      expect(
+        await ci.lastBuild({ ...vars, workflow: 'definitely-not-here.yml' }, { branch: 'main' }),
+      ).toBeUndefined();
     });
   },
 );

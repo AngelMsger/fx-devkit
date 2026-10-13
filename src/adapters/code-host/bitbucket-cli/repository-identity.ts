@@ -2,9 +2,9 @@
 // Older companions omit parentage; that absence remains unknown to the caller.
 
 import type { RepositoryIdentity } from '../../../domain/contribution/remote.js';
-import { DevkitError } from '../../../domain/errors.js';
 import type { Branch, RepoRef } from '../../../ports/code-host.js';
 import { objectOf, stringAt } from '../../family/cli.js';
+import { identityIncomplete as invalidIdentity } from '../../family/contribution.js';
 
 import type { BitbucketCli } from './client.js';
 import { callContribution, contributionFailed } from './contribution-call.js';
@@ -58,13 +58,4 @@ export function decodeRepoRef(data: Record<string, unknown>): RepoRef {
   const name = stringAt(data, 'slug');
   if (!project || !name) throw invalidIdentity();
   return { project, name };
-}
-
-function invalidIdentity(): DevkitError {
-  return new DevkitError(
-    'config',
-    'SOURCE_IDENTITY_UNVERIFIED',
-    'The companion did not return a complete matching repository identity',
-    { nextSteps: ['fx doctor', 'Update the code-host companion and verify repository access.'] },
-  );
 }

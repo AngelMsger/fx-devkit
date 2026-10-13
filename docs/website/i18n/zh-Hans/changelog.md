@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- 可以在 GitHub 上创建 pull request。`fx source push` 对托管在 GitHub 上的 manifest 源与对 Bitbucket 一样工作：通过 `gh` 把所选文件推送到经过验证的个人 fork，并针对其上游创建、复用或结束 pull request；`--pr` 接受 pull request 编号或它在 GitHub 上的页面。
+- `fx import` 能识别通过 HTTPS 或 SSH 从 github.com 克隆的 checkout，并以相应的克隆前缀为主机绑定代码托管 `github`。仍不会根据远程推测 GitHub Enterprise 服务器。
+- 将 `wecom-calendar-cli` 加入工具目录并作为 `calendar` provider。它是你自己企业微信日历的本地镜像，可连同历史一起搜索。`fx can` 检查每位成员的登录状态，并把 `wecom-calendar-cli event list` 交给 Agent；是否用 `wecom-calendar-cli sync` 填充镜像由成员自己决定。
+- 平台给出 CI 构建检出的提交时，按该提交判定构建。`fx release check` 认为成功构建了分支最新提交的构建通过，构建了其他提交的构建失败，不再比较构建开始时间与最新提交的写入时间。GitHub Actions 会给出提交，Jenkins 从 jenkins-cli 0.12.0 起给出；没有提交时仍按时间判定。CI 证据新增 `commit`。
+- `github-actions` 的 ci 环境可以省略 `branch`。此时 `fx release check` 在每一侧计入正在检查的分支的运行。
+
 ## 0.11.0 (2026-10-12)
 
 - manifest 设置 `go.workspace: true` 时，在工作区根目录维护 `go.work`。`fx init` 和 `fx sync` 会以这些模块要求的最新 `go` 版本，列出所有已选择且顶层有 `go.mod` 的 checkout，使每个模块基于同级仓库的 checkout 构建。尚未克隆的仓库不会列入，fx 只替换或删除自己写的 `go.work`，`fx sync --only go` 只刷新这个文件。在这样的工作区中，`go.work` 与 `go.work.sum` 不再算作多余的根目录条目。

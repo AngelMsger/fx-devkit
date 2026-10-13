@@ -26,3 +26,11 @@ export interface CommitRange {
 export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
+
+// Two names of one commit, either of which may be abbreviated to seven digits or more.
+export function sameCommit(a: string, b: string): boolean {
+  const [shorter, longer] = (a.length <= b.length ? [a, b] : [b, a]).map((sha) =>
+    sha.toLowerCase(),
+  ) as [string, string];
+  return shorter === longer || (shorter.length >= 7 && longer.startsWith(shorter));
+}

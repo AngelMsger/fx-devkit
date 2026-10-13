@@ -6,13 +6,16 @@ import type { Build } from '../../../../src/ports/ci.js';
 const build = (
   status: Build['status'],
   startedAt: string | null = '2026-09-02T10:00:00Z',
+  commit: string | null = null,
 ): Build => ({
   number: 7,
   status,
   startedAt,
   url: null,
+  commit,
 });
 const HEAD = '2026-09-02T09:00:00Z';
+const at = (head: string | null, sha: string | null = 'd1d1d1d1d1d1') => ({ sha, head });
 const side = (
   which: BuildSide['side'],
   b: Build | undefined,
@@ -29,13 +32,28 @@ const side = (
 
 describe('judgeBuild', () => {
   it('calls a build current when it started at or after the head commit', () => {
-    expect(judgeBuild(build('success'), HEAD).current).toBe(true);
-    expect(judgeBuild(build('success', '2026-09-02T08:00:00Z'), HEAD).current).toBe(false);
+    expect(judgeBuild(build('success'), at(HEAD))).toMatchObject({ current: true, by: 'time' });
+    expect(judgeBuild(build('success', '2026-09-02T08:00:00Z'), at(HEAD)).current).toBe(false);
   });
 
   it('concludes nothing about currency when a date is missing', () => {
-    expect(judgeBuild(build('success', null), HEAD).current).toBeNull();
-    expect(judgeBuild(build('success'), null).current).toBeNull();
+    expect(judgeBuild(build('success', null), at(HEAD))).toMatchObject({ current: null, by: null });
+    expect(judgeBuild(build('success'), at(null)).current).toBeNull();
+  });
+
+  it('decides by the commit a build checked out whenever the platform names it', () => {
+    // Started before the head was written, yet built from it: a commit pushed late.
+    const late = build('success', '2026-09-02T08:00:00Z', 'D1D1D1D1D1D1D1D1');
+    expect(judgeBuild(late, at(HEAD))).toMatchObject({ current: true, by: 'commit' });
+    // Started after the head was written, yet built from the commit before it.
+    const older = build('success', '2026-09-02T10:00:00Z', 'c0c0c0c0c0c0');
+    expect(judgeBuild(older, at(HEAD))).toMatchObject({ current: false, by: 'commit' });
+    expect(judgeBuild(build('success', null, 'd1d1d1d'), at(null))).toMatchObject({
+      current: true,
+      by: 'commit',
+    });
+    // Without the head's own commit there is nothing to compare it with.
+    expect(judgeBuild(older, at(HEAD, null))).toMatchObject({ current: true, by: 'time' });
   });
 });
 
@@ -125,7 +143,7 @@ describe('ciFinding', () => {
       message: 'dev #7 in an unreadable state',
       coverage: 'incomplete',
     });
-    expect(judgeBuild(build('success', 'yesterday'), HEAD).current).toBeNull();
+    expect(judgeBuild(build('success', 'yesterday'), at(HEAD)).current).toBeNull();
   });
 
   it('warns rather than passes when nothing dates the build against the head commit', () => {

@@ -31,8 +31,19 @@ describe('JenkinsCi', () => {
       status: 'failure',
       startedAt: '2026-09-03T04:11:13Z',
       url: 'https://jenkins.example.com/job/services/job/a/job/dev/12/',
+      commit: null,
     });
     expect(proc.soleCallTo(GET).options.timeoutMs).toBe(15_000);
+  });
+
+  it('reads the commit the build checked out when jenkins-cli names it', async () => {
+    const revision = {
+      sha: '3f2a1bc0d4e5f60718293a4b5c6d7e8f90a1b2c3',
+      branch: 'origin/dev',
+      remote: 'https://git.example.com/team/a.git',
+    };
+    const proc = new FakeProcess().on(GET, ok({ number: 12, status: 'success', revision }));
+    expect((await new JenkinsCi(proc).lastBuild(vars))?.commit).toBe(revision.sha);
   });
 
   it('calls a build that is still running "building", whatever its result says', async () => {

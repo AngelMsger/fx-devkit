@@ -109,9 +109,9 @@ repos:
     desc: Example API service
 ```
 
-将虚构的域名、项目、仓库和分支替换为已确认的值。Git 克隆需要 Git 访问权限, API 操作需要 Bitbucket 配套 CLI，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。其他已实现的代码托管 provider 有两个：`github` 通过 GitHub CLI `gh` 工作，其 `host` 是 `https://github.com` 这样的克隆前缀（GitHub Enterprise 服务器也用同样方式指定）；`local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。
+将虚构的域名、项目、仓库和分支替换为已确认的值。Git 克隆需要 Git 访问权限, API 操作需要 Bitbucket 配套 CLI，不是可连接的演示服务。使用 `fx tool show bitbucket-cli` 查看设置要求。其他已实现的代码托管 provider 有两个：`github` 通过 GitHub CLI `gh` 工作，其 `host` 是 `https://github.com` 这样的克隆前缀（GitHub Enterprise 服务器也用同样方式指定）；`local-git` 用于本地 bare 仓库目录，不是任意 Git 托管服务的适配器。`bitbucket-cli` 与 `github` 还会为 `fx source push` 创建 pull request，`local-git` 不会。
 
-`fx manifest providers` 列出每个能力及其绑定。一个能力可以有多个实现——`issue-tracker` 可选 `feishu-project` 或 `jira-cli`，`knowledge-base` 可选 `confluence` 或 `lark-wiki`；一个配套 CLI 也可以服务多个能力，lark-cli 就同时服务 `im` 与 `knowledge-base`，它仍然只安装和检查一次。
+`fx manifest providers` 列出每个能力及其绑定。一个能力可以有多个实现——`issue-tracker` 可选 `feishu-project` 或 `jira-cli`，`knowledge-base` 可选 `confluence` 或 `lark-wiki`，`calendar` 可选 `lark-calendar`、`wecom-calendar` 或 `wecom-calendar-cli`；一个配套 CLI 也可以服务多个能力，lark-cli 就同时服务 `im` 与 `knowledge-base`，它仍然只安装和检查一次。
 
 在包含 team-workspace/ 的目录执行：
 
@@ -225,7 +225,7 @@ envs:
         confidence: unverified
 ```
 
-ci 平台指定构建每个环境的 job。`jenkins-cli` 在每个环境接收一个 job `path`。`github-actions` 同样通过 `gh` 工作：平台以 `OWNER/NAME`（GitHub Enterprise 服务器上为 `HOST/OWNER/NAME`）指定仓库，每个环境指定 workflow，以及计入的运行所属的分支和触发方式，这样 pull request 或手动运行就不会被当作正式构建。
+ci 平台指定构建每个环境的 job。`jenkins-cli` 在每个环境接收一个 job `path`。`github-actions` 同样通过 `gh` 工作：平台以 `OWNER/NAME`（GitHub Enterprise 服务器上为 `HOST/OWNER/NAME`）指定仓库，每个环境指定 workflow 以及计入的运行所属的触发方式，这样 pull request 或手动运行就不会被当作正式构建。环境也可以指定 `branch`；不指定时，`fx release check` 计入正在检查的分支的运行。release check 会把构建检出的提交与分支最新提交比较；GitHub Actions 总会给出这个提交，Jenkins 从 jenkins-cli 0.12.0 起给出。
 
 ```yaml
 platforms:
@@ -237,7 +237,7 @@ envs:
   prod:
     platforms:
       actions:
-        vars: { workflow: ci.yml, branch: main, event: push }
+        vars: { workflow: ci.yml, event: push }
 ```
 
 ## 在 AGENTS.md 中声明团队 Skill

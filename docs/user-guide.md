@@ -263,7 +263,11 @@ instance. `fx can` without a target lists them with what serves each one in this
 workspace; `fx manifest providers` lists what is bound and what each capability
 accepts. `calendar` is where schedules and availability live; `meeting` is the
 conferencing system that holds online meetings, their recordings and minutes,
-so a team that schedules in one product and meets in another binds both.
+so a team that schedules in one product and meets in another binds both. On
+WeCom, `wecom-calendar` lists the schedules its bot can see through the WeCom CLI,
+while `wecom-calendar-cli` searches a local mirror of each member's own calendars,
+history included; each member signs in and fills the mirror with
+`wecom-calendar-cli sync` themselves.
 
 `metrics` is served by `prometheus-cli`. Its coordinate is a service's scrape
 job: `where` prints an `up{job="..."}` query that returns the label set of that
@@ -416,7 +420,8 @@ and `hook disable`; [lifecycle](user-guide.md#for-coding-agents) describes the b
 
 `source push` previews or submits selected source changes while preserving the
 source checkout's HEAD, index and working files. It requires evidence of a personal
-fork and its upstream relationship. Inspect `fx source push --help` and the
+fork and its upstream relationship, and a manifest source hosted on Bitbucket or
+GitHub. Inspect `fx source push --help` and the
 [command reference](cli/README.md#fx-source-push) before an actual submission.
 
 ## Commands
@@ -451,15 +456,16 @@ selectors produce structured errors. The
 The manifest chooses which providers and companion tools a workspace uses.
 These are the currently implemented provider families:
 
-| Capability                 | Providers                                  |
-| -------------------------- | ------------------------------------------ |
-| Code hosting               | Bitbucket CLI; local bare Git repositories |
-| CI                         | Jenkins CLI                                |
-| Logs                       | OpenObserve CLI                            |
-| Error tracking             | Sentry CLI                                 |
-| Cluster discovery          | kubectl, with read-only query vectors      |
-| Issues and knowledge       | Feishu Project; Confluence CLI             |
-| Communication entry points | Lark CLI; WeCom CLI                        |
+| Capability                 | Providers                                              |
+| -------------------------- | ------------------------------------------------------ |
+| Code hosting               | Bitbucket CLI; GitHub CLI; local bare Git repositories |
+| CI                         | Jenkins CLI; GitHub Actions through GitHub CLI         |
+| Logs                       | OpenObserve CLI                                        |
+| Error tracking             | Sentry CLI                                             |
+| Cluster discovery          | kubectl, with read-only query vectors                  |
+| Issues and knowledge       | Feishu Project; Confluence CLI                         |
+| Communication entry points | Lark CLI; WeCom CLI                                    |
+| Calendars                  | Lark CLI; WeCom CLI; WeCom calendar CLI                |
 
 Run `fx manifest providers` and `fx tool list` for your workspace's actual
 bindings. Communication and knowledge entries hand off to companion tools;
