@@ -1,7 +1,6 @@
-// GitHub as the code host, through gh. Branches, ranges, commits and files come from
-// the REST API by way of `gh api`, so gh holds the credential and fx never sees it.
-// Pull requests are not wired yet: contribution workflows report this host as
-// unsupported instead of half-working.
+// GitHub as the code host, through gh. Branches, ranges, commits, files and pull requests
+// go through the REST API by way of `gh api`, so gh holds the credential and fx never
+// sees it.
 
 import type {
   ContributionPullRequest,
@@ -32,13 +31,15 @@ import {
   type GhCallOptions,
 } from '../../github/gh.js';
 
+import { createPullRequest, readPullRequest, readRepositoryIdentity } from './contribution.js';
+
 const QUERY = { timeoutMs: 15_000 } as const;
 // The fields of a commit the release check reads, so a commit's diff never crosses the pipe.
 const COMMIT =
   '{sha, author: .commit.author.name, date: .commit.committer.date, message: .commit.message, parents: [.parents[].sha]}';
 
 export class GitHubCodeHost implements CodeHost {
-  readonly supportsContributions = false;
+  readonly supportsContributions = true;
   private readonly gh: GhCli;
 
   constructor(
@@ -48,16 +49,16 @@ export class GitHubCodeHost implements CodeHost {
     this.gh = new GhCli(deps.process);
   }
 
-  async repositoryIdentity(_ref: RepoRef): Promise<RepositoryIdentity> {
-    throw contributionUnsupported();
+  repositoryIdentity(ref: RepoRef): Promise<RepositoryIdentity> {
+    return readRepositoryIdentity(this.contribution, ref);
   }
 
-  async pullRequest(_input: PullRequestLookup): Promise<ContributionPullRequest | null> {
-    throw contributionUnsupported();
+  pullRequest(input: PullRequestLookup): Promise<ContributionPullRequest | null> {
+    return readPullRequest(this.contribution, this.webUrl(input.repo), input);
   }
 
-  async createPullRequest(_input: CreatePullRequest): Promise<ContributionPullRequest> {
-    throw contributionUnsupported();
+  createPullRequest(input: CreatePullRequest): Promise<ContributionPullRequest> {
+    return createPullRequest(this.contribution, input);
   }
 
   async whoami(): Promise<{ user: string }> {
@@ -190,6 +191,9 @@ export class GitHubCodeHost implements CodeHost {
     return this.gh.call(['api', '--hostname', this.hostname, ...args, path], options);
   }
 
+  private readonly contribution = (endpoint: string, args: readonly string[]): Promise<CliCall> =>
+    this.api(endpoint, args);
+
   private get host(): string {
     return this.vars['host'] ?? '';
   }
@@ -265,14 +269,5 @@ function forkFailed(ref: RepoRef, reason: string): DevkitError {
       hint: 'Forking needs read access to the repository and a free name in your account.',
       nextSteps: [`${BINARY} repo view ${slug(ref)}`, 'fx repo list --unreadable'],
     },
-  );
-}
-
-function contributionUnsupported(): DevkitError {
-  return new DevkitError(
-    'config',
-    'SOURCE_CONTRIBUTION_UNSUPPORTED',
-    'The github code host does not open pull requests through fx yet',
-    { nextSteps: ['Open the pull request with gh pr create.'] },
   );
 }

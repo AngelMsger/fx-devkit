@@ -2,8 +2,11 @@
 // address. Only a canonical repository/ID vector reaches the companion query.
 
 import type { PullRequestLookup } from '../../../domain/contribution/pull-request.js';
-import { DevkitError } from '../../../domain/errors.js';
 import { objectOf, stringAt } from '../../family/cli.js';
+import {
+  pullRequestReferenceInvalid as invalidReference,
+  pullRequestWebUrl as webUrl,
+} from '../../family/contribution.js';
 
 import type { BitbucketCli } from './client.js';
 import { callContribution, contributionFailed } from './contribution-call.js';
@@ -32,28 +35,4 @@ export async function resolvePullRequestId({ cli, input }: ReferenceInput): Prom
   const base = canonical.pathname.replace(/\/browse\/?$/, '').replace(/\/$/, '');
   if (canonical.origin !== supplied.origin || base !== match[1]) throw invalidReference();
   return match[2]!;
-}
-
-function webUrl(value: string): URL {
-  try {
-    const url = new URL(value);
-    if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search)
-      return url;
-  } catch {
-    /* Invalid references are reported without echoing their values. */
-  }
-  throw invalidReference();
-}
-
-function invalidReference(): DevkitError {
-  return new DevkitError(
-    'usage',
-    'SOURCE_PR_REFERENCE_INVALID',
-    'Use a PR ID or a PR URL belonging to the current repository website',
-    {
-      nextSteps: [
-        'Verify the current repository and PR, then pass its ID or canonical URL to --pr.',
-      ],
-    },
-  );
 }

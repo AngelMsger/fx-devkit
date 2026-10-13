@@ -48,7 +48,7 @@ tools:
     docs: https://github.com/AngelMsger/jira-cli
   - name: gh
     min_version: '2.50.0'
-    desc: Repositories, branches and Actions runs on GitHub
+    desc: Repositories, branches, pull requests and Actions runs on GitHub
     install:
       - { via: brew, spec: gh }
       - { via: manual }

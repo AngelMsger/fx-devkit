@@ -203,12 +203,4 @@ describe('GitHubCodeHost queries', () => {
       '--remote=false',
     ]);
   });
-
-  it('declines contribution workflows instead of half-running them', async () => {
-    const sut = host(new FakeProcess());
-    expect(sut.supportsContributions).toBe(false);
-    await expect(sut.repositoryIdentity(ref)).rejects.toMatchObject({
-      code: 'SOURCE_CONTRIBUTION_UNSUPPORTED',
-    });
-  });
 });
