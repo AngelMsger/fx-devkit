@@ -37,6 +37,14 @@ ownership, parentage and clone URLs. The plan and confirmation name both source
 and target repositories. Native Git and companion permissions remain required.
 This supports companions whose Data Center current-user response has no actor.
 
+The `bitbucket-cli` and `github` code hosts implement the contribution calls;
+`local-git` does not. `github` drives `gh api`: a personal owner is a GitHub user,
+never an organization, and a fork whose parent GitHub does not name is unverified
+rather than parentless. GitHub matches repository paths without regard to case, so
+the identity also advertises the clone URLs in the spelling the remote uses. A pull
+request's title and description reach `gh` through a private temporary file, never
+the command line.
+
 ## Journal and recovery
 
 ```mermaid

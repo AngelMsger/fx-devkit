@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Added
+
+- Open pull requests on GitHub. `fx source push` works with a manifest source hosted
+  on GitHub as it does with Bitbucket: it pushes the selected files to your verified
+  personal fork through `gh` and opens, reuses or retires the pull request against
+  its upstream, and `--pr` accepts a pull request number or its page on GitHub.
+- Recognize checkouts cloned from github.com in `fx import`, which binds the
+  `github` code host with `https://github.com` or `ssh://git@github.com` as its
+  host. A GitHub Enterprise server is still not guessed from a remote.
+- Add `wecom-calendar-cli`, a local, searchable mirror of your own WeCom calendars
+  with their history, to the tool catalog and as a `calendar` provider. `fx can`
+  checks each member's sign-in and hands agents `wecom-calendar-cli event list`;
+  filling the mirror with `wecom-calendar-cli sync` stays the member's call.
+
+### Changed
+
+- Judge a CI build by the commit it checked out when the platform names it.
+  `fx release check` passes a successful build of the branch head and fails one of
+  another commit, instead of comparing when the build started with when the head was
+  written. GitHub Actions names the commit, and Jenkins does with jenkins-cli 0.12.0
+  or later; without it the times still decide. CI evidence gains `commit`.
+- Let a `github-actions` ci environment leave out `branch`. `fx release check` then
+  counts the runs of the branch it is checking on each side.
+
 ## 0.11.0 (2026-10-12)
 
 ### Added

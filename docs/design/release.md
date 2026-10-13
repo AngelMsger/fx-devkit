@@ -77,12 +77,15 @@ as unanswered and does not undo what the other direction saw.
 
 ## Build currency
 
-A branch counts as built when its job's latest build succeeded and started no
-earlier than the branch's head commit: a green build of an older commit says
-nothing about what is about to ship. The build carries no revision — the CI
-platforms fx drives do not report one — so this is an ordering of times, and the
-message names the head commit the build started after rather than claiming the
-build was of that commit.
+A branch counts as built when its job's latest build succeeded and built the
+branch's head commit: a green build of an older commit says nothing about what is
+about to ship. When the platform names the commit a build checked out, that commit
+decides, and a build of another commit fails. When it does not, the best evidence
+is an ordering of times: the build must have started no earlier than the head
+commit was written, and the message names the head commit the build started after
+rather than claiming the build was of that commit. The CI port asks each platform
+for the latest build of the branch being checked; a coordinate that already names
+one branch keeps its own.
 
 Both sides of the release are checked, the source job and the target job, and
 both must pass. A side nobody can date and a side whose job the platform does not
