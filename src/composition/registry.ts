@@ -9,6 +9,7 @@ import { AGENT_SPECS, type AgentHostSpec } from '../adapters/agent-host/specs.js
 import { TomlMcpCodec } from '../adapters/agent-host/toml-mcp.js';
 import { larkCalendarProvider } from '../adapters/calendar/lark-calendar/provider.js';
 import { wecomCalendarProvider } from '../adapters/calendar/wecom-calendar/provider.js';
+import { wecomCalendarCliProvider } from '../adapters/calendar/wecom-calendar-cli/provider.js';
 import { githubActionsProvider } from '../adapters/ci/github-actions/provider.js';
 import { jenkinsCliProvider } from '../adapters/ci/jenkins-cli/provider.js';
 import { kubectlProvider } from '../adapters/cluster/kubectl/provider.js';
@@ -189,6 +190,7 @@ register(larkProvider);
 register(wecomProvider);
 register(larkCalendarProvider);
 register(wecomCalendarProvider);
+register(wecomCalendarCliProvider);
 register(tencentMeetingProvider);
 register(larkTaskProvider);
 register(wecomTodoProvider);

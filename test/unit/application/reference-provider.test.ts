@@ -133,6 +133,25 @@ describe('workspace reference providers', () => {
     expect(s.h.localStore.writes).toEqual([]);
   });
 
+  it('needs a stored WeCom CalDAV credential and neither syncs nor reads the calendar mirror', async () => {
+    const s = await stage('calendar', 'wecom-calendar-cli', {});
+    const status = ['wecom-calendar-cli', 'auth', 'status', '--format', 'json'];
+    const result = { code: 0, stdout: '{"configured":false,"detail":"no credential"}', stderr: '' };
+    s.h.process.on(status, result);
+    expect((await s.can.execute({ target: 'calendar' })).status).toBe('unconfigured');
+    result.stdout = '{"configured":true,"username":"member@example.com"}';
+    expect(await s.can.execute({ target: 'calendar' })).toMatchObject({
+      status: 'ready',
+      entry: { command: 'wecom-calendar-cli event list --format json' },
+    });
+    expect(
+      s.h.process.calls.every(
+        (c) => c.vector[1] === '--version' || JSON.stringify(c.vector) === JSON.stringify(status),
+      ),
+    ).toBe(true);
+    expect(s.h.localStore.writes).toEqual([]);
+  });
+
   it('requires a Tencent Meeting query to succeed, since its status command exits zero when signed out', async () => {
     const s = await stage('meeting', 'tencent-meeting', {});
     const query = ['tmeet', 'meeting', 'list', '--page-size', '1'];

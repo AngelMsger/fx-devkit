@@ -46,6 +46,11 @@ tools:
     desc: Issues, comments, transitions and worklogs in Jira
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli
+  - name: wecom-calendar-cli
+    min_version: '0.5.0'
+    desc: A local, searchable mirror of your own WeCom calendars, history included
+    install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
+    docs: https://github.com/AngelMsger/wecom-calendar-cli
   - name: gh
     min_version: '2.50.0'
     desc: Repositories, branches, pull requests and Actions runs on GitHub
