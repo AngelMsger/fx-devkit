@@ -17,33 +17,6 @@ const run = { dryRun: false, posture: writable, jobs: 4 };
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 
 describe('Sync', () => {
-  it('retains completed service preparation when a later requested stage fails', async () => {
-    const h = await harness();
-    await expect(
-      new Sync(h.deps).execute({
-        ...run,
-        only: ['services', 'docs', 'tools'],
-        stages: {
-          services: async () => ({
-            checks: [],
-            summary: { configured: 1 },
-            details: { items: [{ status: 'configured' }] },
-          }),
-          docs: async () => ({ checks: [], summary: { created: 2 } }),
-          tools: async () => {
-            throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'review the tool probe');
-          },
-        },
-      }),
-    ).rejects.toMatchObject({
-      code: 'VECTOR_UNTRUSTED',
-      partialResult: {
-        operation: 'apply',
-        preparation: { state: 'incomplete' },
-        stages: { services: { configured: 1 }, docs: { created: 2 }, tools: { status: 'failed' } },
-      },
-    });
-  });
   it('reports preflight while a bounded optional probe waits, then clones after timeout', async () => {
     const h = await harness({ user: 'test' });
     const proc = new FakeProcess();
@@ -129,71 +102,6 @@ describe('Sync', () => {
     const result = await new Sync(h.deps).execute(run);
     expect(result.summary.failed).toBe(0);
     expect(h.git.calls.some((call) => call.startsWith('clone '))).toBe(true);
-  });
-  it('retains repository and completed stage results on a later failure', async () => {
-    const h = await harness();
-    await expect(
-      new Sync(h.deps).execute({
-        ...run,
-        stages: {
-          docs: async () => ({ checks: [], summary: { created: 1 } }),
-          skills: async () => {
-            throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
-          },
-          hooks: async () => ({ checks: [], summary: { created: 1 } }),
-        },
-      }),
-    ).rejects.toMatchObject({
-      code: 'VECTOR_UNTRUSTED',
-      partialResult: {
-        summary: { failed: 0 },
-        stages: {
-          docs: { created: 1 },
-          skills: { status: 'failed' },
-          hooks: { status: 'not_started' },
-        },
-      },
-    });
-  });
-
-  it('keeps stage details separate from compatible summary counts', async () => {
-    const h = await harness();
-    const details = { tools: [{ tool: 'example', code: 5, failure: { code: 'DENIED' } }] };
-    const out = await new Sync(h.deps).execute({
-      ...run,
-      only: 'skills',
-      stages: {
-        skills: async () => ({ checks: [], summary: { tools_failed: 1 }, details }),
-      },
-    });
-    expect(out.stages).toEqual({ skills: { tools_failed: 1 } });
-    expect(out.stage_details).toEqual({ skills: details });
-  });
-
-  it('runs registered stages in order without touching repositories for a selected subset', async () => {
-    const h = await harness();
-    const calls: string[] = [];
-    const out = await new Sync(h.deps).execute({
-      ...run,
-      only: ['sample', 'docs'],
-      stages: {
-        docs: async () => {
-          calls.push('docs');
-          return { checks: [], summary: { ok: 1 } };
-        },
-        sample: async () => {
-          calls.push('sample');
-          return { checks: [], summary: { ok: 2 } };
-        },
-        tools: async () => {
-          throw new Error('unselected');
-        },
-      },
-    });
-    expect(calls).toEqual(['docs', 'sample']);
-    expect(h.git.calls).toEqual([]);
-    expect(out.items).toEqual([]);
-    expect(out.stages).toEqual({ docs: { ok: 1 }, sample: { ok: 2 } });
   });
   it('plans sixty checkouts concurrently up to --jobs without reordering them', async () => {
     const names = Array.from({ length: 60 }, (_, index) => `repo-${index}`);
@@ -439,6 +347,157 @@ describe('Sync', () => {
     })();
     await new Sync({ ...h.deps, git }).execute({ ...run, jobs: 2 });
     expect(peak).toBe(2);
+  });
+});
+
+// Stage orchestration: which stages run, in what order, and what a failure keeps.
+// The stages are stubs here; each real stage is tested in its own suite.
+describe('Sync stages', () => {
+  describe('selection and order', () => {
+    it('runs only the selected stages, in registration order, without touching repositories', async () => {
+      const h = await harness();
+      const calls: string[] = [];
+      const out = await new Sync(h.deps).execute({
+        ...run,
+        only: ['sample', 'docs'],
+        stages: {
+          docs: async () => {
+            calls.push('docs');
+            return { checks: [], summary: { ok: 1 } };
+          },
+          sample: async () => {
+            calls.push('sample');
+            return { checks: [], summary: { ok: 2 } };
+          },
+          tools: async () => {
+            throw new Error('unselected');
+          },
+        },
+      });
+      expect(calls).toEqual(['docs', 'sample']);
+      expect(h.git.calls).toEqual([]);
+      expect(out.items).toEqual([]);
+      expect(out.stages).toEqual({ docs: { ok: 1 }, sample: { ok: 2 } });
+    });
+
+    it('prepares services before repository and provider work, and only when selected', async () => {
+      const h = await harness();
+      const order: string[] = [];
+      vi.spyOn(h.deps, 'codeHost').mockImplementation(() => {
+        order.push('provider');
+        return h.codeHost;
+      });
+      const input = {
+        ...run,
+        dryRun: true,
+        stages: {
+          services: async () => {
+            order.push('services');
+            return { checks: [], summary: { configured: 1 } };
+          },
+        },
+      };
+      const result = await new Sync(h.deps).execute(input);
+      expect(order[0]).toBe('services');
+      expect(order).toContain('provider');
+      expect(result.stages['services']).toEqual({ configured: 1 });
+      order.length = 0;
+      await new Sync(h.deps).execute({ ...input, only: 'repos' });
+      expect(order).not.toContain('services');
+    });
+  });
+
+  describe('a failure', () => {
+    it('in repository inspection keeps the services already prepared', async () => {
+      const h = await harness();
+      vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
+      await expect(
+        new Sync(h.deps).execute({
+          ...run,
+          stages: {
+            services: async () => ({
+              checks: [],
+              summary: { configured: 1 },
+              details: { items: [] },
+            }),
+          },
+        }),
+      ).rejects.toMatchObject({
+        partialResult: { stages: { services: { configured: 1 } } },
+      });
+    });
+
+    it('in a later stage keeps repository and completed stage results and starts nothing after it', async () => {
+      const h = await harness();
+      await expect(
+        new Sync(h.deps).execute({
+          ...run,
+          stages: {
+            docs: async () => ({ checks: [], summary: { created: 1 } }),
+            skills: async () => {
+              throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
+            },
+            hooks: async () => ({ checks: [], summary: { created: 1 } }),
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: 'VECTOR_UNTRUSTED',
+        partialResult: {
+          summary: { failed: 0 },
+          stages: {
+            docs: { created: 1 },
+            skills: { status: 'failed' },
+            hooks: { status: 'not_started' },
+          },
+        },
+      });
+    });
+
+    it('in a later selected stage keeps service preparation and marks preparation incomplete', async () => {
+      const h = await harness();
+      await expect(
+        new Sync(h.deps).execute({
+          ...run,
+          only: ['services', 'docs', 'tools'],
+          stages: {
+            services: async () => ({
+              checks: [],
+              summary: { configured: 1 },
+              details: { items: [{ status: 'configured' }] },
+            }),
+            docs: async () => ({ checks: [], summary: { created: 2 } }),
+            tools: async () => {
+              throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'review the tool probe');
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: 'VECTOR_UNTRUSTED',
+        partialResult: {
+          operation: 'apply',
+          preparation: { state: 'incomplete' },
+          stages: {
+            services: { configured: 1 },
+            docs: { created: 2 },
+            tools: { status: 'failed' },
+          },
+        },
+      });
+    });
+  });
+
+  it('keeps stage details separate from compatible summary counts', async () => {
+    const h = await harness();
+    const details = { tools: [{ tool: 'example', code: 5, failure: { code: 'DENIED' } }] };
+    const out = await new Sync(h.deps).execute({
+      ...run,
+      only: 'skills',
+      stages: {
+        skills: async () => ({ checks: [], summary: { tools_failed: 1 }, details }),
+      },
+    });
+    expect(out.stages).toEqual({ skills: { tools_failed: 1 } });
+    expect(out.stage_details).toEqual({ skills: details });
   });
 });
 
