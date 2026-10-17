@@ -2,7 +2,7 @@
 
 import { identifyGitHubRemote } from '../adapters/code-host/github/import.js';
 import { identifyLocalGitRemote } from '../adapters/code-host/local-git/import.js';
-import type { ImportDeps } from '../application/import.js';
+import type { ImportDeps } from '../application/manifest/import.js';
 import type { Reporter } from '../ports/reporter.js';
 
 import { codeHostFor, type Container } from './container.js';

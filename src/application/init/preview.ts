@@ -17,10 +17,10 @@ import { requireUsableManifest } from '../manifest/prepare.js';
 import { Tally } from '../tally.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
+import { WorkspaceContext } from '../workspace/context.js';
 import { planRepositories } from '../workspace/plan.js';
 import { scopeMode } from '../workspace/scope.js';
 import { validateWorkspaceLayer } from '../workspace/validate-layer.js';
-import { WorkspaceContext } from '../workspace-context.js';
 
 import { initializationSourceError } from './errors.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';

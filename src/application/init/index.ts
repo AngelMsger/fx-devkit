@@ -13,16 +13,16 @@ import {
 import type { ConfigFile } from '../../ports/stores.js';
 import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
-import { RefreshManifest } from '../refresh-manifest.js';
+import { RefreshManifest } from '../manifest/refresh.js';
 import { assertWritable } from '../safety/posture.js';
 import { Sync } from '../sync/index.js';
 import type { SyncOutput } from '../sync/types.js';
 import type { ToolInstallOutput } from '../tool/install.js';
+import { WorkspaceContext } from '../workspace/context.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { withWorkspaceOperation } from '../workspace/operation.js';
 import { assertDistinctWorkspaceRoot } from '../workspace/registry.js';
 import { scopeMode } from '../workspace/scope.js';
-import { WorkspaceContext } from '../workspace-context.js';
 
 import { initFailure, initializationSourceError, nameTaken, sourceMismatch } from './errors.js';
 import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';

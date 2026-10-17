@@ -11,8 +11,8 @@ import {
   providerTools,
   type KeyedBinding,
 } from '../../domain/toolchain/select.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 import { workspaceCommand } from '../workspace/guidance.js';
-import type { WorkspaceContext } from '../workspace-context.js';
 
 import { declaredIn, toolchainOf } from './toolchain.js';
 

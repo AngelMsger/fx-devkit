@@ -2,14 +2,16 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { RefreshManifest } from '../../../src/application/refresh-manifest.js';
-import { refreshWorkspaceManifest } from '../../../src/application/refresh-workspace-manifest.js';
-import type { LockRequest } from '../../../src/ports/lock.js';
-import type { ManifestSource, RefreshOutcome } from '../../../src/ports/manifest-source.js';
-import { FakeConfigStore } from '../../fakes/fake-config-store.js';
-import { FakeFs } from '../../fakes/fake-fs.js';
-import { FakeReporter } from '../../fakes/fake-reporter.js';
-import { MANIFEST_DIR, manifestDirFor, ROOT } from '../../fakes/workspace.js';
+import {
+  RefreshManifest,
+  refreshWorkspaceManifest,
+} from '../../../../src/application/manifest/refresh.js';
+import type { LockRequest } from '../../../../src/ports/lock.js';
+import type { ManifestSource, RefreshOutcome } from '../../../../src/ports/manifest-source.js';
+import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { MANIFEST_DIR, manifestDirFor, ROOT } from '../../../fakes/workspace.js';
 
 function repoSource(outcome: RefreshOutcome = { result: 'updated' }): {
   source: ManifestSource;

@@ -2,10 +2,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import type { WritePosture } from '../../../src/application/safety/posture.js';
-import { Status } from '../../../src/application/status.js';
-import { FakeGit } from '../../fakes/fake-git.js';
-import { harness, ROOT } from '../../fakes/workspace.js';
+import type { WritePosture } from '../../../../src/application/safety/posture.js';
+import { Status } from '../../../../src/application/workspace/status.js';
+import { FakeGit } from '../../../fakes/fake-git.js';
+import { harness, ROOT } from '../../../fakes/workspace.js';
 
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 const writable: WritePosture = { readOnly: false, source: 'default' };

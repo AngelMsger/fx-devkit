@@ -7,8 +7,8 @@ import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../../domain/obs/observation.js';
 import { confidenceForProbe } from '../../domain/obs/probe.js';
 import { shellLine } from '../../domain/shell.js';
+import { Where, type WhereRow } from '../readiness/where.js';
 import { assertWritable } from '../safety/posture.js';
-import { Where, type WhereRow } from '../where.js';
 
 import {
   assertProbeSources,

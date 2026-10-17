@@ -1,4 +1,4 @@
-import { Where } from '../../application/where.js';
+import { Where } from '../../application/readiness/where.js';
 import { recordProbe } from '../../composition/probe-record.js';
 import { DevkitError } from '../../domain/errors.js';
 import { FxCommand } from '../base.js';

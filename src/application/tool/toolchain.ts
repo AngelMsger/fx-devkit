@@ -13,7 +13,7 @@ import {
   type ToolSource,
 } from '../../domain/toolchain/select.js';
 import type { ManifestBundle } from '../manifest/load.js';
-import type { WorkspaceContext } from '../workspace-context.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 
 export interface Toolchain {
   readonly tools: readonly ResolvedTool[];

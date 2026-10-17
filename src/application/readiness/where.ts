@@ -1,25 +1,26 @@
 // Resolve repository coordinates and readiness using read-only provider queries.
 // Recording probe evidence is a separate, explicit write operation.
 
-import { asDevkitError, DevkitError, type HandoffEnvelope } from '../domain/errors.js';
-import { nearest } from '../domain/fuzzy.js';
-import type { Confidence } from '../domain/obs/confidence.js';
-import { locateRepo } from '../domain/obs/coordinate.js';
-import { confidenceForProbe, type ProbeOutcome } from '../domain/obs/probe.js';
-import type { ObsCoordinate } from '../domain/obs/types.js';
-import { shellLine } from '../domain/shell.js';
-import { placeholders } from '../domain/template.js';
-import { stderrReason } from '../domain/toolchain/stderr.js';
+import { asDevkitError, DevkitError, type HandoffEnvelope } from '../../domain/errors.js';
+import { nearest } from '../../domain/fuzzy.js';
+import type { Confidence } from '../../domain/obs/confidence.js';
+import { locateRepo } from '../../domain/obs/coordinate.js';
+import { confidenceForProbe, type ProbeOutcome } from '../../domain/obs/probe.js';
+import type { ObsCoordinate } from '../../domain/obs/types.js';
+import { shellLine } from '../../domain/shell.js';
+import { placeholders } from '../../domain/template.js';
+import { stderrReason } from '../../domain/toolchain/stderr.js';
+import { environmentsOf, envNotFound } from '../env/names.js';
+import type { LoginDeps } from '../login/deps.js';
+import { expandHomeIn } from '../login/verify.js';
+import { pooled } from '../pool.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
+import { findKnownRepo } from '../workspace/inspect.js';
 
-import { environmentsOf, envNotFound } from './env/names.js';
-import type { LoginDeps } from './login/deps.js';
-import { expandHomeIn } from './login/verify.js';
-import { pooled } from './pool.js';
-import { Readiness } from './readiness/index.js';
-import type { ReadyStatus, UnfinishedCheck } from './readiness/types.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
-import { workspaceCommand } from './workspace/guidance.js';
-import { findKnownRepo } from './workspace/inspect.js';
+import type { ReadyStatus, UnfinishedCheck } from './types.js';
+
+import { Readiness } from './index.js';
 
 export interface WhereInput {
   readonly repo: string;
@@ -31,7 +32,7 @@ export interface WhereInput {
   readonly previewProbe?: boolean;
 }
 
-export type { ProbeOutcome } from '../domain/obs/probe.js';
+export type { ProbeOutcome } from '../../domain/obs/probe.js';
 
 export interface WhereRow extends ObsCoordinate {
   readonly ready: ReadyStatus | null;

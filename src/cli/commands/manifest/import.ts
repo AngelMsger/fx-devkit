@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { Import } from '../../../application/import.js';
+import { Import } from '../../../application/manifest/import.js';
 import { importDeps } from '../../../composition/import.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';

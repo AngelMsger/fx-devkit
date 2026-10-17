@@ -5,8 +5,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { WorkspaceContext } from '../../src/application/workspace/context.js';
 import type { WorkspaceDeps } from '../../src/application/workspace/deps.js';
-import { WorkspaceContext } from '../../src/application/workspace-context.js';
 import { providerCatalog } from '../../src/composition/registry.js';
 import type { ProviderCatalog } from '../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';

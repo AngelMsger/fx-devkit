@@ -7,7 +7,7 @@ import type { ResolvedShell } from '../../domain/shell.js';
 import { envNotFound } from '../env/names.js';
 import { selectTools } from '../tool/select.js';
 import { toolchainOf } from '../tool/toolchain.js';
-import type { WorkspaceContext } from '../workspace-context.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 
 export interface SetupSelection {
   readonly tools?: readonly string[] | undefined;

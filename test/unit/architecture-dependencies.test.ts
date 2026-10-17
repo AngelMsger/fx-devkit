@@ -26,7 +26,7 @@ describe('inner-layer dependencies', () => {
   it.each([
     'src/domain/values.ts',
     'src/domain/distribution.js',
-    'src/application/can.ts',
+    'src/application/readiness/can.ts',
     'src/ports/fs.ts',
   ])('rejects IO and service packages in %s', async (file) => {
     for (const module of [

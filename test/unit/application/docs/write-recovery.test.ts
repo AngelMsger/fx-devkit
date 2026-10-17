@@ -11,7 +11,7 @@ import { RenderRegions } from '../../../../src/application/docs/render-regions.j
 import { documentChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
-import { WorkspaceContext } from '../../../../src/application/workspace-context.js';
+import { WorkspaceContext } from '../../../../src/application/workspace/context.js';
 import { createContainer } from '../../../../src/composition/container.js';
 import { harnessSession } from '../../../../src/composition/harness.js';
 import { derive } from '../../../../src/domain/docs/derived.js';

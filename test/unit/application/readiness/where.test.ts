@@ -3,15 +3,15 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
-import { Where } from '../../../src/application/where.js';
-import { describeProvider } from '../../../src/composition/registry.js';
-import type { LocalLayer } from '../../../src/domain/manifest/types.js';
-import { shellLine } from '../../../src/domain/shell.js';
-import type { Platform } from '../../../src/ports/platform.js';
-import type { ProviderDescriptor } from '../../../src/ports/provider.js';
-import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
-import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
+import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
+import { Where } from '../../../../src/application/readiness/where.js';
+import { describeProvider } from '../../../../src/composition/registry.js';
+import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
+import { shellLine } from '../../../../src/domain/shell.js';
+import type { Platform } from '../../../../src/ports/platform.js';
+import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
+import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');

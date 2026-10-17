@@ -1,12 +1,12 @@
 // Plan content-dependent local preparation after source validation, before
 // installers or repository synchronization can execute. No preview grants trust.
-import type { LoginDeps } from './login/deps.js';
-import type { TrustContext } from './safety/trust.js';
-import { prepareServices } from './services/stage.js';
-import type { SkillStage } from './skill/stage.js';
-import type { ToolInstall } from './tool/install.js';
-import { toolchainOf } from './tool/toolchain.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
+import type { LoginDeps } from '../login/deps.js';
+import type { TrustContext } from '../safety/trust.js';
+import { prepareServices } from '../services/stage.js';
+import type { SkillStage } from '../skill/stage.js';
+import type { ToolInstall } from '../tool/install.js';
+import { toolchainOf } from '../tool/toolchain.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export class PreviewInitialization {
   constructor(

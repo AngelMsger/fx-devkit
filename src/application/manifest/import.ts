@@ -2,9 +2,9 @@
 
 import path from 'node:path';
 
-import { DevkitError } from '../domain/errors.js';
-import { foldDefaults } from '../domain/import/fold.js';
-import { parseGitmodules } from '../domain/import/gitmodules.js';
+import { DevkitError } from '../../domain/errors.js';
+import { foldDefaults } from '../../domain/import/fold.js';
+import { parseGitmodules } from '../../domain/import/gitmodules.js';
 import {
   hostOf,
   inferRepo,
@@ -12,15 +12,14 @@ import {
   type InferredRepo,
   type ImportProvider,
   type RepoObservation,
-} from '../domain/import/infer.js';
-import { renderManifest } from '../domain/import/render.js';
-import { isAtOrInside } from '../domain/path.js';
-import type { CodeHost, Readability } from '../ports/code-host.js';
-import type { FileSystem } from '../ports/fs.js';
-import type { Git } from '../ports/git.js';
-import type { Reporter } from '../ports/reporter.js';
-
-import { assertWritable, type WritePosture } from './safety/posture.js';
+} from '../../domain/import/infer.js';
+import { renderManifest } from '../../domain/import/render.js';
+import { isAtOrInside } from '../../domain/path.js';
+import type { CodeHost, Readability } from '../../ports/code-host.js';
+import type { FileSystem } from '../../ports/fs.js';
+import type { Git } from '../../ports/git.js';
+import type { Reporter } from '../../ports/reporter.js';
+import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 export interface ImportDeps {
   readonly git: Git;

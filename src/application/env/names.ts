@@ -3,12 +3,12 @@
 import { DevkitError } from '../../domain/errors.js';
 import type { Environments } from '../../domain/manifest/types.js';
 import type { ResolvedShell } from '../../domain/shell.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 import {
   workspaceCommand,
   workspaceItemNotFound,
   type WorkspaceGuidance,
 } from '../workspace/guidance.js';
-import type { WorkspaceContext } from '../workspace-context.js';
 
 export function environmentsOf(ctx: WorkspaceContext, commandShell?: ResolvedShell): Environments {
   const doc = ctx.manifest.environments?.result.doc;

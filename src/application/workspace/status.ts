@@ -2,15 +2,15 @@
 // `--fetch` refreshes the remote-tracking refs first; without it the position
 // against upstream is as of the last sync.
 
-import type { ResolvedRepo } from '../domain/manifest/local.js';
-import type { DiskState } from '../domain/workspace/plan.js';
-import { deriveStatus, type StatusRow } from '../domain/workspace/status.js';
+import type { ResolvedRepo } from '../../domain/manifest/local.js';
+import type { DiskState } from '../../domain/workspace/plan.js';
+import { deriveStatus, type StatusRow } from '../../domain/workspace/status.js';
+import { pooled } from '../pool.js';
+import { assertWritable, type WritePosture } from '../safety/posture.js';
+import { Tally } from '../tally.js';
 
-import { pooled } from './pool.js';
-import { assertWritable, type WritePosture } from './safety/posture.js';
-import { Tally } from './tally.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
-import { checkoutDir, inspectDisk, urlsFor } from './workspace/inspect.js';
+import type { WorkspaceDeps } from './deps.js';
+import { checkoutDir, inspectDisk, urlsFor } from './inspect.js';
 
 export type StatusInput =
   | { readonly fetch: false; readonly dirtyOnly: boolean; readonly jobs?: number }
