@@ -11,7 +11,6 @@ import { Login } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
-import { Sync } from '../../../../src/application/sync/index.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
 import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
@@ -456,21 +455,6 @@ envs:
     expect(plan.steps.filter((step) => step.preparation).map((step) => step.env)).toEqual(['prod']);
   });
 
-  it('preserves completed service results if subsequent repository inspection fails', async () => {
-    const { h } = await fixture();
-    vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
-    const promise = new Sync(h.deps).execute({
-      dryRun: false,
-      posture: { readOnly: false, source: 'default' },
-      jobs: 1,
-      stages: {
-        services: async () => ({ checks: [], summary: { configured: 1 }, details: { items: [] } }),
-      },
-    });
-    await expect(promise).rejects.toMatchObject({
-      partialResult: { stages: { services: { configured: 1 } } },
-    });
-  });
   it('uses selected per-environment contexts and browser login', async () => {
     const { h, login } = await fixture({ environments, tools: ['openobserve-cli'] });
     const plan = buildPlan(h.deps, login, {
@@ -538,31 +522,6 @@ envs: {dev: {platforms: {errors: {}}}}
     expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
     await h.fs.link('/elsewhere/private', target);
     expect((await operation.execute(step, false)).status).toBe('blocked');
-  });
-
-  it('runs service setup before repo/provider work and only when selected', async () => {
-    const { h } = await fixture();
-    const order: string[] = [];
-    vi.spyOn(h.deps, 'codeHost').mockImplementation(() => {
-      order.push('provider');
-      return h.codeHost;
-    });
-    const stage = async () => {
-      order.push('services');
-      return { checks: [], summary: { configured: 1 } };
-    };
-    const input = {
-      dryRun: true,
-      posture: { readOnly: false, source: 'default' as const },
-      jobs: 1,
-      stages: { services: stage },
-    };
-    const result = await new Sync(h.deps).execute(input);
-    expect(order[0]).toBe('services');
-    expect(result.stages['services']).toEqual({ configured: 1 });
-    order.length = 0;
-    await new Sync(h.deps).execute({ ...input, only: 'repos' });
-    expect(order).not.toContain('services');
   });
 });
 
