@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
-import { CAPABILITY_COLUMNS, Can } from '../../application/can.js';
 import { canMcp } from '../../application/harness/session.js';
+import { CAPABILITY_COLUMNS, Can } from '../../application/readiness/can.js';
 import { harnessSession } from '../../composition/harness.js';
 import { FxCommand } from '../base.js';
 import { argument } from '../flags.js';

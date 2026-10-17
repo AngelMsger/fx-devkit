@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
-import { Status, type StatusInput } from '../../application/status.js';
 import { strayRootEntries } from '../../application/workspace/root-entries.js';
+import { Status, type StatusInput } from '../../application/workspace/status.js';
 import { shellLine } from '../../domain/shell.js';
 import { FxCommand } from '../base.js';
 import { jobsFlag, writeIntent } from '../flags.js';

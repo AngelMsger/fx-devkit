@@ -15,7 +15,7 @@ import { checkLogin } from '../doctor/login.js';
 import type { HarnessSession } from '../harness/session.js';
 import { manageHarness } from '../harness/stages.js';
 import type { LoginDeps } from '../login/deps.js';
-import { RefreshManifest } from '../refresh-manifest.js';
+import { RefreshManifest } from '../manifest/refresh.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import { Tally } from '../tally.js';

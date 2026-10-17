@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { Can } from '../../../src/application/can.js';
+import { Can } from '../../../src/application/readiness/can.js';
 import { describeProvider, resolveProvider } from '../../../src/composition/registry.js';
 import type { Coordinate } from '../../../src/domain/obs/types.js';
 import { FakeClock } from '../../fakes/fake-clock.js';

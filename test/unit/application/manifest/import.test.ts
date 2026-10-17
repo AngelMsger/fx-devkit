@@ -2,13 +2,13 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { Import } from '../../../src/application/import.js';
-import { DevkitError } from '../../../src/domain/errors.js';
-import { loadWorkspace } from '../../../src/domain/manifest/loader.js';
-import { FakeCodeHost } from '../../fakes/fake-code-host.js';
-import { FakeFs } from '../../fakes/fake-fs.js';
-import { FakeGit } from '../../fakes/fake-git.js';
-import { FakeReporter } from '../../fakes/fake-reporter.js';
+import { Import } from '../../../../src/application/manifest/import.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
+import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
+import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeGit } from '../../../fakes/fake-git.js';
+import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
 const HOST = 'ssh://git@git.example.com:12345';
 const ROOT = path.normalize(path.resolve('/ws'));

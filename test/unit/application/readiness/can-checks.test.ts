@@ -4,15 +4,15 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { kubectlProvider } from '../../../src/adapters/cluster/kubectl/provider.js';
-import { Can } from '../../../src/application/can.js';
-import { Where } from '../../../src/application/where.js';
-import { DevkitError } from '../../../src/domain/errors.js';
-import type { SetupRecipe } from '../../../src/domain/setup/types.js';
-import type { ProcessResult } from '../../../src/ports/process.js';
-import type { ProviderDescriptor } from '../../../src/ports/provider.js';
-import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
-import { MANIFEST_DIR, harness, type Harness } from '../../fakes/workspace.js';
+import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
+import { Can } from '../../../../src/application/readiness/can.js';
+import { Where } from '../../../../src/application/readiness/where.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
+import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
+import type { ProcessResult } from '../../../../src/ports/process.js';
+import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
+import { MANIFEST_DIR, harness, type Harness } from '../../../fakes/workspace.js';
 
 const WORKSPACE =
   'schema_version: 2\ndefaults: { branch: dev }\nrepos: [{ name: fx-example-api, upstream: "https://git.example.com/fx/fx-example-api.git" }]\n';

@@ -15,9 +15,9 @@ import type { ConfigStore, LocalLayerStore } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { SyncOutput, SyncStages } from '../sync/types.js';
 import type { ToolInstallOutput } from '../tool/install.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import type { ScopeMode } from '../workspace/scope.js';
-import type { WorkspaceContext } from '../workspace-context.js';
 
 export interface InitDeps {
   readonly setupPlan?: (ctx: WorkspaceContext) => Promise<SetupPlan>;

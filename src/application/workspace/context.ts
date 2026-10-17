@@ -2,20 +2,20 @@
 
 import path from 'node:path';
 
-import type { ResolvedRepo, ResolvedWorkspace } from '../domain/manifest/local.js';
-import type { Binding, PlatformBinding, ProviderCatalog } from '../domain/manifest/providers.js';
-import { describeManifestRepo } from '../domain/manifest/source-repo.js';
-import type { LocalLayer } from '../domain/manifest/types.js';
-import type { FileReader } from '../ports/fs.js';
-import type { Git } from '../ports/git.js';
-import type { Reporter } from '../ports/reporter.js';
-import type { LocalLayerStore } from '../ports/stores.js';
+import type { ResolvedRepo, ResolvedWorkspace } from '../../domain/manifest/local.js';
+import type { Binding, PlatformBinding, ProviderCatalog } from '../../domain/manifest/providers.js';
+import { describeManifestRepo } from '../../domain/manifest/source-repo.js';
+import type { LocalLayer } from '../../domain/manifest/types.js';
+import type { FileReader } from '../../ports/fs.js';
+import type { Git } from '../../ports/git.js';
+import type { Reporter } from '../../ports/reporter.js';
+import type { LocalLayerStore } from '../../ports/stores.js';
+import { loadManifestContext, type ManifestContext } from '../manifest/context.js';
+import type { ManifestBundle } from '../manifest/load.js';
 
-import { loadManifestContext, type ManifestContext } from './manifest/context.js';
-import type { ManifestBundle } from './manifest/load.js';
-import { assertWorkspacePrepared, contextualWorkspaceError } from './workspace/health.js';
-import { resolveWorkspace, type Located, type ResolveInput } from './workspace/resolve.js';
-import { validateWorkspaceLayer } from './workspace/validate-layer.js';
+import { assertWorkspacePrepared, contextualWorkspaceError } from './health.js';
+import { resolveWorkspace, type Located, type ResolveInput } from './resolve.js';
+import { validateWorkspaceLayer } from './validate-layer.js';
 
 export interface LocateInput extends ResolveInput {
   readonly allowMissingRoot?: boolean;

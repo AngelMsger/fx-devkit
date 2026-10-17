@@ -6,21 +6,22 @@ import {
   bindableCapabilities,
   type Capability,
   type CapabilityScope,
-} from '../domain/capability.js';
-import { DevkitError } from '../domain/errors.js';
+} from '../../domain/capability.js';
+import { DevkitError } from '../../domain/errors.js';
 import {
   bindingOf,
   servesCapability,
   type Binding,
   type PlatformBinding,
-} from '../domain/manifest/providers.js';
-import { shellLine } from '../domain/shell.js';
+} from '../../domain/manifest/providers.js';
+import { shellLine } from '../../domain/shell.js';
+import type { LoginDeps } from '../login/deps.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 
-import type { LoginDeps } from './login/deps.js';
-import { Readiness } from './readiness/index.js';
-import type { Target, Verdict } from './readiness/types.js';
-import type { WorkspaceDeps } from './workspace/deps.js';
-import { workspaceCommand } from './workspace/guidance.js';
+import type { Target, Verdict } from './types.js';
+
+import { Readiness } from './index.js';
 
 export interface CanInput {
   readonly target: string;

@@ -3,17 +3,17 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { BITBUCKET_RECIPES } from '../../../src/adapters/code-host/bitbucket-cli/recipes.js';
-import { localGitProvider } from '../../../src/adapters/code-host/local-git/provider.js';
-import { TemplatePlatform } from '../../../src/adapters/platform/template-platform.js';
-import { Can } from '../../../src/application/can.js';
-import { Readiness } from '../../../src/application/readiness/index.js';
-import { Gates } from '../../../src/application/release/gates.js';
-import type { LocalLayer } from '../../../src/domain/manifest/types.js';
-import type { SetupRecipe } from '../../../src/domain/setup/types.js';
-import type { ProviderDescriptor } from '../../../src/ports/provider.js';
-import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
-import { MANIFEST_DIR, harness } from '../../fakes/workspace.js';
+import { BITBUCKET_RECIPES } from '../../../../src/adapters/code-host/bitbucket-cli/recipes.js';
+import { localGitProvider } from '../../../../src/adapters/code-host/local-git/provider.js';
+import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
+import { Can } from '../../../../src/application/readiness/can.js';
+import { Readiness } from '../../../../src/application/readiness/index.js';
+import { Gates } from '../../../../src/application/release/gates.js';
+import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
+import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
+import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
+import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');

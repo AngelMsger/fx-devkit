@@ -1,6 +1,6 @@
 // Bind source adapters and update receipts to the pre-sync refresh workflow.
 
-import { refreshWorkspaceManifest } from '../application/refresh-workspace-manifest.js';
+import { refreshWorkspaceManifest } from '../application/manifest/refresh.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 

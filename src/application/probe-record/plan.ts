@@ -11,7 +11,7 @@ import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import type { Environments } from '../../domain/manifest/types.js';
 import { coordinateFingerprint, probeScope } from '../../domain/obs/observation.js';
 import { shellLine } from '../../domain/shell.js';
-import { Where } from '../where.js';
+import { Where } from '../readiness/where.js';
 import { findKnownRepo } from '../workspace/inspect.js';
 
 import type {

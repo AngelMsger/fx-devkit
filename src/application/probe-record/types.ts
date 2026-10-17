@@ -8,8 +8,8 @@ import type { Clock } from '../../ports/clock.js';
 import type { Lock } from '../../ports/lock.js';
 import type { ProjectionSnapshot, ProjectionStore } from '../../ports/projection.js';
 import type { LoginDeps } from '../login/deps.js';
+import type { WhereInput, WhereRow } from '../readiness/where.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { WhereInput, WhereRow } from '../where.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 export interface ProbeRecordDeps {

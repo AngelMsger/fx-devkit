@@ -4,7 +4,7 @@
 
 import { DevkitError } from '../../domain/errors.js';
 import type { Members } from '../../domain/manifest/types.js';
-import type { WorkspaceContext } from '../workspace-context.js';
+import type { WorkspaceContext } from '../workspace/context.js';
 
 export function membersOf(ctx: WorkspaceContext): Members {
   const doc = ctx.manifest.members?.result.doc;

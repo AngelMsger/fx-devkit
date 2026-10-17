@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { identifyGitHubRemote } from '../../../src/adapters/code-host/github/import.js';
-import { Import } from '../../../src/application/import.js';
+import { Import } from '../../../src/application/manifest/import.js';
 import { loadWorkspace } from '../../../src/domain/manifest/loader.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeGit } from '../../fakes/fake-git.js';

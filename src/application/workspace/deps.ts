@@ -15,7 +15,8 @@ import type { Process } from '../../ports/process.js';
 import type { ProjectionStore } from '../../ports/projection.js';
 import type { Reporter } from '../../ports/reporter.js';
 import type { Cache, LocalLayerStore } from '../../ports/stores.js';
-import type { WorkspaceContext } from '../workspace-context.js';
+
+import type { WorkspaceContext } from './context.js';
 
 export interface WorkspaceDeps {
   readonly commandShell?: ResolvedShell;

@@ -1,9 +1,9 @@
 // A checkout that is not there or points elsewhere is broken; one with work
 // in progress is merely busy.
 
-import { Status } from '../status.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
+import { Status } from '../workspace/status.js';
 
 import { finding, type Finding } from './types.js';
 
