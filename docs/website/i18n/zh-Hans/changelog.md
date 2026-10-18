@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.12.0 (2026-10-18)
+
 - 可以在 GitHub 上创建 pull request。`fx source push` 对托管在 GitHub 上的 manifest 源与对 Bitbucket 一样工作：通过 `gh` 把所选文件推送到经过验证的个人 fork，并针对其上游创建、复用或结束 pull request；`--pr` 接受 pull request 编号或它在 GitHub 上的页面。
 - `fx import` 能识别通过 HTTPS 或 SSH 从 github.com 克隆的 checkout，并以相应的克隆前缀为主机绑定代码托管 `github`。仍不会根据远程推测 GitHub Enterprise 服务器。
 - 将 `wecom-calendar-cli` 加入工具目录并作为 `calendar` provider。它是你自己企业微信日历的本地镜像，可连同历史一起搜索。`fx can` 检查每位成员的登录状态，并把 `wecom-calendar-cli event list` 交给 Agent；是否用 `wecom-calendar-cli sync` 填充镜像由成员自己决定。

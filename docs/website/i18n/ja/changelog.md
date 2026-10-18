@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.12.0 (2026-10-18)
+
 - GitHub で pull request を作成できるようになりました。`fx source push` は GitHub にある manifest ソースでも Bitbucket と同じように動作します。選択したファイルを `gh` を通じて検証済みの個人フォークに push し、上流に対する pull request を作成、再利用、または終了します。`--pr` には pull request の番号か GitHub 上のページを指定できます。
 - `fx import` が github.com から HTTPS または SSH でクローンした checkout を認識し、対応する clone のプレフィックスをホストとして code-host `github` を結び付けます。GitHub Enterprise サーバーは、引き続きリモートから推測しません。
 - 自分の WeCom カレンダーを履歴ごと検索できるローカルミラー `wecom-calendar-cli` を、ツールカタログと `calendar` の provider に追加しました。`fx can` は各メンバーのサインインを確認し、エージェントに `wecom-calendar-cli event list` を渡します。`wecom-calendar-cli sync` でミラーを満たすかどうかはメンバー自身が決めます。
