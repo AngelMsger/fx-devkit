@@ -4,7 +4,7 @@
 
 import path from 'node:path';
 
-import { DevkitError } from '../../domain/errors.js';
+import { type DevkitError, toolMissingError } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
 import { failureCaseOf } from '../../domain/setup/failure-case.js';
 import { matchesJson, statedReason } from '../../domain/setup/json-check.js';
@@ -102,7 +102,7 @@ export class Verifier {
   }
 
   private toolMissing(tool: string, binary: string): DevkitError {
-    return new DevkitError('config', 'TOOL_MISSING', `${binary} is not installed or not on PATH`, {
+    return toolMissingError(binary, {
       hint: 'The check did not run, so it says nothing about this step.',
       nextSteps: [
         workspaceCommand(this.deps, 'tool', 'show', tool),

@@ -166,6 +166,16 @@ describe('Import', () => {
     expect(s.fs.writes).toEqual([out, out, out]);
   });
 
+  it('quotes a directory with a space in the command that retries elsewhere', async () => {
+    const dir = path.resolve('/team ws');
+    await expect(
+      stage().importer.execute({ ...write, dir, out: path.join(dir, 'workspace.yaml') }),
+    ).rejects.toMatchObject({
+      code: 'IMPORT_INSIDE_ROOT',
+      nextSteps: [`fx manifest import '${dir}' -o <manifest repository>/manifest/workspace.yaml`],
+    });
+  });
+
   it('surfaces a code-host lookup failure instead of importing as if nothing were asked', async () => {
     const s = stage();
     const unresolvable = new Import({

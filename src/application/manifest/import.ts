@@ -15,6 +15,7 @@ import {
 } from '../../domain/import/infer.js';
 import { renderManifest } from '../../domain/import/render.js';
 import { isAtOrInside } from '../../domain/path.js';
+import { shellLine } from '../../domain/shell.js';
 import type { CodeHost, Readability } from '../../ports/code-host.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
@@ -59,7 +60,9 @@ function insideRoot(root: string, target: string): DevkitError {
     `${target} lies inside ${root}, the directory being described`,
     {
       hint: 'The imported directory is a workspace of checkouts; the manifest belongs in a checkout of the manifest repository.',
-      nextSteps: [`fx manifest import ${root} -o <manifest repository>/manifest/workspace.yaml`],
+      nextSteps: [
+        `${shellLine(['fx', 'manifest', 'import', root])} -o <manifest repository>/manifest/workspace.yaml`,
+      ],
     },
   );
 }
@@ -135,14 +138,14 @@ export class Import {
     const found: RepoObservation[] = [];
     for (const name of await this.children(root)) {
       const dir = path.join(root, name);
-      if (await this.isRepoRoot(dir)) {
+      if (await this.deps.git.isToplevel(dir)) {
         found.push(await this.observeRepo(root, dir, gitmodules[name]?.branch));
         continue;
       }
       const inside: string[] = [];
       for (const child of await this.children(dir)) {
         const sub = path.join(dir, child);
-        if (await this.isRepoRoot(sub)) {
+        if (await this.deps.git.isToplevel(sub)) {
           inside.push(child);
           found.push(await this.observeRepo(root, sub, gitmodules[`${name}/${child}`]?.branch));
         }
@@ -159,12 +162,6 @@ export class Import {
       if (await this.deps.fs.isDirectory(path.join(dir, name))) names.push(name);
     }
     return names;
-  }
-
-  private async isRepoRoot(dir: string): Promise<boolean> {
-    const top = await this.deps.git.toplevel(dir);
-    if (top === undefined) return false;
-    return (await this.deps.fs.realpath(top)) === (await this.deps.fs.realpath(dir));
   }
 
   private async observeRepo(

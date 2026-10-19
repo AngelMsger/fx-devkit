@@ -11,6 +11,15 @@ import { probeToolVersion } from './version.js';
 
 export type ToolState = 'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown';
 
+// The `fx tool` subcommand that addresses a tool in a state other than ok.
+export function toolRecoveryCommand(
+  state: Exclude<ToolState, 'ok'>,
+): 'show' | 'install' | 'update' {
+  if (state === 'missing') return 'install';
+  if (state === 'outdated') return 'update';
+  return 'show';
+}
+
 export interface ToolStatus {
   readonly failure?: ErrorEnvelope['error'];
   readonly name: string;

@@ -1,5 +1,6 @@
 // Checks MCP prerequisites without starting servers or exposing command output.
 
+import { categoryOfExitCode } from '../../domain/errors.js';
 import type { HarnessAction } from '../../domain/harness/actions.js';
 import { assessMcpSupport, referencedVariables } from '../../domain/harness/mcp.js';
 import type { McpResource } from '../../domain/manifest/types.js';
@@ -131,9 +132,10 @@ export class McpReadiness {
         );
       return verdict(input, 'ready', null, 'checked');
     }
+    const category = categoryOfExitCode(result.code);
     return verdict(
       input,
-      result.code === 4 || result.code === 5 ? 'unconfigured' : 'unknown',
+      category === 'auth' || category === 'permission' ? 'unconfigured' : 'unknown',
       'The companion check did not establish readiness; resolve access or connectivity and retry.',
     );
   }

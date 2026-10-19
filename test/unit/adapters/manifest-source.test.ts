@@ -271,6 +271,26 @@ describe('GitRepoSource refresh decisions', () => {
     expect(git.calls).toEqual([`fetch ${dir} upstream`]);
   });
 
+  it('clones in the C locale, whose messages the failure is read from', async () => {
+    const cloning = new FakeProcess().on(['git', 'clone'], { code: 0, stdout: '', stderr: '' });
+    await new GitRepoSource(
+      'ssh://git.example.com/fx/source.git',
+      cloning,
+      new FakeGit(),
+    ).materialize('/fake/new');
+    expect(cloning.soleCallTo(['git', 'clone']).options.env).toEqual({ LC_ALL: 'C' });
+  });
+
+  it('names a git that could not start, rather than an unreachable repository', async () => {
+    await expect(
+      new GitRepoSource(
+        'ssh://git.example.com/fx/source.git',
+        new FakeProcess(),
+        new FakeGit(),
+      ).materialize('/fake/new'),
+    ).rejects.toMatchObject({ category: 'config', code: 'TOOL_MISSING' });
+  });
+
   it('moves only the ref while the person is on another branch, and fails on a fetch that fails', async () => {
     const git = new FakeGit().add(dir, { state: { ...clean, branch: 'skill-x' } });
     expect(await source(git).refresh(dir)).toMatchObject({

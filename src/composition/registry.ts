@@ -31,7 +31,7 @@ import { wecomTodoProvider } from '../adapters/task/wecom-todo/provider.js';
 import { jiraWorklogProvider } from '../adapters/worklog/jira-worklog/provider.js';
 import type { CapabilityName } from '../domain/capability.js';
 import { DevkitError } from '../domain/errors.js';
-import { nearest } from '../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
 import {
@@ -134,10 +134,7 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
       'PROVIDER_UNKNOWN',
       `"${binding.provider}" is not a ${capability} provider this fx knows`,
       {
-        hint:
-          suggestion === undefined
-            ? `Available: ${ids(capability)}.`
-            : `Did you mean "${suggestion}"?`,
+        hint: suggestionHint(suggestion, `Available: ${ids(capability)}.`),
         nextSteps: ['fx manifest providers', 'fx --version'],
       },
     );

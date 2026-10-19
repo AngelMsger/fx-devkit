@@ -3,7 +3,7 @@
 // approval is a blocked row rather than a failed stage.
 
 import { asDevkitError, DevkitError, exitCodeFor, toEnvelope } from '../../domain/errors.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
@@ -32,7 +32,7 @@ export async function planTools(
       (await deps.processWhich(tool.binary)) === undefined &&
       !(input.dryRun && tool.installOnInit)
     ) {
-      items.push(missingToolSkill(tool));
+      items.push(missingToolSkill(tool, deps.commandShell));
       continue;
     }
     const flag = tool.skill.agentFlag;
@@ -230,7 +230,7 @@ function noVector(tool: ResolvedTool, note: string): ToolSkillItem {
   };
 }
 
-function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
+function missingToolSkill(tool: ResolvedTool, shell: ResolvedShell | undefined): ToolSkillItem {
   return {
     ...noVector(tool, 'not installed'),
     failure: toEnvelope(
@@ -239,7 +239,10 @@ function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
         'TOOL_MISSING',
         `${tool.name} is required to prepare its Skill`,
         {
-          nextSteps: [`fx tool show ${tool.name}`, `fx tool install ${tool.name} --dry-run`],
+          nextSteps: [
+            shellLine(['fx', 'tool', 'show', tool.name], shell),
+            shellLine(['fx', 'tool', 'install', tool.name, '--dry-run'], shell),
+          ],
         },
       ),
     ).error,

@@ -163,8 +163,27 @@ export function busyError(
   });
 }
 
+// An executable that could not be started. Who needed the tool decides where to go
+// next, so each caller supplies its own recovery.
+export function toolMissingError(
+  binary: string,
+  options: { readonly hint?: string; readonly nextSteps: readonly string[] },
+): DevkitError {
+  return new DevkitError(
+    'config',
+    'TOOL_MISSING',
+    `${binary} is not installed or not on PATH`,
+    options,
+  );
+}
+
 export function exitCodeFor(category: Category): number {
   return EXIT_CODE[category];
+}
+
+// Companion CLIs of the family exit with the same category codes fx does.
+export function categoryOfExitCode(code: number): Category | undefined {
+  return CATEGORIES.find((category) => EXIT_CODE[category] === code);
 }
 
 export function asDevkitError(err: unknown): DevkitError {

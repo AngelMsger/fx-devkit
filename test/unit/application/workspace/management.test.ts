@@ -16,7 +16,7 @@ const manifest = readFileSync(
   path.resolve('test/fixtures/manifest/v1-minimal/workspace.yaml'),
   'utf8',
 );
-async function setup() {
+async function setup(commandShell?: 'cmd') {
   const home = tempDir('fx-identity-');
   const base = createContainer({ FX_HOME: home });
   const root = path.join(home, 'root');
@@ -44,6 +44,7 @@ async function setup() {
     noInput: true,
     yes: false,
     posture: writable,
+    ...(commandShell === undefined ? {} : { commandShell }),
   });
   return {
     container,
@@ -115,8 +116,25 @@ describe('workspace identity recovery', () => {
     expect(existsSync(path.join(path.dirname(s.source), 'workspace-operation.json'))).toBe(false);
     expect(s.config.writes).toBe(writes);
     await expect(
-      assertDistinctWorkspaceRoot(await s.config.read(), 'beta', s.root, s.container.fs),
-    ).rejects.toMatchObject({ code: 'WORKSPACE_ROOT_TAKEN' });
+      assertDistinctWorkspaceRoot(await s.config.read(), 'beta', s.root, {
+        fs: s.container.fs,
+        commandShell: 'cmd',
+      }),
+    ).rejects.toMatchObject({
+      code: 'WORKSPACE_ROOT_TAKEN',
+      nextSteps: [
+        'fx ^"workspace^" ^"show^" ^"alpha^"',
+        'fx ^"workspace^" ^"rebind^" ^"alpha^" ^"--from^" ^"^<source^>^"',
+      ],
+    });
+  });
+  it('quotes the commands that follow an identity change for the configured shell', async () => {
+    const s = await setup('cmd');
+    const preview = await s.usecase.execute({ ...s.input, dryRun: true });
+    expect(preview.next_steps).toEqual([
+      'fx ^"sync^" ^"--workspace^" ^"alpha^"',
+      'fx ^"workspace^" ^"show^" ^"alpha^"',
+    ]);
   });
   it('retries incomplete backup copies before replacing the source', async () => {
     const s = await setup();

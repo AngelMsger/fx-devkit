@@ -412,8 +412,11 @@ describe('Init', () => {
       posture: writable,
       jobs: 1,
     };
-    await expect(new Init(taken.deps).execute({ ...input, name: 'new' })).rejects.toMatchObject({
+    await expect(
+      new Init({ ...taken.deps, commandShell: 'cmd' }).execute({ ...input, name: 'new' }),
+    ).rejects.toMatchObject({
       code: 'WORKSPACE_NAME_TAKEN',
+      nextSteps: ['fx ^"workspace^" ^"show^" ^"new^"', expect.stringContaining('without --name')],
     });
     expect(taken.source.materialized).toEqual([]);
     const output = await new Init(taken.deps).execute(input);

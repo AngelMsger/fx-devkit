@@ -222,6 +222,10 @@ describe('AgentPick', () => {
         dryRun: false,
         posture: writable,
       }),
-    ).rejects.toMatchObject({ code: 'AGENT_UNKNOWN', hint: expect.stringContaining('codex') });
+    ).rejects.toMatchObject({
+      code: 'AGENT_UNKNOWN',
+      message: '"codx" is not an agent fx knows',
+      hint: 'Did you mean "codex"?',
+    });
   });
 });

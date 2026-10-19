@@ -3,7 +3,7 @@
 
 import { scanBoundary } from '../boundary/scan.js';
 import { DevkitError } from '../errors.js';
-import { nearest } from '../fuzzy.js';
+import { nearest, suggestionHint } from '../fuzzy.js';
 import { isPlainRelativePath } from '../path.js';
 
 import type { ContributionFile } from './snapshot.js';
@@ -88,9 +88,10 @@ function missingSelection(value: string, changes: readonly ContributionFile[]): 
       .filter((file) => scanBoundary({ text: file, policy: 'manifest' }).length === 0),
   );
   return new DevkitError('usage', 'SOURCE_SELECTION_EMPTY', 'A selection matches no changed file', {
-    hint: suggestion
-      ? `Did you mean "${suggestion}"?`
-      : 'Choose changed files or directories relative to the source root.',
+    hint: suggestionHint(
+      suggestion,
+      'Choose changed files or directories relative to the source root.',
+    ),
     nextSteps: ['Review the changed source paths and retry with an explicit selection.'],
   });
 }

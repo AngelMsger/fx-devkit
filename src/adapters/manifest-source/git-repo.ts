@@ -1,6 +1,5 @@
 // Materialize and safely refresh Git manifest checkouts, preserving local work.
 
-import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
@@ -14,6 +13,7 @@ import type {
   RefreshOutcome,
 } from '../../ports/manifest-source.js';
 import type { Process } from '../../ports/process.js';
+import { lastLine, runGit } from '../git/run.js';
 
 import { PAYLOAD_PATHS } from './payload.js';
 
@@ -47,8 +47,7 @@ export class GitRepoSource implements ManifestSource {
     if (this.localDirectory === undefined) return undefined;
     const head = await this.git.sha(dir, 'HEAD');
     if (head === undefined) return undefined;
-    const ancestor = await this.process.run([
-      'git',
+    const ancestor = await runGit(this.process, [
       '-C',
       this.localDirectory,
       'merge-base',
@@ -65,9 +64,8 @@ export class GitRepoSource implements ManifestSource {
     if (state.dirty) return `uncommitted changes on ${state.branch ?? 'a detached HEAD'}`;
     if (state.untracked > 0) return 'untracked files in the manifest source';
     const [untracked, ignored] = await Promise.all([
-      this.process.run(['git', '-C', dir, 'ls-files', '--others', '--exclude-standard']),
-      this.process.run([
-        'git',
+      runGit(this.process, ['-C', dir, 'ls-files', '--others', '--exclude-standard']),
+      runGit(this.process, [
         '-C',
         dir,
         'ls-files',
@@ -98,7 +96,7 @@ export class GitRepoSource implements ManifestSource {
       root: `${dir}@${ref}`,
       contents: 'commit',
       readText: async (file) => {
-        const result = await this.process.run(['git', '-C', dir, 'show', `${ref}:${file}`]);
+        const result = await runGit(this.process, ['-C', dir, 'show', `${ref}:${file}`]);
         if (result.code === 0) return result.stdout;
         if (file !== 'manifest/workspace.yaml') return undefined;
         throw new DevkitError(
@@ -116,8 +114,7 @@ export class GitRepoSource implements ManifestSource {
   }
 
   async materialize(dir: string): Promise<void> {
-    const top = await this.git.toplevel(dir);
-    if (top !== undefined && top === (await realpath(dir))) {
+    if (await this.git.isToplevel(dir)) {
       const remotes = await this.git.remotes(dir);
       if (remotes['upstream'] !== this.url)
         throw new DevkitError(
@@ -129,8 +126,7 @@ export class GitRepoSource implements ManifestSource {
       await this.refresh(dir);
       return;
     }
-    const result = await this.process.run([
-      'git',
+    const result = await runGit(this.process, [
       'clone',
       '--quiet',
       '--origin',
@@ -182,9 +178,4 @@ export class GitRepoSource implements ManifestSource {
       );
     return { result: outcome };
   }
-}
-
-function lastLine(text: string): string {
-  const lines = text.trim().split('\n');
-  return lines[lines.length - 1] ?? '';
 }

@@ -299,8 +299,11 @@ describe('profile export / import', () => {
         workspaces: { fx: { scope: { repos: [] } } },
       });
       await expect(
-        new ConfigImport({ ...s, lock: racing }).execute({ ...write, text }),
-      ).rejects.toMatchObject({ code: 'CONFIG_IMPORT_CHANGED' });
+        new ConfigImport({ ...s, lock: racing, commandShell: 'cmd' }).execute({ ...write, text }),
+      ).rejects.toMatchObject({
+        code: 'CONFIG_IMPORT_CHANGED',
+        nextSteps: ['fx ^"workspace^" ^"show^" ^"fx^"'],
+      });
       expect(s.localStore.writes).toEqual([]);
       expect(released).toBe(true);
     },

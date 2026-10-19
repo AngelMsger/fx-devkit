@@ -70,6 +70,10 @@ export interface ManageWorkspaceOutput {
 export class ManageWorkspace {
   constructor(private readonly deps: ManageWorkspaceDeps) {}
 
+  private command(...args: readonly string[]): string {
+    return shellLine(['fx', ...args], this.deps.commandShell);
+  }
+
   async execute(input: ManageWorkspaceInput): Promise<ManageWorkspaceOutput> {
     const preview = await this.plan(input);
     if (await this.isNoop(preview)) return this.unchanged(preview);
@@ -161,14 +165,14 @@ export class ManageWorkspace {
     let after: WorkspaceEntry | null = before;
     if (input.action === 'relocate') {
       await this.validateRelocation(input, before, root);
-      await assertDistinctWorkspaceRoot(config, input.name, root, this.deps.fs);
+      await assertDistinctWorkspaceRoot(config, input.name, root, this.deps);
       after = { ...before, root };
     }
     if (input.action === 'rebind') {
       if (!input.source)
         throw new DevkitError('usage', 'INPUT_REQUIRED', 'Rebind requires --from', {
           nextSteps: [
-            shellLine(['fx', 'workspace', 'rebind', input.name, '--from', '<manifest-source>']),
+            this.command('workspace', 'rebind', input.name, '--from', '<manifest-source>'),
           ],
         });
       if (!(await this.deps.fs.isDirectory(root)))
@@ -177,12 +181,10 @@ export class ManageWorkspace {
           'WORKSPACE_ROOT_MISSING',
           'Restore or relocate the workspace root before rebinding its source',
           {
-            nextSteps: [
-              shellLine(['fx', 'workspace', 'relocate', input.name, '<existing-directory>']),
-            ],
+            nextSteps: [this.command('workspace', 'relocate', input.name, '<existing-directory>')],
           },
         );
-      await assertDistinctWorkspaceRoot(config, input.name, root, this.deps.fs);
+      await assertDistinctWorkspaceRoot(config, input.name, root, this.deps);
       after = { ...before, source: input.source.description };
     }
     if (input.action === 'unregister') after = null;
@@ -245,7 +247,7 @@ export class ManageWorkspace {
         'The registered root still exists',
         {
           nextSteps: [
-            shellLine(['fx', 'workspace', 'show', input.name]),
+            this.command('workspace', 'show', input.name),
             `Move ${before.root} to the destination before relocating the identity.`,
           ],
         },
@@ -289,7 +291,7 @@ export class ManageWorkspace {
           throw changedRegistry();
         const workspaces = { ...current.workspaces };
         if (journal.after) {
-          await assertDistinctWorkspaceRoot(current, input.name, journal.after.root, this.deps.fs);
+          await assertDistinctWorkspaceRoot(current, input.name, journal.after.root, this.deps);
           workspaces[input.name] = journal.after;
         } else delete workspaces[input.name];
         const next = { ...current, workspaces };
@@ -374,8 +376,8 @@ export class ManageWorkspace {
       source_validation: journal.action === 'rebind' && !written ? 'pending_apply' : null,
       next_steps: journal.after
         ? [
-            shellLine(['fx', 'sync', '--workspace', journal.name]),
-            shellLine(['fx', 'workspace', 'show', journal.name]),
+            this.command('sync', '--workspace', journal.name),
+            this.command('workspace', 'show', journal.name),
           ]
         : ['fx workspace list'],
       written,

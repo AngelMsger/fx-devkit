@@ -1,11 +1,8 @@
 // Translate each stage's typed results into preparation evidence at its owning boundary.
 import { isUnfinished } from '../../domain/outcome.js';
-import {
-  preparationCheck,
-  type PreparationAction,
-  type PreparationCheck,
-} from '../../domain/preparation.js';
+import { preparationCheck, type PreparationCheck } from '../../domain/preparation.js';
 import type { RenderedFile } from '../docs/rendered.js';
+import { toolRecovery } from '../preparation.js';
 import type { SkillStageOutput } from '../skill/types.js';
 import type { ToolStatus } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -79,7 +76,7 @@ export function toolChecks(
         required: row.preparation_required,
         owner: row.state === 'disabled' ? 'maintainer' : 'user',
         ...(row.failure ? { code: row.failure.code, failure: row.failure } : {}),
-        actions: toolRecovery(row, deps),
+        actions: toolRecovery(deps, row),
       },
     ),
   );
@@ -90,35 +87,4 @@ function toolState(row: PreparationTool): PreparationCheck['state'] {
   if (row.state === 'disabled' && !row.preparation_required) return 'skipped';
   if (row.state === 'unknown') return 'unknown';
   return 'blocked';
-}
-
-function toolRecovery(row: PreparationTool, deps: WorkspaceDeps): PreparationAction[] {
-  if (row.state === 'ok' || (row.state === 'disabled' && !row.preparation_required)) return [];
-  const untrusted = row.failure?.code === 'VECTOR_UNTRUSTED';
-  let command = 'show';
-  if (row.state === 'missing') command = 'install';
-  if (row.state === 'outdated') command = 'update';
-  const argv = untrusted
-    ? ['fx', 'doctor', '--tool', row.name, '--workspace', deps.ctx.name, '--yes']
-    : [
-        'fx',
-        'tool',
-        command,
-        row.name,
-        '--workspace',
-        deps.ctx.name,
-        ...(command === 'show' ? [] : ['--dry-run']),
-      ];
-  return [
-    {
-      id: `tool:${row.name}`,
-      description: untrusted
-        ? `Review the exact ${row.name} probe and approve it to continue`
-        : `Inspect ${row.name} preparation`,
-      argv,
-      cwd: deps.ctx.root,
-      actor: 'agent',
-      requires_approval: untrusted,
-    },
-  ];
 }

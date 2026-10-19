@@ -54,7 +54,7 @@ export async function mergeProfileConfig(
   };
   assertDefaultWorkspace(next);
   for (const [name, entry] of Object.entries(next.workspaces ?? {}))
-    await assertDistinctWorkspaceRoot(next, name, entry.root, deps.fs);
+    await assertDistinctWorkspaceRoot(next, name, entry.root, deps);
   return next;
 }
 
@@ -62,6 +62,7 @@ export function assertImportIdentitiesUnchanged(
   expected: ConfigFile,
   actual: ConfigFile,
   names: readonly string[],
+  shell: ResolvedShell | undefined,
 ): void {
   for (const name of names) {
     if (JSON.stringify(expected.workspaces?.[name]) !== JSON.stringify(actual.workspaces?.[name]))
@@ -71,7 +72,7 @@ export function assertImportIdentitiesUnchanged(
         `Workspace "${name}" changed while the profile import was being planned`,
         {
           hint: 'Inspect its current identity and preview the profile again before retrying.',
-          nextSteps: [shellLine(['fx', 'workspace', 'show', name])],
+          nextSteps: [shellLine(['fx', 'workspace', 'show', name], shell)],
         },
       );
   }

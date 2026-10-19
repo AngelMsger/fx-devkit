@@ -77,13 +77,13 @@ export class ConfigImport {
         });
       }
       const latest = await this.deps.config.read();
-      assertImportIdentitiesUnchanged(current, latest, names);
+      assertImportIdentitiesUnchanged(current, latest, names, this.deps.commandShell);
       const locked = await this.plan(latest, profile);
-      assertImportIdentitiesUnchanged(plan.merged, locked.merged, names);
+      assertImportIdentitiesUnchanged(plan.merged, locked.merged, names, this.deps.commandShell);
       if (!changed(locked.output)) return locked.output;
       if (locked.output.config === 'changed')
         await this.deps.config.update(async (nextCurrent) => {
-          assertImportIdentitiesUnchanged(latest, nextCurrent, names);
+          assertImportIdentitiesUnchanged(latest, nextCurrent, names, this.deps.commandShell);
           return mergeProfileConfig(nextCurrent, profile.config, this.deps);
         });
       for (const [name, layer] of Object.entries(profile.workspaces)) {

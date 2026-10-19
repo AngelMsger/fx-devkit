@@ -30,7 +30,7 @@ export class SentryCli {
       env,
       diagnostic: { phase: `${BINARY} ${args.slice(0, 2).join(' ')}`.trim() },
     });
-    if (result.code === 127) throw toolMissing(BINARY);
+    if (result.notStarted) throw toolMissing(BINARY);
     return { code: result.code, data: parse(result.stdout), stderr: result.stderr };
   }
 }

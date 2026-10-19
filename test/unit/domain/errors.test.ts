@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   asDevkitError,
   CATEGORIES,
+  categoryOfExitCode,
   DevkitError,
   exitCodeFor,
   toEnvelope,
@@ -25,6 +26,11 @@ describe('DevkitError', () => {
       incomplete: 12,
     };
     expect(Object.fromEntries(CATEGORIES.map((c) => [c, exitCodeFor(c)]))).toEqual(expected);
+  });
+
+  it('reads an exit code back as its category, and no category into any other code', () => {
+    expect(CATEGORIES.map((c) => categoryOfExitCode(exitCodeFor(c)))).toEqual(CATEGORIES);
+    expect([0, 127].map((code) => categoryOfExitCode(code))).toEqual([undefined, undefined]);
   });
 
   it('marks only rate_limit, network and server as retryable', () => {

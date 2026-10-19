@@ -66,8 +66,10 @@ describe('source contribution physical identity', () => {
     const f = await fixture();
     await fs.unlink(f.root);
     await fs.symlink(f.newRoot, f.root, f.kind);
-    await expect(assertContributionIdentity(f.deps)).rejects.toMatchObject({
+    const registration = { ...f.deps.registration, commandShell: 'cmd' as const };
+    await expect(assertContributionIdentity({ ...f.deps, registration })).rejects.toMatchObject({
       code: 'WORKSPACE_PLAN_CHANGED',
+      nextSteps: ['fx ^"workspace^" ^"show^" ^"test^"'],
     });
   });
 

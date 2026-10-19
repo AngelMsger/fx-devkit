@@ -3,10 +3,10 @@
 
 import { DevkitError } from '../../domain/errors.js';
 import type { LoginDeps } from '../login/deps.js';
+import { approveCheckAction, toolRecovery } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
-import { toolChecks } from '../sync/checks.js';
 import type { Tally } from '../tally.js';
-import { ToolCheck, type ToolStatus } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand, type ToolStatus } from '../tool/check.js';
 import type { WorkspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
@@ -39,11 +39,10 @@ export async function checkTools(
         findings.push({
           ...fromStatus(status, options.dependencies.has(tool.name), deps),
           required: options.required.has(tool.name),
-          actions:
-            toolChecks(
-              [{ ...status, preparation_required: options.required.has(tool.name) }],
-              deps,
-            )[0]!.actions ?? [],
+          actions: toolRecovery(deps, {
+            ...status,
+            preparation_required: options.required.has(tool.name),
+          }),
           evidence: {
             binary: status.binary,
             binary_path: status.binary_path ?? null,
@@ -88,14 +87,10 @@ function toolCheckFailure(
     fix: handoff.command,
     handoff,
     actions: [
-      {
+      approveCheckAction(deps, name, {
         id: `approve:${name}`,
         description: `Review ${name}'s exact probe arguments, then approve the check`,
-        argv: ['fx', 'doctor', '--tool', name, '--workspace', deps.ctx.name, '--yes'],
-        cwd: deps.ctx.root,
-        actor: 'agent',
-        requires_approval: true,
-      },
+      }),
     ],
   });
 }
@@ -105,10 +100,10 @@ function fromStatus(
   activeDependency: boolean,
   deps: WorkspaceGuidance,
 ): Finding {
-  const { name } = status;
-  switch (status.state) {
-    case 'ok':
-      return finding('tools', name, 'ok', `${status.installed} installed`);
+  const { name, state } = status;
+  if (state === 'ok') return finding('tools', name, 'ok', `${status.installed} installed`);
+  const fix = workspaceCommand(deps, 'tool', toolRecoveryCommand(state), name);
+  switch (state) {
     case 'disabled':
       return status.required || activeDependency
         ? finding(
@@ -118,30 +113,25 @@ function fromStatus(
             status.required
               ? 'disabled by the manifest but required by the workspace'
               : 'disabled by the manifest but used by an active provider',
-            {
-              coverage: 'incomplete',
-              fix: workspaceCommand(deps, 'tool', 'show', name),
-            },
+            { coverage: 'incomplete', fix },
           )
         : finding('tools', name, 'ok', 'disabled by the manifest; not checked', {
             coverage: 'not_applicable',
           });
     case 'missing':
-      return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', {
-        fix: workspaceCommand(deps, 'tool', 'install', name),
-      });
+      return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', { fix });
     case 'outdated':
       return finding(
         'tools',
         name,
         status.required ? 'fail' : 'warn',
         `${status.installed} installed, ${status.min_version} required`,
-        { fix: workspaceCommand(deps, 'tool', 'update', name) },
+        { fix },
       );
     case 'unknown':
       return finding('tools', name, 'warn', 'installed but its version could not be read', {
         coverage: 'incomplete',
-        fix: workspaceCommand(deps, 'tool', 'show', name),
+        fix,
       });
   }
 }

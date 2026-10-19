@@ -25,7 +25,9 @@ const input = {
   dryRun: false,
   posture: { readOnly: false, source: 'default' as const },
 };
-async function fixture(options: { path?: string; otherOverride?: boolean } = {}) {
+async function fixture(
+  options: { path?: string; otherOverride?: boolean; commandShell?: 'cmd' } = {},
+) {
   const workspace = `schema_version: 2\ndefaults: {host: https://git.example.com, branch: main}\nrepos:\n  - name: app\n  - name: other\n${options.otherOverride ? '    obs: {overrides: {ci: {dev: {vars: {path: special}}}}}\n' : ''}`;
   const env = `# keep header\nschema_version: 2\nplatforms:\n  ci: {provider: tool, capability: ci, vars: {path: ${JSON.stringify(options.path ?? 'jobs/{repo}')}}}\nenvs:\n  dev:\n    platforms:\n      ci:\n        confidence: unverified\n        note: 'keep this explanation' # keep comment\n`;
   const platform = new TemplatePlatform({
@@ -60,6 +62,7 @@ async function fixture(options: { path?: string; otherOverride?: boolean } = {})
   const deps = {
     workspace: {
       ...h.deps,
+      ...(options.commandShell === undefined ? {} : { commandShell: options.commandShell }),
       processRun: async (...args: Parameters<typeof h.deps.processRun>) => {
         await onProbe?.();
         return h.process.run(...args);
@@ -164,6 +167,13 @@ describe('recording coordinate probes', () => {
       expect(f.writes).toEqual([]);
     },
   );
+  it('quotes the capability check it hands over for the configured shell', async () => {
+    const f = await fixture({ commandShell: 'cmd' });
+    f.h.process.clear().always({ code: 8, stdout: '', stderr: 'unavailable' });
+    expect((await f.usecase.execute(input)).handoff?.command).toBe(
+      'fx ^"can^" ^"ci^" ^"--env^" ^"dev^"',
+    );
+  });
   it('refuses to record fingerprints of inline credentials from coordinate variables', async () => {
     const f = await fixture();
     const text = f.env.replace('vars: {path:', 'vars: {token: inline-secret, path:');

@@ -8,7 +8,7 @@ import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../../domain/obs/observation.js';
 import { confidenceForProbe } from '../../domain/obs/probe.js';
 import { isLostWrite } from '../../domain/projection.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { Where, type WhereRow } from '../readiness/where.js';
 import { assertWritable } from '../safety/posture.js';
 
@@ -33,7 +33,10 @@ export class ProbeRecord {
   async execute(input: ProbeRecordInput): Promise<ProbeRecordOutput> {
     const plan = await planProbeRecord(this.deps, input);
     if (!plan.template || !plan.output.scope)
-      return { ...plan.output, handoff: recovery(plan.output.row) };
+      return {
+        ...plan.output,
+        handoff: recovery(plan.output.row, this.deps.workspace.commandShell),
+      };
     if (input.dryRun) return plan.output;
     assertWritable(input.posture, 'where --probe --record');
     const where = new Where(this.deps.workspace, this.deps.login);
@@ -65,7 +68,12 @@ export class ProbeRecord {
   private async record(plan: ProbeRecordPlan, row: WhereRow): Promise<ProbeRecordOutput> {
     const after = confidenceForProbe(row.outcome ?? 'unknown');
     if (!after)
-      return { ...plan.output, row, action: 'skipped', handoff: row.handoff ?? recovery(row) };
+      return {
+        ...plan.output,
+        row,
+        action: 'skipped',
+        handoff: row.handoff ?? recovery(row, this.deps.workspace.commandShell),
+      };
     await assertProbeSources(this.deps, plan);
     const note = appendNote(
       plan.previousNote,
@@ -100,8 +108,8 @@ function appendNote(before: string, line: string): string {
   return before + (before.endsWith('\n') ? '' : '\n') + line;
 }
 
-function recovery(row: WhereRow): HandoffEnvelope {
-  const command = shellLine(['fx', 'can', row.capability, '--env', row.env]);
+function recovery(row: WhereRow, shell: ResolvedShell | undefined): HandoffEnvelope {
+  const command = shellLine(['fx', 'can', row.capability, '--env', row.env], shell);
   return handoffEnvelope({
     summary: 'No definite, recordable coordinate probe result is available.',
     command,

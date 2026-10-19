@@ -15,7 +15,7 @@ import {
 } from 'yaml';
 
 import { DevkitError } from '../errors.js';
-import { nearest } from '../fuzzy.js';
+import { nearest, suggestionHint } from '../fuzzy.js';
 
 import { shapeOf } from './reflect.js';
 import { repoSchema } from './workspace.schema.js';
@@ -74,10 +74,7 @@ function assertSettable(field: string): SettableRepoField {
   }
   const suggestion = nearest(field, [...SETTABLE_REPO_FIELDS]);
   throw new DevkitError('usage', 'UNKNOWN_MANIFEST_FIELD', `A repository has no field "${field}"`, {
-    hint:
-      suggestion === undefined
-        ? `Settable fields: ${SETTABLE_REPO_FIELDS.join(', ')}.`
-        : `Did you mean "${suggestion}"?`,
+    hint: suggestionHint(suggestion, `Settable fields: ${SETTABLE_REPO_FIELDS.join(', ')}.`),
     nextSteps: ['fx manifest explain repos[]'],
   });
 }
@@ -96,10 +93,7 @@ function findRepo(text: string, repo: string): YAMLMap {
     'REPO_NOT_FOUND',
     `No repository named "${repo}" in the manifest`,
     {
-      hint:
-        suggestion === undefined
-          ? 'fx repo list shows the known names.'
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, 'fx repo list shows the known names.'),
       nextSteps: ['fx repo list'],
     },
   );

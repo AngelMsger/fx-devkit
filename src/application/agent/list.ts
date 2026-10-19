@@ -1,5 +1,7 @@
 // Resolve agent selection from explicit configuration or host detection.
 
+import { DevkitError } from '../../domain/errors.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 
 export interface AgentRow {
@@ -42,6 +44,19 @@ export class AgentList {
     }
     return rows;
   }
+}
+
+export function findHost(hosts: readonly AgentHost[], id: string): AgentHost {
+  const host = hosts.find((h) => h.id === id);
+  if (host !== undefined) return host;
+  const suggestion = nearest(
+    id,
+    hosts.map((h) => h.id),
+  );
+  throw new DevkitError('not_found', 'AGENT_UNKNOWN', `"${id}" is not an agent fx knows`, {
+    hint: suggestionHint(suggestion, 'fx agent list shows the known ids.'),
+    nextSteps: ['fx agent list'],
+  });
 }
 
 export function isEnabled(

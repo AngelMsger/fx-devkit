@@ -56,9 +56,11 @@ describe('MCP can command', () => {
       code: 'MCP_UNKNOWN',
       hint: 'Did you mean "knowledge"?',
     });
-    expect(fx([...args, '--agent', 'claud-code'], f.env, f.root).error().code).toBe(
-      'AGENT_UNKNOWN',
-    );
+    expect(fx([...args, '--agent', 'claud-code'], f.env, f.root).error()).toMatchObject({
+      code: 'AGENT_UNKNOWN',
+      message: '"claud-code" is not an agent fx knows',
+      hint: 'Did you mean "claude-code"?',
+    });
     expect(fx([...args, '--env', 'test'], f.env, f.root).error().code).toBe('MCP_ENV_UNSUPPORTED');
   });
   it('projects MCP through sync and reports the managed result in doctor', () => {

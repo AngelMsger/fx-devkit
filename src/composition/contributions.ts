@@ -53,8 +53,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
   if (!source || source.kind !== 'repo' || (await container.fs.readLink(located.manifestDir)))
     throw notGit();
   const dir = await container.fs.realpath(located.manifestDir);
-  const top = await container.git.toplevel(dir);
-  if (!top || (await container.fs.realpath(top)) !== dir) throw notGit();
+  if (!(await container.git.isToplevel(dir))) throw notGit();
   const validator = new ValidateContribution(
     { open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }) },
     container.bundledTools,
@@ -69,6 +68,7 @@ async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'p
       logicalSourceDir: located.manifestDir,
       config: container.config,
       fs: container.fs,
+      commandShell: input.resolve.commandShell,
     },
     source: { workspace: located.name, dir, kind: 'repo' },
     git: new ContributionSystemGit(container.process),

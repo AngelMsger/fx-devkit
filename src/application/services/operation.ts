@@ -7,8 +7,8 @@ import { atLeast } from '../../domain/semver.js';
 import { matchesPublicDefaults } from '../../domain/setup/public-defaults.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import type { LoginDeps } from '../login/deps.js';
+import { toolRecovery } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
-import { toolChecks } from '../sync/checks.js';
 import { ToolCheck } from '../tool/check.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -58,9 +58,10 @@ export class ServiceOperation {
           detail: `${step.tool} is ${version?.state ?? 'unknown'}; requires ${version?.min_version ?? preparation.minVersion} for public service settings`,
           ...(version
             ? {
-                actions:
-                  toolChecks([{ ...version, preparation_required: step.required }], this.deps)[0]
-                    ?.actions ?? [],
+                actions: toolRecovery(this.deps, {
+                  ...version,
+                  preparation_required: step.required,
+                }),
               }
             : {}),
           next_steps: [

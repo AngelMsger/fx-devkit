@@ -9,6 +9,7 @@ import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { repoUrl } from '../../../src/domain/workspace/ref.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { FakeProcess } from '../../fakes/fake-process.js';
 import { tempDir } from '../../temp.js';
 
 describe('LocalGitCodeHost', () => {
@@ -33,5 +34,19 @@ describe('LocalGitCodeHost', () => {
       url: first.url,
       created: false,
     });
+  });
+
+  it('asks git in the C locale, so a path missing from a ref is recognised', async () => {
+    const proc = new FakeProcess().always({
+      code: 128,
+      stdout: '',
+      stderr: "fatal: path 'VERSION' does not exist in 'main'\n",
+    });
+    const sut = new LocalGitCodeHost(
+      { process: proc, fs: new NodeFs(), clock: new FakeClock() },
+      { host: '/host' },
+    );
+    expect(await sut.readFile({ project: 'fx', name: 'a' }, 'VERSION', 'main')).toBeUndefined();
+    expect(proc.soleCallTo(['git']).options.env).toEqual({ LC_ALL: 'C' });
   });
 });

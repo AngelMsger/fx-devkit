@@ -89,12 +89,10 @@ export class ToolInstall {
     const plans: ToolInstallPlan[] = [];
     for (const tool of selected) plans.push(await this.plan(tool, input));
     if (input.dryRun) return plans.map((plan) => plan.output);
+    const names = selected.map((tool) => tool.name);
     if (plans.some((plan) => plan.output.vector !== null)) {
       const action = input.update ? 'update' : 'install';
-      assertWritable(
-        input.posture,
-        `tool ${action} ${selected.map((tool) => tool.name).join(' ')}`,
-      );
+      assertWritable(input.posture, `tool ${action} ${names.join(' ')}`);
     }
     if (input.requireInstallTrust) {
       if (!input.trust)
@@ -105,7 +103,7 @@ export class ToolInstall {
           {
             nextSteps: [
               'Re-run the same command in a terminal and review the install vector.',
-              `fx tool install ${selected.map((tool) => tool.name).join(' ')}`,
+              recoveryCommand({ commandShell: input.commandShell }, 'tool', 'install', ...names),
             ],
           },
         );

@@ -4,7 +4,7 @@
 // Selection and gate warming follow docs/design/release.md, "Selection and order".
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import { applyLocal, type ResolvedRepo } from '../../domain/manifest/local.js';
 import { releasePolicyOf } from '../../domain/release/policy.js';
 import {
@@ -21,6 +21,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { pooled } from '../pool.js';
 import { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+import { workspaceItemNotFound } from '../workspace/guidance.js';
 
 import { checkCi } from './ci.js';
 import { checkDeps } from './deps.js';
@@ -116,10 +117,12 @@ export class Release {
     const shared = applyLocal(doc, {}).repos;
     for (const name of input.repos ?? []) {
       if (!shared.some((r) => r.name === name))
-        throw repoNotFound(
+        throw workspaceItemNotFound(this.deps, {
+          kind: 'repo',
           name,
-          shared.map((r) => r.name),
-        );
+          known: shared.map((r) => r.name),
+          shared: true,
+        });
     }
     const off = (input.repos ?? []).filter((name) => !releasePolicyOf(doc, name).covered);
     if (off.length > 0) throw notOnChecklist(off);
@@ -186,10 +189,7 @@ function tagNotFound(tags: readonly string[], known: readonly string[]): DevkitE
     'TAG_NOT_FOUND',
     `No repository on the release checklist is tagged ${tags.map((t) => `"${t}"`).join(' or ')}`,
     {
-      hint:
-        suggestion === undefined
-          ? `Tags in use: ${known.join(', ') || '(none)'}.`
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, `Tags in use: ${known.join(', ') || '(none)'}.`),
       nextSteps: ['fx repo list --tag <tag>'],
     },
   );
@@ -203,22 +203,6 @@ function notOnChecklist(names: readonly string[]): DevkitError {
     {
       hint: COVERAGE_HINT,
       nextSteps: ['fx repo show <repo>', 'fx manifest explain repos[].release.covered'],
-    },
-  );
-}
-
-function repoNotFound(name: string, known: readonly string[]): DevkitError {
-  const suggestion = nearest(name, known);
-  return new DevkitError(
-    'not_found',
-    'REPO_NOT_FOUND',
-    `No repository named "${name}" in this workspace`,
-    {
-      hint:
-        suggestion === undefined
-          ? 'fx repo list shows the known names.'
-          : `Did you mean "${suggestion}"?`,
-      nextSteps: ['fx repo list'],
     },
   );
 }

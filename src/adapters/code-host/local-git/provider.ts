@@ -24,6 +24,7 @@ import type {
 } from '../../../ports/code-host.js';
 import type { ProcessResult } from '../../../ports/process.js';
 import type { AdapterDeps, ProviderDescriptor } from '../../../ports/provider.js';
+import { runGit } from '../../git/run.js';
 
 // One line per commit: sha, author, ISO committer date, parents, subject.
 const COMMIT_FORMAT = '--format=%H%x00%an%x00%cI%x00%P%x00%s';
@@ -71,8 +72,7 @@ export class LocalGitCodeHost implements CodeHost {
     const { user } = await this.whoami();
     const url = this.forkUrl(user, ref);
     if (await this.deps.fs.exists(url)) return { url, created: false };
-    const result = await this.deps.process.run([
-      'git',
+    const result = await runGit(this.deps.process, [
       'clone',
       '--quiet',
       '--bare',
@@ -142,7 +142,7 @@ export class LocalGitCodeHost implements CodeHost {
   }
 
   private git(ref: RepoRef, args: readonly string[]): Promise<ProcessResult> {
-    return this.deps.process.run(['git', '--git-dir', this.upstreamUrl(ref), ...args]);
+    return runGit(this.deps.process, ['--git-dir', this.upstreamUrl(ref), ...args]);
   }
 
   private get host(): string {

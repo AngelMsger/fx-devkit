@@ -7,6 +7,7 @@ import type {
   ContributionRemoteSettings,
   VerifiedContributionRemote,
 } from '../../domain/contribution/remote.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import type { RepoRef } from '../../domain/workspace/ref.js';
 import type { Clock } from '../../ports/clock.js';
 import type { CodeHost } from '../../ports/code-host.js';
@@ -51,6 +52,7 @@ export interface PushSourceDeps {
     readonly logicalSourceDir: string;
     readonly config: ConfigStore;
     readonly fs: FileSystem;
+    readonly commandShell?: ResolvedShell | undefined;
   };
   readonly user?: string | undefined;
   readonly source: {

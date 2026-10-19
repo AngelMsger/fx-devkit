@@ -14,7 +14,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
 import { gaveNoAnswer, Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
-import { ToolCheck } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
@@ -79,7 +79,7 @@ export class Readiness {
             command: workspaceCommand(
               this.deps,
               'tool',
-              { disabled: 'show', outdated: 'update', missing: 'install' }[state],
+              toolRecoveryCommand(state),
               target.tool.name,
             ),
           }),
