@@ -10,11 +10,12 @@ import {
   assertWorkspaceNames,
   defaultWorkspaceName,
 } from '../../domain/workspace/name.js';
+import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { ConfigFile } from '../../ports/stores.js';
 import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import { RefreshManifest } from '../manifest/refresh.js';
-import { assertWritable } from '../safety/posture.js';
+import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { Sync } from '../sync/index.js';
 import type { SyncOutput } from '../sync/types.js';
 import type { ToolInstallOutput } from '../tool/install.js';
@@ -32,6 +33,7 @@ import {
   type InitPhase,
 } from './errors.js';
 import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';
+import { sourceIdentity, type InitSource } from './source.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 type DirState = 'new' | 'empty' | 'registered' | 'adopted';
@@ -103,7 +105,7 @@ export class Init {
     });
     await assertDistinctWorkspaceRoot(config, name, root, this.deps);
     const existing = config.workspaces?.[name];
-    if (input.resume && existing === undefined)
+    if (input.source.kind === 'kept' && existing === undefined)
       throw new DevkitError(
         'not_found',
         'WORKSPACE_NOT_FOUND',
@@ -112,8 +114,9 @@ export class Init {
       );
     if (existing !== undefined && !(await this.sameRoot(existing.root, root)))
       throw nameTaken(this.deps, name, root, existing);
-    if (existing?.source !== undefined && existing.source !== input.source.description)
-      throw sourceMismatch(this.deps, name, existing.source, input.source);
+    const candidate = sourceIdentity(input.source).description;
+    if (existing?.source !== undefined && existing.source !== candidate)
+      throw sourceMismatch(this.deps, name, existing.source, candidate);
     return { root, name, config };
   }
 
@@ -125,11 +128,12 @@ export class Init {
     const manifestDir = this.deps.manifestDirFor(name);
     const refreshed =
       existing !== undefined &&
+      input.source.kind !== 'kept' &&
       input.source.refresh !== undefined &&
       (await this.deps.fs.exists(manifestDir));
     const local = await this.deps.localStore.read(name);
     let manifest: InitOutput['manifest'] = refreshed ? 'refreshed' : 'materialized';
-    if (input.resume) manifest = 'kept';
+    if (input.source.kind === 'kept') manifest = 'kept';
     return {
       config,
       output: {
@@ -137,7 +141,7 @@ export class Init {
         preparation: preparation({ scope: preparationScope(name), checks: [], preview: true }),
         root,
         name,
-        source: input.source.description,
+        source: sourceIdentity(input.source).description,
         manifest_dir: manifestDir,
         manifest: input.dryRun ? 'not_written' : manifest,
         adopted: state === 'adopted',
@@ -161,7 +165,7 @@ export class Init {
       phase = 'validation';
       output = await this.inspectSource(output, input, { materialized: false });
       phase = 'manifest';
-      if (!input.resume) await this.materialize(output, input);
+      if (input.source.kind !== 'kept') await this.materialize(output, input.source, input.posture);
       materialized = true;
       phase = 'validation';
       const bundle = await this.loadSourceManifest(output, input);
@@ -171,7 +175,7 @@ export class Init {
       if (output.manifest === 'materialized')
         await this.deps.settleManifest(output.name, output.manifest_dir);
       phase = 'registration';
-      await this.register(output, input);
+      await this.register(output, input.source);
       registered = true;
       await this.deps.fs.ensureDir(output.root);
       if (input.repos !== undefined)
@@ -249,34 +253,44 @@ export class Init {
       });
   }
 
-  private async materialize(output: InitOutput, input: InitInput): Promise<void> {
+  private async materialize(
+    output: InitOutput,
+    source: ManifestSource,
+    posture: WritePosture,
+  ): Promise<void> {
     if (output.manifest === 'refreshed') {
       await new RefreshManifest(this.deps.reporter).execute({
         manifestDir: output.manifest_dir,
-        source: input.source,
+        source,
         dryRun: false,
-        posture: input.posture,
+        posture,
         settle: () => this.deps.settleManifest(output.name, output.manifest_dir),
       });
     } else {
-      await input.source.materialize(output.manifest_dir);
+      await source.materialize(output.manifest_dir);
     }
   }
 
-  private async register(output: InitOutput, input: InitInput): Promise<void> {
+  private async register(output: InitOutput, source: InitSource): Promise<void> {
     await this.deps.config.update(async (current) => {
       await assertDistinctWorkspaceRoot(current, output.name, output.root, this.deps);
       const existing = current.workspaces?.[output.name];
       if (existing && !(await this.sameRoot(existing.root, output.root)))
         throw nameTaken(this.deps, output.name, output.root, existing);
       if (existing?.source !== undefined && existing.source !== output.source)
-        throw sourceMismatch(this.deps, output.name, existing.source, input.source);
+        throw sourceMismatch(this.deps, output.name, existing.source, output.source);
+      // A kept directory was imported from nowhere new: its registration keeps the
+      // source it records, and stays without one when it records none.
+      const recorded = source.kind === 'kept' ? source.recorded : output.source;
       return {
         ...current,
         default_workspace: current.default_workspace ?? output.name,
         workspaces: {
           ...current.workspaces,
-          [output.name]: { root: output.root, source: output.source },
+          [output.name]: {
+            root: output.root,
+            ...(recorded === undefined ? {} : { source: recorded }),
+          },
         },
       };
     });

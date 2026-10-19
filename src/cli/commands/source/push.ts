@@ -1,6 +1,7 @@
 import { Args } from '@oclif/core';
 
-import { runSourcePush } from '../../../composition/contributions.js';
+import { PushRegisteredSource } from '../../../application/contribution/push-registered.js';
+import { sourcePushDeps } from '../../../composition/contributions.js';
 import { FxCommand } from '../../base.js';
 import { writeIntent } from '../../flags.js';
 import { sourcePushFlags } from '../../source-flags.js';
@@ -23,22 +24,22 @@ export default class SourcePushCommand extends FxCommand {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SourcePushCommand);
     if (flags['dry-run']) this.skipUpdateChecks();
-    const result = await runSourcePush({
+    const deps = sourcePushDeps({
       container: this.container,
       resolve: this.resolveInput(),
       noInput: this.noInput,
       user: this.user,
-      request: {
-        paths: args.paths ?? [],
-        issue: flags.issue,
-        title: flags.title,
-        ...(flags.message === undefined ? {} : { message: flags.message }),
-        ...(flags.pr === undefined ? {} : { prRef: flags.pr }),
-        cliVersion: this.config.version,
-        ...writeIntent(flags, this.posture),
-        forceNew: flags.new,
-        yes: this.yes,
-      },
+    });
+    const result = await new PushRegisteredSource(deps).execute({
+      paths: args.paths ?? [],
+      issue: flags.issue,
+      title: flags.title,
+      ...(flags.message === undefined ? {} : { message: flags.message }),
+      ...(flags.pr === undefined ? {} : { prRef: flags.pr }),
+      cliVersion: this.config.version,
+      ...writeIntent(flags, this.posture),
+      forceNew: flags.new,
+      yes: this.yes,
     });
     this.renderer.record(result);
   }

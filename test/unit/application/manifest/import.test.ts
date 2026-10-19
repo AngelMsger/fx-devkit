@@ -10,8 +10,9 @@ import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
-const HOST = 'ssh://git@git.example.com:12345';
+const HOST = path.normalize(path.resolve('/srv/git'));
 const ROOT = path.normalize(path.resolve('/ws'));
+const RELATIVE_HOST = 'mirrors/git';
 const write = {
   dryRun: false,
   posture: { readOnly: false, source: 'default' as const },
@@ -27,7 +28,9 @@ class AliasedFs extends FakeFs {
   }
 }
 
-function stage(options: { commandShell?: 'cmd' } = {}) {
+// Every checkout comes from HOST; `forkHost` moves the one personal fork elsewhere.
+function stage(options: { commandShell?: 'cmd'; forkHost?: string } = {}) {
+  const { forkHost = HOST, commandShell } = options;
   const fs = AliasedFs.from({
     [`${ROOT}/.gitmodules`]:
       '[submodule "agent-runtime"]\n\tpath = agent-runtime\n\turl = x\n\tbranch = integration\n',
@@ -35,6 +38,7 @@ function stage(options: { commandShell?: 'cmd' } = {}) {
     [`${ROOT}/scratch/notes.txt`]: 'inside the root repository, not a repository itself',
   });
   fs.mkdir(`${ROOT}/plain-empty`);
+  fs.mkdir(HOST);
   fs.mkdir(path.resolve('/alias'));
   const git = new FakeGit((dir) => fs.mkdir(dir));
   git.add(`${ROOT}/fx-example-api`, {
@@ -50,7 +54,7 @@ function stage(options: { commandShell?: 'cmd' } = {}) {
     state: { branch: 'feature/x', dirty: true, untracked: 0, ahead: 1, behind: 0 },
   });
   git.add(`${ROOT}/fx-example-scripts`, {
-    remotes: { origin: `${HOST}/~alice/fx-example-scripts.git` },
+    remotes: { origin: `${forkHost}/~alice/fx-example-scripts.git` },
     state: { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 },
   });
   git.add(`${ROOT}/direct`, {
@@ -66,15 +70,19 @@ function stage(options: { commandShell?: 'cmd' } = {}) {
   codeHost.readability.set('fx/fx-example-scripts', 'missing');
   codeHost.readability.set('ai/fx-example-scripts', 'readable');
   const reporter = new FakeReporter();
+  const asked: string[] = [];
   const importer = new Import({
-    ...options,
+    ...(commandShell === undefined ? {} : { commandShell }),
     git,
     fs,
     reporter,
-    codeHost: async () => codeHost,
+    localCodeHost: (directory) => {
+      asked.push(directory);
+      return codeHost;
+    },
     identifyProvider: async () => ({ provider: 'bitbucket-cli', host: HOST }),
   });
-  return { fs, git, codeHost, importer };
+  return { fs, git, codeHost, importer, asked };
 }
 
 describe('Import', () => {
@@ -118,6 +126,7 @@ describe('Import', () => {
       ],
       branch_from: { gitmodules: 1, remote_head: 3, checkout: 1 },
     });
+    expect(s.asked).toEqual([HOST]);
     expect(s.codeHost.probes).toEqual(['fx/fx-example-scripts', 'ai/fx-example-scripts']);
     expect(s.git.calls, 'nothing in any checkout was touched').toEqual([]);
     expect(out.manifest).toContain('# review: upstream inferred');
@@ -188,13 +197,26 @@ describe('Import', () => {
     });
   });
 
+  it.each([
+    ['a remote host', 'ssh://git@git.example.com:12345'],
+    ['a directory this machine does not have', path.resolve('/srv/absent')],
+    ['a path that is not absolute', RELATIVE_HOST],
+  ])('asks no code host about a fork on %s and leaves it unverified', async (_name, forkHost) => {
+    const s = stage({ forkHost });
+    s.fs.mkdir(RELATIVE_HOST);
+    const out = await s.importer.execute({ ...write, dir: ROOT });
+    expect(s.asked).toEqual([]);
+    expect(out.report.repos).toBe(4);
+    expect(out.report.skipped.map((item) => item.path)).toContain('fx-example-scripts');
+  });
+
   it('surfaces a code-host lookup failure instead of importing as if nothing were asked', async () => {
     const s = stage();
     const unresolvable = new Import({
       git: s.git,
       fs: s.fs,
       reporter: new FakeReporter(),
-      codeHost: async () => {
+      localCodeHost: () => {
         throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no provider is bound for code-host');
       },
     });

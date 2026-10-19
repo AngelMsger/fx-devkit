@@ -2,7 +2,6 @@
 // for the ports and hands them to command wiring.
 
 import os from 'node:os';
-import path from 'node:path';
 
 import { SystemClock } from '../adapters/clock/system-clock.js';
 import { FamilyServiceProtocol } from '../adapters/family/service-protocol.js';
@@ -244,20 +243,6 @@ export function workspaceDeps(container: Container, input: WorkspaceInvocation):
       binding.provider === null ? undefined : resolveProvider<Platform>(binding, adapters),
     reference: (binding) => resolveProvider(binding, adapters),
   };
-}
-
-// Import can resolve local Git hosts before a workspace exists; remote hosts need verified
-// bindings. Only a host that is not an existing absolute path is "no code host"; a provider
-// that refuses to resolve is a configuration failure the caller must see.
-export async function codeHostFor(
-  container: Container,
-  host: string,
-): Promise<CodeHost | undefined> {
-  if (!path.isAbsolute(host) || !(await container.fs.exists(host))) return undefined;
-  return resolveProvider<CodeHost>(
-    { capability: 'code-host', provider: 'local-git', source: 'default', vars: { host } },
-    adaptersOf(container),
-  );
 }
 
 export interface LoginDepsInput {

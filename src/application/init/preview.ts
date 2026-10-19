@@ -246,7 +246,7 @@ export function initialPlan(
   const { name, root, manifestDir, refreshed, config, local } = facts;
   const selection = input.repos ?? local.scope?.repos;
   let manifestAction: InitOutput['plan']['manifest_action'] = refreshed ? 'refresh' : 'materialize';
-  if (input.resume) manifestAction = 'keep';
+  if (input.source.kind === 'kept') manifestAction = 'keep';
   return {
     source_inspected: false,
     inspected_source: null,

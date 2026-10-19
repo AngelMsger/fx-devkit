@@ -9,7 +9,6 @@ import type { PlanItem } from '../../domain/workspace/plan.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
 import type { Lock } from '../../ports/lock.js';
-import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { Reporter } from '../../ports/reporter.js';
 import type { ConfigStore, LocalLayerStore } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
@@ -18,6 +17,8 @@ import type { ToolInstallOutput } from '../tool/install.js';
 import type { WorkspaceContext } from '../workspace/context.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import type { ScopeMode } from '../workspace/scope.js';
+
+import type { InitSource } from './source.js';
 
 export interface InitDeps {
   readonly setupPlan?: (ctx: WorkspaceContext) => Promise<SetupPlan>;
@@ -40,9 +41,8 @@ export interface InitDeps {
 }
 
 export interface InitInput {
-  readonly resume?: boolean;
   readonly dir: string;
-  readonly source: ManifestSource;
+  readonly source: InitSource;
   readonly name?: string | undefined;
   readonly repos?: readonly string[] | undefined;
   readonly adopt: boolean;

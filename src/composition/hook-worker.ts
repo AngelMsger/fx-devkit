@@ -3,8 +3,7 @@
 
 import { DeadlineProcess } from '../adapters/process/deadline-process.js';
 import { NodeHookTasks } from '../adapters/process/hook-tasks.js';
-import { acceptHook, DispatchHook } from '../application/hook/dispatch.js';
-import { resolvePosture } from '../application/safety/posture.js';
+import { acceptBackground, DispatchHook } from '../application/hook/dispatch.js';
 import { COMPANION_COMMAND_MS, WORKER_BUDGET_MS } from '../domain/harness/deadlines.js';
 import { parseHookRequest } from '../domain/harness/request.js';
 
@@ -33,12 +32,8 @@ export async function runHookWorker(
     clock: container.clock,
     tasks: new NodeHookTasks(hooks.executable),
   };
-  const dispatch = new DispatchHook(dispatchDeps);
-  if (!background) return dispatch.execute({ request, raw, env });
-  const payload = JSON.stringify({ cwd: request.root });
-  const canWrite = async (): Promise<boolean> =>
-    (await acceptHook({ deps: dispatchDeps, request, raw: payload, env })) &&
-    !resolvePosture({ allowWrites: false, env, file: await container.config.read() }).readOnly;
+  if (!background) return new DispatchHook(dispatchDeps).execute({ request, raw, env });
+  const canWrite = (): Promise<boolean> => acceptBackground({ deps: dispatchDeps, request, env });
   if (!(await canWrite())) return '';
   await lifecycleHandlers[request.event]?.background({ container, request, env, canWrite });
   return '';

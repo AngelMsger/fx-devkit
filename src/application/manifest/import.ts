@@ -27,7 +27,8 @@ export interface ImportDeps {
   readonly git: Git;
   readonly fs: FileSystem;
   readonly reporter: Reporter;
-  readonly codeHost: (host: string) => Promise<CodeHost | undefined>;
+  // The code host that serves the repositories kept under a directory of this machine.
+  readonly localCodeHost: (directory: string) => CodeHost;
   readonly identifyProvider?: (upstream: string) => Promise<ImportProvider | undefined>;
 }
 
@@ -249,7 +250,7 @@ export class Import {
     const hosts = new Map<string, Promise<CodeHost | undefined>>();
     for (const obs of later) {
       const host = hostOf(obs.remotes['origin'] ?? '');
-      const pending = hosts.get(host) ?? this.deps.codeHost(host);
+      const pending = hosts.get(host) ?? this.codeHostAt(host);
       hosts.set(host, pending);
       const codeHost = await pending;
       for (const project of seen) {
@@ -259,6 +260,14 @@ export class Import {
       }
     }
     return answers;
+  }
+
+  // An import runs before any workspace binds a provider, so only a host that is a
+  // directory on this machine can be asked; every other host stays unasked. A local
+  // host that will not resolve is a configuration failure the caller must see.
+  private async codeHostAt(host: string): Promise<CodeHost | undefined> {
+    if (!path.isAbsolute(host) || !(await this.deps.fs.exists(host))) return undefined;
+    return this.deps.localCodeHost(host);
   }
 }
 
