@@ -1,10 +1,12 @@
 // Plan content-dependent local preparation after source validation, before
 // installers or repository synchronization can execute. No preview grants trust.
+import { installsOnInit } from '../../domain/toolchain/resolve.js';
 import type { LoginDeps } from '../login/deps.js';
+import type { StageResult } from '../preparation.js';
 import { prepareServices } from '../services/stage.js';
+import type { ServiceStageDetails } from '../services/types.js';
 import type { SkillStage } from '../skill/stage.js';
 import type { SkillStageOutput } from '../skill/types.js';
-import type { ServiceStageDetails, StageResult } from '../sync/types.js';
 import type { ToolInstall, ToolInstallOutput } from '../tool/install.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -18,27 +20,32 @@ export interface InitializationPreview {
   readonly services: StageResult<ServiceStageDetails>;
 }
 
+// What the preview plans with beyond the workspace bundle.
+export interface PreviewInitializationDeps {
+  readonly login: LoginDeps;
+  readonly install: ToolInstall;
+  readonly skills: SkillStage;
+}
+
 export class PreviewInitialization {
   constructor(
     private readonly deps: WorkspaceDeps,
-    private readonly login: LoginDeps,
-    private readonly install: ToolInstall,
-    private readonly skills: SkillStage,
+    private readonly preview: PreviewInitializationDeps,
   ) {}
 
   async execute(): Promise<InitializationPreview> {
     const { ctx } = this.deps;
     const trust = { ...this.deps.trust, dryRun: true };
     const tools = toolchainOf(ctx).tools;
-    const installs = await this.install.execute({
-      tools: tools.filter((tool) => tool.enabled && tool.installOnInit),
+    const installs = await this.preview.install.execute({
+      tools: tools.filter(installsOnInit),
       all: true,
       update: false,
       dryRun: true,
       posture: trust.posture,
       trust,
     });
-    const skills = await this.skills.execute({
+    const skills = await this.preview.skills.execute({
       dryRun: true,
       posture: trust.posture,
       toolchain: tools,
@@ -49,7 +56,7 @@ export class PreviewInitialization {
       tool_install: installs,
       skills,
       note: 'Missing tools may reveal additional Skill vectors after installation; those require their own exact trust check. Foreign paths still require replacement approval and backup.',
-      services: await prepareServices(this.deps, this.login, { dryRun: true }),
+      services: await prepareServices(this.deps, this.preview.login, { dryRun: true }),
     };
   }
 }

@@ -85,16 +85,16 @@ describe('native contribution workflow with a durable journal', () => {
         expect(files['manifest/workspace.yaml']).toBe(workspace);
         return host;
       },
-      validator: new ValidateContribution(
-        {
+      validator: new ValidateContribution({
+        views: {
           open: (files) => ({
             root: '/candidate',
             reader: new SnapshotReader({ root: '/candidate', files }),
           }),
         },
-        bundledToolsText,
-        providerCatalog(),
-      ),
+        bundledTools: bundledToolsText,
+        providers: providerCatalog(),
+      }),
       clock: new SystemClock(),
       lock,
       prompter: new FakePrompter(),

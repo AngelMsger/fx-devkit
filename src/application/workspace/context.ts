@@ -26,24 +26,39 @@ export interface LocateWorkspaceInput extends ResolveInput {
   readonly cliVersion: string;
 }
 
+// What `preview` and `locate` resolve before a context exists.
+interface WorkspaceContextInput {
+  readonly root: string;
+  readonly name: string;
+  readonly context: ManifestContext;
+  readonly local: LocalLayer;
+  readonly workspace: ResolvedWorkspace;
+  readonly selection: Located['selection'];
+}
+
 export class WorkspaceContext {
+  readonly root: string;
+  readonly name: string;
+  readonly context: ManifestContext;
+  readonly local: LocalLayer;
+  readonly workspace: ResolvedWorkspace;
+  readonly selection: Located['selection'];
   readonly manifest: ManifestBundle;
   readonly providers: ProviderCatalog;
   readonly bindings: readonly Binding[];
   readonly platforms: readonly PlatformBinding[];
 
-  private constructor(
-    readonly root: string,
-    readonly name: string,
-    readonly context: ManifestContext,
-    readonly local: LocalLayer,
-    readonly workspace: ResolvedWorkspace,
-    readonly selection: Located['selection'],
-  ) {
-    this.manifest = context.bundle;
-    this.providers = context.providers;
-    this.bindings = context.bindings;
-    this.platforms = context.platforms;
+  private constructor(input: WorkspaceContextInput) {
+    this.root = input.root;
+    this.name = input.name;
+    this.context = input.context;
+    this.local = input.local;
+    this.workspace = input.workspace;
+    this.selection = input.selection;
+    this.manifest = input.context.bundle;
+    this.providers = input.context.providers;
+    this.bindings = input.context.bindings;
+    this.platforms = input.context.platforms;
   }
 
   get manifestDir(): string {
@@ -63,7 +78,7 @@ export class WorkspaceContext {
       context.bundle.workspace.result.doc,
       local,
     );
-    return new WorkspaceContext(root, name, context, local, workspace, 'explicit');
+    return new WorkspaceContext({ root, name, context, local, workspace, selection: 'explicit' });
   }
 
   static async locate(input: LocateWorkspaceInput): Promise<WorkspaceContext> {
@@ -83,14 +98,14 @@ export class WorkspaceContext {
       await manifestRepoOf(input, located),
     );
     reportUnmatched(input.reporter, workspace);
-    return new WorkspaceContext(
-      located.root,
-      located.name,
+    return new WorkspaceContext({
+      root: located.root,
+      name: located.name,
       context,
       local,
       workspace,
-      located.selection,
-    );
+      selection: located.selection,
+    });
   }
 }
 

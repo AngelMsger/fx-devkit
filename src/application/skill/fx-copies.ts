@@ -32,7 +32,7 @@ export async function applyCopies(
   items: FxSkillItem[],
   input: SkillStageInput,
 ): Promise<void> {
-  const copies = new SkillCopies(deps.fs, deps.cliVersion, skills);
+  const copies = new SkillCopies({ fs: deps.fs, version: deps.cliVersion, skills });
   for (const [index, item] of items.entries()) {
     await applyItem(items, index, async () => {
       const action = await copies.install(item.path, {

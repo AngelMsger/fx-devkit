@@ -8,15 +8,17 @@ import { preparationCheck, type PreparationAction } from '../../domain/preparati
 import type { Finding } from '../../domain/report.js';
 import { gaveNoAnswer, unansweredSteps } from '../../domain/setup/progress.js';
 import { isLocalPreparation, type SetupStep } from '../../domain/setup/types.js';
-import type { LoginDeps } from '../login/deps.js';
-import { expectedPath } from '../login/handoff.js';
-import { isSettled, Login, type StepRow } from '../login/run.js';
-import { expandHome } from '../login/verify.js';
-import { noAnswerAction, resumeAction, verifyAction } from '../preparation.js';
+import { noAnswerAction, resumeAction, verifyAction, type StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { SetupStageDetails, StageResult } from '../sync/types.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+
+import type { LoginDeps } from './deps.js';
+import { expectedPath } from './handoff.js';
+import { isSettled, Login, type LoginOutput, type StepRow } from './run.js';
+import { expandHome } from './verify.js';
+
+export type SetupStageDetails = Pick<LoginOutput, 'items' | 'problems'>;
 
 export async function prepareWorkspaceSetup(
   deps: WorkspaceDeps,

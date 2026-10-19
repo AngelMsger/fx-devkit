@@ -70,12 +70,14 @@ interface ToolInstallPlan {
   readonly method: InstallMethod;
 }
 
+export interface ToolInstallDeps {
+  readonly installers: readonly Installer[];
+  readonly process: Process;
+  readonly audit: ToolAudit;
+}
+
 export class ToolInstall {
-  constructor(
-    private readonly installers: readonly Installer[],
-    private readonly process: Process,
-    private readonly audit: ToolAudit,
-  ) {}
+  constructor(private readonly deps: ToolInstallDeps) {}
 
   async execute(input: ToolInstallInput): Promise<ToolInstallOutput[]> {
     assertToolSelection(input.names, input.all === true);
@@ -181,7 +183,7 @@ export class ToolInstall {
     };
     retain(current);
     try {
-      const result = await this.process.run(vector, {
+      const result = await this.deps.process.run(vector, {
         diagnostic: { phase: `${tool.name} package install` },
       });
       retain({ ...current, code: result.code, status: result.code === 0 ? 'done' : 'failed' });
@@ -189,7 +191,7 @@ export class ToolInstall {
         retain({ ...current, error: result.stderr.trim() || result.stdout.trim() });
         return current;
       }
-      await this.audit.checkpoint(entry, {
+      await this.deps.audit.checkpoint(entry, {
         event: 'installed',
         code: 0,
         version_after: null,
@@ -197,7 +199,7 @@ export class ToolInstall {
         failure_code: null,
       });
       retain({ ...current, phase: 'version' });
-      binaryPath = (await this.process.which(tool.binary)) ?? null;
+      binaryPath = (await this.deps.process.which(tool.binary)) ?? null;
       const version = await this.probe(tool, input.trust);
       retain({ ...output, ran: true, code: 0, version_after: version ?? null, status: 'done' });
       return current;
@@ -207,7 +209,7 @@ export class ToolInstall {
       throw error;
     } finally {
       // Every path closes the ledger entry: an install that threw still happened.
-      await this.audit.checkpoint(entry, {
+      await this.deps.audit.checkpoint(entry, {
         event: 'finished',
         code: current.code,
         version_after: current.version_after,
@@ -224,7 +226,7 @@ export class ToolInstall {
   ): Promise<ToolInstallation> {
     if (method.via === 'manual')
       throw new DevkitError('internal', 'INTERNAL', 'Manual installs cannot execute');
-    return this.audit.start({
+    return this.deps.audit.start({
       operation: input.operation ?? (input.update ? 'update' : 'install'),
       workspace: input.trust?.workspace ?? null,
       name: tool.name,
@@ -232,7 +234,7 @@ export class ToolInstall {
       via: method.via,
       spec: method.spec ?? tool.name,
       vector,
-      binary_path_before: (await this.process.which(tool.binary)) ?? null,
+      binary_path_before: (await this.deps.process.which(tool.binary)) ?? null,
     });
   }
 
@@ -253,7 +255,7 @@ export class ToolInstall {
           posture: trust.posture,
         });
       }
-      return await probeToolVersion(this.process, tool, { propagateErrors: true });
+      return await probeToolVersion(this.deps.process, tool, { propagateErrors: true });
     } catch (error) {
       // The package is already installed: a version command nobody approved leaves the
       // version unknown, it does not turn the installation into a failure.
@@ -273,7 +275,7 @@ export class ToolInstall {
     // Declared order is the team's preference; availability on this machine is the
     // only thing allowed to skip a method.
     for (const method of tool.install) {
-      const installer = this.installers.find((i) => i.id === method.via);
+      const installer = this.deps.installers.find((i) => i.id === method.via);
       if (installer !== undefined && (await installer.available())) return { method, installer };
     }
     const wanted = tool.install.map((m) => m.via).filter((v) => v !== 'manual');
@@ -301,7 +303,7 @@ export class ToolInstall {
     const needing: ResolvedTool[] = [];
     for (const tool of tools) {
       if (!tool.enabled) continue;
-      if ((await this.process.which(tool.binary)) === undefined) needing.push(tool);
+      if ((await this.deps.process.which(tool.binary)) === undefined) needing.push(tool);
     }
     return needing;
   }

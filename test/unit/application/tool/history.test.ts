@@ -32,7 +32,7 @@ function fixture() {
   process.binaries.add('sample');
   const loaded = loadTools(baseline, undefined, { cliVersion: '1.0.0' });
   const tools = resolveTools(loaded.doc, loaded.provenance);
-  const install = new ToolInstall(FakeInstaller.family(['npm']), process, audit);
+  const install = new ToolInstall({ installers: FakeInstaller.family(['npm']), process, audit });
   const config = new FakeConfigStore({ workspaces: { first: { root: '/first' } } });
   const fs = FakeFs.from({
     '/first/manifest/workspace.yaml': workspace,

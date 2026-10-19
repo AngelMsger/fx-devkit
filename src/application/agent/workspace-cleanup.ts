@@ -11,11 +11,15 @@ import { withWorkspaceOperation } from '../workspace/operation.js';
 
 import type { AgentCleanupInput } from './cleanup.js';
 
-interface CleanupDeps {
+// Where the registered workspaces are recorded and how each one's files are reached.
+export interface RegisteredWorkspaces {
   readonly config: ConfigStore;
   readonly fs: FileSystem;
-  readonly lock: Lock;
   readonly manifestDirFor: (name: string) => string;
+}
+
+interface CleanupDeps extends RegisteredWorkspaces {
+  readonly lock: Lock;
 }
 
 interface WorkspaceCleanupInput extends AgentCleanupInput {

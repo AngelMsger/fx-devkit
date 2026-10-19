@@ -253,7 +253,7 @@ export class Init {
   }
 
   private async loadSourceManifest(output: InitOutput, input: InitInput): Promise<ManifestBundle> {
-    return new LoadManifest(this.deps.fs, this.deps.bundledTools)
+    return new LoadManifest({ fs: this.deps.fs, bundledTools: this.deps.bundledTools })
       .execute({
         dir: output.manifest_dir,
         cliVersion: this.deps.cliVersion,

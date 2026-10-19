@@ -4,16 +4,16 @@
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { EffectOutcome } from '../../domain/outcome.js';
-import type { Preparation, PreparationCheck } from '../../domain/preparation.js';
+import type { Preparation } from '../../domain/preparation.js';
 import type { Finding } from '../../domain/report.js';
-import type { PlanProblem } from '../../domain/setup/types.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
 import type { RenderedFile } from '../docs/rendered.js';
-import type { HarnessOutput } from '../harness/types.js';
-import type { HookOutput } from '../hook/types.js';
-import type { LoginOutput } from '../login/run.js';
+import type { HarnessStageDetails } from '../harness/types.js';
+import type { HookStageDetails } from '../hook/types.js';
+import type { SetupStageDetails } from '../login/stage.js';
+import type { StageSummary } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { ServiceResult } from '../services/types.js';
+import type { ServiceStageDetails } from '../services/types.js';
 import type { SkillStageOutput } from '../skill/types.js';
 import type { ToolStatus } from '../tool/check.js';
 import type { InstalledTool } from '../tool/installed.js';
@@ -29,25 +29,6 @@ export function isAdvisoryStage(stage: SyncStage): boolean {
   return ADVISORY_STAGES.includes(stage);
 }
 
-export type StageSummary = Readonly<Record<string, number | string>>;
-
-export interface StageResult<Details extends object = object> {
-  readonly checks: readonly PreparationCheck[];
-  // Explicit stage selection requires its requested effects, while native activation stays advisory.
-  readonly operationChecks?: readonly PreparationCheck[];
-  readonly summary: StageSummary;
-  readonly details?: Details;
-}
-
-export interface ServiceStageDetails {
-  readonly items: readonly ServiceResult[];
-  readonly problems: readonly PlanProblem[];
-}
-
-export type SetupStageDetails = Pick<LoginOutput, 'items' | 'problems'>;
-
-export type HarnessStageDetails = Pick<HarnessOutput, 'items'>;
-
 export interface DocsStageDetails {
   readonly files: readonly RenderedFile[];
   readonly rules?: HarnessStageDetails;
@@ -56,8 +37,6 @@ export interface DocsStageDetails {
 export type GoStageDetails = GoWorkOutput;
 
 export type SkillStageDetails = Omit<SkillStageOutput, 'summary'>;
-
-export type HookStageDetails = Pick<HookOutput, 'items'>;
 
 interface PreparationRequirement {
   readonly preparation_required: boolean;

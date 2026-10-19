@@ -3,6 +3,7 @@
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
+import type { PlanProblem } from '../../domain/setup/types.js';
 
 export const SERVICE_STATUSES = [
   'unchanged',
@@ -26,3 +27,8 @@ export interface ServiceResult {
 
 // The part a preparation decides; the caller owns the row's identity.
 export type ServiceOutcome = Omit<ServiceResult, 'id' | 'tool' | 'env'>;
+
+export interface ServiceStageDetails {
+  readonly items: readonly ServiceResult[];
+  readonly problems: readonly PlanProblem[];
+}

@@ -242,6 +242,10 @@ Export the minimum; avoid `any`, nested ternaries and policy hidden in factories
 Functions name actions; boolean names state a predicate. Keep implementations
 readable rather than splitting them only to satisfy a line limit.
 
+An application class takes at most two constructor parameters, each a named
+readonly dependency bundle or a single port; a third dependency joins a
+`<Class>Deps` interface instead of the parameter list. ESLint enforces the count.
+
 An error `message` is a headline: it starts with a capital letter, unless it
 starts with an identifier, path, command or flag that keeps its own spelling,
 and it carries no trailing period; `hint` and `next_steps` are sentences and do.

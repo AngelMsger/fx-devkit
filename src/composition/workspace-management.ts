@@ -22,11 +22,11 @@ export function workspaceManagement(
     providers: container.providers,
     cliVersion: input.cliVersion,
     commandShell: input.commandShell,
-    resources: new WorkspaceResources(
-      container.fs,
-      harnessDeps(input),
-      hookDeps(container),
-      container.projections,
-    ),
+    resources: new WorkspaceResources({
+      fs: container.fs,
+      harness: harnessDeps(input),
+      hooks: hookDeps(container),
+      links: container.projections,
+    }),
   });
 }

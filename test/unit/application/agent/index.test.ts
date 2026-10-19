@@ -54,7 +54,7 @@ describe('AgentPick', () => {
 
   it('starts an explicit list from the detected set when unpicking under auto mode', async () => {
     const config = new FakeConfigStore({});
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['codex'],
       action: 'unpick',
       dryRun: false,
@@ -66,14 +66,14 @@ describe('AgentPick', () => {
 
   it('adds to and removes from an explicit list, keeping other config keys', async () => {
     const config = new FakeConfigStore({ format: 'json', agents: ['codex'] });
-    await new AgentPick(config, hosts).execute({
+    await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
       posture: writable,
     });
     expect(await config.read()).toEqual({ format: 'json', agents: ['codex', 'roo'] });
-    const noop = await new AgentPick(config, hosts).execute({
+    const noop = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -84,7 +84,7 @@ describe('AgentPick', () => {
 
   it('persists a new agent when deduplication keeps the list length unchanged', async () => {
     const config = new FakeConfigStore({ agents: ['codex', 'codex'] });
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -96,7 +96,7 @@ describe('AgentPick', () => {
 
   it('preserves an explicit empty list when picking or unpicking', async () => {
     const config = new FakeConfigStore({ agents: [] });
-    const unchanged = await new AgentPick(config, hosts).execute({
+    const unchanged = await new AgentPick({ config, hosts }).execute({
       ids: ['codex'],
       action: 'unpick',
       dryRun: false,
@@ -104,7 +104,7 @@ describe('AgentPick', () => {
     });
     expect(unchanged).toMatchObject({ before: [], after: [], changed: false, written: false });
 
-    const picked = await new AgentPick(config, hosts).execute({
+    const picked = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -118,7 +118,7 @@ describe('AgentPick', () => {
     const original = config.update.bind(config);
     config.update = (change) =>
       original(async (current) => change({ ...current, agents: ['roo'] }));
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['claude-code'],
       action: 'pick',
       dryRun: false,
@@ -130,7 +130,7 @@ describe('AgentPick', () => {
 
   it('previews under dry-run, refuses under read-only, and rejects an unknown id with a suggestion', async () => {
     const config = new FakeConfigStore({});
-    const preview = await new AgentPick(config, hosts).execute({
+    const preview = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: true,
@@ -139,7 +139,7 @@ describe('AgentPick', () => {
     expect(preview).toMatchObject({ after: ['claude-code', 'codex', 'roo'], written: false });
     expect(await config.read()).toEqual({});
     await expect(
-      new AgentPick(config, hosts).execute({
+      new AgentPick({ config, hosts }).execute({
         ids: ['roo'],
         action: 'pick',
         dryRun: false,
@@ -147,7 +147,7 @@ describe('AgentPick', () => {
       }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
     await expect(
-      new AgentPick(config, hosts).execute({
+      new AgentPick({ config, hosts }).execute({
         ids: ['codx'],
         action: 'pick',
         dryRun: false,

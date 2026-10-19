@@ -21,11 +21,15 @@ describe('shared Skill copy service', () => {
     async (code) => {
       const fs = FakeFs.from(files);
       const resource = '/home/.fx/locks';
-      const copies = new SkillCopies(fs, '1.0.0', {
-        bundledSkillDir: source,
-        globalLock: new FakeLock().onAcquire(() => {
-          throw asDevkitError(Object.assign(new Error('denied'), { code, path: resource }));
-        }),
+      const copies = new SkillCopies({
+        fs,
+        version: '1.0.0',
+        skills: {
+          bundledSkillDir: source,
+          globalLock: new FakeLock().onAcquire(() => {
+            throw asDevkitError(Object.assign(new Error('denied'), { code, path: resource }));
+          }),
+        },
       });
       await expect(copies.install(target)).rejects.toMatchObject({
         code: 'SKILL_WRITE_DENIED',
@@ -46,16 +50,24 @@ describe('shared Skill copy service', () => {
     }
     const fs = DeniedFs.from(files);
     const globalLock = new FakeLock();
-    const copies = new SkillCopies(fs, '1.0.0', { bundledSkillDir: source, globalLock });
+    const copies = new SkillCopies({
+      fs,
+      version: '1.0.0',
+      skills: { bundledSkillDir: source, globalLock },
+    });
     await expect(copies.install(target)).rejects.toMatchObject({ code: 'SKILL_WRITE_DENIED' });
     expect(globalLock.requests).not.toEqual([]);
     expect(globalLock.unreleased()).toEqual([]);
   });
   it('refreshes explicit installs but never downgrades during maintenance', async () => {
     const fs = FakeFs.from({ ...files, [path.join(target, 'SKILL.md')]: text('2.0.0') });
-    const copies = new SkillCopies(fs, '1.0.0', {
-      bundledSkillDir: source,
-      globalLock: new FakeLock(),
+    const copies = new SkillCopies({
+      fs,
+      version: '1.0.0',
+      skills: {
+        bundledSkillDir: source,
+        globalLock: new FakeLock(),
+      },
     });
     expect(await copies.install(target)).toBe('unchanged');
     expect(fs.writes).toEqual([]);
@@ -69,9 +81,11 @@ describe('shared Skill copy service', () => {
       await fs.writeText(path.join(target, 'SKILL.md'), text('2.0.0'));
     });
     expect(
-      await new SkillCopies(fs, '1.0.0', { bundledSkillDir: source, globalLock: lock }).install(
-        target,
-      ),
+      await new SkillCopies({
+        fs,
+        version: '1.0.0',
+        skills: { bundledSkillDir: source, globalLock: lock },
+      }).install(target),
     ).toBe('unchanged');
     expect(lock.requests).not.toEqual([]);
     expect(lock.unreleased()).toEqual([]);
@@ -80,9 +94,13 @@ describe('shared Skill copy service', () => {
 
   it('reports a busy destination without writing', async () => {
     const fs = FakeFs.from(files);
-    const copies = new SkillCopies(fs, '1.0.0', {
-      bundledSkillDir: source,
-      globalLock: new FakeLock().busy(),
+    const copies = new SkillCopies({
+      fs,
+      version: '1.0.0',
+      skills: {
+        bundledSkillDir: source,
+        globalLock: new FakeLock().busy(),
+      },
     });
     await expect(copies.install(target)).rejects.toMatchObject({ code: 'SKILL_BUSY' });
     expect(fs.writes).toEqual([]);
@@ -90,11 +108,15 @@ describe('shared Skill copy service', () => {
 
   it('checks write posture after a concurrent target change', async () => {
     const fs = FakeFs.from({ ...files, [path.join(target, 'SKILL.md')]: text('1.0.0') });
-    const copies = new SkillCopies(fs, '1.0.0', {
-      bundledSkillDir: source,
-      globalLock: new FakeLock().onAcquire(async () => {
-        await fs.remove(target);
-      }),
+    const copies = new SkillCopies({
+      fs,
+      version: '1.0.0',
+      skills: {
+        bundledSkillDir: source,
+        globalLock: new FakeLock().onAcquire(async () => {
+          await fs.remove(target);
+        }),
+      },
     });
     await expect(
       copies.install(target, { posture: { readOnly: true, source: 'env' } }),

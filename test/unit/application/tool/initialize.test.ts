@@ -47,7 +47,7 @@ tools:
     },
   };
   const initialize = new ToolInitialize(
-    new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+    new ToolInstall({ installers: FakeInstaller.family(['npm']), process, audit: fakeToolAudit() }),
   );
   return { process, prompter, input, initialize };
 }
@@ -84,7 +84,11 @@ tools:
       },
     },
     initialize: new ToolInitialize(
-      new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+      new ToolInstall({
+        installers: FakeInstaller.family(['npm']),
+        process,
+        audit: fakeToolAudit(),
+      }),
     ),
   };
 }

@@ -1,4 +1,5 @@
-// Bind preparation evidence to the registered workspace and an executable recovery action.
+// What a preparation stage reports, and how its evidence is bound to the registered
+// workspace and an executable recovery action.
 import {
   preparation,
   preparationCheck,
@@ -15,6 +16,18 @@ import { workspaceToolScope } from './tool/scope.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 
 type Workspace = Pick<WorkspaceDeps, 'ctx'>;
+
+export type StageSummary = Readonly<Record<string, number | string>>;
+
+// What one stage of preparing a workspace reports: its evidence, its counts and the rows
+// behind them.
+export interface StageResult<Details extends object = object> {
+  readonly checks: readonly PreparationCheck[];
+  // Explicit stage selection requires its requested effects, while native activation stays advisory.
+  readonly operationChecks?: readonly PreparationCheck[];
+  readonly summary: StageSummary;
+  readonly details?: Details;
+}
 
 // Approving a tool's read-only check and running it. Every check that asks for it gets
 // this command, so the actions coalesce in `preparation`; each words it for its own report.

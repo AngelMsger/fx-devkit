@@ -58,9 +58,11 @@ export async function checkManifest(
         ),
       );
   }
-  for (const lint of await new LintManifest(deps.fs, bundledTools, login.describeProvider).execute(
-    input,
-  ))
+  for (const lint of await new LintManifest({
+    fs: deps.fs,
+    bundledTools,
+    describeProvider: login.describeProvider,
+  }).execute(input))
     findings.push(
       finding('manifest', `${lint.kind}:${lint.path}`, 'warn', `${lint.code}: ${lint.message}`, {
         fix: workspaceCommand(deps, 'manifest', 'lint'),

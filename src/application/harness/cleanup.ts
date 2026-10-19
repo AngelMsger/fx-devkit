@@ -1,11 +1,10 @@
 // Removes unpicked agents from ownership records while preserving shared resources.
 
 import type { AgentCleanupRow } from '../../ports/agent-cleanup.js';
-import type { FileSystem } from '../../ports/fs.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import type { AgentCleanupInput } from '../agent/cleanup.js';
 import { enabledHosts } from '../agent/list.js';
-import { cleanupAgentWorkspaces } from '../agent/workspace-cleanup.js';
+import { cleanupAgentWorkspaces, type RegisteredWorkspaces } from '../agent/workspace-cleanup.js';
 import { readSettings } from '../config/settings.js';
 
 import { ReconcileHarness } from './reconcile.js';
@@ -14,20 +13,13 @@ import type { HarnessDeps } from './types.js';
 export class CleanupAgentHarness {
   constructor(
     private readonly deps: HarnessDeps,
-    private readonly config: ConfigStore,
-    private readonly fs: FileSystem,
-    private readonly manifestDirFor: (name: string) => string,
+    private readonly registered: RegisteredWorkspaces,
   ) {}
   async execute(input: AgentCleanupInput): Promise<readonly AgentCleanupRow[]> {
-    const config = await this.config.read();
+    const config = await this.registered.config.read();
     const selected = await this.selected(input, config);
     return cleanupAgentWorkspaces(
-      {
-        config: this.config,
-        fs: this.fs,
-        lock: this.deps.lock,
-        manifestDirFor: this.manifestDirFor,
-      },
+      { ...this.registered, lock: this.deps.lock },
       {
         ...input,
         workspaces: Object.keys(config.workspaces ?? {}),

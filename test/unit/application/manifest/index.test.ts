@@ -228,9 +228,11 @@ describe('LintManifest', () => {
         verify: { command: ['check'] },
       },
     ];
-    const findings = await new LintManifest(fs, bundledTools, (id) =>
-      id === 'file-access' ? { recipes } : undefined,
-    ).execute({ dir: path.resolve('/w'), cliVersion: cli, providers: providerCatalog() });
+    const findings = await new LintManifest({
+      fs,
+      bundledTools,
+      describeProvider: (id) => (id === 'file-access' ? { recipes } : undefined),
+    }).execute({ dir: path.resolve('/w'), cliVersion: cli, providers: providerCatalog() });
     expect(findings.filter((f) => f.code === 'MANIFEST_INVALID')).toEqual([]);
     expect(findings.filter((f) => f.code === 'REPO_NO_OWNER')).toEqual([
       expect.objectContaining({ path: 'repos[1]' }),
@@ -248,7 +250,7 @@ describe('LintManifest', () => {
   });
 
   it('returns the findings of the documents that exist', async () => {
-    const findings = await new LintManifest(workspace('v1-minimal'), bundledTools).execute({
+    const findings = await new LintManifest({ fs: workspace('v1-minimal'), bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -265,7 +267,7 @@ describe('LintManifest', () => {
     await fs.writeText(path.resolve('/w/skills/bad/SKILL.md'), '---\nname: other\n---\n');
     await fs.writeText(path.resolve('/w/skills/README.md'), 'not a Skill\n');
     fs.mkdir(path.resolve('/w/skills/empty'));
-    const findings = await new LintManifest(fs, bundledTools).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -283,7 +285,7 @@ describe('LintManifest', () => {
       path.resolve('/w/manifest/tools.yaml'),
       'schema_version: 3\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
     );
-    const findings = await new LintManifest(fs, bundledTools).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -294,7 +296,7 @@ describe('LintManifest', () => {
   it('reports an invalid tools document and skips semantic tool lint', async () => {
     const fs = workspace('v1-minimal');
     await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 3\ntools: nope\n');
-    const findings = await new LintManifest(fs, bundledTools).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),

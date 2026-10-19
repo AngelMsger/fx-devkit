@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
+import type { StageResult } from '../../../../src/application/preparation.js';
 import { runStage, type SyncStageInput } from '../../../../src/application/sync/stages.js';
-import type { StageResult } from '../../../../src/application/sync/types.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
 const blocked = (result: StageResult) =>
   result.checks.some((check) => check.required && ['blocked', 'unknown'].includes(check.state));

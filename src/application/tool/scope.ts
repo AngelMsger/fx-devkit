@@ -4,7 +4,7 @@
 import { servesCapability } from '../../domain/manifest/providers.js';
 import { finding, type Finding } from '../../domain/report.js';
 import type { ResolvedShell } from '../../domain/shell.js';
-import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import { installsOnInit, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import {
   keyedBinding,
   keyedPlatform,
@@ -127,7 +127,7 @@ function activeBindings(ctx: WorkspaceContext, selection: ToolScopeSelection): K
 function isRequired(tool: ResolvedTool, dependencies: ReadonlySet<string>): boolean {
   return (
     tool.required ||
-    (tool.enabled && tool.installOnInit === true) ||
+    installsOnInit(tool) ||
     (dependencies.has(tool.name) && !tool.patchedFields.includes('required'))
   );
 }

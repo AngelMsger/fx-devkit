@@ -7,12 +7,12 @@ import { countBy } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
 import type { DoctorExtension } from '../doctor/types.js';
+import type { StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { HookStageDetails, StageResult } from '../sync/types.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { ReconcileHooks } from './reconcile.js';
-import type { HookDeps, HookOutput, ReconcileInput } from './types.js';
+import type { HookDeps, HookOutput, HookStageDetails, ReconcileInput } from './types.js';
 
 export interface HookSession {
   readonly deps: HookDeps;

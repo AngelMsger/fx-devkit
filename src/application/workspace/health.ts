@@ -28,7 +28,7 @@ export async function workspaceReadiness(
 ): Promise<WorkspaceHealthResult> {
   try {
     await assertWorkspacePrepared(input, located);
-    await new LoadManifest(input.fs, input.bundledTools).execute({
+    await new LoadManifest({ fs: input.fs, bundledTools: input.bundledTools }).execute({
       dir: located.manifestDir,
       cliVersion: input.cliVersion,
       providers: input.providers,

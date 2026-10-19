@@ -38,7 +38,12 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const installers = FakeInstaller.family(available);
   const proc = new FakeProcess().always({ code: 0, stdout: 'alpha v9.9.9\n', stderr: '' });
-  return { tools, installers, proc, install: new ToolInstall(installers, proc, fakeToolAudit()) };
+  return {
+    tools,
+    installers,
+    proc,
+    install: new ToolInstall({ installers, process: proc, audit: fakeToolAudit() }),
+  };
 }
 
 const cancelled = new DevkitError('internal', 'PROCESS_ABORTED', 'interrupted');
@@ -362,7 +367,11 @@ describe('ToolInstall with a trust gate', () => {
     prompter.unavailable = true;
     const gate = new TrustGate(new FakeTrustStore(), prompter);
     const install = (trust: { yes: boolean }) =>
-      new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()).execute({
+      new ToolInstall({
+        installers: FakeInstaller.family(['npm']),
+        process,
+        audit: fakeToolAudit(),
+      }).execute({
         tools: resolveTools(loaded.doc, loaded.provenance),
         names: ['alpha'],
         update: false,

@@ -4,15 +4,18 @@
 
 import { asDevkitError, withPartialResult } from '../../domain/errors.js';
 import type { HarnessKind } from '../../domain/harness/ownership.js';
+import { installsOnInit } from '../../domain/toolchain/resolve.js';
 import { countBy } from '../../domain/values.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
 import type { HarnessSession } from '../harness/session.js';
 import { harnessStage } from '../harness/stages.js';
+import type { HarnessStageDetails } from '../harness/types.js';
 import { hookStage, type HookSession } from '../hook/session.js';
-import { prepareWorkspaceSetup } from '../init/setup.js';
+import type { HookStageDetails } from '../hook/types.js';
 import type { LoginDeps } from '../login/deps.js';
-import { findingCheck } from '../preparation.js';
+import { prepareWorkspaceSetup } from '../login/stage.js';
+import { findingCheck, type StageResult } from '../preparation.js';
 import { prepareServices } from '../services/stage.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
@@ -28,12 +31,9 @@ import { documentChecks, goWorkChecks, skillChecks, toolChecks } from './checks.
 import type {
   DocsStageDetails,
   GoStageDetails,
-  HarnessStageDetails,
-  HookStageDetails,
   ResourceStage,
   ResourceStageDetails,
   SkillStageDetails,
-  StageResult,
   ToolStageDetails,
 } from './types.js';
 
@@ -185,8 +185,7 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult<ToolStageD
   const tools = scope.covered;
   const problems = scope.problems;
   const requiresPreparation = (name: string): boolean =>
-    scope.required.has(name) ||
-    tools.some((tool) => tool.name === name && tool.enabled && tool.installOnInit);
+    scope.required.has(name) || tools.some((tool) => tool.name === name && installsOnInit(tool));
   const rows = (
     await new ToolCheck(input.deps.process).execute({
       continueOnError: true,

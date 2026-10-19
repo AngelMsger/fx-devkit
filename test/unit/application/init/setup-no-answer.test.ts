@@ -4,7 +4,7 @@
 import { expect, it, vi } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
-import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
+import { prepareWorkspaceSetup } from '../../../../src/application/login/stage.js';
 import { workspacePreparation } from '../../../../src/application/preparation.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';

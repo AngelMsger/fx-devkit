@@ -7,9 +7,8 @@ import { scanBoundary } from '../../domain/boundary/scan.js';
 import type { ContributionFile } from '../../domain/contribution/snapshot.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
-import type { SetupRecipe } from '../../domain/setup/types.js';
 import type { SnapshotViews } from '../../ports/snapshot-views.js';
-import { LintManifest } from '../manifest/lint.js';
+import { LintManifest, type LintManifestDeps } from '../manifest/lint.js';
 import { ValidateManifest } from '../manifest/validate.js';
 
 interface ContributionValidationInput {
@@ -30,17 +29,18 @@ export interface ContributionValidation {
   readonly findings: readonly ContributionFinding[];
 }
 
+export interface ValidateContributionDeps {
+  readonly views: SnapshotViews;
+  readonly bundledTools: () => string;
+  readonly providers: ProviderCatalog;
+  readonly describeProvider?: LintManifestDeps['describeProvider'];
+}
+
 export class ValidateContribution {
-  constructor(
-    private readonly views: SnapshotViews,
-    private readonly bundledTools: () => string,
-    private readonly providers: ProviderCatalog,
-    private readonly describeProvider: (
-      id: string,
-    ) => { readonly recipes: readonly SetupRecipe[] } | undefined = () => undefined,
-  ) {}
+  constructor(private readonly deps: ValidateContributionDeps) {}
 
   async execute(input: ContributionValidationInput): Promise<ContributionValidation> {
+    const { views, bundledTools, providers, describeProvider } = this.deps;
     const names = input.changes.flatMap((file, index) =>
       scanBoundary({ text: file.path, policy: 'manifest' }).map((item) => ({
         ...item,
@@ -59,11 +59,11 @@ export class ValidateContribution {
       })),
     );
     if (findings.length > 0) return { ok: false, findings };
-    const view = this.views.open(input.files);
+    const view = views.open(input.files);
     if (!(await view.reader.exists(path.join(view.root, MANIFEST_FILES.workspace))))
       return { ok: false, findings: [finding(MANIFEST_FILES.workspace, 'manifest-missing')] };
-    const options = { dir: view.root, cliVersion: input.cliVersion, providers: this.providers };
-    const validation = await new ValidateManifest(view.reader, this.bundledTools).execute({
+    const options = { dir: view.root, cliVersion: input.cliVersion, providers };
+    const validation = await new ValidateManifest(view.reader, bundledTools).execute({
       ...options,
       strict: true,
     });
@@ -76,11 +76,11 @@ export class ValidateContribution {
         findings.push(finding(document.path, 'manifest-invalid'));
     }
     if (findings.length > 0) return { ok: false, findings };
-    const lint = await new LintManifest(
-      view.reader,
-      this.bundledTools,
-      this.describeProvider,
-    ).execute(options);
+    const lint = await new LintManifest({
+      fs: view.reader,
+      bundledTools,
+      describeProvider,
+    }).execute(options);
     for (const item of lint) findings.push(finding(item.kind, 'manifest-lint'));
     return { ok: findings.length === 0, findings };
   }

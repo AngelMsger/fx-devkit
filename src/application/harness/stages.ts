@@ -9,12 +9,12 @@ import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
-import type { HarnessStageDetails, StageResult } from '../sync/types.js';
+import type { StageResult } from '../preparation.js';
 
 import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';
 import { loadHarnessCommand, type HarnessSession } from './session.js';
-import type { HarnessInput, HarnessOutput } from './types.js';
+import type { HarnessInput, HarnessOutput, HarnessStageDetails } from './types.js';
 
 export interface ManageHarness extends HarnessSession {
   readonly action: HarnessInput['action'];

@@ -89,7 +89,11 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,
-    toolInstall: new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+    toolInstall: new ToolInstall({
+      installers: FakeInstaller.family(['npm']),
+      process,
+      audit: fakeToolAudit(),
+    }),
     stages: { login: fakeLoginDeps({}), skills: skillDeps() },
     settleManifest: async (name: string) => {
       settled.push(name);
@@ -669,6 +673,21 @@ describe('resuming a registered workspace', () => {
       s.usecase.execute({ ...run, workspace: 'absent', cwd: ROOT }),
     ).rejects.toMatchObject({ category: 'not_found', code: 'WORKSPACE_UNKNOWN' });
     expect(s.config.writes).toBe(0);
+  });
+
+  it('quotes the command that shows a registered workspace for the configured shell', async () => {
+    const s = registered({ root: ROOT, source: recorded });
+    const usecase = new ResumeInit({
+      ...s.deps,
+      commandShell: 'cmd',
+      inspectManaged: async () => undefined,
+    });
+    await expect(usecase.execute({ ...run, workspace: 'absent', cwd: ROOT })).rejects.toMatchObject(
+      {
+        code: 'WORKSPACE_UNKNOWN',
+        nextSteps: ['fx workspace list', 'fx ^"workspace^" ^"show^" ^"new^"'],
+      },
+    );
   });
 
   it('names the recorded source and the resume command when the kept manifest is invalid', async () => {

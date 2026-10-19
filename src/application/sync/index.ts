@@ -9,7 +9,7 @@ import {
 import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
-import { workspacePreparation } from '../preparation.js';
+import { workspacePreparation, type StageResult, type StageSummary } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { Tally } from '../tally.js';
 import { prepareUpstream } from '../workspace/adopt.js';
@@ -22,8 +22,6 @@ import {
   isAdvisoryStage,
   type ResourceStage,
   type StageDetails,
-  type StageResult,
-  type StageSummary,
   type SyncInput,
   type SyncItem,
   type SyncOutput,

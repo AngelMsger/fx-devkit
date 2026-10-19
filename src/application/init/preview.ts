@@ -8,6 +8,7 @@ import { DevkitError } from '../../domain/errors.js';
 import { bindPlatforms, bindProviders } from '../../domain/manifest/providers.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
 import { isLocalPreparation, type SetupPlan } from '../../domain/setup/types.js';
+import { installsOnInit } from '../../domain/toolchain/resolve.js';
 import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ProjectionStore } from '../../ports/projection.js';
 import type { ConfigFile } from '../../ports/stores.js';
@@ -121,12 +122,11 @@ export function previewPreparation(
   workspace: WorkspaceDeps,
 ): Promise<InitializationPreview> {
   const { login, skills } = deps.stages;
-  return new PreviewInitialization(
-    workspace,
+  return new PreviewInitialization(workspace, {
     login,
-    deps.toolInstall,
-    new SkillStage(workspace, skills),
-  ).execute();
+    install: deps.toolInstall,
+    skills: new SkillStage(workspace, skills),
+  }).execute();
 }
 
 async function checkedSetupPlan(deps: InitDeps, workspace: WorkspaceDeps): Promise<SetupPlan> {
@@ -209,14 +209,12 @@ async function inspectedResources({
       verify: step.verify,
       requires: step.requires,
     })),
-    tools: tools
-      .filter((tool) => tool.enabled && tool.installOnInit)
-      .map((tool) => ({
-        name: tool.name,
-        action: 'install_if_missing',
-        scope: 'global',
-        methods: tool.install,
-      })),
+    tools: tools.filter(installsOnInit).map((tool) => ({
+      name: tool.name,
+      action: 'install_if_missing',
+      scope: 'global',
+      methods: tool.install,
+    })),
     companion_skills: tools
       .filter((tool) => tool.enabled && (tool.skill?.command.length ?? 0) > 0)
       .map((tool) => tool.name),
@@ -233,13 +231,13 @@ async function loadInspectedSource(
   output: InitOutput,
   inspection: ManifestSourceInspection,
 ): Promise<ManifestBundle> {
-  return new LoadManifest(
-    {
+  return new LoadManifest({
+    fs: {
       readText: (file) =>
         inspection.readText(path.relative(output.manifest_dir, file).split(path.sep).join('/')),
     },
-    deps.bundledTools,
-  )
+    bundledTools: deps.bundledTools,
+  })
     .execute({ dir: output.manifest_dir, cliVersion: deps.cliVersion, providers: deps.providers })
     .catch((error: unknown) => {
       throw initializationSourceError(deps, input, output, inspection, error);

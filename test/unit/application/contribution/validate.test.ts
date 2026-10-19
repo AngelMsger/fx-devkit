@@ -15,16 +15,16 @@ const base = {
   'notes.md': 'original',
   'private-notes.md': 'sensitive: true\npeople: []',
 };
-const validator = new ValidateContribution(
-  {
+const validator = new ValidateContribution({
+  views: {
     open: (files) => ({
       root: path.resolve('/candidate'),
       reader: new SnapshotReader({ root: path.resolve('/candidate'), files }),
     }),
   },
   bundledTools,
-  providerCatalog(),
-);
+  providers: providerCatalog(),
+});
 const file = (path: string, content: string) => ({
   path,
   content,

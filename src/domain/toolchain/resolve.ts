@@ -117,6 +117,11 @@ function resolveTool(
   };
 }
 
+// Initialization installs the tools the manifest opts in, unless it also disables them.
+export function installsOnInit(tool: Pick<ResolvedTool, 'enabled' | 'installOnInit'>): boolean {
+  return tool.enabled && tool.installOnInit === true;
+}
+
 export function commandOrigin(
   tool: Pick<ResolvedTool, 'origins'>,
   argumentsFrom?: Exclude<VectorField, 'install'>,

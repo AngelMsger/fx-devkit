@@ -62,6 +62,8 @@ export interface HookOutput {
   readonly state: HookState | null;
 }
 
+export type HookStageDetails = Pick<HookOutput, 'items'>;
+
 export interface PlannedHook {
   readonly row: HookRow;
   readonly receipt: HookReceipt | null;

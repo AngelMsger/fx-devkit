@@ -2,10 +2,10 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
 import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login } from '../../../../src/application/login/run.js';
+import { prepareWorkspaceSetup } from '../../../../src/application/login/stage.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
 import { Sync } from '../../../../src/application/sync/index.js';
