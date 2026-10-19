@@ -29,8 +29,13 @@ export class SetupProgress {
   private readonly undone = new Set<string>();
   private readonly unanswered = new Set<string>();
 
+  // A later conclusion about the same step replaces the earlier one.
   record(step: Step, conclusion: StepConclusion): void {
-    if (conclusion === 'done') return;
+    this.unanswered.delete(step.id);
+    if (conclusion === 'done') {
+      this.undone.delete(step.id);
+      return;
+    }
     this.undone.add(step.id);
     if (conclusion === 'unanswered') this.unanswered.add(step.id);
   }

@@ -395,7 +395,10 @@ These bundled service commands need no trust approval. Vectors the team's
 `--list` includes plan problems even with `--quiet`. If a step needs human input
 or a later step throws, read the partial result on stdout as well as the error
 on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
-completed steps remain visible. Handoff rows include the required action, and
+completed steps remain visible. After a sign-in, the same tool's earlier `failed` rows
+are checked again and `blocked` ones whose prerequisite now passes are attempted. A
+row passing on recheck is `verified` with a `detail` naming the sign-in; one still
+failing keeps its result and adds `recheck` (`after`, `detail`, optional `code`). Handoff rows include the required action, and
 service preparation rows retain available `failure` and `next_steps` fields.
 After resolving the blocker, repeat the same invocation: setup verifies current
 state before rerunning actions. Parse stdout on a nonzero exit whenever it is

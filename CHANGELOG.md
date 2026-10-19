@@ -67,6 +67,19 @@
   `fx sync` then took the workspace for one prepared from stdin and stopped saying
   that it has no source to refresh, and `fx init <dir> --from <source>` refused the
   directory with `SOURCE_MISMATCH` in place of recording the source.
+- Skip a repository whose upstream is still empty, such as one registered with
+  `fx repo add` before its first push, instead of failing the whole sync. fx asks
+  the remote before calling a branch absent: an empty upstream is a skip with
+  outcome `empty_remote` that does not hold readiness back, while an upstream with
+  other branches but not the tracked one is a skip with outcome `no_remote_branch`
+  that still does, since the manifest may name the wrong branch. An unborn local
+  branch fast-forwards once upstream has commits, and a manifest checkout in either
+  state is left as it is.
+- Bring earlier environments up to date as soon as `fx login` signs in to one. The
+  tool's earlier steps that failed are checked again and those that waited on a
+  step now passing are attempted, so environments sharing a stored login no longer
+  stay failed or blocked in the summary. No setup action runs a second time; a check
+  that still fails keeps its result and says what it found under `recheck`.
 
 ## 0.11.0 (2026-10-12)
 

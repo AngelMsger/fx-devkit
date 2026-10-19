@@ -12,7 +12,11 @@ export interface CloneRequest {
   readonly branch: string;
 }
 
-export type FastForwardOutcome = 'updated' | 'up_to_date' | 'diverged';
+// When there is nothing to fast-forward to, the remote itself said why: `empty_remote`
+// has no branches yet, as behind a checkout registered before its first push, while
+// `no_remote_branch` has others but not this one.
+export type FastForwardOutcome =
+  'updated' | 'up_to_date' | 'diverged' | 'empty_remote' | 'no_remote_branch';
 
 export interface Git {
   clone(request: CloneRequest): Promise<void>;

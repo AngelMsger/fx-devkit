@@ -172,6 +172,8 @@ export class GitRepoSource implements ManifestSource {
       const suffix = onBranch ? '' : '; its ref was not moved';
       return kept(`local commits on ${branch} diverge from upstream${suffix}`);
     }
+    if (outcome === 'empty_remote') return kept('upstream has no branches yet');
+    if (outcome === 'no_remote_branch') return kept(`upstream has no ${branch} branch`);
     if (!onBranch)
       return kept(
         `on ${state.branch ?? 'a detached HEAD'}, not ${branch}; only the ${branch} ref moved`,

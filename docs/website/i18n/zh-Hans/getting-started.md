@@ -141,7 +141,7 @@ fx env select --all
 
 工作区根目录不是 Git 仓库，因此 `fx status` 还会返回 `stray_entries`：根目录下既不是 checkout、派生指南、fx 维护的 Go 工作区、Agent 或服务配置，也不是工作台的文件和目录。`fx doctor` 在 `root` 组里逐项列出，级别为警告，不影响就绪判定。
 
-sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
+sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。空的 upstream 会被跳过，因为没有可 fast-forward 的内容；缺少被跟踪分支的 upstream 同样会被跳过，但会作为需要检查的问题报告。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
 
 ## 核心概念 {#concepts}
 
@@ -329,4 +329,4 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 ### 复用已有登录
 
-初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。
+初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。多个环境可能共享已保存的登录：`fx login` 为其中一个环境完成登录后，会重新检查该工具之前未能完成的环境，并把已经可用的报告为 verified。

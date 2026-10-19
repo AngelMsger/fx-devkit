@@ -29,6 +29,7 @@ const INCOMPLETE = new Set([
   'skip_not_git',
   'skip_remote_mismatch',
   'diverged',
+  'no_remote_branch',
 ]);
 const STATE_KEYS = new Set(['status', 'state', 'action', 'result', 'activation', 'outcome']);
 const COUNT_SUFFIX = new RegExp(`(?:^|_)(${[...UNFINISHED, 'problems'].join('|')})$`);

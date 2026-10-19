@@ -408,6 +408,14 @@ reuse, so ambiguity, inaccessible storage or failed verification blocks dependen
 login. Native tools own identity matching and credential access; fx stores no
 secrets or parallel identity registry.
 
+Which other contexts a sign-in also serves is the companion's to know, as when two
+environments share a stored login. So as soon as a `login` sign-in succeeds, the
+earlier steps of the same tool are brought up to date, prerequisites first: one that
+failed is checked again, and one that waited on a step now passing gets its first
+attempt. No setup action runs a second time. A check that still fails, or gives no
+answer, leaves the step's result as it was and records what it found in the row's
+`recheck`; an error fx does not recognize stops the run with its partial result.
+
 The companion version floors in defaults/tools.yaml must support reuse before an
 fx release requires it. Release validation covers a prepared destination and an
 existing login under another name.

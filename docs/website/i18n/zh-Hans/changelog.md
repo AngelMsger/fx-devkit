@@ -16,6 +16,8 @@
 - 拒绝记录中带有任意大小写的 `.git` 段或删除字符的 harness 路径与贡献路径。harness 所有权元数据此前接受 `.GIT/...`，在不区分大小写的卷上它会解析到仓库自身的目录；两个存储现在都按 `fx source push` 对所选文件使用的规则校验记录的路径。
 - fx 安装在名称含空格或非 ASCII 字符的目录下，或在 Windows 上时，`fx self info` 的 `bundled_tools` 给出文件系统可用的路径。此前该值是经过百分号编码的 URL 路径。
 - `fx init --resume` 继续一个没有记录 manifest 源的注册时保持其原样。此前继续执行会把 `source: "-"` 写入 `config.yaml`：之后 `fx sync` 把该工作区当作从 stdin 准备的工作区，不再提示没有可刷新的源，`fx init <dir> --from <source>` 则以 `SOURCE_MISMATCH` 拒绝该目录，而不是记录这个源。
+- upstream 仍为空的仓库（例如在首次 push 之前用 `fx repo add` 登记的仓库）会被跳过，不再让整个 sync 失败。fx 在判定分支不存在之前会先询问远端：空的 upstream 是 outcome 为 `empty_remote` 的跳过，不影响就绪判定；有其他分支但没有被跟踪分支的 upstream 是 outcome 为 `no_remote_branch` 的跳过，仍然影响就绪判定，因为 manifest 可能写错了分支。尚无提交的本地分支会在 upstream 有提交后 fast-forward，处于这两种状态的 manifest checkout 都保持原样。
+- `fx login` 登录某个环境后，立即让之前的环境跟上：该工具之前失败的步骤会重新检查，等待的步骤若其前置步骤现在通过则会执行，因此共享已保存登录的环境不会再在汇总里停留为 failed 或 blocked。不会有设置操作运行第二次；仍然失败的检查保持原结果，并在 `recheck` 中记录发现的内容。
 
 ## 0.11.0 (2026-10-12)
 

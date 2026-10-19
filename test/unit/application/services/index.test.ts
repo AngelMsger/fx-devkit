@@ -4,12 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
-import { Login } from '../../../../src/application/login/run.js';
+import { Login, type LoginOutput } from '../../../../src/application/login/run.js';
 import { prepareWorkspaceSetup } from '../../../../src/application/login/stage.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
@@ -672,6 +673,92 @@ describe('existing login reuse on every sync', () => {
       actor: 'user',
       argv: ['fx', 'login', 'bitbucket-cli', '--workspace', 'fx'],
     });
+  });
+});
+
+describe('a sign-in that also serves earlier contexts', () => {
+  it('brings earlier steps of the tool up to date at once, without running any again', async () => {
+    const { h, login } = await fixture({
+      tools: ['openobserve-cli'],
+      environments: `schema_version: 2
+platforms:
+  logs: {provider: openobserve-cli, capability: log-store, service: {org: default, auth_scheme: session}}
+envs:
+  dev: {platforms: {logs: {service: {base_url: 'https://logs.example.com', context: dev}}}}
+  prod: {platforms: {logs: {service: {base_url: 'https://logs.prod.example.com', context: prod}}}}
+  test: {platforms: {logs: {service: {base_url: 'https://logs.example.com', context: test}}}}
+  stage: {platforms: {logs: {service: {base_url: 'https://logs.stage.example.com', context: stage}}}}
+`,
+    });
+    h.process.binaries.add('openobserve-cli');
+    // dev and test keep one stored login, which dev cannot see until test signs in; prod's
+    // stored login stays unreadable and stage's server never answers.
+    let signedIn = false;
+    const invisible = {
+      code: 3,
+      stdout: '',
+      stderr: JSON.stringify({
+        error: {
+          category: 'config',
+          code: 'CREDENTIAL_NOT_VISIBLE_OR_MISSING',
+          message: 'No stored login is visible',
+          retryable: false,
+        },
+      }),
+    };
+    const reuses: string[] = [];
+    const logins: string[] = [];
+    h.process.always((vector) => {
+      const context = vector[vector.indexOf('--use-context') + 1] ?? '';
+      if (vector.includes('--version')) return { code: 0, stdout: '0.14.0', stderr: '' };
+      if (vector.includes('set-context'))
+        return { code: 0, stdout: '{"changed":false}', stderr: '' };
+      if (vector.includes('reuse')) {
+        if (!vector.includes('--dry-run')) reuses.push(context);
+        if (context === 'stage') throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'timed out');
+        const visible = context === 'test' || (context === 'dev' && signedIn);
+        return visible ? { code: 0, stdout: '{"changed":false}', stderr: '' } : invisible;
+      }
+      if (vector.includes('login')) {
+        logins.push(context);
+        signedIn = true;
+        return { code: 0, stdout: '', stderr: '' };
+      }
+      const authenticated = signedIn && context !== 'prod';
+      return { code: 0, stdout: JSON.stringify({ authenticated }), stderr: '' };
+    });
+    const stopped = await new Login(h.deps, login)
+      .execute({
+        tools: ['openobserve-cli'],
+        dryRun: false,
+        noInput: false,
+        skipManual: false,
+        posture: h.deps.trust.posture,
+      })
+      .catch((error: DevkitError) => error);
+    expect(stopped).toMatchObject({ code: 'PROCESS_TIMEOUT' });
+    const items = ((stopped as DevkitError).partialResult as LoginOutput).items;
+    expect(items.map((item) => [item.id, item.result])).toEqual([
+      ['openobserve-cli.service@dev', 'verified'],
+      ['openobserve-cli.reuse@dev', 'verified'],
+      ['openobserve-cli.credential@dev', 'verified'],
+      ['openobserve-cli.service@prod', 'verified'],
+      ['openobserve-cli.reuse@prod', 'failed'],
+      ['openobserve-cli.credential@prod', 'blocked'],
+      ['openobserve-cli.service@test', 'verified'],
+      ['openobserve-cli.reuse@test', 'verified'],
+      ['openobserve-cli.credential@test', 'done'],
+      ['openobserve-cli.service@stage', 'verified'],
+      ['openobserve-cli.reuse@stage', 'failed'],
+      ['openobserve-cli.credential@stage', 'not_started'],
+    ]);
+    expect(items[1]?.detail).toBe('verified again after openobserve-cli.credential@test');
+    expect(items[4]?.recheck).toEqual({
+      after: 'openobserve-cli.credential@test',
+      detail: 'No stored login is visible',
+    });
+    expect(logins).toEqual(['test']);
+    expect(reuses, 'each association runs once').toEqual(['dev', 'prod']);
   });
 });
 

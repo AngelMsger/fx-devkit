@@ -212,7 +212,8 @@ lists each one in its `root` group as a warning that does not affect readiness.
 
 Sync preserves working files and branches. Read the planned action: tracked
 modifications can cause `skip_dirty`, while a checkout on another branch can
-update only the tracked branch reference. A status report does not itself run
+update only the tracked branch reference. An empty upstream is skipped with nothing to
+fast-forward; one that lacks the tracked branch is skipped too, and reported for review. A status report does not itself run
 fetch; add `--fetch` explicitly when remote comparisons must be refreshed.
 
 ## Concepts
@@ -647,3 +648,6 @@ to sign in. Tokens stay in the companion's credential store, and your current
 context and existing identities are preserved. If several identities match,
 choose a source with the companion's `auth reuse --from-context` command; network
 or keychain failures are diagnosed separately from missing credentials.
+Environments may share a stored login: when `fx login` signs you in for one of them,
+it checks the tool's earlier environments it could not finish again, and reports
+those that now work as verified.

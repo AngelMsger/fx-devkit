@@ -7,6 +7,7 @@ import {
   type PreparationCheck,
 } from '../../domain/preparation.js';
 import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
+import type { FastForwardOutcome } from '../../ports/git.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
 import { workspacePreparation, type StageResult, type StageSummary } from '../preparation.js';
@@ -188,6 +189,11 @@ export class Sync {
       if (item.fetch) await git.fetch(dir, 'upstream');
       if (item.action === 'fast_forward' && item.branch !== undefined) {
         const outcome = await git.fastForward(dir, 'upstream', item.branch);
+        const absent = absenceReason(outcome, item.branch);
+        if (absent !== undefined) {
+          reporter.progress({ id: item.name, state: 'skip', detail: absent });
+          return { ...item, ...added, result: 'skipped', outcome, reason: absent };
+        }
         const result = outcome === 'diverged' ? 'skipped' : 'done';
         reporter.progress({
           id: item.name,
@@ -205,6 +211,15 @@ export class Sync {
       return { ...item, ...added, result: 'failed', error: message, failure };
     }
   }
+}
+
+// An empty upstream has had no first push yet; a missing branch in one that has others may
+// mean the manifest tracks the wrong branch, so only the second holds readiness back.
+function absenceReason(outcome: FastForwardOutcome, branch: string): string | undefined {
+  if (outcome === 'empty_remote') return 'upstream has no commits yet; nothing to fast-forward';
+  if (outcome === 'no_remote_branch')
+    return `upstream has no ${branch} branch; check the branch the manifest tracks`;
+  return undefined;
 }
 
 function repositorySummary(items: readonly SyncItem[]): SyncOutput['summary'] {
@@ -225,6 +240,7 @@ function repositoryChecks(items: readonly SyncItem[]): PreparationCheck[] {
       const ready =
         item.result !== 'failed' &&
         item.outcome !== 'diverged' &&
+        item.outcome !== 'no_remote_branch' &&
         leavesCheckoutUsable(item.action);
       let state: PreparationCheck['state'] = ready ? 'ready' : 'blocked';
       if (item.result === 'planned') state = 'unknown';
