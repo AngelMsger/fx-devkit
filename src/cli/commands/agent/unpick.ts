@@ -15,11 +15,11 @@ export default class AgentUnpickCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(AgentUnpickCommand);
-    const result = await new AgentPick(
-      this.container.config,
-      this.container.agents,
-      agentResourceCleanup(this.harnessInput()),
-    ).execute({
+    const result = await new AgentPick({
+      config: this.container.config,
+      hosts: this.container.agents,
+      cleanup: agentResourceCleanup(this.harnessInput()),
+    }).execute({
       ids: argv as string[],
       action: 'unpick',
       ...writeIntent(flags, this.posture),

@@ -1,5 +1,4 @@
 import { ConfigImport } from '../../../application/config/import.js';
-import { DevkitError } from '../../../domain/errors.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
 
@@ -17,12 +16,6 @@ export default class ConfigImportCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ConfigImportCommand);
-    const text = await this.container.fs.readText(args.file);
-    if (text === undefined) {
-      throw new DevkitError('not_found', 'CONFIG_IMPORT_NOT_FOUND', `${args.file} does not exist`, {
-        nextSteps: ['fx config export -o profile.yaml'],
-      });
-    }
     const out = await new ConfigImport({
       config: this.container.config,
       localStore: this.container.localStore,
@@ -33,7 +26,7 @@ export default class ConfigImportCommand extends FxCommand {
       cliVersion: this.config.version,
       providers: this.container.providers,
     }).execute({
-      text,
+      file: args.file,
       ...writeIntent(flags, this.posture),
     });
     this.renderer.record(out);

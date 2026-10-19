@@ -2,7 +2,7 @@
 // reported, not just the winner, so `--explain` can show why a value is what it is.
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import type { ConfigFile } from '../../ports/stores.js';
 
 import { KEYS, type Key } from './keys.js';
@@ -36,10 +36,7 @@ export function findKey(name: string): Key {
     name,
     KEYS.map((k) => k.name),
   );
-  const hint =
-    suggestion === undefined
-      ? `Known keys: ${KEYS.map((k) => k.name).join(', ')}.`
-      : `Did you mean "${suggestion}"?`;
+  const hint = suggestionHint(suggestion, `Known keys: ${KEYS.map((k) => k.name).join(', ')}.`);
   throw new DevkitError('usage', 'CONFIG_KEY_UNKNOWN', `Unknown config key "${name}"`, {
     hint,
     nextSteps: ['fx config list'],

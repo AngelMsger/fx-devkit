@@ -1,6 +1,7 @@
 // Installation and update are one operation over the toolchain; a command only
-// chooses the direction and the words it offers for it. Its parser metadata
-// stays on each command: see the command contracts in AGENTS.md.
+// chooses the direction and the words it offers for it. Its strict, args and
+// flags stay on each command: the parser copies a command's own static members
+// and drops inherited ones.
 
 import { TOOL_INSTALL_COLUMNS } from '../application/tool/install.js';
 import { assertToolSelection } from '../application/tool/select.js';
@@ -33,16 +34,7 @@ export abstract class ToolCommand extends FxCommand {
       all: flags.all,
       update: this.update,
       ...writeIntent(flags, this.posture),
-      trust:
-        workspace === undefined
-          ? undefined
-          : {
-              gate: this.trustGate(),
-              workspace,
-              commandShell: this.commandShell,
-              yes: this.yes,
-              posture: this.posture,
-            },
+      trust: workspace === undefined ? undefined : this.trustFor(workspace),
     });
     this.renderer.list(results, { columns: TOOL_INSTALL_COLUMNS });
   }

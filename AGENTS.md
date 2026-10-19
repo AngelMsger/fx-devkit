@@ -11,16 +11,15 @@ private manifests, live evaluation evidence or business patches. Keep migration
 provenance in a private record outside this repository.
 
 Preserve existing changes and verify repository identity and remotes before
-committing or pushing. The delivery upstream is the internal shared repository;
-`origin` is the verified personal fork and `upstream` is the shared repository.
-The public GitHub repository uses remote `github` and receives the reviewed `main`
-and release tags, so both code hosts carry the same history.
-Push only to `origin` and merge through a pull request; an empty shared repository
-requires task-specific authorization for its initial seed. Never merge predecessor
-or unrelated histories. Keep actual remote URLs in Git configuration.
-A checkout fx clones for the agent-clis family workspace has the public GitHub
-repository as `upstream`; there, changes merge through GitHub pull requests, and
-the internal repositories are remotes the maintainer adds by hand.
+committing or pushing. The public GitHub repository `AngelMsger/fx-devkit` is
+canonical; a checkout fx clones for the agent-clis family workspace has it as
+`upstream`. Every change merges into its `main` through a GitHub pull request:
+push a topic branch to it, or to a personal fork when you lack write access, and
+never push `main` directly. A scheduled job mirrors GitHub, release tags included,
+into the internal shared repository, whose Jenkins job releases the internal
+channel and therefore runs behind GitHub. Never push to or merge in the mirror.
+Never merge predecessor or unrelated histories. Keep actual remote URLs in Git
+configuration.
 
 Work in the target checkout or an isolated worktree. Workspace migration,
 publication and tags need task-specific authorization. User authorization takes
@@ -243,6 +242,10 @@ Export the minimum; avoid `any`, nested ternaries and policy hidden in factories
 Functions name actions; boolean names state a predicate. Keep implementations
 readable rather than splitting them only to satisfy a line limit.
 
+An application class takes at most two constructor parameters, each a named
+readonly dependency bundle or a single port; a third dependency joins a
+`<Class>Deps` interface instead of the parameter list. ESLint enforces the count.
+
 An error `message` is a headline: it starts with a capital letter, unless it
 starts with an identifier, path, command or flag that keeps its own spelling,
 and it carries no trailing period; `hint` and `next_steps` are sentences and do.
@@ -252,9 +255,11 @@ normally need only their description. Inline comments explain a non-obvious
 constraint, not the neighboring statement or another module's rationale.
 If explanation dominates the implementation, improve the abstraction first.
 
-README is the user entry point, CONTRIBUTING.md owns the internal contribution
-workflow, SECURITY.md owns reporting guidance, this file owns agent rules, and design pages
-own current contracts, and `docs/cli/README.md` is generated syntax reference.
+README is the repository entry point, `docs/user-guide.md` owns user onboarding,
+CONTRIBUTING.md owns the contribution workflow, SECURITY.md owns reporting guidance,
+this file owns agent rules, design pages own current contracts,
+[releasing](docs/releasing.md) owns both delivery channels, and
+`docs/cli/README.md` is generated syntax reference.
 Keep one owner for each fact. A flag's meaning lives in its definition, which feeds
 `--help` and the generated reference; other documents link there rather than
 restate it. Remove feature-history narration and resolved
@@ -266,8 +271,7 @@ accounts or business repositories.
 ## User website and documentation consistency
 
 `docs/website/` presents documentation for people using fx, not for the fx
-maintainer. `docs/user-guide.md` owns user onboarding; README is the repository
-entry point and must not be rendered wholesale into the user site. Only sources
+maintainer. README must not be rendered wholesale into the user site. Only sources
 explicitly approved in `docs/website/audience.mjs` may appear in `pages.mjs`.
 
 Never publish AGENTS.md, CONTRIBUTING.md, website-maintenance instructions,
@@ -361,8 +365,8 @@ uses `npm run check:windows` and separate host/cross-volume checks described in
 
 Use Conventional Commits and include an issue reference when one is available
 and appropriate for public history (for example, `fix: handle missing configuration`).
-Check the final diff and preserve unrelated work. Push only to the verified
-`origin`, and only within the user's authorized task scope.
+Check the final diff and preserve unrelated work. Push only topic branches to the
+verified GitHub repository or fork, and only within the user's authorized task scope.
 
 ## Existing-login reuse
 

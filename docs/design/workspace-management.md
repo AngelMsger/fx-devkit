@@ -4,9 +4,10 @@ The personal registry owns workspace names, roots and manifest sources. Discover
 uses it without requiring a healthy manifest. `workspace list` returns a collection
 with `default_workspace` and `selection_error`; `workspace show [name]` returns one
 record. Records include source, manifest location, default/current-directory/selected
-markers, `selection` (`explicit`, `cwd`, `default`), readiness and a structured error.
-Readiness distinguishes `ready`, `root_missing`, `unprepared`, `missing` and `invalid`.
-An unfinished identity operation is reported as invalid with
+markers, `selection` (`explicit`, `cwd`, `default`), `registration_status` and a
+structured error. `registration_status` is `available`, `root_missing`, `unprepared`,
+`missing` or `invalid`: it says whether the registration can be loaded and is not a
+preparation verdict. An unfinished identity operation is reported as invalid with
 `WORKSPACE_OPERATION_PENDING` and recovery guidance.
 
 Resolution prefers an explicit name, the innermost physical root containing cwd,
@@ -21,8 +22,8 @@ Workspace commands reject missing roots before repository synchronization. A mis
 source directory is unprepared; an existing source without required workspace YAML
 is missing. Recovery carries the registered identity and source and quotes paths.
 `self info` always returns its global facts when configuration is readable; its
-workspace record reports degraded readiness or `workspace_error` explains why no
-identity could be selected.
+workspace record carries the same `registration_status` and error, or
+`workspace_error` explains why no identity could be selected.
 
 ## Identity operations
 
@@ -73,9 +74,11 @@ Lifecycle writes additionally hold the workspace projection lease. Their persona
 `workspace-operation.json` records the previous and next identities and phase before
 changing resources or sources. A retry of the same command resumes the operation;
 a different identity operation is rejected until recovery completes. Ordinary
-workspace commands refuse an unfinished identity operation. Pending recovery verifies that the current registry still matches its recorded
-phase before resource cleanup. Registry changes are committed only after resource
-cleanup and source validation/backup, and compare the current identity before writing. Recovery backups are never overwritten on retry.
+workspace commands refuse an unfinished identity operation. Pending recovery
+verifies that the current registry still matches its recorded phase before
+resource cleanup. Registry changes are committed only after resource cleanup and
+source validation/backup, and compare the current identity before writing.
+Recovery backups are never overwritten on retry.
 
 An apply failure returns partial progress with `written` describing completed effects
 and `phase` naming the last successfully persisted lifecycle checkpoint. A failed
@@ -96,8 +99,7 @@ Rejected source diagnostics distinguish the requested candidate from the content
 actually inspected. Local Git inspection names its committed ref; a protected managed
 worktree is identified separately. Recovery repeats the source-specific initialization
 or rebind preview, with its explicit name and source, rather than validating the old
-registered source after a failed rebind. Error codes and preflight write behavior are
-unchanged.
+registered source after a failed rebind.
 
 Readiness and setup recovery follows the same context rule: `can`/`where` missing
 environment, unpicked environment, tool installation/version/trust and login handoffs

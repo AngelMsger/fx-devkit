@@ -11,7 +11,7 @@ import type {
 import type { harnessSchema, mcpSchema } from './harness.schema.js';
 import type { localSchema } from './local.schema.js';
 import type { membersSchema, personSchema } from './members.schema.js';
-import type { setupStep, toolSchema, toolsSchema } from './tools.schema.js';
+import type { INSTALLERS, setupStep, toolSchema, toolsSchema } from './tools.schema.js';
 import type { providerBinding, repoSchema, workspaceSchema } from './workspace.schema.js';
 
 export type Harness = z.infer<typeof harnessSchema>;
@@ -24,7 +24,8 @@ export type Platform = z.infer<typeof platformSchema>;
 export type EnvPlatform = z.infer<typeof envPlatformSchema>;
 export type Toolchain = z.infer<typeof toolsSchema>;
 export type Tool = z.infer<typeof toolSchema>;
-export type SetupStep = z.infer<typeof setupStep>;
+export type InstallVia = (typeof INSTALLERS)[number];
+export type DeclaredSetupStep = z.infer<typeof setupStep>;
 export type Members = z.infer<typeof membersSchema>;
 export type Person = z.infer<typeof personSchema>;
 export type LocalLayer = z.infer<typeof localSchema>;

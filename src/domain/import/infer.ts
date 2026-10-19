@@ -3,6 +3,7 @@
 // (docs/design/import.md). Every rung below the first leaves a review note
 // on the entry, so the manifest carries its own uncertainty.
 
+import { isPublicHttpUrl } from '../public-url.js';
 import { refFromUrl } from '../workspace/ref.js';
 
 export interface RepoObservation {
@@ -131,11 +132,5 @@ export function inferRepo(
 }
 
 function unsafeHttpRemote(remote: string): boolean {
-  if (!/^https?:\/\//i.test(remote)) return false;
-  try {
-    const url = new URL(remote);
-    return Boolean(url.username || url.password || url.search || url.hash);
-  } catch {
-    return true;
-  }
+  return /^https?:\/\//i.test(remote) && !isPublicHttpUrl(remote);
 }

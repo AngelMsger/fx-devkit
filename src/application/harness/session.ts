@@ -1,13 +1,11 @@
 // Loads a validated harness snapshot and evaluates workspace MCP queries through ports.
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { loadHarness } from '../../domain/manifest/loader.js';
-import type { AgentHost } from '../../ports/agent-host.js';
 import type { Process } from '../../ports/process.js';
 import type { ConfigStore } from '../../ports/stores.js';
-import { enabledHosts } from '../agent/list.js';
+import { enabledHosts, findHost } from '../agent/list.js';
 import { readSettings } from '../config/settings.js';
 import type { WritePosture } from '../safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
@@ -87,7 +85,7 @@ export async function canMcp(
     );
   const { deps, input } = await loadHarnessCommand(command);
   const resource = findMcpResource(input.harness, command.name);
-  const agent = command.agent === undefined ? null : findAgent(command.deps.hosts, command.agent);
+  const agent = command.agent === undefined ? null : findHost(command.deps.hosts, command.agent);
   const projection = agent
     ? (
         await new ReconcileHarness(deps).execute({
@@ -106,18 +104,6 @@ export async function canMcp(
     trust: deps.trust,
     env: command.env,
   }).execute({ workspace: input.workspace, resource, agent, posture: command.posture, projection });
-}
-function findAgent(hosts: readonly AgentHost[], id: string): AgentHost {
-  const host = hosts.find((item) => item.id === id);
-  if (host) return host;
-  const suggestion = nearest(
-    id,
-    hosts.map((item) => item.id),
-  );
-  throw new DevkitError('not_found', 'AGENT_UNKNOWN', 'The agent is not registered', {
-    hint: suggestion ? `Did you mean "${suggestion}"?` : 'Use an agent ID from fx agent list.',
-    nextSteps: ['fx agent list'],
-  });
 }
 
 export async function inspectMcp(

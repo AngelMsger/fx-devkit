@@ -1,27 +1,15 @@
-// Source contributions resolve only registry identity before reading Git. The
-// code-host provider is built from committed baseline bytes, not dirty source.
+// The ports of a source contribution: Git plumbing and transport for the source
+// checkout, the personal journal, and candidate validation over captured bytes.
 
 import { randomUUID } from 'node:crypto';
 
 import { SnapshotReader } from '../adapters/fs/snapshot-reader.js';
 import { ContributionSystemGit } from '../adapters/git/contribution-system-git.js';
 import { ContributionGitTransport } from '../adapters/git/contribution-transport.js';
-import {
-  CollectContributionInput,
-  type SuppliedContributionInput,
-} from '../application/contribution/collect-input.js';
-import type {
-  ContributionHost,
-  PushSourceDeps,
-  PushSourceOutput,
-} from '../application/contribution/push-types.js';
-import { PushSource } from '../application/contribution/push.js';
+import type { PushRegisteredSourceDeps } from '../application/contribution/push-registered.js';
+import type { ContributionHost } from '../application/contribution/push-types.js';
 import { ValidateContribution } from '../application/contribution/validate.js';
-import { resolveWorkspace, type ResolveInput } from '../application/workspace/resolve.js';
-import { DevkitError } from '../domain/errors.js';
-import { MANIFEST_FILES } from '../domain/manifest/files.js';
-import { loadWorkspace } from '../domain/manifest/loader.js';
-import { bindProviders, codeHostBinding } from '../domain/manifest/providers.js';
+import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileContributionStore } from '../infra/contribution-store.js';
 
 import type { Container } from './container.js';
@@ -33,93 +21,35 @@ interface SourceCommand {
   readonly resolve: ResolveInput;
   readonly noInput: boolean;
   readonly user: string | undefined;
-  readonly request: SuppliedContributionInput;
 }
 
-export async function runSourcePush(input: SourceCommand): Promise<PushSourceOutput> {
-  const prompter = input.container.prompter(input.noInput);
-  const request = await new CollectContributionInput(prompter).execute(input.request);
-  const deps = await sourceDeps(input);
-  return new PushSource({ ...deps, prompter }).execute(request);
-}
-
-async function sourceDeps(input: SourceCommand): Promise<Omit<PushSourceDeps, 'prompter'>> {
+export function sourcePushDeps(input: SourceCommand): PushRegisteredSourceDeps {
   const { container } = input;
-  const located = await resolveWorkspace(input.resolve);
-  const entry = (await container.config.read()).workspaces?.[located.name];
-  if (!entry) throw notGit();
-  const source =
-    entry?.source && (await manifestSourceFor(entry.source, container, async () => ''));
-  if (!source || source.kind !== 'repo' || (await container.fs.readLink(located.manifestDir)))
-    throw notGit();
-  const dir = await container.fs.realpath(located.manifestDir);
-  const top = await container.git.toplevel(dir);
-  if (!top || (await container.fs.realpath(top)) !== dir) throw notGit();
-  const validator = new ValidateContribution(
-    { open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }) },
-    container.bundledTools,
-    container.providers,
-    container.describeProvider,
-  );
+  const adapters = { process: container.process, fs: container.fs, clock: container.clock };
   return {
-    user: input.user,
-    registration: {
-      expected: entry,
-      physicalRoot: located.root,
-      logicalSourceDir: located.manifestDir,
-      config: container.config,
-      fs: container.fs,
+    resolve: input.resolve,
+    git: container.git,
+    sourceFor: (spec) => manifestSourceFor(spec, container, async () => ''),
+    providers: container.providers,
+    codeHost: (binding) => resolveProvider<ContributionHost>(binding, adapters),
+    validatorAt: (dir) =>
+      new ValidateContribution({
+        views: {
+          open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }),
+        },
+        bundledTools: container.bundledTools,
+        providers: container.providers,
+        describeProvider: container.describeProvider,
+      }),
+    push: {
+      user: input.user,
+      prompter: container.prompter(input.noInput),
+      git: new ContributionSystemGit(container.process),
+      transport: new ContributionGitTransport(container.process),
+      records: new FileContributionStore(container.fxHome, container.lock),
+      ids: { next: randomUUID },
+      clock: container.clock,
+      lock: container.lock,
     },
-    source: { workspace: located.name, dir, kind: 'repo' },
-    git: new ContributionSystemGit(container.process),
-    transport: new ContributionGitTransport(container.process),
-    records: new FileContributionStore(container.fxHome, container.lock),
-    ids: { next: randomUUID },
-    clock: container.clock,
-    lock: container.lock,
-    validator,
-    hostFor: (files) => codeHostFromBase(container, files, input.request.cliVersion),
   };
-}
-
-function codeHostFromBase(
-  container: Container,
-  files: Readonly<Record<string, string>>,
-  cliVersion: string,
-): ContributionHost {
-  let workspace;
-  try {
-    workspace = loadWorkspace(files[MANIFEST_FILES.workspace] ?? '', {
-      cliVersion,
-      providers: container.providers,
-      strict: true,
-    }).doc;
-  } catch {
-    throw new DevkitError(
-      'config',
-      'SOURCE_BASE_MANIFEST_INVALID',
-      'The committed source cannot supply valid provider configuration',
-      {
-        nextSteps: [
-          'fx manifest validate',
-          'Fix the committed manifest on the upstream default branch before contributing.',
-        ],
-      },
-    );
-  }
-  const bindings = bindProviders(workspace, container.providers);
-  return resolveProvider<ContributionHost>(codeHostBinding(bindings), {
-    process: container.process,
-    fs: container.fs,
-    clock: container.clock,
-  });
-}
-
-function notGit(): DevkitError {
-  return new DevkitError(
-    'config',
-    'SOURCE_NOT_GIT',
-    'The registered source must be its own Git checkout, not a directory source or foreign link',
-    { nextSteps: ['Register the workspace from its manifest repository URL.'] },
-  );
 }

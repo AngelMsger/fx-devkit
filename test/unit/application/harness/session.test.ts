@@ -9,17 +9,19 @@ import {
 import { harnessDoctor } from '../../../../src/application/harness/stages.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/registry.js';
+import { MANIFEST_FILES } from '../../../../src/domain/manifest/files.js';
 import { report } from '../../../../src/domain/report.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
-import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { harness, ROOT, manifestDirFor } from '../../../fakes/workspace.js';
+import { harness, MANIFEST_DIR, ROOT, manifestDirFor } from '../../../fakes/workspace.js';
 
 async function fixture() {
   const h = await harness();
-  const files = new FakeProjectionStore();
+  const files = new FakeFileProjection(h.fs);
   const config = new FakeConfigStore({
     agents: ['claude-code'],
     workspaces: { fx: { root: ROOT } },
@@ -29,10 +31,10 @@ async function fixture() {
       files,
       hosts: createAgentHosts({ fs: h.fs, process: h.process, home: path.resolve('/home') }),
       state: new FakeHarnessState(),
-      trust: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+      trust: new TrustGate(new FakeTrustStore(), new FakePrompter()),
       env: {},
       codec: mcpCodecFor,
-      lock: { acquire: async () => ({ release: async () => {} }) },
+      lock: new FakeLock(),
     },
     config,
     process: h.process,
@@ -42,7 +44,7 @@ async function fixture() {
     yes: false,
     posture: { readOnly: false, source: 'default' },
   };
-  return { input, files };
+  return { input, files, fs: h.fs };
 }
 
 describe('harness workspace workflow', () => {
@@ -56,14 +58,14 @@ describe('harness workspace workflow', () => {
 
   it('reports incomplete inspection and propagates repair failure for a foreign source', async () => {
     const f = await fixture();
-    f.files.read = async () => ({ kind: 'foreign', text: null });
+    f.fs.mkdir(path.join(MANIFEST_DIR, MANIFEST_FILES.harness));
     const extension = harnessDoctor(f.input, 'mcp');
     const result = report(['mcp'], await extension.check());
     expect(result).toMatchObject({ ok: true, complete: false });
     expect(result.findings[0]?.coverage).toBe('incomplete');
-    await expect(
-      extension.fix!({ fix: true, dryRun: false, noInput: true, posture: f.input.posture }),
-    ).rejects.toMatchObject({ code: 'HARNESS_SOURCE_FOREIGN' });
+    await expect(extension.fix!({ dryRun: false, posture: f.input.posture })).rejects.toMatchObject(
+      { code: 'HARNESS_SOURCE_FOREIGN' },
+    );
     expect(f.files.writes).toBe(0);
   });
 });

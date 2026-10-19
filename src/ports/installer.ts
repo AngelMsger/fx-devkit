@@ -2,7 +2,10 @@
 // running it is the use case's decision, after the dry-run and posture checks every
 // write goes through.
 
-export type InstallerId = 'npm' | 'brew' | 'go' | 'manual';
+import type { InstallVia } from '../domain/manifest/types.js';
+
+// An installer is selected by the `via` of the install method it carries out.
+export type InstallerId = InstallVia;
 
 export interface VectorOptions {
   readonly registry?: string | undefined;

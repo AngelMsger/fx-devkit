@@ -2,7 +2,6 @@
 // for the ports and hands them to command wiring.
 
 import os from 'node:os';
-import path from 'node:path';
 
 import { SystemClock } from '../adapters/clock/system-clock.js';
 import { FamilyServiceProtocol } from '../adapters/family/service-protocol.js';
@@ -21,7 +20,7 @@ import { NpmRegistryLocator } from '../adapters/registry/npm-config.js';
 import { NpmRegistry } from '../adapters/registry/npm-registry.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import type { WritePosture } from '../application/safety/posture.js';
-import type { TrustGate } from '../application/safety/trust.js';
+import { TrustGate, type TrustContext } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
@@ -46,7 +45,7 @@ import type { Installer } from '../ports/installer.js';
 import type { Lock } from '../ports/lock.js';
 import type { Platform } from '../ports/platform.js';
 import type { Process } from '../ports/process.js';
-import type { ProjectionStore } from '../ports/projection.js';
+import type { LinkProjectionStore, ProjectionStore } from '../ports/projection.js';
 import type { Prompter } from '../ports/prompter.js';
 import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
 import type { Registry, RegistryLocator } from '../ports/registry.js';
@@ -79,7 +78,7 @@ export interface Container {
   readonly toolHistory: ToolHistoryStore;
   readonly lock: Lock;
   readonly fs: FileSystem;
-  readonly projections: ProjectionStore;
+  readonly projections: ProjectionStore & LinkProjectionStore;
   readonly process: Process;
   readonly git: Git;
   readonly clock: Clock;
@@ -99,21 +98,28 @@ export interface Container {
   readonly activity: ActivityChannel;
 }
 
-export function createContainer(env: NodeJS.ProcessEnv): Container {
+export interface ContainerOptions {
+  // Wraps the one subprocess port before anything is built on it, so every member
+  // that starts a process obeys the wrapper.
+  readonly decorateProcess?: (process: Process) => Process;
+}
+
+export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOptions = {}): Container {
   const home = fxHome(env);
   const clock = new SystemClock();
   const diagnostics = new DiagnosticChannel();
   const activity = new ActivityChannel();
-  const process = new WatchedProcess(
+  const watched = new WatchedProcess(
     new DiagnosticProcess(new NodeProcess(), diagnostics),
     activity,
   );
+  const process = options.decorateProcess?.(watched) ?? watched;
   const lock = new FileLock(home);
   const fs = new NodeFs(lock);
   return {
     openUrl: (url) => new SystemUrlOpener(process).open(url),
-    config: new FileConfigStore(home),
-    localStore: new FileLocalLayerStore(home),
+    config: new FileConfigStore(home, lock),
+    localStore: new FileLocalLayerStore(home, lock),
     cache: new FileCache(home, clock),
     trust: new FileTrustStore(home, clock, lock),
     toolHistory: new FileToolHistoryStore(home, lock),
@@ -181,30 +187,56 @@ function adaptersOf(container: Container): AdapterDeps {
   return { process: container.process, fs: container.fs, clock: container.clock };
 }
 
+export function trustGate(container: Container, noInput: boolean): TrustGate {
+  return new TrustGate(container.trust, container.prompter(noInput));
+}
+
+// How one invocation answers a manifest-supplied command, whichever workspace it reaches.
+export interface TrustInvocation {
+  readonly commandShell: ResolvedShell | undefined;
+  readonly noInput: boolean;
+  readonly yes: boolean;
+  readonly posture: WritePosture;
+}
+
+export function trustContext(
+  container: Container,
+  workspace: string,
+  invocation: TrustInvocation,
+): TrustContext {
+  return {
+    gate: trustGate(container, invocation.noInput),
+    workspace,
+    commandShell: invocation.commandShell,
+    yes: invocation.yes,
+    posture: invocation.posture,
+  };
+}
+
 // The bundle every workspace use case receives. The code host is resolved
 // lazily from the workspace's own binding, and only once.
-interface WorkspaceInvocation {
+interface WorkspaceInvocation extends TrustInvocation {
   readonly ctx: WorkspaceContext;
   readonly reporter: Reporter;
   readonly cliVersion: string;
   readonly user: string | undefined;
-  readonly commandShell: ResolvedShell | undefined;
 }
 
 export function workspaceDeps(container: Container, input: WorkspaceInvocation): WorkspaceDeps {
-  const { commandShell, ...invocation } = input;
-  const { ctx } = invocation;
+  const { ctx, reporter, cliVersion, user, commandShell } = input;
   const adapters = adaptersOf(container);
   return {
-    ...invocation,
+    ctx,
+    reporter,
+    cliVersion,
+    user,
     ...(commandShell === undefined ? {} : { commandShell }),
-    processRun: (vector, options) => container.process.run(vector, options),
-    processWhich: (binary) => container.process.which(binary),
+    trust: trustContext(container, ctx.name, input),
+    process: container.process,
     git: container.git,
     fs: container.fs,
     projections: container.projections,
     localStore: container.localStore,
-    cache: container.cache,
     activity: container.activity,
     codeHost: once(() => resolveProvider<CodeHost>(codeHostBinding(ctx.bindings), adapters)),
     platform: (binding) =>
@@ -213,27 +245,9 @@ export function workspaceDeps(container: Container, input: WorkspaceInvocation):
   };
 }
 
-// Import can resolve local Git hosts before a workspace exists; remote hosts need verified
-// bindings. Only a host that is not an existing absolute path is "no code host"; a provider
-// that refuses to resolve is a configuration failure the caller must see.
-export async function codeHostFor(
-  container: Container,
-  host: string,
-): Promise<CodeHost | undefined> {
-  if (!path.isAbsolute(host) || !(await container.fs.exists(host))) return undefined;
-  return resolveProvider<CodeHost>(
-    { capability: 'code-host', provider: 'local-git', source: 'default', vars: { host } },
-    adaptersOf(container),
-  );
-}
-
 export interface LoginDepsInput {
   readonly container: Container;
-  // The caller owns the gate: a second one would ask the same question again.
-  readonly gate: TrustGate;
   readonly noInput: boolean;
-  readonly yes: boolean;
-  readonly posture: WritePosture;
 }
 
 // The bundle every login-aware use case receives, whether a person or a
@@ -245,7 +259,6 @@ export function loginDeps(input: LoginDepsInput): LoginDeps {
     prompter: input.container.prompter(input.noInput),
     clock: input.container.clock,
     home: input.container.userHome,
-    trust: { gate: input.gate, yes: input.yes, posture: input.posture },
   };
 }
 

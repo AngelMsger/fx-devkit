@@ -1,15 +1,13 @@
-import type { Activity, Count, Release, Wait } from '../../src/ports/activity.js';
+import type { Activity, Count, Release } from '../../src/ports/activity.js';
 
 // Keeps what a watcher would have been told, in the order it was said.
 export class FakeActivity implements Activity {
-  readonly waits: Wait[] = [];
   readonly counts: { readonly id: string; readonly count: Count | undefined }[] = [];
   // How many holders have the terminal right now.
   handed = 0;
   handovers = 0;
 
-  waiting(wait: Wait): Release {
-    this.waits.push(wait);
+  waiting(): Release {
     return () => undefined;
   }
 

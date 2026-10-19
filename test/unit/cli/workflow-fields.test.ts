@@ -1,36 +1,17 @@
 // Workflow fields select the complete report while fact-list projection keeps its row contract.
-import { Writable } from 'node:stream';
-
 import { describe, expect, it } from 'vitest';
 
 import { createRenderer, type RenderOptions, type Format } from '../../../src/cli/render/index.js';
+import { CaptureStream } from '../../fakes/capture-stream.js';
 
 function output(format: Format, options: RenderOptions) {
-  let stdout = '';
-  let stderr = '';
-  const stream = (write: (chunk: string) => void): Writable =>
-    new Writable({
-      write(chunk, _encoding, done) {
-        write(String(chunk));
-        done();
-      },
-    });
+  const out = new CaptureStream();
+  const err = new CaptureStream();
   return {
-    renderer: createRenderer(
-      format,
-      {
-        out: stream((chunk) => {
-          stdout += chunk;
-        }),
-        err: stream((chunk) => {
-          stderr += chunk;
-        }),
-      },
-      options,
-    ),
-    stdout: () => stdout,
-    stderr: () => stderr,
-    json: () => JSON.parse(stdout),
+    renderer: createRenderer(format, { out, err }, options),
+    stdout: () => out.text(),
+    stderr: () => err.text(),
+    json: () => JSON.parse(out.text()),
   };
 }
 

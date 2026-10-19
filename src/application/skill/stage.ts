@@ -2,17 +2,20 @@
 // links and copies before any external tool process, and summarize the outcome.
 
 import { withPartialResult } from '../../domain/errors.js';
+import { isUnfinished } from '../../domain/outcome.js';
+import { countBy } from '../../domain/values.js';
 import { assertWritable } from '../safety/posture.js';
-import type { StageSummary } from '../sync/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { applyCopies, planCopies } from './fx-copies.js';
 import { observeCopy, observeLink } from './observe.js';
 import type { SkillDeps } from './targets.js';
 import { applyLinks, planLinks, replaceConflicts, reportForeign } from './team-links.js';
-import { planTools, runTools, trustAll, trustedTools } from './tool-skills.js';
+import { awaitsApproval, planTools, runTools, trustAll, trustedTools } from './tool-skills.js';
 import type {
   FxSkillItem,
+  ItemOutcome,
+  ObservedSkills,
   SkillLinkItem,
   SkillStageInput,
   SkillStageOutput,
@@ -37,7 +40,7 @@ export class SkillStage {
       (item) => ({ ...item, status }),
     );
     let tools = input.background
-      ? await trustedTools(plannedTools, input.toolchain, input.trust)
+      ? await trustedTools(plannedTools, input.toolchain, this.deps.trust)
       : plannedTools;
     try {
       const writes =
@@ -46,7 +49,7 @@ export class SkillStage {
         tools.some((t) => t.vector !== null);
       if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
       if (!input.dryRun) {
-        if (!input.background) tools = await trustAll(tools, input.toolchain, input.trust);
+        if (!input.background) tools = await trustAll(tools, input.toolchain, this.deps.trust);
         await replaceConflicts(this.deps, input, links);
         await applyLinks(this.deps, links);
         await applyCopies(this.deps, this.skills, fx, input);
@@ -69,7 +72,7 @@ export class SkillStage {
   private async observed(
     links: readonly SkillLinkItem[],
     fx: readonly FxSkillItem[],
-  ): Promise<object> {
+  ): Promise<ObservedSkills> {
     const read = async <T>(observe: () => Promise<T>): Promise<T | { kind: 'unknown' }> => {
       try {
         return await observe();
@@ -105,8 +108,14 @@ function summarize(
   links: readonly SkillLinkItem[],
   fx: readonly FxSkillItem[],
   tools: readonly ToolSkillItem[],
-): StageSummary {
-  const summary: Record<string, number> = {
+): SkillStageOutput['summary'] {
+  const finished = (item: ItemOutcome): boolean => !isUnfinished(item.status);
+  const keys = [
+    ...links.filter(finished).map((item) => item.action),
+    ...fx.filter(finished).map((item) => COPY_KEY[item.action]),
+    ...tools.map(toolSummaryKey),
+  ];
+  return {
     create: 0,
     unchanged: 0,
     prune: 0,
@@ -119,20 +128,14 @@ function summarize(
     tools_failed: 0,
     tools_skipped: 0,
     tools_blocked: 0,
+    ...countBy(keys, (key) => key),
   };
-  const bump = (key: string): void => {
-    summary[key] = (summary[key] ?? 0) + 1;
-  };
-  for (const item of links)
-    if (item.status !== 'not_started' && item.status !== 'failed') bump(item.action);
-  for (const item of fx)
-    if (item.status !== 'not_started' && item.status !== 'failed') bump(COPY_KEY[item.action]);
-  for (const item of tools) {
-    if (item.status === 'failed') bump('tools_failed');
-    else if (item.status === 'not_started') bump('tools_not_started');
-    else if (item.note === 'approval required') bump('tools_blocked');
-    else if (item.vector === null) bump('tools_skipped');
-    else bump(item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed');
-  }
-  return summary;
+}
+
+function toolSummaryKey(item: ToolSkillItem): string {
+  if (item.status === 'failed') return 'tools_failed';
+  if (item.status === 'not_started') return 'tools_not_started';
+  if (awaitsApproval(item)) return 'tools_blocked';
+  if (item.vector === null) return 'tools_skipped';
+  return item.code === null || item.code === 0 ? 'tools_run' : 'tools_failed';
 }

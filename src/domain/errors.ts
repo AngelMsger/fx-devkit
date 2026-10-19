@@ -1,7 +1,8 @@
 // The shared structured failure and recovery contract; category determines the command exit code.
 
 import type { DiagnosticEvent } from './diagnostics.js';
-import type { CheckCause } from './setup/types.js';
+import type { CheckCause, StepKind } from './setup/types.js';
+import { messageOf } from './values.js';
 
 export const CATEGORIES = [
   'usage',
@@ -37,7 +38,7 @@ const EXIT_CODE: Record<Category, number> = {
 
 const RETRYABLE: ReadonlySet<Category> = new Set(['rate_limit', 'network', 'server']);
 
-export interface Guidance {
+interface Guidance {
   readonly hint: string;
   readonly nextSteps: readonly string[];
 }
@@ -86,7 +87,7 @@ const GUIDANCE: Record<Category, Guidance> = {
 
 export interface HandoffStep {
   readonly id: string;
-  readonly kind: 'run' | 'manual' | 'file';
+  readonly kind: StepKind;
   readonly title: string;
   readonly instructions?: string;
   readonly open?: string;
@@ -162,17 +163,32 @@ export function busyError(
   });
 }
 
-export function defaultGuidance(category: Category): Guidance {
-  return GUIDANCE[category];
+// An executable that could not be started. Who needed the tool decides where to go
+// next, so each caller supplies its own recovery.
+export function toolMissingError(
+  binary: string,
+  options: { readonly hint?: string; readonly nextSteps: readonly string[] },
+): DevkitError {
+  return new DevkitError(
+    'config',
+    'TOOL_MISSING',
+    `${binary} is not installed or not on PATH`,
+    options,
+  );
 }
 
 export function exitCodeFor(category: Category): number {
   return EXIT_CODE[category];
 }
 
+// Companion CLIs of the family exit with the same category codes fx does.
+export function categoryOfExitCode(code: number): Category | undefined {
+  return CATEGORIES.find((category) => EXIT_CODE[category] === code);
+}
+
 export function asDevkitError(err: unknown): DevkitError {
   if (err instanceof DevkitError) return err;
-  const message = err instanceof Error ? err.message : String(err);
+  const message = messageOf(err);
   return new DevkitError('internal', 'INTERNAL', message, { cause: err });
 }
 
@@ -189,7 +205,7 @@ export interface ErrorEnvelope {
 }
 
 // The wire shape of a handoff, shared by error envelopes and by answers
-// that carry one as data (need, doctor).
+// that carry one as data.
 export interface HandoffEnvelope {
   readonly summary: string;
   readonly user_steps: readonly HandoffStep[];

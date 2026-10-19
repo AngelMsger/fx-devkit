@@ -5,6 +5,7 @@ import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
 import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
 import { loginNotices } from '../notices.js';
+import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class LoginCommand extends FxCommand {
   static override description =
@@ -38,6 +39,8 @@ export default class LoginCommand extends FxCommand {
       description: 'check current state and preview each unfinished action',
     },
   };
+  static override writeScope: WriteScopeDeclaration = (flags) =>
+    flags['list'] ? null : 'workspace';
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(LoginCommand);

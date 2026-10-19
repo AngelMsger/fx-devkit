@@ -7,6 +7,7 @@ import path from 'node:path';
 import type { HookRequest } from '../../domain/harness/request.js';
 import { isAtOrInside, samePath } from '../../domain/path.js';
 import { fingerprint } from '../../domain/toolchain/trust.js';
+import type { AgentHost } from '../../ports/agent-host.js';
 import type { Clock } from '../../ports/clock.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { HookHandler } from '../../ports/hook-handler.js';
@@ -50,7 +51,7 @@ export class DispatchHook {
   }
 }
 
-export async function acceptHook(input: {
+async function acceptHook(input: {
   readonly deps: DispatchDeps;
   readonly request: HookRequest;
   readonly raw: string;
@@ -60,12 +61,44 @@ export async function acceptHook(input: {
   const host = resolveHookHost(deps.hosts, request.agent, env);
   if (!host?.hooks) return false;
   const invocation = deps.protocol(host.hooks).decode(raw, host.hooks);
-  if (!invocation || !path.isAbsolute(invocation.cwd)) return false;
+  if (!invocation) return false;
+  return isBoundSession({ deps, request, env, host, cwd: invocation.cwd });
+}
+
+type SessionDeps = Pick<DispatchDeps, 'hosts' | 'local' | 'config' | 'fs'>;
+
+// The worker a foreground dispatch started receives no host payload, so its session is
+// judged at the workspace root. It may write only while the request is still bound to
+// its registration and the session is not read-only.
+export async function acceptBackground(input: {
+  readonly deps: SessionDeps;
+  readonly request: HookRequest;
+  readonly env: NodeJS.ProcessEnv;
+}): Promise<boolean> {
+  const { deps, request, env } = input;
+  const host = resolveHookHost(deps.hosts, request.agent, env);
+  if (!host?.hooks) return false;
+  if (!(await isBoundSession({ deps, request, env, host, cwd: request.root }))) return false;
+  return !resolvePosture({ allowWrites: false, env, file: await deps.config.read() }).readOnly;
+}
+
+// A request is honoured only for a session inside the registration it names: at the
+// registered root, in no nested registration, carrying the owner written into the
+// entry, with hooks still enabled for that host and workspace.
+async function isBoundSession(input: {
+  readonly deps: SessionDeps;
+  readonly request: HookRequest;
+  readonly env: NodeJS.ProcessEnv;
+  readonly host: AgentHost;
+  readonly cwd: string;
+}): Promise<boolean> {
+  const { deps, request, env, host } = input;
+  if (!path.isAbsolute(input.cwd)) return false;
   const file = await deps.config.read();
   const entry = file.workspaces?.[request.workspace];
   if (!entry) return false;
   const root = await deps.fs.realpath(entry.root);
-  const cwd = await deps.fs.realpath(invocation.cwd);
+  const cwd = await deps.fs.realpath(input.cwd);
   if (!samePath(root, request.root) || !isAtOrInside(cwd, root)) return false;
   for (const [name, other] of Object.entries(file.workspaces ?? {})) {
     const otherRoot = await deps.fs.realpath(other.root);

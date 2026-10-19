@@ -2,7 +2,7 @@
 // keys, later repos, tools and agents. One implementation so the correction
 // reads the same everywhere.
 
-export function levenshtein(a: string, b: string): number {
+function levenshtein(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const current = [i];
@@ -28,4 +28,10 @@ export function nearest(
     }
   }
   return best?.candidate;
+}
+
+// The hint for a name that matched nothing: the close candidate when there is one,
+// otherwise what the caller can say about the names it knows.
+export function suggestionHint(suggestion: string | undefined, fallback: string): string {
+  return suggestion === undefined ? fallback : `Did you mean "${suggestion}"?`;
 }

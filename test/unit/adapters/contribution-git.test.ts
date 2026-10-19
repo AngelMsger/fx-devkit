@@ -1,10 +1,8 @@
 // File-symlink cases require a POSIX host; junction behavior has native Windows coverage.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ContributionSystemGit } from '../../../src/adapters/git/contribution-system-git.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
@@ -12,27 +10,22 @@ import type {
   ConstructContribution,
   ConstructedContribution,
 } from '../../../src/ports/contribution-git.js';
+import { committedBytes, git } from '../../git.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
-const git = (dir: string, ...args: string[]): string =>
-  execFileSync('git', ['-C', dir, ...args], {
-    encoding: 'utf8',
-    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
-  });
 function fixture(): { dir: string; base: string } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'fx-contribution-git-'));
-  roots.push(dir);
-  git(dir, 'init', '-q');
-  git(dir, 'config', 'user.name', 'Fixture');
-  git(dir, 'config', 'user.email', 'fixture@example.com');
+  const dir = tempDir('fx-contribution-git-');
+  git(['init', '-q'], dir);
+  git(['config', 'user.name', 'Fixture'], dir);
+  git(['config', 'user.email', 'fixture@example.com'], dir);
   writeFileSync(path.join(dir, 'selected.md'), 'base selected');
   writeFileSync(path.join(dir, 'unrelated.md'), 'base unrelated');
-  git(dir, 'add', '--', 'selected.md', 'unrelated.md');
-  git(dir, 'commit', '-qm', 'initial');
-  const base = git(dir, 'rev-parse', 'HEAD').trim();
+  git(['add', '--', 'selected.md', 'unrelated.md'], dir);
+  git(['commit', '-qm', 'initial'], dir);
+  const base = git(['rev-parse', 'HEAD'], dir);
   writeFileSync(path.join(dir, 'selected.md'), 'selected change');
   writeFileSync(path.join(dir, 'unrelated.md'), 'unrelated staged change');
-  git(dir, 'add', '--', 'unrelated.md');
+  git(['add', '--', 'unrelated.md'], dir);
   return { dir, base };
 }
 async function construct(
@@ -50,25 +43,22 @@ async function construct(
 }
 function state(dir: string): unknown {
   return {
-    head: git(dir, 'rev-parse', 'HEAD'),
+    head: git(['rev-parse', 'HEAD'], dir),
     index: readFileSync(path.join(dir, '.git/index')),
-    status: git(dir, 'status', '--porcelain=v1'),
+    status: git(['status', '--porcelain=v1'], dir),
     selected: readFileSync(path.join(dir, 'selected.md')),
     unrelated: readFileSync(path.join(dir, 'unrelated.md')),
   };
 }
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
 
 describe('source contribution Git isolation', () => {
   it('constructs only selected bytes without changing source HEAD, index or working files', async () => {
     const f = fixture();
     const adapter = new ContributionSystemGit(new NodeProcess());
     const before = state(f.dir);
-    const objects = git(f.dir, 'count-objects', '-v');
+    const objects = git(['count-objects', '-v'], f.dir);
     const snapshot = await adapter.capture({ ...f, paths: ['selected.md'] });
-    expect(git(f.dir, 'count-objects', '-v')).toBe(objects);
+    expect(git(['count-objects', '-v'], f.dir)).toBe(objects);
     expect(state(f.dir)).toEqual(before);
     expect(snapshot.files.map((file) => file.path)).toEqual(['selected.md']);
     const result = await construct(adapter, {
@@ -80,9 +70,9 @@ describe('source contribution Git isolation', () => {
     });
     expect(state(f.dir)).toEqual(before);
     expect(result.tree).toBe(snapshot.tree);
-    expect(git(f.dir, 'show', `${result.commit}:selected.md`)).toBe('selected change');
-    expect(git(f.dir, 'show', `${result.commit}:unrelated.md`)).toBe('base unrelated');
-    expect(git(f.dir, 'rev-parse', 'refs/heads/fx/contribution/test').trim()).toBe(result.commit);
+    expect(git(['show', `${result.commit}:selected.md`], f.dir)).toBe('selected change');
+    expect(git(['show', `${result.commit}:unrelated.md`], f.dir)).toBe('base unrelated');
+    expect(git(['rev-parse', 'refs/heads/fx/contribution/test'], f.dir)).toBe(result.commit);
   });
   it('prepares an inspectable commit without publishing the branch until requested', async () => {
     const f = fixture();
@@ -95,7 +85,7 @@ describe('source contribution Git isolation', () => {
       expectedHead: null,
       message: 'test',
     });
-    expect(git(f.dir, 'for-each-ref', '--format=%(refname)', 'refs/heads/fx/contribution')).toBe(
+    expect(git(['for-each-ref', '--format=%(refname)', 'refs/heads/fx/contribution'], f.dir)).toBe(
       '',
     );
     expect(await adapter.inspect({ dir: f.dir, ref: prepared.commit })).toMatchObject({
@@ -111,7 +101,7 @@ describe('source contribution Git isolation', () => {
     };
     await adapter.publish(publish);
     await adapter.publish(publish);
-    expect(git(f.dir, 'rev-parse', 'refs/heads/fx/contribution/test').trim()).toBe(prepared.commit);
+    expect(git(['rev-parse', 'refs/heads/fx/contribution/test'], f.dir)).toBe(prepared.commit);
   });
   it('refuses changed working bytes after the snapshot was validated', async () => {
     const f = fixture();
@@ -127,7 +117,7 @@ describe('source contribution Git isolation', () => {
         message: 'docs: TASK-123 update selected resources',
       }),
     ).rejects.toMatchObject({ code: 'SOURCE_SNAPSHOT_CHANGED' });
-    expect(git(f.dir, 'for-each-ref', '--format=%(refname)', 'refs/heads/fx/contribution')).toBe(
+    expect(git(['for-each-ref', '--format=%(refname)', 'refs/heads/fx/contribution'], f.dir)).toBe(
       '',
     );
   });
@@ -157,7 +147,9 @@ describe('source contribution Git isolation', () => {
       expectedHead: null,
       message: 'test',
     });
-    expect(git(f.dir, 'show', `${result.commit}:selected.md`)).toBe('\ufeffcaptured bytes');
+    expect(committedBytes(`${result.commit}:selected.md`, f.dir)).toEqual(
+      Buffer.from('\ufeffcaptured bytes'),
+    );
   });
   it('never invokes checkout, reset, merge, stash, rebase or an all-files add', async () => {
     const f = fixture();
@@ -195,9 +187,9 @@ describe('source contribution Git isolation', () => {
     mkdirSync(path.join(f.dir, 'a'));
     writeFileSync(path.join(f.dir, 'a/base.bin'), Buffer.from([0, 255, 1]));
     writeFileSync(path.join(f.dir, 'a.txt'), 'base');
-    git(f.dir, 'add', '--', 'a/base.bin', 'a.txt');
-    git(f.dir, 'commit', '-qm', 'nested baseline');
-    f.base = git(f.dir, 'rev-parse', 'HEAD').trim();
+    git(['add', '--', 'a/base.bin', 'a.txt'], f.dir);
+    git(['commit', '-qm', 'nested baseline'], f.dir);
+    f.base = git(['rev-parse', 'HEAD'], f.dir);
     writeFileSync(path.join(f.dir, 'a/中文.md'), 'captured');
     const adapter = new ContributionSystemGit(new NodeProcess());
     const snapshot = await adapter.capture({ ...f, paths: ['a/中文.md'] });
@@ -210,15 +202,13 @@ describe('source contribution Git isolation', () => {
       message: 'test',
     });
     expect(result.tree).toBe(snapshot.tree);
-    expect(execFileSync('git', ['-C', f.dir, 'show', `${result.commit}:a/base.bin`])).toEqual(
-      Buffer.from([0, 255, 1]),
-    );
+    expect(committedBytes(`${result.commit}:a/base.bin`, f.dir)).toEqual(Buffer.from([0, 255, 1]));
   });
   it('does not overwrite a contribution ref that changed concurrently', async () => {
     const f = fixture();
     const adapter = new ContributionSystemGit(new NodeProcess());
     const snapshot = await adapter.capture({ ...f, paths: ['selected.md'] });
-    git(f.dir, 'branch', 'fx/contribution/test', f.base);
+    git(['branch', 'fx/contribution/test', f.base], f.dir);
     await expect(
       construct(adapter, {
         snapshot,
@@ -228,13 +218,13 @@ describe('source contribution Git isolation', () => {
         message: 'test',
       }),
     ).rejects.toMatchObject({ code: 'SOURCE_GIT_FAILED' });
-    expect(git(f.dir, 'rev-parse', 'refs/heads/fx/contribution/test').trim()).toBe(f.base);
+    expect(git(['rev-parse', 'refs/heads/fx/contribution/test'], f.dir)).toBe(f.base);
   });
   it('preserves executable mode and explicit deletions', async () => {
     const f = fixture();
     writeFileSync(path.join(f.dir, 'run.sh'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-    git(f.dir, 'add', '--', 'run.sh');
-    git(f.dir, 'update-index', '--chmod=+x', '--', 'run.sh');
+    git(['add', '--', 'run.sh'], f.dir);
+    git(['update-index', '--chmod=+x', '--', 'run.sh'], f.dir);
     rmSync(path.join(f.dir, 'selected.md'));
     const adapter = new ContributionSystemGit(new NodeProcess());
     const snapshot = await adapter.capture({ ...f, paths: ['selected.md', 'run.sh'] });
@@ -245,7 +235,7 @@ describe('source contribution Git isolation', () => {
       expectedHead: null,
       message: 'test',
     });
-    expect(git(f.dir, 'ls-tree', result.commit, '--', 'run.sh').startsWith('100755')).toBe(true);
-    expect(git(f.dir, 'ls-tree', result.commit, '--', 'selected.md')).toBe('');
+    expect(git(['ls-tree', result.commit, '--', 'run.sh'], f.dir).startsWith('100755')).toBe(true);
+    expect(git(['ls-tree', result.commit, '--', 'selected.md'], f.dir)).toBe('');
   });
 });

@@ -142,11 +142,7 @@ export class StandaloneSkill {
     posture: WritePosture,
   ): Promise<SkillMutation> {
     if (operation === 'install') {
-      const action = await new SkillCopies(
-        this.deps.fs,
-        this.deps.version,
-        this.deps.skills,
-      ).install(row.path, {
+      const action = await new SkillCopies(this.deps).install(row.path, {
         posture,
         refresh: true,
         replace: this.deps.replace,

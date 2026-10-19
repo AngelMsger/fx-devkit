@@ -5,7 +5,7 @@ import path from 'node:path';
 import { NodeProcess } from '../../src/adapters/process/node-process.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, git, manifestDirOf, repository } from './harness.js';
+import { freshHome, git, manifestDirOf, repository, searchPath } from './harness.js';
 
 export function sourceFixture() {
   const root = freshHome();
@@ -86,7 +86,7 @@ else if(repoAt >= 0 && args[repoAt+1] === 'get') {
       FX_HOME: home,
       FX_TEST_HOST: hosts,
       FX_TEST_STATE: path.join(binaries, 'state.json'),
-      PATH: `${binaries}${path.delimiter}${process.env.PATH ?? ''}`,
+      PATH: searchPath(binaries),
     },
   };
 }

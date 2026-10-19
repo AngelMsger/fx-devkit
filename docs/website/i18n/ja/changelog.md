@@ -2,13 +2,22 @@
 
 ## [Unreleased]
 
-## 0.12.0 (2026-10-18)
+## 0.12.0 (2026-10-19)
 
 - GitHub で pull request を作成できるようになりました。`fx source push` は GitHub にある manifest ソースでも Bitbucket と同じように動作します。選択したファイルを `gh` を通じて検証済みの個人フォークに push し、上流に対する pull request を作成、再利用、または終了します。`--pr` には pull request の番号か GitHub 上のページを指定できます。
 - `fx import` が github.com から HTTPS または SSH でクローンした checkout を認識し、対応する clone のプレフィックスをホストとして code-host `github` を結び付けます。GitHub Enterprise サーバーは、引き続きリモートから推測しません。
 - 自分の WeCom カレンダーを履歴ごと検索できるローカルミラー `wecom-calendar-cli` を、ツールカタログと `calendar` の provider に追加しました。`fx can` は各メンバーのサインインを確認し、エージェントに `wecom-calendar-cli event list` を渡します。`wecom-calendar-cli sync` でミラーを満たすかどうかはメンバー自身が決めます。
 - プラットフォームが CI のビルドがチェックアウトしたコミットを示す場合は、そのコミットでビルドを判定します。`fx release check` は、ブランチの先頭コミットをビルドして成功したビルドを合格とし、別のコミットのビルドは不合格とします。ビルドの開始時刻と先頭コミットの作成時刻は比較しません。GitHub Actions はコミットを示し、Jenkins は jenkins-cli 0.12.0 以降で示します。コミットがわからない場合は、これまでどおり時刻で判定します。CI の根拠に `commit` が加わります。
 - `github-actions` の ci 環境で `branch` を省略できるようになりました。その場合、`fx release check` は各側で確認しているブランチの実行を数えます。
+- `init`、`sync`、`doctor` の JSON レポートの要約に、`untrusted`、`missing_variables`、`invalid`、`busy` を報告する MCP、rules、hook の行を残します。これまでは `omitted` に数えられるだけで、同じステージの `foreign` や `conflict` の行は表示されていました。
+- 対応 CLI へのクエリ、`sentry`、`git` は、実行ファイルを起動できなかった場合にだけ `TOOL_MISSING` を報告します。起動したうえで自ら 127 で終了した場合は、すでに入っているツールのインストールを求めるのではなく、失敗したクエリまたは Git 操作としてそのまま報告します。
+- `fx can mcp:<name>` の `--agent` が認識できない場合、`fx agent pick` や `fx skill install` と同じく `"<id>" is not an agent fx knows` と伝えます。`fx release check` は未知のリポジトリをほかのリポジトリ系コマンドと同じ言い回しで報告し、近い名前がなければ既知の名前を挙げ、次の手順にワークスペースを残します。
+- エラーが提案するコマンドでは、引用が必要なディレクトリ名、ツール名、リポジトリ名を引用します。対象は `IMPORT_INSIDE_ROOT` のインポート対象のディレクトリ、保留されたインストールのツールや Skill の準備に必要なのに不足している対応 CLI、`PROBE_RECORD_INPUT_REQUIRED` のリポジトリです。空白を含むパスも表示どおりに貼り付けて実行できます。
+- 次の場面で示すコマンドを、設定された `command_shell` に合わせて引用します。ワークスペースの `relocate`、`rebind` に続くコマンド、`fx init` が受け付けられない、または再開できない登録、ワークスペースが変わった profile のインポートやソースへの貢献、記録できなかった probe、記述対象のディレクトリの内側を指す manifest のインポート、登録されていない名前を指す `--workspace`。これまでは設定にかかわらず POSIX の引用で表示されていました。
+- manifest リポジトリや `local-git` コードホストを読むときも、リポジトリ同期と同じく git を C ロケールで実行します。ほかのロケールでは、git の翻訳されたメッセージを認識できず、ブランチに存在しないファイルがクエリの失敗として報告されていました。これらの場面で git を起動できない場合は `TOOL_MISSING` になります。
+- 記録された harness のパスや貢献のパスに、大文字小文字を問わない `.git` セグメントや削除文字が含まれる場合は拒否します。harness の所有権メタデータは `.GIT/...` を受け入れており、大文字小文字を区別しないボリュームではリポジトリ自身のディレクトリに解決されていました。どちらのストアも、記録されたパスを `fx source push` が選択に適用するのと同じ規則で検証します。
+- 名前に空白や非 ASCII 文字を含むディレクトリの下、または Windows に fx がインストールされている場合、`fx self info` の `bundled_tools` はファイルシステムが受け付けるパスを示します。これまではパーセントエンコードされた URL パスでした。
+- manifest ソースを記録していない登録を `fx init --resume` で続行しても、登録はそのまま保たれます。これまでは再開時に `source: "-"` が `config.yaml` に書き込まれ、その後 `fx sync` はそのワークスペースを stdin から用意したものと見なして更新できるソースがないことを知らせなくなり、`fx init <dir> --from <source>` はソースを記録する代わりに `SOURCE_MISMATCH` でそのディレクトリを拒否していました。
 
 ## 0.11.0 (2026-10-12)
 

@@ -1,8 +1,9 @@
 // Harness plans and results carry reference names, never environment values.
 
 import type { HandoffEnvelope } from '../../domain/errors.js';
+import type { HarnessAction } from '../../domain/harness/actions.js';
 import type { McpProjectionSupport } from '../../domain/harness/mcp.js';
-import type { HarnessReceipt, HarnessState } from '../../domain/harness/ownership.js';
+import type { HarnessKind, HarnessReceipt, HarnessState } from '../../domain/harness/ownership.js';
 import type { RulesProjectionInput, RulesProjectionResult } from '../../domain/harness/rules.js';
 import type { Harness, McpResource } from '../../domain/manifest/types.js';
 import type { AgentHost } from '../../ports/agent-host.js';
@@ -31,7 +32,7 @@ export interface HarnessInput {
   readonly harness: Harness | undefined;
   readonly selected: readonly string[];
   readonly action: 'inspect' | 'sync';
-  readonly only?: 'mcp' | 'rules' | undefined;
+  readonly only?: HarnessKind | undefined;
   readonly cleanupAgents?: readonly string[] | undefined;
   readonly dryRun: boolean;
   readonly yes: boolean;
@@ -42,27 +43,19 @@ export interface HarnessInput {
 }
 export interface HarnessRow {
   readonly key: string;
-  readonly kind: 'mcp' | 'rules';
+  readonly kind: HarnessKind;
   readonly name: string;
   readonly agents: readonly string[];
   readonly path: string | null;
-  readonly action: string;
+  readonly action: HarnessAction;
   readonly variables: readonly string[];
   readonly handoff: HandoffEnvelope | null;
 }
-export const HARNESS_COLUMNS = [
-  'agent',
-  'action',
-  'activation',
-  'path',
-  'context',
-  'command',
-] as const;
-
 export interface HarnessOutput {
   readonly items: readonly HarnessRow[];
   readonly written: boolean;
 }
+export type HarnessStageDetails = Pick<HarnessOutput, 'items'>;
 export interface HarnessChange {
   readonly key: string;
   readonly relative: string;
@@ -78,7 +71,7 @@ export interface HarnessPlan {
 }
 export interface HarnessTarget {
   readonly key: string;
-  readonly kind: 'mcp' | 'rules';
+  readonly kind: HarnessKind;
   readonly name: string;
   readonly relative: string;
   readonly protocol: string;

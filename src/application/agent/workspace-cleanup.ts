@@ -11,11 +11,15 @@ import { withWorkspaceOperation } from '../workspace/operation.js';
 
 import type { AgentCleanupInput } from './cleanup.js';
 
-interface CleanupDeps {
+// Where the registered workspaces are recorded and how each one's files are reached.
+export interface RegisteredWorkspaces {
   readonly config: ConfigStore;
   readonly fs: FileSystem;
-  readonly lock: Lock;
   readonly manifestDirFor: (name: string) => string;
+}
+
+interface CleanupDeps extends RegisteredWorkspaces {
+  readonly lock: Lock;
 }
 
 interface WorkspaceCleanupInput extends AgentCleanupInput {
@@ -30,11 +34,13 @@ export async function cleanupAgentWorkspaces(
 ): Promise<readonly AgentCleanupRow[]> {
   const rows: AgentCleanupRow[] = [];
   for (const workspace of input.workspaces) {
+    const cleanup = (): Promise<readonly AgentCleanupRow[]> =>
+      cleanupWorkspace(deps, input, workspace);
     try {
       rows.push(
-        ...(await withWorkspaceOperation(deps.lock, workspace, input.dryRun, () =>
-          cleanupWorkspace(deps, input, workspace),
-        )),
+        ...(input.dryRun
+          ? await cleanup()
+          : await withWorkspaceOperation(deps.lock, workspace, cleanup)),
       );
     } catch (error) {
       rows.push(...failureRows(input, workspace, asDevkitError(error).code));

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { KUBECTL_RECIPES } from '../../../../src/adapters/cluster/kubectl/recipes.js';
 import type { Environments } from '../../../../src/domain/manifest/types.js';
 import { planSetup, type RecipeSource } from '../../../../src/domain/setup/planner.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
@@ -97,7 +96,7 @@ describe('planSetup', () => {
     const plan = planSetup({
       tools: [tool('kubectl')],
       recipes: ['alpha', 'beta'].flatMap((platform) =>
-        KUBECTL_RECIPES.map((recipe) => ({
+        [kubeconfig, access].map((recipe) => ({
           recipe,
           platform,
           vars: { context: platform, kubeconfig: `/${platform}` },

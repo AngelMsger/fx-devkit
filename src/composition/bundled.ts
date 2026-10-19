@@ -17,8 +17,12 @@ export function bundledPackage(): PackageMetadata {
   return { name, version };
 }
 
+export function bundledToolsPathFrom(moduleUrl: string): string {
+  return fileURLToPath(new URL('../../defaults/tools.yaml', moduleUrl));
+}
+
 export function bundledToolsPath(): string {
-  return fileURLToPath(new URL('../../defaults/tools.yaml', import.meta.url));
+  return bundledToolsPathFrom(import.meta.url);
 }
 
 export function bundledToolsText(): string {

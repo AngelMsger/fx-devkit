@@ -22,15 +22,6 @@ export interface DoctorReport extends Omit<Report<Group>, 'ok' | 'complete'> {
   readonly repairs: readonly RepairAttempt[];
 }
 
-export const DOCTOR_FINDING_COLUMNS = [
-  'group',
-  'level',
-  'coverage',
-  'id',
-  'message',
-  'fix',
-] as const;
-
 export function finding(
   group: Group,
   id: string,
@@ -48,10 +39,4 @@ export interface DoctorInput {
   readonly dryRun: boolean;
   readonly noInput: boolean;
   readonly posture: WritePosture;
-}
-
-export interface DoctorExtension {
-  readonly group: string;
-  readonly check: () => Promise<readonly Finding[]>;
-  readonly fix?: (input: DoctorInput) => Promise<void>;
 }

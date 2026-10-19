@@ -1,7 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -10,21 +8,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { FileLock } from '../../src/infra/lock.js';
 import { FileTrustStore } from '../../src/infra/trust-store.js';
 import { FakeClock } from '../fakes/fake-clock.js';
+import { tempDir } from '../temp.js';
 
-const dirs: string[] = [];
 const children: ChildProcess[] = [];
 const lockModule = pathToFileURL(path.resolve('dist/infra/lock.js')).href;
 const trustModule = pathToFileURL(path.resolve('dist/infra/trust-store.js')).href;
-afterEach(async () => {
+afterEach(() => {
   for (const child of children.splice(0)) child.kill('SIGKILL');
-  await Promise.all(dirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
-
-async function home(): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-lock-process-'));
-  dirs.push(dir);
-  return dir;
-}
 
 function child(code: string): ChildProcess {
   const proc = spawn(process.execPath, ['--input-type=module', '-e', code], {
@@ -36,7 +27,7 @@ function child(code: string): ChildProcess {
 
 describe('leases between real processes', () => {
   it('keeps a live owner and recovers after that owner is killed', async () => {
-    const dir = await home();
+    const dir = tempDir('fx-lock-process-');
     const holder = child(`import { FileLock } from ${JSON.stringify(lockModule)};
       await new FileLock(${JSON.stringify(dir)}).acquire({key:'test',waitMs:0});
       process.stdout.write('held'); setInterval(()=>{},1000);`);
@@ -54,7 +45,7 @@ describe('leases between real processes', () => {
   });
 
   it('preserves approvals written by independent processes', async () => {
-    const dir = await home();
+    const dir = tempDir('fx-lock-process-');
     const completed = Array.from({ length: 4 }, (_, i) => {
       const proc = child(`import { FileLock } from ${JSON.stringify(lockModule)};
         import { FileTrustStore } from ${JSON.stringify(trustModule)};

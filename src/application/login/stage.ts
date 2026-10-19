@@ -6,16 +6,19 @@ import path from 'node:path';
 import type { HandoffStep } from '../../domain/errors.js';
 import { preparationCheck, type PreparationAction } from '../../domain/preparation.js';
 import type { Finding } from '../../domain/report.js';
-import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
-import type { LoginDeps } from '../login/deps.js';
-import { expectedPath } from '../login/handoff.js';
-import { Login, type StepRow } from '../login/run.js';
-import { expandHome, gaveNoAnswer } from '../login/verify.js';
-import { noAnswerAction, resumeAction, verifyAction } from '../preparation.js';
+import { gaveNoAnswer, unansweredSteps } from '../../domain/setup/progress.js';
+import { isLocalPreparation, type SetupStep } from '../../domain/setup/types.js';
+import { noAnswerAction, resumeAction, verifyAction, type StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync/types.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+
+import type { LoginDeps } from './deps.js';
+import { expectedPath } from './handoff.js';
+import { isSettled, Login, type LoginOutput, type StepRow } from './run.js';
+import { expandHome } from './verify.js';
+
+export type SetupStageDetails = Pick<LoginOutput, 'items' | 'problems'>;
 
 export async function prepareWorkspaceSetup(
   deps: WorkspaceDeps,
@@ -26,7 +29,7 @@ export async function prepareWorkspaceSetup(
     readonly dryRun: boolean;
     readonly posture: WritePosture;
   },
-): Promise<StageResult> {
+): Promise<StageResult<SetupStageDetails>> {
   const scope = workspaceToolScope(deps.ctx, {});
   const useCase = new Login(deps, login);
   const plan = await useCase.plan({ tools: scope.configuredNames });
@@ -38,14 +41,15 @@ export async function prepareWorkspaceSetup(
     noInput: true,
     posture: input.posture,
   });
-  const unanswered = unansweredSteps(plan, output.items);
+  const codes = new Map(output.items.map((item) => [item.id, item.failure?.code]));
+  const unanswered = unansweredSteps(plan.steps, (step) => gaveNoAnswer(codes.get(step.id)));
   return {
     summary: output.summary,
     details: { items: output.items, problems: output.problems },
     checks: [
       ...output.items.map((item) => {
         const step = plan.steps.find((step) => step.id === item.id)!;
-        const ready = item.result === 'verified' || item.result === 'done';
+        const ready = isSettled(item.result);
         const unknown = unanswered.has(item.id);
         const expected = ready || unknown ? undefined : expectedFile(deps, step, login.home);
         const detail = `${item.title}: ${item.detail ?? item.result}${expected === undefined ? '' : `; expected ${expected}`}`;
@@ -53,7 +57,7 @@ export async function prepareWorkspaceSetup(
         return preparationCheck(`login:${item.id}`, ready ? 'ready' : pending, detail, {
           resource: item.id,
           required: scope.required.has(item.tool),
-          owner: unknown || step.phase === 'prepare' ? 'agent' : 'user',
+          owner: unknown || isLocalPreparation(step) ? 'agent' : 'user',
           ...(ready
             ? {}
             : {
@@ -77,17 +81,6 @@ export async function prepareWorkspaceSetup(
   };
 }
 
-// Steps whose check gave no answer and, the plan listing prerequisites first, the steps
-// that wait on them: as unknown as the check, and nobody's to act on.
-function unansweredSteps(plan: SetupPlan, items: readonly StepRow[]): ReadonlySet<string> {
-  const codes = new Map(items.map((item) => [item.id, item.failure?.code]));
-  const unanswered = new Set<string>();
-  for (const step of plan.steps)
-    if (gaveNoAnswer(codes.get(step.id)) || step.requires.some((id) => unanswered.has(id)))
-      unanswered.add(step.id);
-  return unanswered;
-}
-
 // A check that gave no answer offers its own recovery; a step waiting on it offers none.
 function actionsFor(
   deps: WorkspaceDeps,
@@ -102,7 +95,7 @@ function actionsFor(
   const code = row.item.failure?.code;
   if (code !== undefined && gaveNoAnswer(code)) return [noAnswerAction(deps, step, code)];
   if (row.unknown) return [];
-  if (step.phase !== 'prepare' && code === 'VECTOR_UNTRUSTED')
+  if (!isLocalPreparation(step) && code === 'VECTOR_UNTRUSTED')
     return [verifyAction(deps, step.tool)];
   const { initializing, item } = row;
   return setupActions(deps, step, home, { initializing, handoff: item.handoff });
@@ -131,23 +124,24 @@ export function setupActions(
 ): PreparationAction[] {
   const { initializing = false, handoff } = options;
   const expected = expectedFile(deps, step, home);
-  if (step.phase === 'prepare')
+  if (isLocalPreparation(step)) {
+    const resume = resumeAction({ workspace: deps.ctx.name, cwd: deps.ctx.root });
     return [
       {
-        ...resumeAction(deps),
+        ...resume,
         id: `approve:${step.id}`,
         description: initializing
           ? 'Review the remaining initialization effects and continue this workspace'
           : `Repair ${step.tool}'s local preparation and the workspace's managed guides and Skills`,
         argv: initializing
-          ? [...resumeAction(deps).argv, '--yes']
+          ? [...resume.argv, '--yes']
           : ['fx', 'doctor', '--fix', '--tool', step.tool, '--workspace', deps.ctx.name, '--yes'],
         requires_approval: true,
       },
     ];
+  }
   return [
     {
-      actor: 'user',
       id: `login:${step.id}`,
       description: `${handoff?.instructions ?? step.instructions ?? step.title}${expected === undefined ? '' : ` Expected file: ${expected}.`}`,
       argv: [
@@ -159,6 +153,7 @@ export function setupActions(
         ...(step.env ? ['--env', step.env] : []),
       ],
       cwd: deps.ctx.root,
+      actor: 'user',
       requires_approval: true,
     },
   ];

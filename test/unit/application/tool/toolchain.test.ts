@@ -2,8 +2,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { toolchainOf } from '../../../../src/application/tool/toolchain.js';
+import { resolveToolchain, toolchainOf } from '../../../../src/application/tool/toolchain.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
 import { commandOrigin } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
+import { FakeReporter } from '../../../fakes/fake-reporter.js';
 import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
 
 const workspace = (providers: string): string =>
@@ -130,5 +133,36 @@ describe('a tool several providers drive', () => {
       kind: 'binding',
       boundBy: ['knowledge-base', 'im'],
     });
+  });
+});
+
+describe('resolveToolchain', () => {
+  function outside(failure: DevkitError) {
+    const reporter = new FakeReporter();
+    return {
+      reporter,
+      source: {
+        workspace: () => Promise.reject(failure),
+        bundledTools,
+        cliVersion: '1.0.0',
+        reporter,
+      },
+    };
+  }
+
+  it('stands the whole bundled catalog in outside a workspace, and says so', async () => {
+    const s = outside(new DevkitError('not_found', 'WORKSPACE_NOT_FOUND', 'No workspace here'));
+    const toolchain = await resolveToolchain(s.source);
+    expect(toolchain.workspace).toBeUndefined();
+    expect(toolchain.tools.map((tool) => tool.name)).toContain('bitbucket-cli');
+    expect(toolchain.all).toEqual(toolchain.tools);
+    expect(toolchain.sources.get('bitbucket-cli')).toEqual({ kind: 'catalog', boundBy: [] });
+    expect(s.reporter.codes()).toEqual(['TOOLCHAIN_BUNDLED']);
+  });
+
+  it('reports a workspace it cannot read instead of answering from the bundled catalog', async () => {
+    const s = outside(new DevkitError('config', 'MANIFEST_INVALID', 'The manifest is invalid'));
+    await expect(resolveToolchain(s.source)).rejects.toMatchObject({ code: 'MANIFEST_INVALID' });
+    expect(s.reporter.notices).toEqual([]);
   });
 });

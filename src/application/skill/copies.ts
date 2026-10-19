@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import { busyError, DevkitError } from '../../domain/errors.js';
+import { withLease } from '../../domain/lease.js';
 import { pathKey } from '../../domain/path.js';
 import { decideCopy, type CopyAction } from '../../domain/skills/projection.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -43,20 +44,21 @@ async function lockedSkillWork<T>(
   work: (canonical: string) => Promise<T>,
 ): Promise<T> {
   const canonical = await canonicalSkillPath(fs, target);
-  const lease = await lock.acquire({ key: `skill:${pathKey(canonical)}`, waitMs: 2000 });
-  if (lease === null)
-    throw busyError('SKILL_BUSY', 'The Skill', {
-      nextSteps: ['Retry the Skill command after the other update completes.'],
-    });
-  try {
-    if (pathKey(await canonicalSkillPath(fs, target)) !== pathKey(canonical))
-      throw new DevkitError('conflict', 'SKILL_TARGET_CHANGED', 'The Skill target changed', {
-        nextSteps: ['Inspect the target directory and retry.'],
-      });
-    return await work(canonical);
-  } finally {
-    await lease?.release();
-  }
+  return withLease(
+    lock,
+    { key: `skill:${pathKey(canonical)}`, waitMs: 2000 },
+    () =>
+      busyError('SKILL_BUSY', 'The Skill', {
+        nextSteps: ['Retry the Skill command after the other update completes.'],
+      }),
+    async () => {
+      if (pathKey(await canonicalSkillPath(fs, target)) !== pathKey(canonical))
+        throw new DevkitError('conflict', 'SKILL_TARGET_CHANGED', 'The Skill target changed', {
+          nextSteps: ['Inspect the target directory and retry.'],
+        });
+      return work(canonical);
+    },
+  );
 }
 
 export interface CopySkillInput {
@@ -66,18 +68,21 @@ export interface CopySkillInput {
   readonly validate?: (target: string) => Promise<void>;
 }
 
+export interface SkillCopiesDeps {
+  readonly fs: FileSystem;
+  // The version of the bundled Skill a copy is compared against.
+  readonly version: string;
+  readonly skills: Pick<SkillDeps, 'globalLock' | 'bundledSkillDir'>;
+}
+
 export class SkillCopies {
-  constructor(
-    private readonly fs: FileSystem,
-    private readonly version: string,
-    private readonly skills: Pick<SkillDeps, 'globalLock' | 'bundledSkillDir'>,
-  ) {}
+  constructor(private readonly deps: SkillCopiesDeps) {}
 
   async install(target: string, input: CopySkillInput = {}): Promise<CopyAction> {
-    return withSkillLock(this.fs, this.skills.globalLock, target, async (canonical) => {
+    return withSkillLock(this.deps.fs, this.deps.skills.globalLock, target, async (canonical) => {
       await input.validate?.(canonical);
-      const observed = await observeCopy(this.fs, canonical);
-      let action = decideCopy(observed, this.version);
+      const observed = await observeCopy(this.deps.fs, canonical);
+      let action = decideCopy(observed, this.deps.version);
       if (input.refresh && observed.kind === 'ours') action = 'upgrade';
       if (
         input.posture &&
@@ -87,7 +92,7 @@ export class SkillCopies {
       if (action === 'foreign' && input.replace && (await input.replace([canonical])))
         action = 'install';
       if (action === 'install' || action === 'upgrade')
-        await this.fs.replaceDir(this.skills.bundledSkillDir, canonical);
+        await this.deps.fs.replaceDir(this.deps.skills.bundledSkillDir, canonical);
       return action;
     });
   }

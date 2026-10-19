@@ -4,7 +4,6 @@ import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
 import { resolveSharedRepo, type ResolvedRepo } from '../../domain/manifest/local.js';
-import { samePath } from '../../domain/path.js';
 import type { DiskState, Readability, RepoUrls } from '../../domain/workspace/plan.js';
 import { repoRef } from '../../domain/workspace/ref.js';
 
@@ -18,10 +17,7 @@ export function checkoutDir(deps: WorkspaceDeps, repo: Pick<ResolvedRepo, 'path'
 export async function inspectDisk(deps: WorkspaceDeps, repo: ResolvedRepo): Promise<DiskState> {
   const dir = checkoutDir(deps, repo);
   if (!(await deps.fs.exists(dir))) return { kind: 'absent' };
-  const top = await deps.git.toplevel(dir);
-  // git reports resolved paths; a workspace under /tmp or /var is reached through a symlink.
-  if (top === undefined || !samePath(await deps.fs.realpath(top), await deps.fs.realpath(dir)))
-    return { kind: 'not_git' };
+  if (!(await deps.git.isToplevel(dir))) return { kind: 'not_git' };
   const compareTo = repo.branch === undefined ? undefined : `upstream/${repo.branch}`;
   const [state, remotes] = await Promise.all([
     deps.git.status(dir, compareTo),

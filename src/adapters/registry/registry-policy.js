@@ -2,22 +2,13 @@
 // Shared JavaScript keeps the same registry policy available to runtime adapters
 // and pre-build publication guards. Private coordinates come only from configuration.
 import { PUBLIC_REGISTRY, packageChannel } from '../../domain/distribution.js';
+import { isPublicHttpUrl } from '../../domain/public-url.js';
 
 /** @param {unknown} value @returns {string | null} */
 function registryUrl(value) {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  try {
-    const url = new URL(value.trim());
-    return ['https:', 'http:'].includes(url.protocol) &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return isPublicHttpUrl(text) ? new URL(text).href : null;
 }
 
 /** @param {unknown} value @returns {string | null} */

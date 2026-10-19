@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { ImportProvider } from '../../../domain/import/infer.js';
 import type { Process } from '../../../ports/process.js';
+import { runGit } from '../../git/run.js';
 
 export async function identifyLocalGitRemote(
   process: Process,
@@ -21,8 +22,7 @@ export async function identifyLocalGitRemote(
   if (!path.isAbsolute(directory) || !directory.endsWith('.git')) return undefined;
   const project = path.dirname(directory);
   if (path.basename(project).length === 0) return undefined;
-  const result = await process.run([
-    'git',
+  const result = await runGit(process, [
     '--git-dir',
     directory,
     'rev-parse',

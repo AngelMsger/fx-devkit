@@ -1,11 +1,31 @@
-// A service block is checked against the provider's own declaration, so these
-// expectations move with the adapters rather than with a table in the rules.
+// A service block is checked against what the provider it names declares, so each
+// provider here is one such declaration: the settings it takes and how it signs in.
 import { describe, expect, it } from 'vitest';
 
-import { providerCatalog } from '../../../../src/composition/registry.js';
+import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.js';
 import { serviceRules } from '../../../../src/domain/manifest/rules/services.js';
 
-const providers = providerCatalog();
+const providers: ProviderCatalog = [
+  {
+    id: 'with-sign-in',
+    capability: 'code-host',
+    tools: [],
+    settings: { fields: ['base_url', 'context', 'auth_scheme'], authSchemes: ['pat'] },
+  },
+  {
+    id: 'without-sign-in',
+    capability: 'metrics',
+    tools: [],
+    settings: { fields: ['base_url', 'context', 'auth_scheme'], authSchemes: ['none', 'bearer'] },
+  },
+  {
+    id: 'no-auth-setting',
+    capability: 'error-tracker',
+    tools: [],
+    settings: { fields: ['base_url', 'org'] },
+  },
+  { id: 'no-settings', capability: 'cluster', tools: [] },
+];
 const path = 'providers.code-host.service';
 const messages = (problems: readonly { path: string; message: string }[]): string[] =>
   problems.map((problem) => `${problem.path}: ${problem.message}`);
@@ -15,7 +35,7 @@ describe('serviceRules', () => {
     expect(
       serviceRules({
         providers,
-        provider: 'bitbucket-cli',
+        provider: 'with-sign-in',
         service: {
           base_url: 'https://git.example.com',
           context: 'corp',
@@ -32,7 +52,7 @@ describe('serviceRules', () => {
       messages(
         serviceRules({
           providers,
-          provider: 'sentry',
+          provider: 'no-auth-setting',
           service: { base_url: 'https://sentry.example.com', auth_scheme: 'token' },
           vars: {},
           path,
@@ -46,9 +66,9 @@ describe('serviceRules', () => {
   });
 
   it.each([
-    ['prometheus-cli', []],
+    ['without-sign-in', []],
     [
-      'jenkins-cli',
+      'with-sign-in',
       [`${path}.auth_scheme: authentication method is not supported by this provider`],
     ],
   ])(
@@ -70,7 +90,7 @@ describe('serviceRules', () => {
       messages(
         serviceRules({
           providers,
-          provider: 'kubectl',
+          provider: 'no-settings',
           service: { base_url: 'https://k8s.example.com' },
           vars: {},
           path,
@@ -79,13 +99,10 @@ describe('serviceRules', () => {
     ).toEqual([`${path}: provider does not support shared service configuration`]);
   });
 
-  // The degraded path: a load that was given no catalog cannot say what a provider
-  // accepts, so it must skip those checks instead of reporting the provider as one
-  // that refuses settings, while the provider-independent conflict still holds.
   it('skips the provider-specific checks, and only those, when no catalog was supplied', () => {
     const service = { base_url: 'https://sentry.example.com', auth_scheme: 'token' } as const;
     expect(
-      serviceRules({ providers: undefined, provider: 'sentry', service, vars: {}, path }),
+      serviceRules({ providers: undefined, provider: 'no-auth-setting', service, vars: {}, path }),
     ).toEqual([]);
     expect(
       messages(

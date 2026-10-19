@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -8,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AGENT_SPECS } from '../../../src/adapters/agent-host/specs.js';
 import { hookProtocolFor } from '../../../src/composition/registry.js';
+import { tempDir } from '../../temp.js';
 
 describe('extension lifecycle bridge', () => {
   it('executes the generated bridge and delivers context without starting a new turn', async () => {
@@ -18,32 +18,27 @@ describe('extension lifecycle bridge', () => {
     const js = ts.transpileModule(out.text!, {
       compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
     }).outputText;
-    const temporary = mkdtempSync(path.join(tmpdir(), 'fx-bridge-'));
-    const file = path.join(temporary, 'bridge.mjs');
+    const file = path.join(tempDir('fx-bridge-'), 'bridge.mjs');
     writeFileSync(file, js);
-    try {
-      const loaded = await import(/* @vite-ignore */ pathToFileURL(file).href);
-      let callback: ((event: unknown, ctx: { cwd: string }) => Promise<void>) | undefined;
-      const messages: unknown[] = [];
-      loaded.default({
-        on: (event: string, handler: typeof callback) => {
-          if (event === 'session_start') callback = handler;
-        },
-        sendMessage: (message: unknown, options: unknown) => {
-          messages.push({ message, options });
-        },
-      });
-      expect(messages).toEqual([]);
-      await callback?.({}, { cwd: process.cwd() });
-      expect(messages).toEqual([
-        {
-          message: { customType: 'fx-workspace', content: '中', display: false },
-          options: { triggerTurn: false },
-        },
-      ]);
-    } finally {
-      rmSync(temporary, { recursive: true, force: true });
-    }
+    const loaded = await import(/* @vite-ignore */ pathToFileURL(file).href);
+    let callback: ((event: unknown, ctx: { cwd: string }) => Promise<void>) | undefined;
+    const messages: unknown[] = [];
+    loaded.default({
+      on: (event: string, handler: typeof callback) => {
+        if (event === 'session_start') callback = handler;
+      },
+      sendMessage: (message: unknown, options: unknown) => {
+        messages.push({ message, options });
+      },
+    });
+    expect(messages).toEqual([]);
+    await callback?.({}, { cwd: process.cwd() });
+    expect(messages).toEqual([
+      {
+        message: { customType: 'fx-workspace', content: '中', display: false },
+        options: { triggerTurn: false },
+      },
+    ]);
   });
   const support = AGENT_SPECS.find((s) => s.id === 'pi')!.hooks!;
   const input = {

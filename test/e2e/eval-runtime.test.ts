@@ -7,7 +7,7 @@ import path from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { tempDir, userHome } from './harness.js';
+import { childEnvironment, tempDir } from './harness.js';
 
 // This case tests the POSIX evaluation launcher; native Windows has its own check entry.
 it.skipIf(process.platform === 'win32')(
@@ -16,7 +16,7 @@ it.skipIf(process.platform === 'win32')(
     const root = tempDir('fx evaluation ');
     const result = spawnSync('bash', ['docs/eval/sandbox.sh', 'smoke'], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: userHome, EVAL: root },
+      env: childEnvironment({ EVAL: root }),
     });
     expect(result.status, result.stderr).toBe(0);
     const smoke = readdirSync(root).find((name) => name.startsWith('smoke.'));

@@ -11,13 +11,15 @@ import type { Reporter } from '../../ports/reporter.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
 import { DeriveDocs } from '../docs/derive.js';
-import { checkLogin } from '../doctor/login.js';
 import type { HarnessSession } from '../harness/session.js';
 import { manageHarness } from '../harness/stages.js';
+import { checkLogin } from '../login/check.js';
 import type { LoginDeps } from '../login/deps.js';
 import { RefreshManifest } from '../manifest/refresh.js';
+import { BACKGROUND_POSTURE } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
+import { wasHeldBack } from '../skill/tool-skills.js';
 import { Tally } from '../tally.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { FxUpdateCheck } from '../update/fx.js';
@@ -40,7 +42,7 @@ export interface BackgroundDeps {
   readonly skills: (agents: readonly string[] | undefined) => SkillDeps;
   readonly manifest: {
     readonly dir: string;
-    readonly source: () => Promise<ManifestSource | undefined>;
+    readonly sourceFor: (spec: string) => Promise<ManifestSource>;
     readonly update: ManifestUpdateCheck;
   };
   readonly self: {
@@ -70,8 +72,9 @@ export function backgroundPhases(deps: BackgroundDeps): BackgroundPhases {
 async function refreshManifest(deps: BackgroundDeps): Promise<readonly HookObservation[]> {
   const observed = observer(deps, 'manifest');
   if (!(await updatesEnabled(deps))) return [observed('UPDATE_CHECK_DISABLED')];
-  const source = await deps.manifest.source();
-  if (source === undefined) return [observed('MANIFEST_REFRESH_UNAVAILABLE', 'fx sync')];
+  const spec = (await deps.config.read()).workspaces?.[deps.workspace]?.source;
+  if (spec === undefined) return [observed('MANIFEST_REFRESH_UNAVAILABLE', 'fx sync')];
+  const source = await deps.manifest.sourceFor(spec);
   if (source.kind !== 'repo') return [observed('MANIFEST_STATIC')];
   const { dir, update } = deps.manifest;
   const verdict = await update.execute({ workspace: deps.workspace, sourceDir: dir });
@@ -82,7 +85,7 @@ async function refreshManifest(deps: BackgroundDeps): Promise<readonly HookObser
     manifestDir: dir,
     source,
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
     settle: () => update.markCurrent(deps.workspace, dir),
   });
   return [observed(`MANIFEST_${result.result.toUpperCase()}`, 'fx sync')];
@@ -95,7 +98,7 @@ async function deriveDocs(deps: BackgroundDeps, lease: Lease): Promise<readonly 
   const result = await new DeriveDocs(await deps.context(), deps.login).execute({
     check: false,
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
   });
   const harness = await manageHarness({
     ...deps.harness,
@@ -122,13 +125,12 @@ async function projectSkills(deps: BackgroundDeps): Promise<readonly HookObserva
   const settings = readSettings({ env: deps.env, file: await deps.config.read() });
   const result = await new SkillStage(workspace, deps.skills(settings.agents)).execute({
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
     toolchain: toolchainOf(workspace.ctx).tools,
-    trust: { ...deps.login.trust, workspace: deps.workspace },
     background: true,
   });
   const observations: HookObservation[] = [];
-  if (result.tools.some((tool) => tool.note === 'untrusted'))
+  if (result.tools.some(wasHeldBack))
     observations.push(observed('VECTOR_UNTRUSTED', 'fx sync --only skills'));
   if (
     result.fx.some((copy) => copy.action === 'foreign') ||

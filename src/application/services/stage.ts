@@ -1,27 +1,28 @@
 // Explicit setup runs only public preparation, never login or credential acquisition.
 import { preparationCheck } from '../../domain/preparation.js';
+import { problemsOfRecipe, SERVICE_RECIPE_ID } from '../../domain/setup/names.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
-import type { StageResult } from '../sync/types.js';
+import type { StageResult } from '../preparation.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { ServiceOperation } from './operation.js';
-import type { ServiceResult } from './types.js';
+import { SERVICE_STATUSES, type ServiceResult, type ServiceStageDetails } from './types.js';
 
 export async function prepareServices(
   deps: WorkspaceDeps,
   login: LoginDeps,
-  dryRun: boolean,
-): Promise<StageResult> {
+  options: { readonly dryRun: boolean },
+): Promise<StageResult<ServiceStageDetails>> {
   const plan = buildPlan(deps, login, { scopeEnvs: deps.ctx.local.scope?.envs });
-  const problems = plan.problems.filter((problem) => /\.service(?:@|$)/.test(problem.step));
+  const problems = problemsOfRecipe(plan.problems, SERVICE_RECIPE_ID);
   const operation = new ServiceOperation(deps, login);
   const items: ServiceResult[] = [];
   for (const step of plan.steps.filter((step) => step.preparation))
-    items.push(await operation.execute(step, dryRun));
+    items.push(await operation.execute(step, options));
   const summary = Object.fromEntries(
-    ['unchanged', 'configured', 'planned', 'blocked', 'failed'].map((status) => [
+    SERVICE_STATUSES.map((status) => [
       status,
       items.filter((item) => item.status === status).length,
     ]),

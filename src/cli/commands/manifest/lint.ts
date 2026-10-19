@@ -9,11 +9,11 @@ export default class ManifestLint extends FxCommand {
   async run(): Promise<void> {
     await this.parse(ManifestLint);
     const dir = await this.manifestDir();
-    const findings = await new LintManifest(
-      this.container.fs,
-      this.container.bundledTools,
-      this.container.describeProvider,
-    ).execute({
+    const findings = await new LintManifest({
+      fs: this.container.fs,
+      bundledTools: this.container.bundledTools,
+      describeProvider: this.container.describeProvider,
+    }).execute({
       dir,
       cliVersion: this.config.version,
       providers: this.container.providers,

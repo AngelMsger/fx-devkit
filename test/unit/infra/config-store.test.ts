@@ -4,14 +4,16 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { FileConfigStore } from '../../../src/infra/config-store.js';
+import { FileLock } from '../../../src/infra/lock.js';
 import { tempDir } from '../../temp.js';
 
 const home = (): string => tempDir('fx-home-');
+const configStore = (dir: string): FileConfigStore => new FileConfigStore(dir, new FileLock(dir));
 
 describe('FileConfigStore', () => {
   it('holds the lease across async decisions and releases it after rejection', async () => {
     const dir = home();
-    const first = new FileConfigStore(dir);
+    const first = configStore(dir);
     let release!: () => void;
     let entered!: () => void;
     const pending = new Promise<void>((resolve) => {
@@ -26,7 +28,7 @@ describe('FileConfigStore', () => {
       return { user: 'first' };
     });
     await started;
-    const second = new FileConfigStore(dir).update(async (current) => ({
+    const second = configStore(dir).update(async (current) => ({
       ...current,
       hooks: false,
     }));
@@ -45,30 +47,30 @@ describe('FileConfigStore', () => {
 
   it('serializes independent registrations without losing settings or exposing partial YAML', async () => {
     const dir = home();
-    await new FileConfigStore(dir).write({ user: 'example' });
+    await configStore(dir).write({ user: 'example' });
     await Promise.all(
       Array.from({ length: 24 }, (_, i) =>
-        new FileConfigStore(dir).update((current) => ({
+        configStore(dir).update((current) => ({
           ...current,
           workspaces: { ...current.workspaces, [`ws-${i}`]: { root: `/work/ws-${i}` } },
         })),
       ),
     );
-    const current = await new FileConfigStore(dir).read();
+    const current = await configStore(dir).read();
     expect(Object.keys(current.workspaces ?? {})).toHaveLength(24);
     expect(current.user).toBe('example');
     await expect(
-      new FileConfigStore(dir).update(() => {
+      configStore(dir).update(() => {
         throw new Error('cancelled');
       }),
     ).rejects.toThrow('cancelled');
-    expect(await new FileConfigStore(dir).read()).toEqual(current);
+    expect(await configStore(dir).read()).toEqual(current);
   });
 
   it('returns actionable configuration errors for malformed YAML without echoing its contents', async () => {
     const dir = home();
     writeFileSync(path.join(dir, 'config.yaml'), 'user: [private-value\n');
-    await expect(new FileConfigStore(dir).read()).rejects.toMatchObject({
+    await expect(configStore(dir).read()).rejects.toMatchObject({
       category: 'config',
       code: 'CONFIG_INVALID',
       message: expect.not.stringContaining('private-value'),
@@ -76,12 +78,12 @@ describe('FileConfigStore', () => {
     });
   });
   it('reads an absent file as an empty config', async () => {
-    expect(await new FileConfigStore(home()).read()).toEqual({});
+    expect(await configStore(home()).read()).toEqual({});
   });
 
   it('round-trips a write and reports its path', async () => {
     const dir = home();
-    const store = new FileConfigStore(dir);
+    const store = configStore(dir);
     await store.write({ default_workspace: 'fx', workspaces: { fx: { root: '/w/fx' } } });
     expect((await store.read()).workspaces?.['fx']?.root).toBe('/w/fx');
     expect(store.path()).toBe(path.join(dir, 'config.yaml'));
@@ -91,7 +93,7 @@ describe('FileConfigStore', () => {
   it('rejects an unknown top-level key as a config error naming the file', async () => {
     const dir = home();
     writeFileSync(path.join(dir, 'config.yaml'), 'defualt_workspace: fx\n');
-    await expect(new FileConfigStore(dir).read()).rejects.toMatchObject({
+    await expect(configStore(dir).read()).rejects.toMatchObject({
       category: 'config',
       code: 'CONFIG_INVALID',
       message: expect.stringContaining('config.yaml'),
@@ -101,13 +103,13 @@ describe('FileConfigStore', () => {
   it('rejects a value of the wrong type', async () => {
     const dir = home();
     writeFileSync(path.join(dir, 'config.yaml'), 'read_only: maybe\n');
-    await expect(new FileConfigStore(dir).read()).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
+    await expect(configStore(dir).read()).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
   });
 
   it('rejects an output format the renderer does not implement', async () => {
     const dir = home();
     writeFileSync(path.join(dir, 'config.yaml'), 'format: bogus\n');
-    await expect(new FileConfigStore(dir).read()).rejects.toMatchObject({
+    await expect(configStore(dir).read()).rejects.toMatchObject({
       code: 'CONFIG_INVALID',
       message: expect.stringContaining('format'),
     });

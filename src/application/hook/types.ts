@@ -1,6 +1,7 @@
 // Hook plans and results name the host and its projection path, never its contents.
 
 import type { HandoffEnvelope } from '../../domain/errors.js';
+import type { HookAction } from '../../domain/harness/actions.js';
 import type { HookSupport } from '../../domain/harness/hooks.js';
 import type { HookReceipt, HookState } from '../../domain/harness/state.js';
 import type { AgentHost } from '../../ports/agent-host.js';
@@ -40,9 +41,18 @@ export interface HookRow {
   readonly agent: string;
   readonly path: string | null;
   readonly context: HookSupport['context'] | null;
-  readonly action: string;
+  readonly action: HookAction;
   readonly command: string | null;
 }
+
+export const HOOK_COLUMNS = [
+  'agent',
+  'action',
+  'activation',
+  'path',
+  'context',
+  'command',
+] as const;
 
 export interface HookOutput {
   readonly workspace: string;
@@ -51,6 +61,8 @@ export interface HookOutput {
   readonly enabled: boolean;
   readonly state: HookState | null;
 }
+
+export type HookStageDetails = Pick<HookOutput, 'items'>;
 
 export interface PlannedHook {
   readonly row: HookRow;

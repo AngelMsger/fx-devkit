@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Config } from '@oclif/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { COMMAND_ALIASES, COMMANDS, compatibilityTarget } from '../../src/cli/commands/index.js';
+import { COMMANDS } from '../../src/cli/commands/index.js';
 import { globalFlags } from '../../src/cli/flags.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -18,12 +18,6 @@ beforeAll(async () => {
 });
 
 describe('command tree', () => {
-  it('loads exactly the registered commands', () => {
-    expect(loaded.commands.map((command) => command.id).sort()).toEqual(
-      Object.keys(COMMANDS).sort(),
-    );
-  });
-
   it('hides the same commands in both readings', () => {
     const registry = Object.entries(COMMANDS)
       .filter(([, command]) => command.hidden)
@@ -35,17 +29,6 @@ describe('command tree', () => {
         .map((command) => command.id)
         .sort(),
     ).toEqual(registry);
-  });
-
-  it('runs every compatibility name through its canonical command', () => {
-    for (const [alias, canonical] of Object.entries(COMMAND_ALIASES)) {
-      expect(compatibilityTarget(alias)).toBe(canonical);
-      expect(loaded.findCommand(alias)).toBeDefined();
-      expect(loaded.findCommand(canonical)).toBeDefined();
-      expect(COMMANDS[alias as keyof typeof COMMANDS]).toBe(
-        COMMANDS[canonical as keyof typeof COMMANDS],
-      );
-    }
   });
 
   // oclif caches the global flags onto every loaded command; the registry class

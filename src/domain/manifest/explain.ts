@@ -6,7 +6,7 @@
 import type * as z from 'zod';
 
 import { DevkitError } from '../errors.js';
-import { nearest } from '../fuzzy.js';
+import { nearest, suggestionHint } from '../fuzzy.js';
 
 import { environmentsSchema } from './environments.schema.js';
 import { harnessSchema } from './harness.schema.js';
@@ -101,10 +101,10 @@ function unknownField(kind: Kind, walked: string[], segment: string, node: Schem
   const suggestion = nearest(segment, candidates);
   const suggested =
     suggestion === undefined ? undefined : joinPath([...walked, canonical(node, suggestion)]);
-  const hint =
-    suggested === undefined
-      ? `Known fields here: ${candidates.join(', ') || '(none)'}.`
-      : `Did you mean "${suggested}"?`;
+  const hint = suggestionHint(
+    suggested,
+    `Known fields here: ${candidates.join(', ') || '(none)'}.`,
+  );
   return new DevkitError(
     'usage',
     'UNKNOWN_MANIFEST_FIELD',

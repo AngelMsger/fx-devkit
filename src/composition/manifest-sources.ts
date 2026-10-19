@@ -1,41 +1,22 @@
 // Turns what a person typed after --from into a ManifestSource. A git URL
 // or a checkout is the manifest repository, cloned; a directory is copied;
-// `-` is stdin.
+// `-` is stdin. A resumed workspace reads its managed directory in place.
 
 import path from 'node:path';
 
 import { FileSource } from '../adapters/manifest-source/file.js';
 import { GitRepoSource } from '../adapters/manifest-source/git-repo.js';
 import { StdinSource } from '../adapters/manifest-source/stdin.js';
-import { explicitWorkspace } from '../application/workspace/resolve.js';
+import type { ResumeInitDeps } from '../application/init/resume.js';
+import type { InitDeps } from '../application/init/types.js';
 import { isRepositoryUrl } from '../domain/manifest/source-repo.js';
 import type { ManifestSource } from '../ports/manifest-source.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 
 import type { Container } from './container.js';
 
-export async function resumedInitialization(
-  name: string,
-  container: Container,
-): Promise<{ name: string; dir: string; source: ManifestSource }> {
-  const selected = await explicitWorkspace(
-    name,
-    process.cwd(),
-    (await container.config.read()).workspaces ?? {},
-    container.fs,
-  );
-  const { entry } = selected;
-  const snapshot = new FileSource(container.manifestDirFor(selected.name), container.fs);
-  return {
-    name: selected.name,
-    dir: entry.root,
-    source: {
-      kind: 'file',
-      description: entry.source ?? '-',
-      inspect: () => snapshot.inspect(),
-      materialize: async () => {},
-    },
-  };
+export function resumeInitDeps(init: InitDeps, container: Container): ResumeInitDeps {
+  return { ...init, inspectManaged: (dir) => new FileSource(dir, container.fs).inspect() };
 }
 
 export async function manifestSourceFor(

@@ -1,7 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { canMcp } from '../../application/harness/session.js';
-import { CAPABILITY_COLUMNS, Can } from '../../application/readiness/can.js';
+import { CAPABILITY_COLUMNS, Can, canTarget } from '../../application/readiness/can.js';
 import { harnessSession } from '../../composition/harness.js';
 import { FxCommand } from '../base.js';
 import { argument } from '../flags.js';
@@ -27,29 +26,18 @@ export default class CanCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(CanCommand);
+    const workspace = async (): Promise<Can> =>
+      new Can(await this.workspaceDeps(), this.loginDeps());
     if (args.target === undefined) {
-      const can = new Can(await this.workspaceDeps(), this.loginDeps());
-      this.renderer.list(can.list({ agent: flags.agent, env: flags.env }), {
-        columns: CAPABILITY_COLUMNS,
-      });
+      const rows = (await workspace()).list({ agent: flags.agent, env: flags.env });
+      this.renderer.list(rows, { columns: CAPABILITY_COLUMNS });
       return;
     }
-    if (args.target.startsWith('mcp:')) {
-      this.renderer.record(
-        await canMcp({
-          ...harnessSession(this.harnessInput()),
-          name: args.target.slice(4),
-          agent: flags.agent,
-          envName: flags.env,
-        }),
-      );
-      return;
-    }
-    const result = await new Can(await this.workspaceDeps(), this.loginDeps()).execute({
-      target: args.target,
-      agent: flags.agent,
-      env: flags.env,
-    });
-    this.renderer.record(result);
+    this.renderer.record(
+      await canTarget(
+        { target: args.target, agent: flags.agent, env: flags.env },
+        { workspace, harness: () => harnessSession(this.harnessInput()) },
+      ),
+    );
   }
 }

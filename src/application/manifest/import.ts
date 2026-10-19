@@ -15,6 +15,7 @@ import {
 } from '../../domain/import/infer.js';
 import { renderManifest } from '../../domain/import/render.js';
 import { isAtOrInside } from '../../domain/path.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { CodeHost, Readability } from '../../ports/code-host.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
@@ -22,10 +23,12 @@ import type { Reporter } from '../../ports/reporter.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
 export interface ImportDeps {
+  readonly commandShell?: ResolvedShell | undefined;
   readonly git: Git;
   readonly fs: FileSystem;
   readonly reporter: Reporter;
-  readonly codeHost: (host: string) => Promise<CodeHost | undefined>;
+  // The code host that serves the repositories kept under a directory of this machine.
+  readonly localCodeHost: (directory: string) => CodeHost;
   readonly identifyProvider?: (upstream: string) => Promise<ImportProvider | undefined>;
 }
 
@@ -36,9 +39,14 @@ export interface ImportInput {
   readonly posture: WritePosture;
 }
 
+interface SkippedPath {
+  readonly path: string;
+  readonly reason: string;
+}
+
 export interface ImportReport {
   readonly repos: number;
-  readonly skipped: readonly { path: string; reason: string }[];
+  readonly skipped: readonly SkippedPath[];
   readonly review: readonly { name: string; note: string }[];
   readonly branch_from: { gitmodules: number; remote_head: number; checkout: number };
 }
@@ -52,14 +60,16 @@ export interface ImportOutput {
 
 const SKIP = new Set(['node_modules']);
 
-function insideRoot(root: string, target: string): DevkitError {
+function insideRoot(root: string, target: string, shell: ResolvedShell | undefined): DevkitError {
   return new DevkitError(
     'conflict',
     'IMPORT_INSIDE_ROOT',
     `${target} lies inside ${root}, the directory being described`,
     {
       hint: 'The imported directory is a workspace of checkouts; the manifest belongs in a checkout of the manifest repository.',
-      nextSteps: [`fx manifest import ${root} -o <manifest repository>/manifest/workspace.yaml`],
+      nextSteps: [
+        `${shellLine(['fx', 'manifest', 'import', root], shell)} -o <manifest repository>/manifest/workspace.yaml`,
+      ],
     },
   );
 }
@@ -71,12 +81,12 @@ export class Import {
     const root = path.resolve(input.dir);
     const target = input.out === undefined ? null : path.resolve(input.out);
     if (target !== null && isAtOrInside(await this.physical(target), await this.physical(root)))
-      throw insideRoot(root, target);
-    const skipped: { path: string; reason: string }[] = [];
-    const observed = await this.observe(root, skipped);
-    const repos = await this.identify(await this.infer(observed, skipped));
+      throw insideRoot(root, target, this.deps.commandShell);
+    const observed = await this.observe(root);
+    const inferred = await this.infer(observed.repos);
+    const repos = await this.identify(inferred.repos);
     const manifest = renderManifest(foldDefaults(repos));
-    const report = summarize(repos, skipped);
+    const report = summarize(repos, [...observed.skipped, ...inferred.skipped]);
     if (target === null || input.dryRun) return { path: target, written: false, manifest, report };
     assertWritable(input.posture, 'import');
     await this.deps.fs.writeText(target, manifest);
@@ -127,29 +137,29 @@ export class Import {
   // the enclosing remotes. Containers are entered one level, no deeper.
   private async observe(
     root: string,
-    skipped: { path: string; reason: string }[],
-  ): Promise<RepoObservation[]> {
+  ): Promise<{ repos: RepoObservation[]; skipped: SkippedPath[] }> {
     const gitmodules = parseGitmodules(
       (await this.deps.fs.readText(path.join(root, '.gitmodules'))) ?? '',
     );
     const found: RepoObservation[] = [];
+    const skipped: SkippedPath[] = [];
     for (const name of await this.children(root)) {
       const dir = path.join(root, name);
-      if (await this.isRepoRoot(dir)) {
+      if (await this.deps.git.isToplevel(dir)) {
         found.push(await this.observeRepo(root, dir, gitmodules[name]?.branch));
         continue;
       }
       const inside: string[] = [];
       for (const child of await this.children(dir)) {
         const sub = path.join(dir, child);
-        if (await this.isRepoRoot(sub)) {
+        if (await this.deps.git.isToplevel(sub)) {
           inside.push(child);
           found.push(await this.observeRepo(root, sub, gitmodules[`${name}/${child}`]?.branch));
         }
       }
       if (inside.length === 0) skipped.push({ path: name, reason: 'not a repository' });
     }
-    return found;
+    return { repos: found, skipped };
   }
 
   private async children(dir: string): Promise<string[]> {
@@ -159,12 +169,6 @@ export class Import {
       if (await this.deps.fs.isDirectory(path.join(dir, name))) names.push(name);
     }
     return names;
-  }
-
-  private async isRepoRoot(dir: string): Promise<boolean> {
-    const top = await this.deps.git.toplevel(dir);
-    if (top === undefined) return false;
-    return (await this.deps.fs.realpath(top)) === (await this.deps.fs.realpath(dir));
   }
 
   private async observeRepo(
@@ -193,9 +197,9 @@ export class Import {
   // list rung 3 searches for the fork-only checkouts.
   private async infer(
     observed: readonly RepoObservation[],
-    skipped: { path: string; reason: string }[],
-  ): Promise<InferredRepo[]> {
+  ): Promise<{ repos: InferredRepo[]; skipped: SkippedPath[] }> {
     const repos: InferredRepo[] = [];
+    const skipped: SkippedPath[] = [];
     const later: RepoObservation[] = [];
     for (const obs of observed) {
       const origin = obs.remotes['origin'];
@@ -232,7 +236,7 @@ export class Import {
               : `${result.skipped}; ${unsettledNote(unsettled)}`,
         });
     }
-    return repos;
+    return { repos, skipped };
   }
 
   // The ladder is synchronous; the code host is not. Every candidate pair is
@@ -241,12 +245,12 @@ export class Import {
   private async prefetch(
     later: readonly RepoObservation[],
     seen: readonly string[],
-  ): Promise<Map<string, ProbeOutcome>> {
-    const answers = new Map<string, ProbeOutcome>();
+  ): Promise<Map<string, RepoPresence>> {
+    const answers = new Map<string, RepoPresence>();
     const hosts = new Map<string, Promise<CodeHost | undefined>>();
     for (const obs of later) {
       const host = hostOf(obs.remotes['origin'] ?? '');
-      const pending = hosts.get(host) ?? this.deps.codeHost(host);
+      const pending = hosts.get(host) ?? this.codeHostAt(host);
       hosts.set(host, pending);
       const codeHost = await pending;
       for (const project of seen) {
@@ -257,11 +261,19 @@ export class Import {
     }
     return answers;
   }
+
+  // An import runs before any workspace binds a provider, so only a host that is a
+  // directory on this machine can be asked; every other host stays unasked. A local
+  // host that will not resolve is a configuration failure the caller must see.
+  private async codeHostAt(host: string): Promise<CodeHost | undefined> {
+    if (!path.isAbsolute(host) || !(await this.deps.fs.exists(host))) return undefined;
+    return this.deps.localCodeHost(host);
+  }
 }
 
-type ProbeOutcome = 'readable' | 'absent' | 'unknown';
+type RepoPresence = 'readable' | 'absent' | 'unknown';
 
-async function probe(codeHost: CodeHost, project: string, name: string): Promise<ProbeOutcome> {
+async function probe(codeHost: CodeHost, project: string, name: string): Promise<RepoPresence> {
   try {
     return outcomeOf(await codeHost.canRead({ project, name }));
   } catch {
@@ -272,7 +284,7 @@ async function probe(codeHost: CodeHost, project: string, name: string): Promise
 // Only `readable` names an upstream and only `missing` rules a project out. A
 // query that could not be completed, or that was refused, leaves the project
 // unsettled, and an unsettled project never counts as an absence.
-function outcomeOf(readability: Readability): ProbeOutcome {
+function outcomeOf(readability: Readability): RepoPresence {
   if (readability === 'readable') return 'readable';
   return readability === 'missing' ? 'absent' : 'unknown';
 }
@@ -281,7 +293,7 @@ function outcomeOf(readability: Readability): ProbeOutcome {
 // match never entered the decision.
 function unsettledProjects(
   seen: readonly string[],
-  answers: ReadonlyMap<string, ProbeOutcome>,
+  answers: ReadonlyMap<string, RepoPresence>,
   name: string,
   matched: string | undefined,
 ): string[] {
@@ -299,10 +311,7 @@ function projectsByFrequency(repos: readonly InferredRepo[]): string[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p);
 }
 
-function summarize(
-  repos: readonly InferredRepo[],
-  skipped: readonly { path: string; reason: string }[],
-): ImportReport {
+function summarize(repos: readonly InferredRepo[], skipped: readonly SkippedPath[]): ImportReport {
   return {
     repos: repos.length,
     skipped,

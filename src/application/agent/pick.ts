@@ -2,14 +2,12 @@
 // list) the first change spells the detected set out first, so "unpick
 // codex" means exactly that and not "pick nothing".
 
-import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
 import type { AgentCleanup, AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
-import { enabledHosts } from './list.js';
+import { enabledHosts, findHost } from './list.js';
 
 export interface AgentPickInput {
   readonly ids: readonly string[];
@@ -31,27 +29,29 @@ export interface AgentPickOutput {
   readonly written: boolean;
 }
 
+export interface AgentPickDeps {
+  readonly config: ConfigStore;
+  readonly hosts: readonly AgentHost[];
+  // What an unpick releases besides the selection; a pick has nothing to clean up.
+  readonly cleanup?: AgentCleanup | undefined;
+}
+
 export class AgentPick {
-  constructor(
-    private readonly config: ConfigStore,
-    private readonly hosts: readonly AgentHost[],
-    private readonly cleanup?: AgentCleanup,
-  ) {}
+  constructor(private readonly deps: AgentPickDeps) {}
 
   async execute(input: AgentPickInput): Promise<AgentPickOutput> {
-    for (const id of input.ids) this.assertKnown(id);
-    const file = await this.config.read();
+    const { config, hosts, cleanup } = this.deps;
+    for (const id of input.ids) findHost(hosts, id);
+    const file = await config.read();
     const before = file.agents ?? null;
-    const base = before ?? (await enabledHosts(this.hosts, undefined)).map((h) => h.id);
+    const base = before ?? (await enabledHosts(hosts, undefined)).map((h) => h.id);
     const after = applySelection(base, input.ids, input.action);
     const changed = differs(before, after);
     const plan: AgentPickOutput = {
       scope: 'global',
       affected_workspaces: Object.keys(file.workspaces ?? {}).sort(),
-      ...(input.action === 'unpick' && this.cleanup
-        ? cleanupOutput(await this.cleanup.plan(input.ids))
-        : {}),
-      path: this.config.path(),
+      ...(input.action === 'unpick' && cleanup ? cleanupOutput(await cleanup.plan(input.ids)) : {}),
+      path: config.path(),
       ids: input.ids,
       before,
       after,
@@ -65,7 +65,7 @@ export class AgentPick {
       // Both ends of the report come from the configuration the write itself
       // read, so a concurrent change cannot produce a pair that never existed.
       let observed = before;
-      const saved = await this.config.update((current) => {
+      const saved = await config.update((current) => {
         observed = current.agents ?? null;
         return {
           ...current,
@@ -75,28 +75,13 @@ export class AgentPick {
       const appliedAfter = [...(saved.agents ?? after)];
       applied = { before: observed, after: appliedAfter, changed: differs(observed, appliedAfter) };
     }
-    const hooks = input.action === 'unpick' ? await this.cleanup?.apply(input.ids) : undefined;
+    const hooks = input.action === 'unpick' ? await cleanup?.apply(input.ids) : undefined;
     return {
       ...plan,
       ...applied,
       written: changed,
       ...(hooks === undefined ? {} : cleanupOutput(hooks)),
     };
-  }
-
-  private assertKnown(id: string): void {
-    if (this.hosts.some((h) => h.id === id)) return;
-    const suggestion = nearest(
-      id,
-      this.hosts.map((h) => h.id),
-    );
-    throw new DevkitError('not_found', 'AGENT_UNKNOWN', `"${id}" is not an agent fx knows`, {
-      hint:
-        suggestion === undefined
-          ? 'fx agent list shows the known ids.'
-          : `Did you mean "${suggestion}"?`,
-      nextSteps: ['fx agent list'],
-    });
   }
 }
 

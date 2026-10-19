@@ -3,50 +3,33 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
-import { Status } from '../../../../src/application/workspace/status.js';
-import { FakeGit } from '../../../fakes/fake-git.js';
+import type { RootInventory } from '../../../../src/application/workspace/root-entries.js';
+import { Status, WorkspaceStatus } from '../../../../src/application/workspace/status.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, ROOT } from '../../../fakes/workspace.js';
+import { HeldWork } from '../../../held-work.js';
 
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
 
 describe('Status', () => {
-  it('inspects sixty repositories concurrently up to --jobs and preserves manifest order', async () => {
-    const names = Array.from({ length: 60 }, (_, index) => `repo-${index}`);
-    const workspace = [
-      'schema_version: 2',
-      'providers: { code-host: { provider: local-git, vars: { host: /host } } }',
-      'defaults: { upstream_project: fx, branch: main }',
-      'repos:',
-      ...names.map((name) => `  - { name: ${name} }`),
-    ].join('\n');
-    const h = await harness({ workspace });
-    let inFlight = 0;
-    let peak = 0;
-    const git = new (class extends FakeGit {
-      override async status(dir: string) {
-        inFlight += 1;
-        peak = Math.max(peak, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 2));
-        inFlight -= 1;
-        return super.status(dir);
-      }
-    })();
-    for (const name of names) {
-      const dir = path.join(ROOT, name);
-      h.git.add(dir, { remotes: { upstream: upstream(name) } });
-      git.add(dir, { remotes: { upstream: upstream(name) } });
-    }
+  it('inspects no more than --jobs repositories at once', async () => {
+    const h = await harness();
+    const inspecting = new HeldWork<string>();
+    h.git.before('status', (dir) => inspecting.hold(dir));
+    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs'])
+      h.git.add(path.join(ROOT, name), { remotes: { upstream: upstream(name) } });
 
-    const rows = await new Status({ ...h.deps, git }).execute({
+    const rows = new Status(h.deps).execute({
       fetch: false,
       dirtyOnly: false,
-      jobs: 5,
+      jobs: 2,
     });
-
-    expect(peak).toBe(5);
-    expect(rows.map((row) => row.name)).toEqual(names);
+    await inspecting.reached(2);
+    expect(inspecting.started).toHaveLength(2);
+    inspecting.releaseAll();
+    expect(await rows).toHaveLength(3);
   });
 
   it('reports every tracked repository without fetching by default', async () => {
@@ -151,6 +134,50 @@ describe('Status', () => {
     expect(rows[0]).toMatchObject({
       remotes_ok: false,
       note: expect.stringContaining('elsewhere'),
+    });
+  });
+});
+
+describe('WorkspaceStatus', () => {
+  const inventory: RootInventory = { hosts: [], login: fakeLoginDeps({}) };
+  const listing = { fetch: false, dirtyOnly: false } as const;
+
+  it('sets the rows beside the workspace they describe and the root entries nothing accounts for', async () => {
+    const h = await harness({ files: { [path.join(ROOT, 'demo.html')]: '<html>' } });
+    const out = await new WorkspaceStatus(h.deps, inventory).execute(listing);
+    expect(out.items.map((row) => row.name)).toEqual([
+      'fx-example-api',
+      'fx-example-auth',
+      'fx-example-docs',
+    ]);
+    expect(out).toMatchObject({
+      workspace: 'fx',
+      root: ROOT,
+      selection: 'cwd',
+      selected_repositories: 3,
+      stray_entries: ['demo.html'],
+    });
+    expect(out).not.toHaveProperty('empty_reason');
+    expect(out).not.toHaveProperty('next_steps');
+  });
+
+  it('says why nothing is listed, and offers the selection commands only when nothing is selected', async () => {
+    const unselected = await harness({ local: { scope: { repos: [] } } });
+    expect(await new WorkspaceStatus(unselected.deps, inventory).execute(listing)).toMatchObject({
+      items: [],
+      selected_repositories: 0,
+      empty_reason: 'no_repositories_selected',
+      next_steps: ['fx repo list --workspace fx', 'fx repo select --all --workspace fx'],
+    });
+
+    const clean = await harness();
+    expect(
+      await new WorkspaceStatus(clean.deps, inventory).execute({ fetch: false, dirtyOnly: true }),
+    ).toMatchObject({
+      items: [],
+      selected_repositories: 3,
+      empty_reason: 'no_uncommitted_changes',
+      next_steps: [],
     });
   });
 });

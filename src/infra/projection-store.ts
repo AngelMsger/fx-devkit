@@ -7,7 +7,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { asDevkitError } from '../domain/errors.js';
-import { isAtOrInside, pathKey, samePath } from '../domain/path.js';
+import { projectionLeaseKey } from '../domain/lease.js';
+import { isAtOrInside, samePath } from '../domain/path.js';
 import type { Lock } from '../ports/lock.js';
 import type {
   LinkProjectionStore,
@@ -17,6 +18,7 @@ import type {
   ProjectionSnapshot,
   ProjectionStore,
   ProjectionWrite,
+  ProjectionWriteResult,
 } from '../ports/projection.js';
 
 import { writeAtomicFile } from './atomic-file.js';
@@ -51,12 +53,10 @@ export class FileProjectionStore implements ProjectionStore, LinkProjectionStore
     }
   }
 
-  async writeLink(
-    input: LinkProjectionWrite,
-  ): Promise<'written' | 'unchanged' | 'conflict' | 'busy'> {
+  async writeLink(input: LinkProjectionWrite): Promise<ProjectionWriteResult> {
     if (input.before.kind !== 'link') return 'conflict';
     const file = path.resolve(input.root, input.relative);
-    const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 0 });
+    const lease = await this.lock.acquire({ key: projectionLeaseKey(file), waitMs: 0 });
     if (!lease) return 'busy';
     try {
       const current = await this.readLink(input);
@@ -73,11 +73,11 @@ export class FileProjectionStore implements ProjectionStore, LinkProjectionStore
     }
   }
 
-  async write(input: ProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'> {
+  async write(input: ProjectionWrite): Promise<ProjectionWriteResult> {
     if (input.before.kind === 'foreign') return 'conflict';
     if (input.before.text === input.text) return 'unchanged';
     const file = path.resolve(input.root, input.relative);
-    const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 0 });
+    const lease = await this.lock.acquire({ key: projectionLeaseKey(file), waitMs: 0 });
     if (!lease) return 'busy';
     try {
       const current = await this.read(input);

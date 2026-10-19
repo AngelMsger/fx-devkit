@@ -4,23 +4,16 @@
 
 import path from 'node:path';
 
-import type { DoctorExtension } from '../application/doctor/types.js';
-import { harnessDoctor } from '../application/harness/stages.js';
-import { hookDoctor, type HookSession } from '../application/hook/session.js';
-import { PreviewInitialization } from '../application/init/preview-initialization.js';
+import type { HarnessSession } from '../application/harness/session.js';
+import type { HookSession } from '../application/hook/session.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
-import { Login } from '../application/login/run.js';
 import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
 import { replacementFor } from '../application/safety/replace-files.js';
-import { TrustGate } from '../application/safety/trust.js';
-import { SkillStage } from '../application/skill/stage.js';
+import type { TrustContext } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
-import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
-import type { SyncStages } from '../application/sync/types.js';
-import { ToolInitialize } from '../application/tool/initialize.js';
-import { workspaceToolScope } from '../application/tool/scope.js';
-import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
+import type { SyncStageDeps } from '../application/sync/stages.js';
+import { resolveToolchain, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
@@ -30,7 +23,14 @@ import type { ResolvedShell } from '../domain/shell.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 import type { Reporter } from '../ports/reporter.js';
 
-import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
+import {
+  loginDeps,
+  skillDeps,
+  trustContext,
+  workspaceDeps,
+  type Container,
+  type TrustInvocation,
+} from './container.js';
 import { harnessSession, type HarnessCommandInput } from './harness.js';
 import { hookSession } from './hooks.js';
 import { toolInstall } from './tool-install.js';
@@ -64,21 +64,24 @@ export function resolveInputFor(container: Container, scope: ResolveScope): Reso
   };
 }
 
+export interface LifecycleSessions {
+  readonly harness: HarnessSession;
+  readonly hooks: HookSession;
+}
+
 export class CommandWiring {
-  private trust: TrustGate | undefined;
   private replace: ReplaceFiles | undefined;
 
   constructor(private readonly input: CommandWiringInput) {}
 
   harnessInput(): HarnessCommandInput {
-    const { container, resolve, env, cliVersion, noInput, yes, posture } = this.input;
-    return { container, resolve, env, cliVersion, noInput, yes, posture };
+    const { container, resolve, env, cliVersion, noInput, yes, posture, commandShell } = this.input;
+    return { container, resolve, env, cliVersion, noInput, yes, posture, commandShell };
   }
 
-  trustGate(): TrustGate {
-    const { container, noInput } = this.input;
-    this.trust ??= new TrustGate(container.trust, container.prompter(noInput), container.clock);
-    return this.trust;
+  // For a command that reaches a workspace's toolchain without its dependency bundle.
+  trustFor(workspace: string): TrustContext {
+    return trustContext(this.input.container, workspace, this.trustInvocation());
   }
 
   replacement(): ReplaceFiles {
@@ -100,16 +103,23 @@ export class CommandWiring {
   }
 
   workspaceDeps(ctx: WorkspaceContext): WorkspaceDeps {
-    const { container, reporter, cliVersion, user, commandShell } = this.input;
-    return workspaceDeps(container, { ctx, reporter, cliVersion, user, commandShell });
+    const { container, reporter, cliVersion, user } = this.input;
+    return workspaceDeps(container, { ctx, reporter, cliVersion, user, ...this.trustInvocation() });
   }
 
   skillDeps(): SkillDeps {
     return skillDeps(this.input.container, this.input.agents);
   }
 
-  bundledToolchain(): Toolchain {
-    return bundledToolchain(this.input.container.bundledTools(), this.input.cliVersion);
+  // Tool commands work outside a workspace too, on the bundled baseline.
+  toolchain(workspace: () => Promise<WorkspaceContext>): Promise<Toolchain> {
+    const { container, cliVersion, reporter } = this.input;
+    return resolveToolchain({
+      workspace,
+      bundledTools: container.bundledTools,
+      cliVersion,
+      reporter,
+    });
   }
 
   manifestContext(dir: string): Promise<ManifestContext> {
@@ -152,111 +162,49 @@ export class CommandWiring {
     };
   }
 
-  hookDoctorChecks(): DoctorExtension[] {
-    const harness = harnessSession(this.input);
-    return [
-      harnessDoctor(harness, 'mcp'),
-      harnessDoctor(harness, 'rules'),
-      hookDoctor(this.hookSessionFor(this.input.resolve.name)),
-    ];
-  }
-
-  private hookSessionFor(name: string | undefined): HookSession {
-    return hookSession({
-      container: this.input.container,
-      resolve: { ...this.input.resolve, name },
-      env: this.input.env,
-      posture: this.input.posture,
-    });
+  lifecycleSessions(): LifecycleSessions {
+    return { harness: harnessSession(this.input), hooks: hookSession(this.input) };
   }
 
   loginDeps(): LoginDeps {
-    return loginDeps({ ...this.input, gate: this.trustGate() });
+    return loginDeps(this.input);
+  }
+
+  stageDeps(): SyncStageDeps {
+    const { container, cliVersion } = this.input;
+    return {
+      ...this.lifecycleSessions(),
+      inventory: toolInventory(container, cliVersion),
+      replace: this.replacement(),
+      login: this.loginDeps(),
+      skills: this.skillDeps(),
+    };
   }
 
   initDeps(): InitDeps {
-    const { fs, git, config, localStore, bundledTools, providers, manifestDirFor } =
-      this.input.container;
-    const depsFor = (ctx: WorkspaceContext): WorkspaceDeps => this.workspaceDeps(ctx);
+    const { container, cliVersion, reporter, commandShell } = this.input;
+    const { fs, git, config, localStore, bundledTools, providers, manifestDirFor } = container;
     return {
       fs,
-      lock: this.input.container.lock,
-      commandShell: this.input.commandShell,
+      lock: container.lock,
+      commandShell,
       git,
       config,
       localStore,
       bundledTools,
       providers,
       manifestDirFor,
-      cliVersion: this.input.cliVersion,
-      reporter: this.input.reporter,
-      workspaceDepsFor: depsFor,
-      preview: (ctx) => this.previewInit(depsFor(ctx)),
-      installTools: (ctx) =>
-        new ToolInitialize(toolInstall(this.input.container)).execute({
-          tools: toolchainOf(ctx).tools,
-          commandShell: this.input.commandShell,
-          posture: this.input.posture,
-          trust: {
-            gate: this.trustGate(),
-            workspace: ctx.name,
-            commandShell: this.input.commandShell,
-            yes: this.input.yes,
-            posture: this.input.posture,
-          },
-        }),
-      stagesFor: (ctx) =>
-        syncStages({ ...this.stageWiring(depsFor(ctx), false), initialize: true }),
-      setupPlan: (ctx) =>
-        new Login(depsFor(ctx), this.loginDeps()).plan({
-          tools: workspaceToolScope(ctx, {}).configuredNames,
-        }),
+      cliVersion,
+      reporter,
+      workspaceDepsFor: (ctx) => this.workspaceDeps(ctx),
+      toolInstall: toolInstall(container),
+      stages: this.stageDeps(),
       settleManifest: (name, dir) => this.updateChecks().manifest.markCurrent(name, dir),
     };
   }
 
-  private previewInit(deps: WorkspaceDeps): Promise<object> {
-    return new PreviewInitialization(
-      deps,
-      this.loginDeps(),
-      toolInstall(this.input.container),
-      new SkillStage(deps, this.skillDeps()),
-    ).execute({
-      gate: this.trustGate(),
-      workspace: deps.ctx.name,
-      commandShell: deps.commandShell,
-      yes: this.input.yes,
-      posture: this.input.posture,
-      dryRun: true,
-    });
-  }
-
-  stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
-    return syncStages(this.stageWiring(deps, dryRun));
-  }
-
-  private stageWiring(deps: WorkspaceDeps, dryRun: boolean): SyncStageInput {
-    return {
-      inventory: toolInventory(this.input.container, this.input.cliVersion),
-      harness: harnessSession({
-        ...this.input,
-        resolve: { ...this.input.resolve, name: deps.ctx.name },
-      }),
-      hooks: this.hookSessionFor(deps.ctx.name),
-      deps,
-      replace: this.replacement(),
-      login: this.loginDeps(),
-      skills: this.skillDeps(),
-      process: this.input.container.process,
-      trust: {
-        gate: this.trustGate(),
-        workspace: deps.ctx.name,
-        commandShell: deps.commandShell,
-        yes: this.input.yes,
-        posture: this.input.posture,
-      },
-      dryRun,
-      posture: this.input.posture,
-    };
+  private trustInvocation(): TrustInvocation {
+    const { commandShell, noInput, yes, posture } = this.input;
+    return { commandShell, noInput, yes, posture };
   }
 }

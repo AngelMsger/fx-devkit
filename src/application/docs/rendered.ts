@@ -12,6 +12,8 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../../domain/errors.js';
+import type { EffectOutcome } from '../../domain/outcome.js';
+import { isLostWrite } from '../../domain/projection.js';
 import type {
   ProjectionPath,
   ProjectionSnapshot,
@@ -32,7 +34,7 @@ export interface RenderInput {
 export interface RenderedFile {
   readonly path: string;
   readonly action: 'created' | 'updated' | 'removed' | 'unchanged' | 'foreign';
-  readonly result: 'planned' | 'done' | 'skipped' | 'failed' | 'not_started';
+  readonly result: EffectOutcome;
   readonly failure?: ErrorEnvelope['error'];
   readonly replaced: readonly string[];
   readonly missing: readonly string[];
@@ -45,7 +47,7 @@ export interface RenderOutput {
 }
 
 // A null text removes the file.
-export interface Pending {
+export interface PendingFile {
   readonly file: RenderedFile;
   readonly text: string | null;
   readonly before: ProjectionSnapshot;
@@ -64,7 +66,7 @@ export function pending(
   text: string | null,
   before: ProjectionSnapshot,
   regions?: RenderedRegions,
-): Pending {
+): PendingFile {
   return {
     text,
     before,
@@ -98,7 +100,7 @@ export function reportRegions(reporter: Reporter, source: string, file: Rendered
 export async function finish(
   store: ProjectionStore,
   input: RenderInput,
-  files: readonly Pending[],
+  files: readonly PendingFile[],
 ): Promise<RenderOutput> {
   const output = { files: files.map((f) => f.file) };
   const stale = files.filter((f) => CHANGES.has(f.file.action));
@@ -124,7 +126,7 @@ export async function finish(
         before: f.before,
         text: f.text,
       });
-      if (result === 'busy' || result === 'conflict') throw documentConflict(f.file.path);
+      if (isLostWrite(result)) throw documentConflict(f.file.path);
       output.files[index] = { ...f.file, result: result === 'written' ? 'done' : 'skipped' };
     } catch (error) {
       const failure = toEnvelope(asDevkitError(error)).error;

@@ -4,6 +4,8 @@
 // it printed, or where it failed and why, its first two lines of text once log
 // records and warnings are set aside.
 
+import { isRecord } from '../values.js';
+
 const REASON_LIMIT = 240;
 const MESSAGE_KEYS = ['message', 'errmsg', 'error'];
 // A log record opens with a timestamp or a logfmt field.
@@ -47,7 +49,7 @@ export function errorEnvelope(stderr: string): Record<string, unknown> | undefin
 function errorEnvelopeOf(objects: readonly Record<string, unknown>[]) {
   for (const object of objects) {
     const error = object['error'];
-    if (isObject(error)) return error;
+    if (isRecord(error)) return error;
   }
   return undefined;
 }
@@ -96,12 +98,8 @@ function closingLine(lines: readonly string[], from: number): number {
 function parseObject(text: string): Record<string, unknown> | undefined {
   try {
     const value: unknown = JSON.parse(text);
-    return isObject(value) ? value : undefined;
+    return isRecord(value) ? value : undefined;
   } catch {
     return undefined;
   }
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

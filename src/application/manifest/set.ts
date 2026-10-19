@@ -8,6 +8,7 @@ import { setRepoField } from '../../domain/manifest/editor.js';
 import { loadWorkspace } from '../../domain/manifest/loader.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import type { Problem } from '../../domain/manifest/types.js';
+import { isLostWrite } from '../../domain/projection.js';
 import type { ProjectionStore } from '../../ports/projection.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
@@ -73,7 +74,7 @@ export class SetRepoField {
     if (input.dryRun) return plan;
     assertWritable(input.posture, `manifest repo-set ${input.repo} ${input.field}`);
     const result = await this.files.write({ ...target, before: snapshot, text: edit.text });
-    if (result === 'busy' || result === 'conflict') throw changedManifest();
+    if (isLostWrite(result)) throw changedManifest();
     return { ...plan, written: result === 'written' };
   }
 }

@@ -27,6 +27,23 @@ export type SyncAction =
   | 'skip_manifest'
   | 'unreadable';
 
+// Whether the action leaves a checkout that follows the manifest's branch.
+export function leavesCheckoutUsable(action: SyncAction): boolean {
+  switch (action) {
+    case 'clone':
+    case 'fast_forward':
+    case 'skip_manifest':
+      return true;
+    case 'skip_dirty':
+    case 'skip_diverged':
+    case 'skip_unpicked':
+    case 'skip_not_git':
+    case 'skip_remote_mismatch':
+    case 'unreadable':
+      return false;
+  }
+}
+
 export interface RepoUrls {
   readonly upstream: string | undefined;
   readonly origin?: string | undefined;

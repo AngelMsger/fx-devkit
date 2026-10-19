@@ -1,6 +1,7 @@
 import { editManifestRepo } from '../../../composition/manifest-edit.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, requiredArgument, writeIntent } from '../../flags.js';
+import type { WriteScopeDeclaration } from '../../workspace-write-policy.js';
 
 export default class ManifestRepoSet extends FxCommand {
   static override description =
@@ -16,6 +17,7 @@ export default class ManifestRepoSet extends FxCommand {
     value: requiredArgument('new scalar value, or a JSON/YAML string array for aka'),
   };
   static override flags = { 'dry-run': dryRunFlag };
+  static override writeScope: WriteScopeDeclaration = 'source';
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestRepoSet);

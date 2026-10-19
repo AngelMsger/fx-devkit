@@ -3,11 +3,11 @@
 // approval is a blocked row rather than a failed stage.
 
 import { asDevkitError, DevkitError, exitCodeFor, toEnvelope } from '../../domain/errors.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
-import { isTrustRequired, type TrustContext } from '../safety/trust.js';
+import { isTrustRequired, isTrustRequiredCode, type TrustContext } from '../safety/trust.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { applyItem } from './outcome.js';
@@ -29,10 +29,10 @@ export async function planTools(
       continue;
     }
     if (
-      (await deps.processWhich(tool.binary)) === undefined &&
+      (await deps.process.which(tool.binary)) === undefined &&
       !(input.dryRun && tool.installOnInit)
     ) {
-      items.push(missingToolSkill(tool));
+      items.push(missingToolSkill(tool, deps.commandShell));
       continue;
     }
     const flag = tool.skill.agentFlag;
@@ -86,22 +86,24 @@ async function isApproved(
   return false;
 }
 
+const HELD_BACK = 'untrusted';
+
 // Background runs never ask: an unapproved vector is dropped silently, because
 // nobody is there to answer the prompt an approval would raise.
 export async function trustedTools(
   items: readonly ToolSkillItem[],
   toolchain: SkillStageInput['toolchain'],
-  trust?: TrustContext,
+  trust: TrustContext,
 ): Promise<ToolSkillItem[]> {
   const result: ToolSkillItem[] = [];
   for (const item of items) {
     if (
       !runnable(item) ||
       item.origin === 'base' ||
-      (trust && (await isApproved(trust, item, authoredCommand(toolchain, item))))
+      (await isApproved(trust, item, authoredCommand(toolchain, item)))
     )
       result.push(item);
-    else result.push({ ...item, vector: null, note: 'untrusted' });
+    else result.push({ ...item, vector: null, note: HELD_BACK });
   }
   return result;
 }
@@ -111,9 +113,8 @@ export async function trustedTools(
 export async function trustAll(
   items: readonly ToolSkillItem[],
   toolchain: SkillStageInput['toolchain'],
-  trust?: TrustContext,
+  trust: TrustContext,
 ): Promise<ToolSkillItem[]> {
-  if (trust === undefined) return [...items];
   const approved: ToolSkillItem[] = [];
   for (const item of items) {
     if (!runnable(item)) {
@@ -154,6 +155,16 @@ function runnable(
   return item.vector !== null;
 }
 
+// trustAll's refusal: the row lost its vector to the trust failure it carries.
+export function awaitsApproval(item: ToolSkillItem): boolean {
+  return item.vector === null && isTrustRequiredCode(item.failure?.['code']);
+}
+
+// trustedTools' row has no failure to read, so its own note is the only record.
+export function wasHeldBack(item: ToolSkillItem): boolean {
+  return item.vector === null && item.note === HELD_BACK;
+}
+
 export async function runTools(deps: WorkspaceDeps, items: ToolSkillItem[]): Promise<void> {
   // A tool installs into one directory per agent; its progress is still one start and one end.
   const pending = new Map<string, number>();
@@ -170,7 +181,7 @@ export async function runTools(deps: WorkspaceDeps, items: ToolSkillItem[]): Pro
       if (!started.has(item.tool))
         deps.reporter.progress({ id: item.tool, state: 'start', detail: 'Skill installation' });
       started.add(item.tool);
-      const result = await deps.processRun(item.vector!, {
+      const result = await deps.process.run(item.vector!, {
         diagnostic: { phase: `${item.tool} skill install` },
       });
       items[index] = { ...item, code: result.code };
@@ -218,7 +229,7 @@ function noVector(tool: ResolvedTool, note: string): ToolSkillItem {
   };
 }
 
-function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
+function missingToolSkill(tool: ResolvedTool, shell: ResolvedShell | undefined): ToolSkillItem {
   return {
     ...noVector(tool, 'not installed'),
     failure: toEnvelope(
@@ -227,7 +238,10 @@ function missingToolSkill(tool: ResolvedTool): ToolSkillItem {
         'TOOL_MISSING',
         `${tool.name} is required to prepare its Skill`,
         {
-          nextSteps: [`fx tool show ${tool.name}`, `fx tool install ${tool.name} --dry-run`],
+          nextSteps: [
+            shellLine(['fx', 'tool', 'show', tool.name], shell),
+            shellLine(['fx', 'tool', 'install', tool.name, '--dry-run'], shell),
+          ],
         },
       ),
     ).error,

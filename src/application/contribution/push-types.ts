@@ -7,6 +7,7 @@ import type {
   ContributionRemoteSettings,
   VerifiedContributionRemote,
 } from '../../domain/contribution/remote.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import type { RepoRef } from '../../domain/workspace/ref.js';
 import type { Clock } from '../../ports/clock.js';
 import type { CodeHost } from '../../ports/code-host.js';
@@ -19,6 +20,7 @@ import type {
 import type { FileSystem } from '../../ports/fs.js';
 import type { Identifiers } from '../../ports/identifiers.js';
 import type { Lock } from '../../ports/lock.js';
+import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { ConfigStore, WorkspaceEntry } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
@@ -50,12 +52,13 @@ export interface PushSourceDeps {
     readonly logicalSourceDir: string;
     readonly config: ConfigStore;
     readonly fs: FileSystem;
+    readonly commandShell?: ResolvedShell | undefined;
   };
   readonly user?: string | undefined;
   readonly source: {
     readonly workspace: string;
     readonly dir: string;
-    readonly kind: 'repo' | 'file' | 'stdin';
+    readonly kind: ManifestSource['kind'];
   };
   readonly git: ContributionGit;
   readonly transport: ContributionTransport;

@@ -16,7 +16,7 @@ import {
   finish,
   pending,
   reportRegions,
-  type Pending,
+  type PendingFile,
   type RenderInput,
   type RenderOutput,
 } from './rendered.js';
@@ -100,14 +100,14 @@ export class DeriveDocs {
     target: string,
     text: string,
     regions?: Parameters<typeof pending>[4],
-  ): Promise<Pending> {
+  ): Promise<PendingFile> {
     const before = await this.deps.projections.read(documentPath(target));
     const current = before.text ?? undefined;
     const foreign = before.kind === 'foreign' || (current !== undefined && !isDerived(current));
     return pending(target, foreign ? 'foreign' : actionFor(current, text), text, before, regions);
   }
 
-  private async retiredPointer(): Promise<Pending[]> {
+  private async retiredPointer(): Promise<PendingFile[]> {
     const target = path.join(this.deps.ctx.root, CLAUDE_GUIDE);
     const before = await this.deps.projections.read(documentPath(target));
     if (before.text === null || !isDerived(before.text)) return [];

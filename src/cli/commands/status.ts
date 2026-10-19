@@ -1,10 +1,9 @@
 import { Flags } from '@oclif/core';
 
-import { strayRootEntries } from '../../application/workspace/root-entries.js';
-import { Status, type StatusInput } from '../../application/workspace/status.js';
-import { shellLine } from '../../domain/shell.js';
+import { WorkspaceStatus, type StatusInput } from '../../application/workspace/status.js';
 import { FxCommand } from '../base.js';
 import { jobsFlag, writeIntent } from '../flags.js';
+import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class StatusCommand extends FxCommand {
   static override description =
@@ -28,6 +27,8 @@ export default class StatusCommand extends FxCommand {
     }),
     jobs: jobsFlag,
   };
+  static override writeScope: WriteScopeDeclaration = (flags) =>
+    flags['fetch'] ? 'workspace' : null;
 
   async run(): Promise<void> {
     const { flags } = await this.parse(StatusCommand);
@@ -39,16 +40,11 @@ export default class StatusCommand extends FxCommand {
           jobs: flags.jobs,
         }
       : { fetch: false, dirtyOnly: flags.dirty, jobs: flags.jobs };
-    const deps = await this.workspaceDeps();
-    const rows = await new Status(deps).execute(input);
-    const selected = deps.ctx.workspace.repos.length;
-    const declared = deps.ctx.manifest.workspace.result.doc.repos.length;
-    const emptyReason = statusEmptyReason(rows.length, selected, declared, flags.dirty);
-    const strays = await strayRootEntries(deps, {
+    const { items, ...summary } = await new WorkspaceStatus(await this.workspaceDeps(), {
       hosts: this.skillDeps().hosts,
       login: this.loginDeps(),
-    });
-    this.renderer.list(rows, {
+    }).execute(input);
+    this.renderer.list(items, {
       columns: [
         'name',
         'branch',
@@ -60,43 +56,7 @@ export default class StatusCommand extends FxCommand {
         ...(flags.fetch ? ['fetch'] : []),
         'note',
       ],
-      trailer: {
-        workspace: deps.ctx.name,
-        root: deps.ctx.root,
-        selection: deps.ctx.selection,
-        selected_repositories: selected,
-        stray_entries: strays.map((entry) => entry.name),
-        ...(emptyReason === null
-          ? {}
-          : {
-              empty_reason: emptyReason,
-              next_steps:
-                emptyReason === 'no_repositories_selected'
-                  ? [
-                      shellLine(
-                        ['fx', 'repo', 'list', '--workspace', deps.ctx.name],
-                        this.commandShell,
-                      ),
-                      shellLine(
-                        ['fx', 'repo', 'select', '--all', '--workspace', deps.ctx.name],
-                        this.commandShell,
-                      ),
-                    ]
-                  : [],
-            }),
-      },
+      trailer: summary,
     });
   }
-}
-
-function statusEmptyReason(
-  rows: number,
-  selected: number,
-  declared: number,
-  dirtyOnly: boolean,
-): string | null {
-  if (rows > 0) return null;
-  if (selected === 0)
-    return declared === 0 ? 'no_repositories_declared' : 'no_repositories_selected';
-  return dirtyOnly ? 'no_uncommitted_changes' : 'no_repositories';
 }

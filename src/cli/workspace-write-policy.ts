@@ -1,33 +1,20 @@
-// Public commands that can mutate workspace identity-dependent resources share an operation lease.
+// A command that changes resources tied to a workspace identity declares where it
+// writes as its static `writeScope`; the command base holds the matching operation
+// lease while the command runs.
 
-const WORKSPACE_WRITERS = new Set([
-  'sync',
-  'login',
-  'repo:add',
-  'repo:remove',
-  'repo:fork',
-  'repo:pick',
-  'repo:unpick',
-  'repo:select',
-  'env:pick',
-  'env:unpick',
-  'env:select',
-  'hook:enable',
-  'hook:disable',
-  'hook:inject',
-  'hook:remove',
-  'manifest:record-probe',
-]);
-const SOURCE_WRITERS = new Set(['manifest:repo-set', 'manifest:set', 'manifest:render']);
-export function workspaceWriteMode(
-  id: string | undefined,
-  flags: Readonly<Record<string, unknown>>,
-): 'workspace' | 'source' | null {
-  if (!id || flags['dry-run'] || (id === 'login' && flags.list)) return null;
-  if (id === 'manifest:render' && flags.check) return null;
-  if (id === 'where') return flags.record ? 'workspace' : null;
-  if (id === 'status') return flags.fetch ? 'workspace' : null;
-  if (id === 'doctor') return flags.fix ? 'workspace' : null;
-  if (WORKSPACE_WRITERS.has(id)) return 'workspace';
-  return SOURCE_WRITERS.has(id) ? 'source' : null;
+import type { WriteScope } from '../application/workspace/command-operation.js';
+
+type ParsedFlags = Readonly<Record<string, unknown>>;
+
+// A fixed scope, or the one this invocation's flags ask for: null when they ask for none.
+export type WriteScopeDeclaration = WriteScope | ((flags: ParsedFlags) => WriteScope | null);
+
+// A preview has no effect to serialize, so it never waits for the lease.
+export function writeScopeOf(
+  command: { readonly writeScope?: WriteScopeDeclaration | undefined },
+  flags: ParsedFlags,
+): WriteScope | null {
+  const declared = command.writeScope;
+  if (declared === undefined || flags['dry-run']) return null;
+  return typeof declared === 'function' ? declared(flags) : declared;
 }

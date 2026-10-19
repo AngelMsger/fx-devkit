@@ -2,6 +2,7 @@
 // its bindings need and its patch names; outside one there is nothing to derive from, so
 // the bundled catalog stands in whole.
 
+import { DevkitError } from '../../domain/errors.js';
 import { loadTools } from '../../domain/manifest/loader.js';
 import { resolveTools, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import {
@@ -12,6 +13,7 @@ import {
   type KeyedBinding,
   type ToolSource,
 } from '../../domain/toolchain/select.js';
+import type { Reporter } from '../../ports/reporter.js';
 import type { ManifestBundle } from '../manifest/load.js';
 import type { WorkspaceContext } from '../workspace/context.js';
 
@@ -24,20 +26,37 @@ export interface Toolchain {
   readonly workspace: string | undefined;
 }
 
+interface ToolchainSource {
+  readonly workspace: () => Promise<WorkspaceContext>;
+  readonly bundledTools: () => string;
+  readonly cliVersion: string;
+  readonly reporter: Pick<Reporter, 'notice'>;
+}
+
+export async function resolveToolchain(source: ToolchainSource): Promise<Toolchain> {
+  try {
+    return toolchainOf(await source.workspace());
+  } catch (err) {
+    if (!(err instanceof DevkitError) || err.code !== 'WORKSPACE_NOT_FOUND') throw err;
+    source.reporter.notice({
+      code: 'TOOLCHAIN_BUNDLED',
+      message: 'not inside a workspace; using the bundled toolchain baseline',
+      nextSteps: ['fx init <dir> --from <source>'],
+    });
+    return bundledToolchain(source.bundledTools(), source.cliVersion);
+  }
+}
+
 export function toolchainOf(ctx: WorkspaceContext): Toolchain {
   const resolved = toolsOf(ctx.manifest);
-  const needed = providerTools(boundToolchain(ctx), ctx.providers, declaredIn(resolved));
+  const needed = providerTools(boundToolchain(ctx), ctx.providers, resolved);
   return { ...selectToolchain(resolved, needed), workspace: ctx.name };
 }
 
 // Installing is a machine-wide act, so the toolchain spans every environment the manifest
 // declares. Narrowing to the selected ones belongs to the checks that run per environment.
-export function boundToolchain(ctx: WorkspaceContext): KeyedBinding[] {
+function boundToolchain(ctx: WorkspaceContext): KeyedBinding[] {
   return [...ctx.bindings.map(keyedBinding), ...ctx.platforms.map(keyedPlatform)];
-}
-
-export function declaredIn(tools: readonly ResolvedTool[]): (tool: string) => boolean {
-  return (tool) => tools.some((entry) => entry.name === tool && entry.declared);
 }
 
 export function toolsOf(bundle: ManifestBundle): readonly ResolvedTool[] {
@@ -45,7 +64,7 @@ export function toolsOf(bundle: ManifestBundle): readonly ResolvedTool[] {
   return resolveTools(doc, provenance, declared);
 }
 
-export function bundledToolchain(bundledText: string, cliVersion: string): Toolchain {
+function bundledToolchain(bundledText: string, cliVersion: string): Toolchain {
   const { doc, provenance, declared } = loadTools(bundledText, undefined, { cliVersion });
   const tools = resolveTools(doc, provenance, declared);
   return {

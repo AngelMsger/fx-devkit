@@ -20,7 +20,7 @@ import {
   finish,
   pending,
   reportRegions,
-  type Pending,
+  type PendingFile,
   type RenderInput,
   type RenderOutput,
 } from './rendered.js';
@@ -48,7 +48,7 @@ export class RenderRegions {
     return result;
   }
 
-  private async agents(out: string | undefined): Promise<Pending> {
+  private async agents(out: string | undefined): Promise<PendingFile> {
     const source = path.join(this.deps.context.dir, 'AGENTS.md');
     const target = out ?? source;
     // A draft written elsewhere is always fresh: the skeleton, fully rendered.

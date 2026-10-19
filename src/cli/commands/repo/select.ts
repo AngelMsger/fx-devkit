@@ -1,6 +1,7 @@
 import { editRepoScope } from '../../../application/repo/scope.js';
 import { selectOperation } from '../../../application/workspace/scope.js';
 import { argument } from '../../flags.js';
+import type { WriteScopeDeclaration } from '../../workspace-write-policy.js';
 import { SelectionCommand, selectFlags } from '../selection.js';
 
 export default class RepoSelectCommand extends SelectionCommand {
@@ -15,6 +16,7 @@ export default class RepoSelectCommand extends SelectionCommand {
     name: argument('names to select exclusively'),
   };
   static override flags = selectFlags('repositories');
+  static override writeScope: WriteScopeDeclaration = 'workspace';
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoSelectCommand);

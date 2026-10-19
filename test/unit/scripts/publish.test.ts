@@ -1,19 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, symlinkSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../../platform.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-publish-test-'));
-  roots.push(root);
+  const root = tempDir('fx-publish-test-');
   for (const directory of ['scripts', 'src/adapters/registry', 'src/domain', 'bin'])
     mkdirSync(path.join(root, directory), { recursive: true });
   writeFileSync(
@@ -25,6 +20,7 @@ function fixture() {
     'scripts/guard-registry.mjs',
     'src/adapters/registry/registry-policy.js',
     'src/domain/distribution.js',
+    'src/domain/public-url.js',
   ])
     writeFileSync(path.join(root, file), readFileSync(file));
   writeFileSync(path.join(root, 'bin/package.json'), '{"type":"commonjs"}');

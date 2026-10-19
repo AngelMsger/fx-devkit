@@ -10,16 +10,27 @@ import {
   type PreparationAction,
 } from '../../domain/preparation.js';
 import { shellLine } from '../../domain/shell.js';
-import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
+import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { WorkspaceEntry } from '../../ports/stores.js';
 import { sourceValidationError } from '../manifest/source-error.js';
+import { resumeAction } from '../preparation.js';
 import type { ToolInstallOutput } from '../tool/install.js';
 
+import type { InitializationPreview } from './preview-initialization.js';
+import { sourceIdentity } from './source.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
-const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'];
+const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'] as const;
+export type InitPhase = (typeof PHASES)[number];
 
-export function nameTaken(name: string, root: string, existing: WorkspaceEntry): DevkitError {
+type Guidance = Pick<InitDeps, 'commandShell'>;
+
+export function nameTaken(
+  deps: Guidance,
+  name: string,
+  root: string,
+  existing: WorkspaceEntry,
+): DevkitError {
   return new DevkitError(
     'conflict',
     'WORKSPACE_NAME_TAKEN',
@@ -27,7 +38,7 @@ export function nameTaken(name: string, root: string, existing: WorkspaceEntry):
     {
       hint: 'The existing workspace is unchanged. Omit --name to let fx choose an available registration name.',
       nextSteps: [
-        shellLine(['fx', 'workspace', 'show', name]),
+        shellLine(['fx', 'workspace', 'show', name], deps.commandShell),
         `Retry initialization at ${root} without --name or with an unused name, keeping the original source and repository selection.`,
       ],
     },
@@ -35,26 +46,27 @@ export function nameTaken(name: string, root: string, existing: WorkspaceEntry):
 }
 
 export function sourceMismatch(
+  deps: Guidance,
   name: string,
   recorded: string,
-  source: ManifestSource,
+  candidate: string,
 ): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_MISMATCH',
-    `Workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
+    `Workspace "${name}" takes its manifest from ${recorded}, not ${candidate}`,
     {
       hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
       nextSteps: [
-        shellLine(['fx', 'workspace', 'rebind', name, '--from', source.description]),
-        shellLine(['fx', 'workspace', 'show', name]),
+        shellLine(['fx', 'workspace', 'rebind', name, '--from', candidate], deps.commandShell),
+        shellLine(['fx', 'workspace', 'show', name], deps.commandShell),
       ],
     },
   );
 }
 
 export function initializationSourceError(
-  deps: Pick<InitDeps, 'commandShell'>,
+  deps: Guidance,
   input: InitInput,
   output: Pick<InitOutput, 'name' | 'root'>,
   inspected: Pick<ManifestSourceInspection, 'root' | 'contents'> | undefined,
@@ -63,16 +75,17 @@ export function initializationSourceError(
   let selection: string[] = [];
   if (input.repos !== undefined)
     selection = input.repos.length === 0 ? ['--no-repos'] : ['--repos', input.repos.join(',')];
+  const source = sourceIdentity(input.source);
   return sourceValidationError(error, {
-    source: input.source,
+    source,
     inspected,
     commandShell: deps.commandShell,
     retry: [
       'fx',
       'init',
-      ...(input.resume
+      ...(input.source.kind === 'kept'
         ? ['--resume', '--workspace', output.name]
-        : [output.root, '--name', output.name, '--from', input.source.description, ...selection]),
+        : [output.root, '--name', output.name, '--from', source.description, ...selection]),
       '--dry-run',
     ],
   });
@@ -80,14 +93,15 @@ export function initializationSourceError(
 
 export interface InitProgress {
   readonly cwd: string;
-  readonly phase: string;
+  readonly phase: InitPhase;
   readonly registered: boolean;
   readonly materialized: boolean;
-  readonly prepared: object | null;
+  readonly prepared: InitializationPreview | null;
   readonly toolInstall: readonly ToolInstallOutput[] | null;
 }
 
 export function initFailure(
+  deps: Guidance,
   output: InitOutput,
   error: unknown,
   progress: InitProgress,
@@ -95,7 +109,7 @@ export function initFailure(
   const failure = asDevkitError(error);
   const { phase, registered, materialized, prepared, toolInstall } = progress;
   const resumable =
-    registered && (output.plan.manifest_action === 'keep' || ['tools', 'sync'].includes(phase));
+    registered && (output.plan.manifest_action === 'keep' || phase === 'tools' || phase === 'sync');
   const phases = phaseResults(progress);
   const install = failure.partialResult as
     { tool_install?: readonly ToolInstallOutput[] } | undefined;
@@ -137,7 +151,7 @@ export function initFailure(
     failure: toEnvelope(failure).error,
     ...(phase === 'validation' ? { validation: failure.partialResult } : {}),
     next_steps: resumable
-      ? [...failure.nextSteps, shellLine(['fx', 'init', '--resume', '--workspace', output.name])]
+      ? [...failure.nextSteps, shellLine(recovery.argv, deps.commandShell)]
       : [
           'Correct the reported source problem and retry the same init command.',
           ...failure.nextSteps,
@@ -151,14 +165,11 @@ function initializationRecovery(
   resumable: boolean,
 ): PreparationAction {
   if (resumable)
-    return {
-      id: 'resume-initialization',
-      description: 'Continue preparing this workspace',
-      argv: ['fx', 'init', '--resume', '--workspace', output.name],
+    return resumeAction({
+      workspace: output.name,
       cwd: progress.cwd,
-      actor: 'agent',
-      requires_approval: false,
-    };
+      description: 'Continue preparing this workspace',
+    });
   let selection: string[] = [];
   if (output.plan.selection.repos) selection = ['--repos', output.plan.selection.repos.join(',')];
   if (output.plan.selection.mode === 'none') selection = ['--no-repos'];
@@ -186,7 +197,7 @@ function phaseResults(progress: InitProgress): Record<string, string> {
 }
 
 // Init owns the single preparation verdict; nested synchronization retains only its evidence.
-function synchronizationResult(failure: DevkitError, phase: string): object | null {
+function synchronizationResult(failure: DevkitError, phase: InitPhase): object | null {
   if (phase !== 'sync' || !failure.partialResult) return null;
   return Object.fromEntries(
     Object.entries(failure.partialResult).filter(([key]) => key !== 'preparation'),

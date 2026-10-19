@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 
 import { describe, expect, it } from 'vitest';
+
+import { until } from '../waiting.js';
 
 import { freshHome, fx } from './harness.js';
 
@@ -111,7 +112,7 @@ describe('workspace hooks', () => {
     expect(Date.now() - started).toBeLessThan(2500);
     expect(result.stderr).toBe('');
     expect(result.json()).toHaveProperty('hookSpecificOutput.additionalContext');
-    for (let i = 0; i < 100 && !existsSync(path.join(s.root, 'AGENTS.md')); i++) await delay(50);
+    await until(() => existsSync(path.join(s.root, 'AGENTS.md')), 5000);
     expect(readFileSync(path.join(s.root, 'AGENTS.md'), 'utf8')).toContain('Team guidance.');
     const wrong = fx(args, { ...s.env, PATH: '' }, s.root, JSON.stringify({ cwd: freshHome() }));
     expect(wrong.stdout).toBe('');

@@ -1,4 +1,5 @@
-// Bind preparation evidence to the registered workspace and an executable recovery action.
+// What a preparation stage and a doctor group report, and how their evidence is bound to
+// the registered workspace and an executable recovery action.
 import {
   preparation,
   preparationCheck,
@@ -10,42 +11,121 @@ import {
 import type { Finding } from '../domain/report.js';
 import type { SetupStep } from '../domain/setup/types.js';
 
+import type { WritePosture } from './safety/posture.js';
+import { toolRecoveryCommand, type ToolStatus } from './tool/check.js';
 import { workspaceToolScope } from './tool/scope.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
 
 type Workspace = Pick<WorkspaceDeps, 'ctx'>;
 
-export function verifyAction(deps: Workspace, tool: string): PreparationAction {
+export type StageSummary = Readonly<Record<string, number | string>>;
+
+// What one stage of preparing a workspace reports: its evidence, its counts and the rows
+// behind them.
+export interface StageResult<Details extends object = object> {
+  readonly checks: readonly PreparationCheck[];
+  // Explicit stage selection requires its requested effects, while native activation stays advisory.
+  readonly operationChecks?: readonly PreparationCheck[];
+  readonly summary: StageSummary;
+  readonly details?: Details;
+}
+
+// The group a lifecycle resource adds to the doctor report, and the repair `doctor --fix`
+// runs for it.
+export interface DoctorExtension {
+  readonly group: string;
+  readonly check: () => Promise<readonly Finding[]>;
+  readonly fix?: (input: {
+    readonly dryRun: boolean;
+    readonly posture: WritePosture;
+  }) => Promise<void>;
+}
+
+// Approving a tool's read-only check and running it. Every check that asks for it gets
+// this command, so the actions coalesce in `preparation`; each words it for its own report.
+export function approveCheckAction(
+  deps: Workspace,
+  tool: string,
+  label: Pick<PreparationAction, 'id' | 'description'>,
+): PreparationAction {
   return {
-    id: `approve-check:${tool}`,
-    actor: 'agent',
-    description: `Review ${tool}'s exact verification commands, then approve the read-only check`,
+    ...label,
     argv: ['fx', 'doctor', '--tool', tool, '--workspace', deps.ctx.name, '--yes'],
     cwd: deps.ctx.root,
+    actor: 'agent',
     requires_approval: true,
   };
 }
 
-// What an agent does about a check that gave no answer. A tool that did not start gets the
-// action a missing tool gets from its own check (toolChecks in sync/checks.ts), so the two
-// coalesce; a check that ran out of time is asked again, within its environment.
+function inspectToolAction(
+  deps: Workspace,
+  tool: string,
+  command: ReturnType<typeof toolRecoveryCommand>,
+): PreparationAction {
+  return {
+    id: `tool:${tool}`,
+    description: `Inspect ${tool} preparation`,
+    argv: [
+      'fx',
+      'tool',
+      command,
+      tool,
+      '--workspace',
+      deps.ctx.name,
+      ...(command === 'show' ? [] : ['--dry-run']),
+    ],
+    cwd: deps.ctx.root,
+    actor: 'agent',
+    requires_approval: false,
+  };
+}
+
+// What an agent does about a tool its check found unusable: approve the probe that was
+// withheld, otherwise look at what the tool's preparation would do.
+export function toolRecovery(
+  deps: Workspace,
+  tool: Pick<ToolStatus, 'name' | 'state' | 'failure'> & { readonly preparation_required: boolean },
+): PreparationAction[] {
+  if (tool.state === 'ok' || (tool.state === 'disabled' && !tool.preparation_required)) return [];
+  if (tool.failure?.code === 'VECTOR_UNTRUSTED')
+    return [
+      approveCheckAction(deps, tool.name, {
+        id: `tool:${tool.name}`,
+        description: `Review the exact ${tool.name} probe and approve it to continue`,
+      }),
+    ];
+  return [inspectToolAction(deps, tool.name, toolRecoveryCommand(tool.state))];
+}
+
+export function verifyAction(deps: Workspace, tool: string): PreparationAction {
+  return approveCheckAction(deps, tool, {
+    id: `approve-check:${tool}`,
+    description: `Review ${tool}'s exact verification commands, then approve the read-only check`,
+  });
+}
+
+// What an agent does about a check that gave no answer: preview installing the tool that
+// did not start, or ask the check that ran out of time again, within its environment.
 export function noAnswerAction(
   deps: Workspace,
   step: Pick<SetupStep, 'id' | 'tool' | 'env'>,
   code: string,
 ): PreparationAction {
-  const missing = code === 'TOOL_MISSING';
-  const scope = ['--workspace', deps.ctx.name];
+  if (code === 'TOOL_MISSING') return inspectToolAction(deps, step.tool, 'install');
   return {
-    id: missing ? `tool:${step.tool}` : `recheck:${step.id}`,
-    actor: 'agent',
-    description: missing
-      ? `Inspect ${step.tool} preparation`
-      : `Check ${step.tool} again; its check did not finish`,
-    argv: missing
-      ? ['fx', 'tool', 'install', step.tool, ...scope, '--dry-run']
-      : ['fx', 'doctor', '--tool', step.tool, ...(step.env ? ['--env', step.env] : []), ...scope],
+    id: `recheck:${step.id}`,
+    description: `Check ${step.tool} again; its check did not finish`,
+    argv: [
+      'fx',
+      'doctor',
+      '--tool',
+      step.tool,
+      ...(step.env ? ['--env', step.env] : []),
+      '--workspace',
+      deps.ctx.name,
+    ],
     cwd: deps.ctx.root,
+    actor: 'agent',
     requires_approval: false,
   };
 }
@@ -53,33 +133,47 @@ export function noAnswerAction(
 export function repairAction(deps: Workspace): PreparationAction {
   return {
     id: 'repair-managed-resources',
-    actor: 'agent',
     description: "Repair the workspace's managed guides and Skills",
     argv: ['fx', 'doctor', '--fix', '--workspace', deps.ctx.name],
     cwd: deps.ctx.root,
+    actor: 'agent',
     requires_approval: true,
   };
 }
 
-export function resumeAction(deps: Workspace): PreparationAction {
+// Initialization can fail before the workspace has a context, so the caller says where the
+// command runs.
+export function resumeAction(input: {
+  readonly workspace: string;
+  readonly cwd: string;
+  readonly description?: string;
+}): PreparationAction {
   return {
     id: 'resume-initialization',
-    description: 'Continue preparing this workspace after resolving the blockers',
-    argv: ['fx', 'init', '--resume', '--workspace', deps.ctx.name],
-    cwd: deps.ctx.root,
+    description:
+      input.description ?? 'Continue preparing this workspace after resolving the blockers',
+    argv: ['fx', 'init', '--resume', '--workspace', input.workspace],
+    cwd: input.cwd,
     actor: 'agent',
     requires_approval: false,
   };
 }
 
+interface WorkspacePreparationInput {
+  readonly stages: readonly string[];
+  readonly checks: readonly PreparationCheck[];
+  readonly preview?: boolean;
+  // What the command narrowed its tools or environments to, when it did.
+  readonly selection?: Partial<Pick<PreparationScope, 'tools' | 'environments'>>;
+  // The command to run again once the blockers change; resuming initialization otherwise.
+  readonly resume?: PreparationAction | undefined;
+}
+
 export function workspacePreparation(
   deps: Workspace,
-  stages: readonly string[],
-  checks: readonly PreparationCheck[],
-  preview = false,
-  selection: Partial<Pick<PreparationScope, 'tools' | 'environments'>> = {},
-  resume: PreparationAction = resumeAction(deps),
+  input: WorkspacePreparationInput,
 ): Preparation {
+  const { stages, checks, selection = {} } = input;
   return preparation({
     scope: {
       workspace: deps.ctx.name,
@@ -98,8 +192,8 @@ export function workspacePreparation(
         Object.keys(deps.ctx.manifest.environments?.result.doc.envs ?? {}),
     },
     checks,
-    preview,
-    resume,
+    preview: input.preview ?? false,
+    resume: input.resume ?? resumeAction({ workspace: deps.ctx.name, cwd: deps.ctx.root }),
   });
 }
 

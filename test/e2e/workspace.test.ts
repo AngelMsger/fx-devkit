@@ -16,11 +16,19 @@ import { describe, expect, it } from 'vitest';
 
 import { repoUrl } from '../../src/domain/workspace/ref.js';
 
-import { freshHome, fx, git, manifestDirOf, tempDir } from './harness.js';
+import {
+  freshHome,
+  fx,
+  git,
+  manifestDirOf,
+  repository,
+  tempDir,
+  type Repository,
+} from './harness.js';
 
 interface Stage {
   readonly host: string;
-  readonly authors: Record<string, string>;
+  readonly upstream: Record<'a' | 'b', Repository>;
   readonly manifestDir: string;
   readonly ws: string;
   readonly env: Record<string, string>;
@@ -29,20 +37,10 @@ interface Stage {
 function stage(): Stage {
   const base = tempDir('fx-e2e-');
   const host = path.join(base, 'host');
-  mkdirSync(path.join(host, 'fx'), { recursive: true });
-  const authors: Record<string, string> = {};
-  for (const name of ['a', 'b']) {
-    const bare = path.join(host, 'fx', `${name}.git`);
-    const author = path.join(base, `author-${name}`);
-    git(['init', '--quiet', '--bare', '-b', 'main', bare], base);
-    git(['clone', '-q', bare, author], base);
-    git(['checkout', '-q', '-b', 'main'], author);
-    writeFileSync(path.join(author, 'README'), `${name}\n`);
-    git(['add', '.'], author);
-    git(['commit', '-q', '-m', 'one'], author);
-    git(['push', '-q', '-u', 'origin', 'main'], author);
-    authors[name] = author;
-  }
+  const upstream = {
+    a: repository(path.join(host, 'fx'), 'a', { README: 'a\n' }),
+    b: repository(path.join(host, 'fx'), 'b', { README: 'b\n' }),
+  };
   const manifestDir = path.join(base, 'manifest-src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
   writeFileSync(
@@ -60,14 +58,15 @@ function stage(): Stage {
       '',
     ].join('\n'),
   );
-  return { host, authors, manifestDir, ws: path.join(base, 'ws'), env: { FX_HOME: freshHome() } };
+  return { host, upstream, manifestDir, ws: path.join(base, 'ws'), env: { FX_HOME: freshHome() } };
 }
 
-function advance(author: string, file: string): void {
-  writeFileSync(path.join(author, file), `${file}\n`);
-  git(['add', '.'], author);
-  git(['commit', '-q', '-m', file], author);
-  git(['push', '-q', 'origin', 'main'], author);
+// A workspace init has written, with both repositories cloned.
+function initialized(): Stage {
+  const s = stage();
+  const boot = fx(['init', s.ws, '--from', path.dirname(s.manifestDir), '--format', 'json'], s.env);
+  expect(boot.status, boot.stderr).toBe(0);
+  return s;
 }
 
 describe('workspace end to end', () => {
@@ -90,13 +89,14 @@ describe('workspace end to end', () => {
     expect(different.error().code).toBe('WORKSPACE_NAME_TAKEN');
   });
 
-  it('inits, syncs safely, selects, registers and forks', () => {
+  it('initializes the root from a manifest it keeps outside it, with both remotes and the derived guide', () => {
     const s = stage();
 
     const boot = fx(
       ['init', s.ws, '--from', path.dirname(s.manifestDir), '--format', 'json'],
       s.env,
     );
+
     expect(boot.status, boot.stderr).toBe(0);
     expect(boot.json()).toMatchObject({
       name: 'ws',
@@ -121,25 +121,34 @@ describe('workspace end to end', () => {
       'origin',
       'upstream',
     ]);
+  });
+
+  it('reads status, and plans a fetch that a read-only session refuses to run', () => {
+    const s = initialized();
 
     const status = fx(['status', '--format', 'json'], s.env, s.ws);
+    const blocked = fx(['status', '--fetch'], { ...s.env, FX_READ_ONLY: '1' }, s.ws);
+    const plan = fx(
+      ['status', '--fetch', '--dry-run', '--format', 'json'],
+      { ...s.env, FX_READ_ONLY: '1' },
+      s.ws,
+    );
+
     expect(status.status).toBe(0);
     expect((status.json() as { items: { name: string; note: string | null }[] }).items).toEqual([
       expect.objectContaining({ name: 'a', exists: true, note: null }),
       expect.objectContaining({ name: 'b', exists: true, note: null }),
     ]);
-    const blockedStatus = fx(['status', '--fetch'], { ...s.env, FX_READ_ONLY: '1' }, s.ws);
-    expect(blockedStatus.status).toBe(5);
-    expect(blockedStatus.error().code).toBe('READONLY_BLOCKED');
-    const statusPlan = fx(
-      ['status', '--fetch', '--dry-run', '--format', 'json'],
-      { ...s.env, FX_READ_ONLY: '1' },
-      s.ws,
+    expect(blocked.status).toBe(5);
+    expect(blocked.error().code).toBe('READONLY_BLOCKED');
+    expect(plan.status, plan.stderr).toBe(0);
+    expect((plan.json() as { items: { fetch: string }[] }).items.map((item) => item.fetch)).toEqual(
+      ['planned', 'planned'],
     );
-    expect(statusPlan.status, statusPlan.stderr).toBe(0);
-    expect(
-      (statusPlan.json() as { items: { fetch: string }[] }).items.map((item) => item.fetch),
-    ).toEqual(['planned', 'planned']);
+  });
+
+  it('syncs around a dirty checkout, a feature branch and an unpicked repository, leaving the work in them', () => {
+    const s = initialized();
 
     writeFileSync(path.join(s.ws, 'a', 'README'), 'edited\n');
     const first = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
@@ -158,7 +167,7 @@ describe('workspace end to end', () => {
     expect(readFileSync(path.join(s.ws, 'a', 'README'), 'utf8')).toBe('edited\n');
 
     git(['checkout', '-q', '-b', 'feature/x'], path.join(s.ws, 'b'));
-    advance(s.authors['b'] ?? '', 'two');
+    s.upstream.b.commit({ two: 'two\n' }, 'two');
     const second = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(
       (second.json() as { items: { name: string; outcome?: string; mode?: string }[] }).items[1],
@@ -182,9 +191,14 @@ describe('workspace end to end', () => {
       ['a', 'skip_dirty', 'planned'],
       ['b', 'skip_unpicked', 'planned'],
     ]);
+  });
 
+  it('registers a local repository beside the shared ones and forgets it without deleting it', () => {
+    const s = initialized();
+    expect(fx(['repo', 'unpick', 'b'], s.env, s.ws).status).toBe(0);
     const scratch = path.join(path.dirname(s.ws), 'scratch');
     git(['init', '--quiet', scratch], path.dirname(s.ws));
+
     expect(fx(['repo', 'add', scratch], s.env, s.ws).status).toBe(0);
     const listed = fx(['repo', 'list', '--format', 'json'], s.env, s.ws);
     expect(
@@ -196,14 +210,18 @@ describe('workspace end to end', () => {
     ]);
     expect(fx(['repo', 'remove', 'scratch'], s.env, s.ws).status).toBe(0);
     expect(existsSync(path.join(scratch, '.git'))).toBe(true);
+  });
+
+  it('forks a repository on the code host once, and says so the second time', () => {
+    const s = initialized();
 
     const fork = fx(['repo', 'fork', 'a', '--format', 'json'], s.env, s.ws);
+    const again = fx(['repo', 'fork', 'a', '--format', 'json'], s.env, s.ws);
+
     expect(fork.status).toBe(0);
     expect(fork.json()).toMatchObject({ created: true, url: repoUrl(s.host, '~alice', 'a') });
     expect(existsSync(path.join(s.host, '~alice', 'a.git', 'HEAD'))).toBe(true);
-    expect(fx(['repo', 'fork', 'a', '--format', 'json'], s.env, s.ws).json()).toMatchObject({
-      created: false,
-    });
+    expect(again.json()).toMatchObject({ created: false });
   });
 
   it('adopts a non-empty directory without touching unrelated files and is idempotent', () => {

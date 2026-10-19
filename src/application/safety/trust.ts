@@ -6,6 +6,7 @@
 // workspace's tools is one decision rather than one decision per package.
 
 import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import type { Origin } from '../../domain/manifest/overlay.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import {
   trustFingerprint,
@@ -13,7 +14,6 @@ import {
   renderVector,
   type TrustExecution,
 } from '../../domain/toolchain/trust.js';
-import type { Clock } from '../../ports/clock.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { TrustStore } from '../../ports/stores.js';
 import { recoveryCommand } from '../workspace/guidance.js';
@@ -27,18 +27,18 @@ export interface TrustInput {
   readonly vector: readonly string[];
   readonly label: string;
   readonly execution?: TrustExecution | undefined;
-  readonly origin: 'base' | 'patch';
+  readonly origin: Origin;
   readonly yes: boolean;
   readonly posture: WritePosture;
+}
+
+export interface TrustBatch extends Omit<TrustInput, 'vector'> {
+  readonly vectors: readonly (readonly string[])[];
 }
 
 // What a use case carries when patch-supplied vectors may run on its path.
 // Under a dry run nothing is recorded: an untrusted vector is reported, not
 // asked about.
-export interface TrustBatch extends Omit<TrustInput, 'vector'> {
-  readonly vectors: readonly (readonly string[])[];
-}
-
 export interface TrustContext {
   readonly commandShell?: ResolvedShell | undefined;
   readonly gate: TrustGate;
@@ -52,7 +52,6 @@ export class TrustGate {
   constructor(
     private readonly store: TrustStore,
     private readonly prompter: Prompter,
-    private readonly _clock: Clock,
   ) {}
 
   async ensure(input: TrustInput): Promise<void> {
@@ -123,41 +122,38 @@ export class TrustGate {
   }
 }
 
-export function commandTrustHandoff(input: {
-  readonly tool: string;
-  readonly posture: WritePosture;
-  readonly workspace?: string | undefined;
-  readonly commandShell?: ResolvedShell | undefined;
-}): HandoffEnvelope {
+export function commandTrustHandoff(
+  trust: Pick<TrustContext, 'posture' | 'workspace' | 'commandShell'>,
+  tool: string,
+): HandoffEnvelope {
   const command = recoveryCommand(
-    input,
+    trust,
     'doctor',
     '--tool',
-    input.tool,
-    ...(input.posture.readOnly ? ['--allow-writes'] : []),
+    tool,
+    ...(trust.posture.readOnly ? ['--allow-writes'] : []),
   );
   return handoffEnvelope({
-    summary: `${input.tool} has manifest commands a person has not trusted`,
+    summary: `${tool} has manifest commands a person has not trusted`,
     userSteps: [
       {
-        id: `${input.tool}.trust`,
+        id: `${tool}.trust`,
         kind: 'manual',
-        title: `Review ${input.tool} manifest commands`,
+        title: `Review ${tool} manifest commands`,
         instructions:
           'Run the command in a terminal and confirm only the exact vectors you accept.',
       },
     ],
     command,
-    alternatives: [
-      recoveryCommand(input, 'tool', 'show', input.tool),
-      recoveryCommand(input, 'doctor'),
-    ],
+    alternatives: [recoveryCommand(trust, 'tool', 'show', tool), recoveryCommand(trust, 'doctor')],
   });
 }
 
 export function isTrustRequired(err: unknown): boolean {
-  return (
-    err instanceof DevkitError &&
-    (err.code === 'VECTOR_UNTRUSTED' || err.code === 'READONLY_BLOCKED')
-  );
+  return err instanceof DevkitError && isTrustRequiredCode(err.code);
+}
+
+// The same answer for a failure that already travels as an envelope.
+export function isTrustRequiredCode(code: unknown): boolean {
+  return code === 'VECTOR_UNTRUSTED' || code === 'READONLY_BLOCKED';
 }

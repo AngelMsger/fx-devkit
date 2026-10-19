@@ -12,6 +12,7 @@ import type { Platform } from '../../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
+import { HeldWork } from '../../../held-work.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');
@@ -77,9 +78,24 @@ describe('Where', () => {
     expect(h.process.calls).toEqual([]);
   });
 
-  it.each([false, true])(
-    'expands provider home paths without a shell and preserves manifest shell templates: %s',
-    async (customTemplate) => {
+  const manifestCommand = 'kubectl --kubeconfig ~/.kube/config.dev get pods';
+  const home = path.resolve('/home/Example User');
+  const vector = ['kubectl', '--kubeconfig', path.join(home, '.kube/config.dev'), 'get', 'pods'];
+  const expanded = shellLine(vector);
+  it.each([
+    {
+      printing: 'the provider vector with its home path expanded',
+      declared: [],
+      command: expanded,
+    },
+    {
+      printing: 'a manifest shell template as written',
+      declared: [`    command: ${manifestCommand}`],
+      command: manifestCommand,
+    },
+  ])(
+    'probes the expanded home path without a shell and prints $printing',
+    async ({ declared, command }) => {
       const kube = new TemplatePlatform({
         id: 'kubectl',
         capability: 'cluster',
@@ -90,7 +106,6 @@ describe('Where', () => {
           command: ['kubectl', '--kubeconfig', '{kubeconfig}', 'get', 'pods'],
         },
       });
-      const manifestCommand = 'kubectl --kubeconfig ~/.kube/config.dev get pods';
       const h = await harness({
         workspace:
           'schema_version: 2\ndefaults: { branch: dev }\nrepos: [{ name: fx-example-api, upstream: "https://git.example.com/fx/fx-example-api.git" }]\n',
@@ -101,7 +116,7 @@ describe('Where', () => {
             '  kube:',
             '    provider: kubectl',
             '    capability: cluster',
-            ...(customTemplate ? [`    command: ${manifestCommand}`] : []),
+            ...declared,
             'envs:',
             '  dev:',
             '    platforms:',
@@ -110,14 +125,6 @@ describe('Where', () => {
         },
         platforms: { kubectl: kube },
       });
-      const home = path.resolve('/home/Example User');
-      const vector = [
-        'kubectl',
-        '--kubeconfig',
-        path.join(home, '.kube/config.dev'),
-        'get',
-        'pods',
-      ];
       h.process.on(vector, { code: 0, stdout: '{}', stderr: '' });
       const where = new Where(h.deps, { ...fakeLoginDeps({}), home });
       const [row] = await where.execute({
@@ -128,12 +135,7 @@ describe('Where', () => {
         probe: true,
       });
       expect(h.process.calls.map((call) => call.vector)).toEqual([vector]);
-      const expanded = shellLine(vector);
-      expect(row).toMatchObject({
-        command: customTemplate ? manifestCommand : expanded,
-        probed: expanded,
-        outcome: 'reachable',
-      });
+      expect(row).toMatchObject({ command, probed: expanded, outcome: 'reachable' });
     },
   );
 
@@ -256,10 +258,6 @@ describe('Where', () => {
     expect(s.h.git.checkouts.size).toBe(0);
     expect(s.h.git.calls).toEqual([]);
     expect(s.h.process.calls).toEqual([]);
-    await expect(s.where.execute({ repo: 'unknown', ...LOOKUP })).rejects.toMatchObject({
-      category: 'not_found',
-      code: 'REPO_NOT_FOUND',
-    });
   });
 
   it('lists every platform of every environment in scope; without --check nothing runs', async () => {
@@ -297,12 +295,9 @@ describe('Where', () => {
     expect(rows[0]?.handoff).toMatchObject({ command: 'fx tool install sentry --workspace fx' });
     expect(rows[2]?.handoff).toBeNull();
     expect(
-      s.h.process.calls.map((c) => c.vector[0]),
-      'the check only asks the tools; no coordinate command runs',
-    ).not.toContain('jenkins-cli build');
-    expect(
-      s.h.process.calls.filter((call) => call.vector.join(' ') === 'jenkins-cli --version'),
-    ).toHaveLength(1);
+      s.h.process.vectors(),
+      'the check asks each installed tool once; no coordinate command runs',
+    ).toEqual([['jenkins-cli', '--version']]);
   });
 
   it('preserves version-check recovery on a located coordinate without running its query', async () => {
@@ -331,8 +326,8 @@ describe('Where', () => {
     expect(s.h.process.calls.map((call) => call.vector)).toEqual([['jenkins-cli', '--version']]);
   });
 
-  it('probes coordinates concurrently up to --jobs and preserves manifest order', async () => {
-    const platforms = Array.from({ length: 12 }, (_, index) => `builds-${index}`);
+  it('probes no more than --jobs coordinates at once', async () => {
+    const platforms = ['builds-0', 'builds-1', 'builds-2'];
     const environments = [
       'schema_version: 2',
       'platforms:',
@@ -355,30 +350,23 @@ describe('Where', () => {
       files: { [`${MANIFEST_DIR}/manifest/environments.yaml`]: environments },
       platforms: { 'jenkins-cli': jenkins },
     });
-    let inFlight = 0;
-    let peak = 0;
-    const deps = {
-      ...h.deps,
-      processRun: async (vector: readonly string[], options = {}) => {
-        inFlight += 1;
-        peak = Math.max(peak, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 2));
-        inFlight -= 1;
-        return h.process.run(vector, options);
-      },
-    };
-    h.process.always({ code: 0, stdout: '{}', stderr: '' });
+    const probing = new HeldWork<string>();
+    h.process.always(async (vector) => {
+      await probing.hold(vector.join(' '));
+      return { code: 0, stdout: '{}', stderr: '' };
+    });
 
-    const rows = await new Where(deps, fakeLoginDeps(DESCRIPTORS)).execute({
+    const rows = new Where(h.deps, fakeLoginDeps(DESCRIPTORS)).execute({
       repo: 'fx-example-api',
       env: 'dev',
       check: false,
       probe: true,
-      jobs: 3,
+      jobs: 2,
     });
-
-    expect(peak).toBe(3);
-    expect(rows.map((row) => row.platform)).toEqual(platforms);
+    await probing.reached(2);
+    expect(probing.started).toHaveLength(2);
+    probing.releaseAll();
+    expect((await rows).map((row) => row.platform)).toEqual(platforms);
   });
 
   it('narrows to one environment and platform, and answers a typo with a suggestion', async () => {
@@ -397,6 +385,7 @@ describe('Where', () => {
       s.where.execute({ repo: 'fx-example-api', env: 'prd', ...LOOKUP }),
     ).rejects.toMatchObject({ code: 'ENV_NOT_FOUND', hint: 'Did you mean "prod"?' });
     await expect(s.where.execute({ repo: 'fx-example-ap', ...LOOKUP })).rejects.toMatchObject({
+      category: 'not_found',
       code: 'REPO_NOT_FOUND',
     });
   });

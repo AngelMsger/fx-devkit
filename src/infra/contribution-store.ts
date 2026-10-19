@@ -1,36 +1,23 @@
-// Owned journals contain only validated operation metadata. Writes are locked,
-// fsynced and atomically replaced; foreign files and symlinks are never adopted.
-
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+// The contribution journal contains only validated operation metadata, kept
+// under the OwnedJournal protocol.
 
 import * as z from 'zod';
 
 import { scanBoundary } from '../domain/boundary/scan.js';
 import type { ContributionOperation } from '../domain/contribution/operation.js';
 import { busyError, DevkitError } from '../domain/errors.js';
-import { assertWorkspaceName } from '../domain/workspace/name.js';
+import { isPlainRelativePath } from '../domain/path.js';
+import { isPublicHttpUrl } from '../domain/public-url.js';
 import type { ContributionStore } from '../ports/contribution-store.js';
 import type { Lock } from '../ports/lock.js';
 
-import { writeAtomicFile } from './atomic-file.js';
-import { assertStoreParents } from './store-parents.js';
+import { OwnedJournal } from './owned-journal.js';
 import type { ShapeOf } from './stored-shape.js';
+import { contributionJournalPath } from './workspace-home.js';
 
 const oid = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 const digest = z.string().regex(/^[0-9a-f]{64}$/);
-const relative = z
-  .string()
-  .min(1)
-  .refine(
-    (value) =>
-      !/[\\\x00-\x1f:]/u.test(value) &&
-      value
-        .split('/')
-        .every(
-          (part) => part !== '' && part !== '.' && part !== '..' && part.toLowerCase() !== '.git',
-        ),
-  );
+const relative = z.string().refine(isPlainRelativePath);
 const consistentRecord = (value: ContributionOperation): boolean =>
   value.branch === `fx/contribution/${value.id}` &&
   (value.phase === 'prepared') === (value.commit === null) &&
@@ -64,7 +51,7 @@ const record = (object: typeof z.strictObject) =>
       .string()
       .regex(/^[1-9][0-9]*$/)
       .nullable(),
-    pullRequest: z.string().refine(isSafeUrl).nullable(),
+    pullRequest: z.string().refine(isPublicHttpUrl).nullable(),
     updatedAt: z.string().refine((value) => Number.isFinite(Date.parse(value))),
   } satisfies ShapeOf<ContributionOperation>).refine(consistentRecord);
 const journal = (object: typeof z.strictObject) =>
@@ -76,6 +63,11 @@ const journal = (object: typeof z.strictObject) =>
 const written = journal(z.strictObject);
 const read = journal(z.object);
 
+interface StoredJournal {
+  readonly owner: 'fx:contributions:v1';
+  readonly operations: readonly ContributionOperation[];
+}
+
 export class FileContributionStore implements ContributionStore {
   constructor(
     private readonly home: string,
@@ -83,60 +75,24 @@ export class FileContributionStore implements ContributionStore {
   ) {}
 
   async read(workspace: string): Promise<readonly ContributionOperation[]> {
-    return this.readFile(this.file(workspace));
+    return (await this.journal(workspace).read())?.operations ?? [];
   }
 
   async write(workspace: string, operations: readonly ContributionOperation[]): Promise<void> {
-    const file = this.file(workspace);
-    let text: string;
-    try {
-      text = JSON.stringify(written.parse({ owner: 'fx:contributions:v1', operations }));
-    } catch {
-      throw invalid();
-    }
-    await assertStoreParents(this.home, file, invalid);
-    const lease = await this.lock.acquire({ key: `contributions:${workspace}`, waitMs: 2000 });
-    if (!lease) throw busyError('SOURCE_BUSY', 'The contribution journal');
-    try {
-      await this.readFile(file);
-      await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
-      await assertStoreParents(this.home, file, invalid);
-      await writeAtomicFile(file, text, { durable: true });
-    } finally {
-      await lease.release();
-    }
+    await this.journal(workspace).replace({ owner: 'fx:contributions:v1', operations });
   }
 
-  private async readFile(file: string): Promise<readonly ContributionOperation[]> {
-    await assertStoreParents(this.home, file, invalid);
-    try {
-      const stat = await fs.lstat(file);
-      if (!stat.isFile() || stat.nlink !== 1) throw invalid();
-      return read.parse(JSON.parse(await fs.readFile(file, 'utf8'))).operations;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw invalid();
-    }
-  }
-
-  private file(workspace: string): string {
-    assertWorkspaceName(workspace);
-    return path.join(this.home, 'workspaces', workspace, 'contributions.json');
-  }
-}
-
-function isSafeUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      ['http:', 'https:'].includes(url.protocol) &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
-    );
-  } catch {
-    return false;
+  private journal(workspace: string): OwnedJournal<StoredJournal> {
+    return new OwnedJournal({
+      home: this.home,
+      file: contributionJournalPath(this.home, workspace),
+      lock: this.lock,
+      lease: { key: `contributions:${workspace}`, waitMs: 2000 },
+      encode: (value) => JSON.stringify(written.parse(value)),
+      decode: (document) => read.parse(document),
+      invalid,
+      busy: () => busyError('SOURCE_BUSY', 'The contribution journal'),
+    });
   }
 }
 

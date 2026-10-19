@@ -54,6 +54,32 @@ describe('FamilyCli', () => {
     });
   });
 
+  it('leaves a tool that started and exited 127 to be read as a failed query', async () => {
+    const proc = new FakeProcess().always({
+      code: 127,
+      stdout: '',
+      stderr: 'helper executable unavailable\n',
+    });
+    const call = await cli(proc).call(['x']);
+    expect(queryFailed('tool-cli', call, 'do x')).toMatchObject({
+      category: 'server',
+      code: 'PLATFORM_QUERY_FAILED',
+      message: 'tool-cli could not do x: helper executable unavailable',
+    });
+  });
+
+  it.each([
+    { state: 'is missing', preview: { code: 0, stdout: '{"changed":true}', stderr: '' } },
+    { state: 'conflicts', preview: { code: 11, stdout: '', stderr: '{}' } },
+  ])('withholds authenticated queries when the target preset $state', async ({ preview }) => {
+    const proc = new FakeProcess().on(['tool-cli', 'config'], preview);
+    const client = new FamilyCli('tool-cli', proc, 'team', {
+      base_url: 'https://git.example.com',
+    });
+    await expect(client.call(['whoami'])).rejects.toMatchObject({ code: 'LOGIN_REQUIRED' });
+    expect(proc.calls.some((call) => call.vector.includes('whoami'))).toBe(false);
+  });
+
   it('classifies a failed query by the family exit code', () => {
     const call = (code: number) => ({ code, stdout: '', data: undefined, error: undefined });
     expect(queryFailed('t', call(4), 'x')).toMatchObject({

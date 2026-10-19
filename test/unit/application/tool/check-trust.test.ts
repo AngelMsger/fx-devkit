@@ -4,7 +4,6 @@ import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { ToolCheck } from '../../../../src/application/tool/check.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -25,7 +24,7 @@ describe('ToolCheck under a dry run', () => {
     const store = new FakeTrustStore();
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const gate = new TrustGate(store, prompter, new FakeClock());
+    const gate = new TrustGate(store, prompter);
     const tools = resolveTools(patched.doc, patched.provenance);
 
     const [dry] = await new ToolCheck(process).execute({
@@ -41,6 +40,7 @@ describe('ToolCheck under a dry run', () => {
       trust: { gate, workspace: 'fx', yes: true, posture: writable },
     });
     expect(real?.state).toBe('ok');
+    expect(process.vectors(), 'the patched vector is what ran').toEqual([['alpha', '--ver']]);
     expect(store.entries.map((e) => e.label)).toEqual(['alpha version probe']);
 
     const [again] = await new ToolCheck(process).execute({
@@ -56,6 +56,12 @@ describe('ToolCheck under a dry run', () => {
       base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
       patch: 'schema_version: 3\ntools: [{ name: alpha, binary: surprise }]',
       binary: 'surprise',
+    },
+    {
+      case: 'patched version arguments',
+      base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
+      patch: 'schema_version: 3\ntools: [{ name: alpha, version_args: [--ver] }]',
+      binary: 'alpha',
     },
     {
       case: 'a patch-added tool inheriting bundled arguments',
@@ -75,7 +81,7 @@ describe('ToolCheck under a dry run', () => {
       new ToolCheck(process).execute({
         tools: resolveTools(loaded.doc, loaded.provenance),
         trust: {
-          gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
+          gate: new TrustGate(new FakeTrustStore(), prompter),
           workspace: 'fx',
           yes: false,
           posture: writable,

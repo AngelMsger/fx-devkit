@@ -1,25 +1,19 @@
 // The evolution rule the personal stores share: a document written by a newer
 // fx still loads, and nothing outside the contract is ever written back.
-import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileHarnessState } from '../../../src/infra/harness-state.js';
 import { FileHookState } from '../../../src/infra/hook-state.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FileToolHistoryStore } from '../../../src/infra/tool-history.js';
-
-const roots: string[] = [];
-afterEach(async () => {
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
-});
+import { tempDir } from '../../temp.js';
 
 async function home(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'fx-stored-shape-'));
-  roots.push(dir);
+  const dir = tempDir('fx-stored-shape-');
   await mkdir(path.join(dir, 'workspaces/test'), { recursive: true });
   return dir;
 }

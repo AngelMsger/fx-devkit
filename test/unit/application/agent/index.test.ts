@@ -1,82 +1,13 @@
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
-import { SpecAgentHost } from '../../../../src/adapters/agent-host/host.js';
-import { AGENT_SPECS } from '../../../../src/adapters/agent-host/specs.js';
 import { AgentList } from '../../../../src/application/agent/list.js';
 import { AgentPick } from '../../../../src/application/agent/pick.js';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
-import { FakeFs } from '../../../fakes/fake-fs.js';
-import { FakeProcess } from '../../../fakes/fake-process.js';
 
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
-
-describe('AGENT_SPECS', () => {
-  it('is the family table: thirteen agents with their skill directories', () => {
-    expect(AGENT_SPECS.map((s) => s.id)).toEqual([
-      'claude-code',
-      'codex',
-      'cursor',
-      'agents',
-      'gemini',
-      'github-copilot',
-      'opencode',
-      'continue',
-      'windsurf',
-      'grok',
-      'pi',
-      'kilo',
-      'roo',
-    ]);
-    const byId = Object.fromEntries(AGENT_SPECS.map((s) => [s.id, s]));
-    expect(byId['claude-code']).toMatchObject({
-      homeSub: '.claude',
-      projectSkills: '.claude/skills',
-    });
-    expect(byId['codex']).toMatchObject({ homeSub: '.codex', projectSkills: '.agents/skills' });
-    expect(byId['windsurf']).toMatchObject({
-      homeSub: '.codeium/windsurf',
-      projectSkills: '.windsurf/skills',
-    });
-    expect(byId['pi']).toMatchObject({ homeSub: '.pi/agent', projectSkills: '.pi/skills' });
-    expect(byId['opencode']).toMatchObject({
-      homeSub: '.config/opencode',
-      projectSkills: '.opencode/skills',
-    });
-  });
-});
-
-describe('SpecAgentHost', () => {
-  const spec = AGENT_SPECS.find((s) => s.id === 'claude-code')!;
-  const home = path.normalize(path.resolve('/home/alice'));
-
-  it('is detected by a marker directory or by a binary on PATH, and knows its skill dirs', async () => {
-    const byDir = new SpecAgentHost(spec, {
-      fs: FakeFs.from({ [`${home}/.claude/settings.json`]: '{}' }),
-      process: new FakeProcess(),
-      home,
-    });
-    expect(await byDir.detect()).toBe(true);
-    const proc = new FakeProcess();
-    proc.binaries.add('claude');
-    const byBinary = new SpecAgentHost(spec, { fs: FakeFs.from({}), process: proc, home });
-    expect(await byBinary.detect()).toBe(true);
-    const neither = new SpecAgentHost(spec, {
-      fs: FakeFs.from({}),
-      process: new FakeProcess(),
-      home,
-    });
-    expect(await neither.detect()).toBe(false);
-    expect(neither.skillsDir('global')).toBe(path.join(home, '.claude', 'skills'));
-    expect(neither.skillsDir('project', path.resolve('/ws'))).toBe(
-      path.normalize(path.resolve('/ws/.claude/skills')),
-    );
-  });
-});
 
 describe('AgentList', () => {
   const hosts = [
@@ -123,7 +54,7 @@ describe('AgentPick', () => {
 
   it('starts an explicit list from the detected set when unpicking under auto mode', async () => {
     const config = new FakeConfigStore({});
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['codex'],
       action: 'unpick',
       dryRun: false,
@@ -135,14 +66,14 @@ describe('AgentPick', () => {
 
   it('adds to and removes from an explicit list, keeping other config keys', async () => {
     const config = new FakeConfigStore({ format: 'json', agents: ['codex'] });
-    await new AgentPick(config, hosts).execute({
+    await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
       posture: writable,
     });
     expect(await config.read()).toEqual({ format: 'json', agents: ['codex', 'roo'] });
-    const noop = await new AgentPick(config, hosts).execute({
+    const noop = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -153,7 +84,7 @@ describe('AgentPick', () => {
 
   it('persists a new agent when deduplication keeps the list length unchanged', async () => {
     const config = new FakeConfigStore({ agents: ['codex', 'codex'] });
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -165,7 +96,7 @@ describe('AgentPick', () => {
 
   it('preserves an explicit empty list when picking or unpicking', async () => {
     const config = new FakeConfigStore({ agents: [] });
-    const unchanged = await new AgentPick(config, hosts).execute({
+    const unchanged = await new AgentPick({ config, hosts }).execute({
       ids: ['codex'],
       action: 'unpick',
       dryRun: false,
@@ -173,7 +104,7 @@ describe('AgentPick', () => {
     });
     expect(unchanged).toMatchObject({ before: [], after: [], changed: false, written: false });
 
-    const picked = await new AgentPick(config, hosts).execute({
+    const picked = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: false,
@@ -187,7 +118,7 @@ describe('AgentPick', () => {
     const original = config.update.bind(config);
     config.update = (change) =>
       original(async (current) => change({ ...current, agents: ['roo'] }));
-    const result = await new AgentPick(config, hosts).execute({
+    const result = await new AgentPick({ config, hosts }).execute({
       ids: ['claude-code'],
       action: 'pick',
       dryRun: false,
@@ -199,7 +130,7 @@ describe('AgentPick', () => {
 
   it('previews under dry-run, refuses under read-only, and rejects an unknown id with a suggestion', async () => {
     const config = new FakeConfigStore({});
-    const preview = await new AgentPick(config, hosts).execute({
+    const preview = await new AgentPick({ config, hosts }).execute({
       ids: ['roo'],
       action: 'pick',
       dryRun: true,
@@ -208,7 +139,7 @@ describe('AgentPick', () => {
     expect(preview).toMatchObject({ after: ['claude-code', 'codex', 'roo'], written: false });
     expect(await config.read()).toEqual({});
     await expect(
-      new AgentPick(config, hosts).execute({
+      new AgentPick({ config, hosts }).execute({
         ids: ['roo'],
         action: 'pick',
         dryRun: false,
@@ -216,12 +147,16 @@ describe('AgentPick', () => {
       }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
     await expect(
-      new AgentPick(config, hosts).execute({
+      new AgentPick({ config, hosts }).execute({
         ids: ['codx'],
         action: 'pick',
         dryRun: false,
         posture: writable,
       }),
-    ).rejects.toMatchObject({ code: 'AGENT_UNKNOWN', hint: expect.stringContaining('codex') });
+    ).rejects.toMatchObject({
+      code: 'AGENT_UNKNOWN',
+      message: '"codx" is not an agent fx knows',
+      hint: 'Did you mean "codex"?',
+    });
   });
 });

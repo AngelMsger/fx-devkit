@@ -1,5 +1,6 @@
 // Report readiness and recovery for a resolved capability or tool; without a
-// target, list what there is to ask about.
+// target, list what there is to ask about. An `mcp:<name>` target is a resource
+// of the workspace harness and is answered there.
 
 import {
   CAPABILITY_INFO,
@@ -10,11 +11,14 @@ import {
 import { DevkitError } from '../../domain/errors.js';
 import {
   bindingOf,
+  platformOf,
   servesCapability,
   type Binding,
   type PlatformBinding,
 } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
+import type { McpVerdict } from '../harness/mcp-readiness.js';
+import { canMcp, type HarnessSession } from '../harness/session.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -97,7 +101,7 @@ export class Can {
       this.bindingsOf(capability).map((binding) => ({
         capability,
         scope: CAPABILITY_INFO[capability].scope,
-        platform: 'platform' in binding ? binding.platform : null,
+        platform: platformOf(binding),
         provider: binding.provider,
         tool: readiness.targetOf(binding)?.tool?.name ?? null,
         desc: CAPABILITY_INFO[capability].desc,
@@ -114,9 +118,8 @@ export class Can {
     return instances.length > 0 ? instances : [bindingOf([], capability)];
   }
 
-  // A provider fx does not implement is still usable when the manifest describes a tool of
-  // that name: fx has no entry coordinate to offer, but the tool's own readiness answers the
-  // question. Without such a tool the binding names nothing at all.
+  // A provider the manifest defines itself (see manifestProviderTool) has no entry
+  // coordinate to offer: the readiness of its tool answers the question.
   private entry(target: Target): CanResult['entry'] {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;
@@ -140,4 +143,26 @@ export class Can {
       url: coordinate.url ?? null,
     };
   }
+}
+
+// Each side is built only for a target it answers: an MCP resource is read from the
+// harness alone, without the workspace manifest a capability or tool needs.
+interface CanRoutes {
+  readonly workspace: () => Promise<Can>;
+  readonly harness: () => HarnessSession;
+}
+
+const MCP_TARGET = 'mcp:';
+
+export async function canTarget(
+  input: CanInput,
+  routes: CanRoutes,
+): Promise<CanResult | McpVerdict> {
+  if (!input.target.startsWith(MCP_TARGET)) return (await routes.workspace()).execute(input);
+  return canMcp({
+    ...routes.harness(),
+    name: input.target.slice(MCP_TARGET.length),
+    agent: input.agent,
+    envName: input.env,
+  });
 }

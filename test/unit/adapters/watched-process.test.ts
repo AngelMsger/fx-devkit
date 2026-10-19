@@ -54,10 +54,7 @@ describe('WatchedProcess', () => {
 
   it('hands the terminal to a child that owns it and takes it back when the child fails', async () => {
     const watch = watcher();
-    const inner = new FakeProcess();
-    inner.run = async () => {
-      throw new Error('spawn failed');
-    };
+    const inner = new FakeProcess().always(new Error('spawn failed'));
     await expect(
       new WatchedProcess(inner, watch).run(['logs', 'auth', 'login'], { interactive: true }),
     ).rejects.toThrow('spawn failed');

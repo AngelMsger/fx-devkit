@@ -13,7 +13,9 @@ it('preserves a destination that cannot be replaced and removes the staged file'
   const target = path.join(dir, 'state');
   await mkdir(target);
   await writeFile(path.join(target, 'preserved'), 'user data');
-  await expect(writeAtomicFile(target, 'replacement', { durable: true })).rejects.toThrow();
+  await expect(writeAtomicFile(target, 'replacement', { durable: true })).rejects.toMatchObject({
+    code: expect.stringMatching(/^E(ISDIR|PERM)$/),
+  });
   expect(await readFile(path.join(target, 'preserved'), 'utf8')).toBe('user data');
   expect(await readdir(dir)).toEqual(['state']);
 });

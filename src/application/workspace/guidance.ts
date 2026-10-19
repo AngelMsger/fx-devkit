@@ -1,7 +1,7 @@
 // Workspace recovery commands retain the resolved identity instead of resolving cwd or defaults again.
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 
 export interface WorkspaceGuidance {
@@ -44,10 +44,7 @@ export function workspaceItemNotFound(
     input.kind === 'repo' ? 'REPO_NOT_FOUND' : 'ENV_NOT_FOUND',
     `"${input.name}" is not ${article} ${qualifier}${subject} of workspace "${context.ctx.name}"`,
     {
-      hint:
-        suggestion === undefined
-          ? `Known: ${input.known.join(', ') || '(none)'}.`
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, `Known: ${input.known.join(', ') || '(none)'}.`),
       nextSteps: [workspaceCommand(context, input.kind, 'list')],
     },
   );

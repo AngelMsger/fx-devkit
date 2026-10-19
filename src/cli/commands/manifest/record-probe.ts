@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import { recordProbe } from '../../../composition/probe-record.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, jobsFlag, requiredArgument, writeIntent } from '../../flags.js';
+import type { WriteScopeDeclaration } from '../../workspace-write-policy.js';
 
 export default class ManifestRecordProbe extends FxCommand {
   static override description =
@@ -19,6 +20,7 @@ export default class ManifestRecordProbe extends FxCommand {
     'dry-run': dryRunFlag,
     jobs: jobsFlag,
   };
+  static override writeScope: WriteScopeDeclaration = 'workspace';
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestRecordProbe);

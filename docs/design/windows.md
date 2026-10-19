@@ -28,14 +28,15 @@ by cmd and the program it starts. fx quotes each argument, so cmd leaves it alon
 and the batch reads it unchanged; where an argument's own quote ends cmd's quoting,
 special characters are escaped for both reads. Percent signs are kept from
 expansion and delayed expansion is off.
-No caller-facing raw-shell option is introduced. Missing commands remain exit
-127, and piped output remains byte-decoded UTF-8 with diagnostics separate.
+There is no caller-facing raw-shell option. A command that cannot start reports
+exit 127, and piped output is byte-decoded UTF-8 with diagnostics separate.
 
 Noninteractive children do not open console windows. Cancellation uses only the
 owned PID with bounded `taskkill /T /F`, followed by direct-child cleanup when
 needed. This is best-effort resource cleanup, not a Windows Job Object or a
 containment boundary. A root already terminated by the OS cannot reliably identify
-or clean up detached descendants. POSIX process-group behavior is retained.
+or clean up detached descendants. The [runtime contract](runtime.md#deadlines-and-process-lifecycle)
+describes POSIX process groups.
 
 Workspace roots and FX_HOME must be on local NTFS storage. Different local
 volumes are supported; UNC and mapped network storage are outside the support
@@ -45,9 +46,9 @@ aliases are rejected during local planning.
 
 Team Skills use absolute directory junctions on Windows and directory symlinks
 elsewhere. Junctions retain live sharing without symlink privileges. Reconciliation
-recognizes their targets; removing one never removes the source directory. Foreign
-directories, files and links retain the existing ownership/confirmation rules.
-fx's bundled Skill is still a recoverably replaced copy. Local Git contribution
+recognizes their targets; removing one never removes the source directory. A foreign
+directory, file or link is reported and replaced only after confirmation.
+fx's bundled Skill is a recoverably replaced copy on every platform. Local Git contribution
 capture preserves the index/HEAD executable bit on Windows and defaults new files
 to nonexecutable instead of interpreting Windows filesystem modes as Git modes.
 
@@ -68,8 +69,9 @@ zero on missing runtimes or failure. No execution-policy override is added.
 Current host protocols are the baseline. Older hosts may require an upgrade;
 fx does not promise legacy-host fallback. A matching projection remains
 `activation: unverified` until the host accepts the project and hook trust.
-fx does not change host trust or bypass it. Existing owned POSIX handlers are
-migrated, and unrelated handler fields and entries are retained.
+fx does not change host trust or bypass it. Reconciliation recognizes an owned
+handler in its POSIX or Windows form and replaces it with the current projection;
+unrelated handler fields and entries are kept.
 
 Windows stdio MCP entries point at the absolute fx runtime and bundled
 `bin/mcp-stdio.js` bridge, followed by the original vector. The bridge inherits
@@ -77,7 +79,7 @@ streams and returns the server's exit code; it does not initialize the ordinary
 CLI, buffer protocol output, check updates or print notices. Host-provided
 environment references remain references, never persisted values. Original
 resource trust and projection ownership checks apply before configuration is
-written. HTTP MCP is unchanged. An fx installation moved or removed after
+written. HTTP MCP entries need no bridge. An fx installation moved or removed after
 projection requires a subsequent sync to refresh absolute entry paths.
 
 ## Acceptance

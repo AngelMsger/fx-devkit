@@ -56,9 +56,12 @@ or native host activation. See [validation](docs/validation.md).
 
 ## Submit a pull request
 
-Push to your personal fork and open a pull request to the shared repository.
-Never push directly to `upstream`. Use a concise Conventional Commit subject;
-include an issue reference when one is available and appropriate for public history.
+The canonical repository is [AngelMsger/fx-devkit](https://github.com/AngelMsger/fx-devkit)
+on GitHub. Push a topic branch, to your fork or to the repository when you have
+write access, and open a pull request against `main`; never push directly to
+`main`. The internal code host only mirrors GitHub, so do not push or open pull
+requests there. Use a concise Conventional Commit subject; include an issue
+reference when one is available and appropriate for public history.
 
 Describe the problem, resulting behavior, validation and any remaining limits.
 Link the relevant issue and explain intentional compatibility changes. Keep

@@ -6,23 +6,26 @@
 import { Command, Errors } from '@oclif/core';
 
 import { readSettings } from '../application/config/settings.js';
-import type { DoctorExtension } from '../application/doctor/types.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import type { ManifestContext } from '../application/manifest/context.js';
 import { resolveManifestDir } from '../application/manifest/locate.js';
 import { resolvePosture, type WritePosture } from '../application/safety/posture.js';
-import type { TrustGate } from '../application/safety/trust.js';
+import type { TrustContext } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
-import type { SyncStages } from '../application/sync/types.js';
-import { toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
+import type { SyncStageDeps } from '../application/sync/stages.js';
+import type { Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';
 import type { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { fxExecutable } from '../composition/bundled.js';
-import { CommandWiring, resolveInputFor } from '../composition/command-wiring.js';
+import {
+  CommandWiring,
+  resolveInputFor,
+  type LifecycleSessions,
+} from '../composition/command-wiring.js';
 import { createContainer, type Container } from '../composition/container.js';
 import type { HarnessCommandInput } from '../composition/harness.js';
 import type { UpdateChecks } from '../composition/update.js';
@@ -37,7 +40,7 @@ import type { ReplaceFiles } from '../ports/replace-files.js';
 import { compatibilityTarget } from './commands/aliases.js';
 import { globalFlags } from './flags.js';
 import { invocationFormat, UNDECIDED_FORMAT } from './invocation-format.js';
-import { preparationText } from './preparation-view.js';
+import { preparationText, type PreparationReport } from './preparation-view.js';
 import {
   createRenderer,
   parseFields,
@@ -49,10 +52,11 @@ import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
 import { shouldCheckUpdates, updateNotices } from './update-notices.js';
-import { workspaceWriteMode } from './workspace-write-policy.js';
+import { writeScopeOf, type WriteScopeDeclaration } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
+  declare static writeScope?: WriteScopeDeclaration;
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(UNDECIDED_FORMAT, processIo());
   private reportSink: SinkReporter | undefined;
@@ -129,12 +133,12 @@ export abstract class FxCommand extends Command {
     this.yes = flags.yes;
     this.workspaceName = flags.workspace;
     this.posture = resolvePosture({ allowWrites: flags['allow-writes'], env: process.env, file });
-    const mode = workspaceWriteMode(this.id, flags);
-    if (mode !== null && !this.posture.readOnly) {
+    const scope = writeScopeOf(spec, flags);
+    if (scope !== null && !this.posture.readOnly) {
       const operation = await beginWorkspaceCommand(
         this.resolveInput(),
         this.container.lock,
-        mode === 'source',
+        scope,
       );
       if (operation) {
         this.operationLease = operation.lease;
@@ -171,8 +175,8 @@ export abstract class FxCommand extends Command {
     return this.reportSink;
   }
 
-  protected async renderPreparation<T extends { readonly preparation: Preparation }>(
-    value: T,
+  protected async renderPreparation(
+    value: PreparationReport,
     exitIncomplete = true,
   ): Promise<void> {
     const bound = this.bindPreparation(value.preparation, fxExecutable());
@@ -252,6 +256,11 @@ export abstract class FxCommand extends Command {
     return this.wiring().workspaceDeps(await this.workspace());
   }
 
+  // For a command that reaches a workspace's toolchain without its dependency bundle.
+  protected trustFor(workspace: string): TrustContext {
+    return this.wiring().trustFor(workspace);
+  }
+
   protected harnessInput(): HarnessCommandInput {
     return this.wiring().harnessInput();
   }
@@ -274,8 +283,8 @@ export abstract class FxCommand extends Command {
     return this.commandWiring;
   }
 
-  protected hookDoctorChecks(): DoctorExtension[] {
-    return this.wiring().hookDoctorChecks();
+  protected lifecycleSessions(): LifecycleSessions {
+    return this.wiring().lifecycleSessions();
   }
   protected loginDeps(): LoginDeps {
     return this.wiring().loginDeps();
@@ -283,8 +292,8 @@ export abstract class FxCommand extends Command {
   protected initDeps(): InitDeps {
     return this.wiring().initDeps();
   }
-  protected stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
-    return this.wiring().stages(deps, dryRun);
+  protected stageDeps(): SyncStageDeps {
+    return this.wiring().stageDeps();
   }
   protected skillDeps(): SkillDeps {
     return this.wiring().skillDeps();
@@ -292,23 +301,9 @@ export abstract class FxCommand extends Command {
   protected replacement(): ReplaceFiles {
     return this.wiring().replacement();
   }
-  protected trustGate(): TrustGate {
-    return this.wiring().trustGate();
-  }
 
-  // Tool commands work outside a workspace too, on the bundled baseline.
-  protected async toolchain(): Promise<Toolchain> {
-    try {
-      return toolchainOf(await this.workspace());
-    } catch (err) {
-      if (!(err instanceof DevkitError) || err.code !== 'WORKSPACE_NOT_FOUND') throw err;
-      this.renderer.notice({
-        code: 'TOOLCHAIN_BUNDLED',
-        message: 'not inside a workspace; using the bundled toolchain baseline',
-        nextSteps: ['fx init <dir> --from <source>'],
-      });
-      return this.wiring().bundledToolchain();
-    }
+  protected toolchain(): Promise<Toolchain> {
+    return this.wiring().toolchain(() => this.workspace());
   }
 
   protected async workspace(): Promise<WorkspaceContext> {
@@ -385,7 +380,7 @@ export abstract class FxCommand extends Command {
       });
     if (failure.partialResult !== undefined) {
       if ('preparation' in failure.partialResult)
-        await this.renderPreparation(failure.partialResult as { preparation: Preparation }, false);
+        await this.renderPreparation(failure.partialResult as PreparationReport, false);
       else this.renderer.record(failure.partialResult);
     }
     this.renderer.error(failure);

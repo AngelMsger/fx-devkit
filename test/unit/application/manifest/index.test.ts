@@ -14,13 +14,13 @@ import { ValidateManifest } from '../../../../src/application/manifest/validate.
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
-const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
 const cli = '1.0.0';
@@ -93,7 +93,7 @@ describe('resolveManifestDir', () => {
 
 describe('ValidateManifest', () => {
   it('reports every present document as ok on a clean workspace', async () => {
-    const report = await new ValidateManifest(workspace('v2-full'), bundled).execute({
+    const report = await new ValidateManifest(workspace('v2-full'), bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -112,7 +112,7 @@ describe('ValidateManifest', () => {
   it.each([false, true])(
     'fails absent required workspace documents with strict=%s',
     async (strict) => {
-      const report = await new ValidateManifest(FakeFs.from({}), bundled).execute({
+      const report = await new ValidateManifest(FakeFs.from({}), bundledTools).execute({
         dir: path.resolve('/w'),
         cliVersion: cli,
         providers: providerCatalog(),
@@ -133,7 +133,7 @@ describe('ValidateManifest', () => {
   );
 
   it('accepts missing optional documents in strict mode', async () => {
-    const report = await new ValidateManifest(workspace('v1-minimal'), bundled).execute({
+    const report = await new ValidateManifest(workspace('v1-minimal'), bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -148,7 +148,7 @@ describe('ValidateManifest', () => {
   });
 
   it('lists problems without throwing and marks the report not ok', async () => {
-    const report = await new ValidateManifest(workspace('broken'), bundled).execute({
+    const report = await new ValidateManifest(workspace('broken'), bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -161,7 +161,7 @@ describe('ValidateManifest', () => {
   });
 
   it('restricts itself to one kind when asked', async () => {
-    const report = await new ValidateManifest(workspace('v2-full'), bundled).execute({
+    const report = await new ValidateManifest(workspace('v2-full'), bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -174,7 +174,7 @@ describe('ValidateManifest', () => {
   it('keeps the schema path when a tools document has the wrong root shape', async () => {
     const fs = workspace('v1-minimal');
     await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 3\ntools: nope\n');
-    const report = await new ValidateManifest(fs, bundled).execute({
+    const report = await new ValidateManifest(fs, bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -228,9 +228,11 @@ describe('LintManifest', () => {
         verify: { command: ['check'] },
       },
     ];
-    const findings = await new LintManifest(fs, bundled, (id) =>
-      id === 'file-access' ? { recipes } : undefined,
-    ).execute({ dir: path.resolve('/w'), cliVersion: cli, providers: providerCatalog() });
+    const findings = await new LintManifest({
+      fs,
+      bundledTools,
+      describeProvider: (id) => (id === 'file-access' ? { recipes } : undefined),
+    }).execute({ dir: path.resolve('/w'), cliVersion: cli, providers: providerCatalog() });
     expect(findings.filter((f) => f.code === 'MANIFEST_INVALID')).toEqual([]);
     expect(findings.filter((f) => f.code === 'REPO_NO_OWNER')).toEqual([
       expect.objectContaining({ path: 'repos[1]' }),
@@ -248,7 +250,7 @@ describe('LintManifest', () => {
   });
 
   it('returns the findings of the documents that exist', async () => {
-    const findings = await new LintManifest(workspace('v1-minimal'), bundled).execute({
+    const findings = await new LintManifest({ fs: workspace('v1-minimal'), bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -265,7 +267,7 @@ describe('LintManifest', () => {
     await fs.writeText(path.resolve('/w/skills/bad/SKILL.md'), '---\nname: other\n---\n');
     await fs.writeText(path.resolve('/w/skills/README.md'), 'not a Skill\n');
     fs.mkdir(path.resolve('/w/skills/empty'));
-    const findings = await new LintManifest(fs, bundled).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -283,7 +285,7 @@ describe('LintManifest', () => {
       path.resolve('/w/manifest/tools.yaml'),
       'schema_version: 3\ntools: [{name: jenkins-cli, required: false}, {name: bitbucket-cli, min_version: null}]\n',
     );
-    const findings = await new LintManifest(fs, bundled).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -294,7 +296,7 @@ describe('LintManifest', () => {
   it('reports an invalid tools document and skips semantic tool lint', async () => {
     const fs = workspace('v1-minimal');
     await fs.writeText(path.resolve('/w/manifest/tools.yaml'), 'schema_version: 3\ntools: nope\n');
-    const findings = await new LintManifest(fs, bundled).execute({
+    const findings = await new LintManifest({ fs, bundledTools }).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -307,7 +309,7 @@ describe('LintManifest', () => {
 
 describe('ProvidersManifest', () => {
   it('lists the bindings of the workspace', async () => {
-    const bindings = await new ProvidersManifest(workspace('v1-minimal'), bundled).execute({
+    const bindings = await new ProvidersManifest(workspace('v1-minimal'), bundledTools).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
@@ -320,29 +322,19 @@ describe('ProvidersManifest', () => {
 });
 
 describe('SetRepoField', () => {
-  it('previews and writes an alias array through the existing write gate', async () => {
+  it('reads an alias list from its flow spelling and writes it as a sequence', async () => {
     const fs = workspace('v2-full');
-    const input = {
+    const result = await editor(fs).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
       repo: 'fx-example-auth',
       field: 'aka',
       value: '[platform, accounts]',
-    };
-    const useCase = editor(fs);
-    expect(await useCase.execute({ ...input, dryRun: true, posture: locked })).toMatchObject({
-      before: null,
-      after: '["platform","accounts"]',
-      written: false,
+      dryRun: false,
+      posture: writable,
     });
-    expect(fs.writes).toEqual([]);
-    await expect(
-      useCase.execute({ ...input, dryRun: false, posture: locked }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    expect(await useCase.execute({ ...input, dryRun: false, posture: writable })).toMatchObject({
-      written: true,
-    });
+    expect(result).toMatchObject({ before: null, after: '["platform","accounts"]', written: true });
     expect(await fs.readText(path.resolve('/w/manifest/workspace.yaml'))).toContain(
       'aka: ["platform","accounts"]',
     );

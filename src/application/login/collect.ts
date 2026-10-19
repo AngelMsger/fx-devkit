@@ -2,9 +2,11 @@
 // with the binding's variables, platform instances with theirs and the
 // platform's name so the planner can expand them per environment.
 
+import { setupVars } from '../../domain/setup/names.js';
 import { planSetup, type RecipeSource } from '../../domain/setup/planner.js';
 import type { SetupPlan } from '../../domain/setup/types.js';
-import type { ProviderDescriptor, Vars } from '../../ports/provider.js';
+import type { Vars } from '../../domain/template.js';
+import type { ProviderDescriptor } from '../../ports/provider.js';
 import { serviceRecipes } from '../services/recipes.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -47,9 +49,7 @@ export function collectRecipes(deps: WorkspaceDeps, setup: LoginDeps): RecipeSou
             ...binding.vars,
             ...onEnv.vars,
             env,
-            ...Object.fromEntries(
-              Object.entries(onEnv.setup ?? {}).map(([key, value]) => [`setup.${key}`, value]),
-            ),
+            ...setupVars(onEnv.setup),
           });
           sources.push(
             ...descriptor.recipes.map((recipe) => ({

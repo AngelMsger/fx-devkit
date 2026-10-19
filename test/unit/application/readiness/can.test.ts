@@ -6,14 +6,32 @@ import { describe, expect, it } from 'vitest';
 import { BITBUCKET_RECIPES } from '../../../../src/adapters/code-host/bitbucket-cli/recipes.js';
 import { localGitProvider } from '../../../../src/adapters/code-host/local-git/provider.js';
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
-import { Can } from '../../../../src/application/readiness/can.js';
+import type { HarnessSession } from '../../../../src/application/harness/session.js';
+import { Can, canTarget } from '../../../../src/application/readiness/can.js';
 import { Readiness } from '../../../../src/application/readiness/index.js';
 import { Gates } from '../../../../src/application/release/gates.js';
+import { TrustGate } from '../../../../src/application/safety/trust.js';
+import { mcpCodecFor } from '../../../../src/composition/registry.js';
+import { MANIFEST_FILES } from '../../../../src/domain/manifest/files.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
-import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
+import { FakePrompter } from '../../../fakes/fake-prompter.js';
+import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
+import {
+  MANIFEST_DIR,
+  ROOT,
+  harness,
+  manifestDirFor,
+  withContext,
+  withTrust,
+} from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');
@@ -77,10 +95,7 @@ async function stage(options: { local?: LocalLayer; tools?: string; yes?: boolea
   h.process.when((v) => v[1] === '--version', { code: 0, stdout: 'jenkins-cli 9.0.0', stderr: '' });
   return {
     h,
-    can: new Can(
-      h.deps,
-      fakeLoginDeps(DESCRIPTORS, options.yes === undefined ? {} : { yes: options.yes }),
-    ),
+    can: new Can(withTrust(h.deps, { yes: options.yes ?? false }), fakeLoginDeps(DESCRIPTORS)),
   };
 }
 
@@ -125,14 +140,7 @@ describe('Can', () => {
       source: 'explicit',
       vars: { host: path.resolve('/host') },
     } as const;
-    const deps = {
-      ...h.deps,
-      ctx: {
-        ...h.deps.ctx,
-        manifestDir: h.deps.ctx.manifestDir,
-        bindings: [binding],
-      },
-    };
+    const deps = withContext(h.deps, { bindings: [binding] });
     const loginDeps = fakeLoginDeps({ 'local-git': localGitProvider });
     expect(await new Can(deps, loginDeps).execute({ target: 'code-host' })).toMatchObject({
       status: 'ready',
@@ -144,7 +152,7 @@ describe('Can', () => {
       open: true,
     });
     expect(h.process.calls).toEqual([]);
-    const unbound = { ...deps, ctx: { ...deps.ctx, bindings: [{ ...binding, provider: null }] } };
+    const unbound = withContext(h.deps, { bindings: [{ ...binding, provider: null }] });
     await expect(
       new Can(unbound, loginDeps).execute({ target: 'code-host' }),
     ).rejects.toMatchObject({ code: 'CAPABILITY_UNBOUND' });
@@ -165,14 +173,9 @@ describe('Can', () => {
     const bound = async (provider: string | null, tools?: string) => {
       const { h } = await stage(tools === undefined ? {} : { tools });
       return new Can(
-        {
-          ...h.deps,
-          ctx: {
-            ...h.deps.ctx,
-            manifestDir: h.deps.ctx.manifestDir,
-            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
-          },
-        },
+        withContext(h.deps, {
+          bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+        }),
         fakeLoginDeps({ ...DESCRIPTORS, 'acme-host': acme }),
       ).execute({ target: 'code-host' });
     };
@@ -196,14 +199,9 @@ describe('Can', () => {
     const bound = async (provider: string, tools?: string) => {
       const { h } = await stage(tools === undefined ? {} : { tools });
       return new Can(
-        {
-          ...h.deps,
-          ctx: {
-            ...h.deps.ctx,
-            manifestDir: h.deps.ctx.manifestDir,
-            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
-          },
-        },
+        withContext(h.deps, {
+          bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+        }),
         fakeLoginDeps(DESCRIPTORS),
       ).execute({ target: 'code-host' });
     };
@@ -226,15 +224,10 @@ describe('Can', () => {
     // Declared rather than derived: without the environments document nothing binds it.
     const { h } = await stage({ tools: 'schema_version: 3\ntools: [{ name: jenkins-cli }]' });
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          manifest: { ...h.deps.ctx.manifest, environments: undefined },
-          platforms: [],
-        },
-      },
+      withContext(h.deps, {
+        manifest: { ...h.deps.ctx.manifest, environments: undefined },
+        platforms: [],
+      }),
       fakeLoginDeps(DESCRIPTORS),
     );
     const capability = readiness.resolve('code-host', 'test');
@@ -253,14 +246,7 @@ describe('Can', () => {
     const { h } = await stage();
     const binding = h.deps.ctx.platforms.find((b) => b.platform === 'jenkins')!;
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          platforms: [{ ...binding, platform: 'other-ci' }, binding],
-        },
-      },
+      withContext(h.deps, { platforms: [{ ...binding, platform: 'other-ci' }, binding] }),
       fakeLoginDeps(DESCRIPTORS),
     );
     expect(readiness.resolve('jenkins-cli', 'prod').binding).toEqual(binding);
@@ -277,14 +263,7 @@ describe('Can', () => {
     const { h } = await stage();
     const binding = h.deps.ctx.platforms.find((b) => b.platform === 'jenkins')!;
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          platforms: [binding, { ...binding, platform: 'sentry' }],
-        },
-      },
+      withContext(h.deps, { platforms: [binding, { ...binding, platform: 'sentry' }] }),
       fakeLoginDeps(DESCRIPTORS),
     );
     for (const name of ['ci', 'jenkins-cli']) {
@@ -507,5 +486,61 @@ describe('Can', () => {
     });
     s.h.process.on(['standalone', 'auth', 'status'], { code: 0, stdout: '', stderr: '' });
     expect(await s.can.execute({ target: 'standalone' })).toMatchObject({ status: 'ready' });
+  });
+});
+
+describe('canTarget', () => {
+  async function harnessWith(document: string): Promise<HarnessSession> {
+    const h = await harness();
+    const files = new FakeFileProjection(
+      FakeFs.from({ [path.join(MANIFEST_DIR, MANIFEST_FILES.harness)]: document }),
+    );
+    const config = new FakeConfigStore({ workspaces: { fx: { root: ROOT } } });
+    return {
+      deps: {
+        files,
+        hosts: [],
+        state: new FakeHarnessState(),
+        trust: new TrustGate(new FakeTrustStore(), new FakePrompter()),
+        env: {},
+        codec: mcpCodecFor,
+        lock: new FakeLock(),
+      },
+      config,
+      process: h.process,
+      resolve: { cwd: ROOT, config, fs: h.fs, reporter: h.reporter, manifestDirFor },
+      env: {},
+      cliVersion: '1.0.0',
+      yes: false,
+      posture: { readOnly: false, source: 'default' },
+    };
+  }
+
+  it('answers an mcp: target from the harness by its bare name, without loading the workspace', async () => {
+    const session = await harnessWith(
+      'schema_version: 2\nmcp:\n  - { name: knowledge, transport: stdio, command: [server] }\n',
+    );
+    const verdict = await canTarget(
+      { target: 'mcp:knowledge' },
+      {
+        workspace: () => Promise.reject(new Error('the workspace was loaded')),
+        harness: () => session,
+      },
+    );
+    expect(verdict).toMatchObject({ capability: 'mcp', resource: 'knowledge' });
+  });
+
+  it('answers every other target from the workspace, without building the harness', async () => {
+    const s = await stage();
+    const result = await canTarget(
+      { target: 'ci', env: 'dev' },
+      {
+        workspace: async () => s.can,
+        harness: () => {
+          throw new Error('the harness was built');
+        },
+      },
+    );
+    expect(result).toMatchObject({ capability: 'ci', provider: 'jenkins-cli', env: 'dev' });
   });
 });

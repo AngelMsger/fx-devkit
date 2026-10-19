@@ -1,5 +1,4 @@
-import { execFileSync } from 'node:child_process';
-import { realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -8,34 +7,18 @@ import { describe, expect, it } from 'vitest';
 import { SystemGit } from '../../../src/adapters/git/system-git.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { git, repository } from '../../git.js';
 import { tempDir } from '../../temp.js';
-
-const git = (args: string[], cwd: string): string =>
-  execFileSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'T',
-      GIT_AUTHOR_EMAIL: 't@example.com',
-      GIT_COMMITTER_NAME: 'T',
-      GIT_COMMITTER_EMAIL: 't@example.com',
-    },
-  }).trim();
 
 // A bare upstream with one commit on `dev`, plus a scratch clone to push from.
 function upstream(): { bare: string; work: string } {
-  const root = tempDir('fx-git-');
-  const bare = path.join(root, 'a.git');
-  const work = path.join(root, 'work');
-  git(['init', '--bare', '-b', 'dev', bare], root);
-  git(['clone', '-q', bare, work], root);
-  git(['checkout', '-q', '-b', 'dev'], work);
-  writeFileSync(path.join(work, 'README'), 'one\n');
-  git(['add', '.'], work);
-  git(['commit', '-q', '-m', 'one'], work);
-  git(['push', '-q', '-u', 'origin', 'dev'], work);
-  return { bare, work };
+  const { bare, author } = repository(
+    tempDir('fx-git-'),
+    'a',
+    { README: 'one\n' },
+    { branch: 'dev' },
+  );
+  return { bare, work: author };
 }
 
 function advance(work: string, name: string): void {
@@ -78,6 +61,23 @@ describe('SystemGit command vectors', () => {
     expect(await new SystemGit(proc).fastForward('/work/repo', 'upstream', 'main')).toBe(
       'diverged',
     );
+  });
+  it('tells a git that could not start from one that exited 127 itself', async () => {
+    const request = { dir: '/work/repo', upstream: 'ssh://u/x.git', branch: 'dev' };
+    await expect(new SystemGit(new FakeProcess()).clone(request)).rejects.toMatchObject({
+      code: 'TOOL_MISSING',
+      message: 'git is not installed or not on PATH',
+      nextSteps: ['fx can git'],
+    });
+    const started = new FakeProcess().always({
+      code: 127,
+      stdout: '',
+      stderr: 'git-remote-https: helper executable unavailable\n',
+    });
+    await expect(new SystemGit(started).clone(request)).rejects.toMatchObject({
+      code: 'GIT_CLONE_FAILED',
+      message: expect.stringContaining('helper executable unavailable'),
+    });
   });
   it('preserves clone branch and destination in recovery commands', async () => {
     const proc = new FakeProcess();
@@ -154,6 +154,17 @@ describe('SystemGit against real git', () => {
     });
     expect(await sut.toplevel(dir)).toBe(realpathSync.native(dir));
     expect(await sut.toplevel(tmpdir())).toBeUndefined();
+  });
+
+  it('tells the top of a checkout from a directory inside it, through a link as well', async () => {
+    const { work } = upstream();
+    mkdirSync(path.join(work, 'docs'));
+    const alias = path.join(tempDir('fx-alias-'), 'work');
+    symlinkSync(work, alias, process.platform === 'win32' ? 'junction' : 'dir');
+    expect(await sut.isToplevel(work)).toBe(true);
+    expect(await sut.isToplevel(alias)).toBe(true);
+    expect(await sut.isToplevel(path.join(work, 'docs'))).toBe(false);
+    expect(await sut.isToplevel(tmpdir())).toBe(false);
   });
 
   it('distinguishes dirty tracked changes from untracked files', async () => {

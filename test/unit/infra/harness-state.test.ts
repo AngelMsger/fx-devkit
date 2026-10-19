@@ -1,30 +1,25 @@
 // File-symlink cases require a POSIX host; junction behavior has native Windows coverage.
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { HarnessState } from '../../../src/domain/harness/ownership.js';
 import { recoverHarnessState, snapshotDigest } from '../../../src/domain/harness/state-recovery.js';
 import { FileHarnessState } from '../../../src/infra/harness-state.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../src/infra/projection-store.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
 const state = { root: '/workspace', receipts: [], pending: null };
 async function fixture() {
-  const home = await mkdtemp(path.join(tmpdir(), 'fx-harness-state-'));
-  roots.push(home);
+  const home = tempDir('fx-harness-state-');
   return {
     home,
     store: new FileHarnessState(home, new FileLock(home)),
     file: path.join(home, 'workspaces/test/harness.json'),
   };
 }
-afterEach(async () => {
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
-});
 
 describe('harness ownership journal', () => {
   it('treats absence explicitly and persists only owned metadata', async () => {
@@ -55,6 +50,29 @@ describe('harness ownership journal', () => {
         code: 'HARNESS_STATE_INVALID',
       });
       expect(await readFile(target, 'utf8')).toBe('untouched');
+    },
+  );
+  it.each(['.GIT/config', 'rules/a\x7f.md'])(
+    'refuses the recorded path %j on write and on read',
+    async (relative) => {
+      const f = await fixture();
+      const receipt = {
+        key: 'one',
+        kind: 'rules' as const,
+        relative,
+        protocol: 'markdown',
+        name: 'fx-one',
+        agents: ['one'],
+        digest: 'a'.repeat(64),
+        created: true,
+      };
+      const recorded = { ...state, receipts: [receipt] };
+      await expect(f.store.write('test', recorded)).rejects.toMatchObject({
+        code: 'HARNESS_STATE_INVALID',
+      });
+      await mkdir(path.dirname(f.file), { recursive: true });
+      await writeFile(f.file, JSON.stringify({ owner: 'fx:harness:v1', ...recorded }));
+      await expect(f.store.read('test')).rejects.toMatchObject({ code: 'HARNESS_STATE_INVALID' });
     },
   );
   it('recovers a receipt from disk after interruption between file and metadata writes', async () => {

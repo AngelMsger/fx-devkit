@@ -10,32 +10,26 @@ import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
-const HOST = 'ssh://git@git.example.com:12345';
+const HOST = path.normalize(path.resolve('/srv/git'));
 const ROOT = path.normalize(path.resolve('/ws'));
+const RELATIVE_HOST = 'mirrors/git';
 const write = {
   dryRun: false,
   posture: { readOnly: false, source: 'default' as const },
 };
 
-// A file system where /alias is a symbolic link to the root.
-const ALIAS = path.resolve('/alias');
-class AliasedFs extends FakeFs {
-  override async realpath(target: string): Promise<string> {
-    const normal = path.normalize(target);
-    const aliased = normal === ALIAS || normal.startsWith(ALIAS + path.sep);
-    return aliased ? ROOT + normal.slice(ALIAS.length) : normal;
-  }
-}
-
-function stage() {
-  const fs = AliasedFs.from({
+// Every checkout comes from HOST; `forkHost` moves the one personal fork elsewhere.
+function stage(options: { commandShell?: 'cmd'; forkHost?: string } = {}) {
+  const { forkHost = HOST, commandShell } = options;
+  const fs = FakeFs.from({
     [`${ROOT}/.gitmodules`]:
       '[submodule "agent-runtime"]\n\tpath = agent-runtime\n\turl = x\n\tbranch = integration\n',
     [`${ROOT}/docs/README.md`]: 'prose',
     [`${ROOT}/scratch/notes.txt`]: 'inside the root repository, not a repository itself',
   });
   fs.mkdir(`${ROOT}/plain-empty`);
-  fs.mkdir(path.resolve('/alias'));
+  fs.mkdir(HOST);
+  fs.links.set(path.resolve('/alias'), ROOT);
   const git = new FakeGit((dir) => fs.mkdir(dir));
   git.add(`${ROOT}/fx-example-api`, {
     remotes: {
@@ -50,7 +44,7 @@ function stage() {
     state: { branch: 'feature/x', dirty: true, untracked: 0, ahead: 1, behind: 0 },
   });
   git.add(`${ROOT}/fx-example-scripts`, {
-    remotes: { origin: `${HOST}/~alice/fx-example-scripts.git` },
+    remotes: { origin: `${forkHost}/~alice/fx-example-scripts.git` },
     state: { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 },
   });
   git.add(`${ROOT}/direct`, {
@@ -66,14 +60,19 @@ function stage() {
   codeHost.readability.set('fx/fx-example-scripts', 'missing');
   codeHost.readability.set('ai/fx-example-scripts', 'readable');
   const reporter = new FakeReporter();
+  const asked: string[] = [];
   const importer = new Import({
+    ...(commandShell === undefined ? {} : { commandShell }),
     git,
     fs,
     reporter,
-    codeHost: async () => codeHost,
+    localCodeHost: (directory) => {
+      asked.push(directory);
+      return codeHost;
+    },
     identifyProvider: async () => ({ provider: 'bitbucket-cli', host: HOST }),
   });
-  return { fs, git, codeHost, importer };
+  return { fs, git, codeHost, importer, asked };
 }
 
 describe('Import', () => {
@@ -117,53 +116,103 @@ describe('Import', () => {
       ],
       branch_from: { gitmodules: 1, remote_head: 3, checkout: 1 },
     });
+    expect(s.asked).toEqual([HOST]);
     expect(s.codeHost.probes).toEqual(['fx/fx-example-scripts', 'ai/fx-example-scripts']);
     expect(s.git.calls, 'nothing in any checkout was touched').toEqual([]);
     expect(out.manifest).toContain('# review: upstream inferred');
   });
 
-  it('writes only where -o points, previews that under --dry-run, and respects posture', async () => {
+  const OUT = path.resolve('/src/manifest/workspace.yaml');
+
+  it('previews the write under --dry-run without making it', async () => {
     const s = stage();
-    const out = path.resolve('/src/manifest/workspace.yaml');
-    const dry = await s.importer.execute({ ...write, dir: ROOT, out, dryRun: true });
-    expect(dry).toMatchObject({ path: out, written: false });
+    const dry = await s.importer.execute({ ...write, dir: ROOT, out: OUT, dryRun: true });
+    expect(dry).toMatchObject({ path: OUT, written: false });
     expect(s.fs.writes).toEqual([]);
-    const real = await s.importer.execute({ ...write, dir: ROOT, out });
-    expect(real).toMatchObject({ path: out, written: true });
-    expect(await s.fs.readText(out)).toBe(dry.manifest);
+  });
+
+  it('writes what the preview showed, only where -o points, over what a run left there', async () => {
+    const s = stage();
+    const dry = await s.importer.execute({ ...write, dir: ROOT, out: OUT, dryRun: true });
+    const real = await s.importer.execute({ ...write, dir: ROOT, out: OUT });
+    expect(real).toMatchObject({ path: OUT, written: true });
+    expect(await s.fs.readText(OUT)).toBe(dry.manifest);
     // The person named the target; a second run replaces it.
-    await s.fs.writeText(out, 'stale');
-    await s.importer.execute({ ...write, dir: ROOT, out });
-    expect(await s.fs.readText(out)).toBe(dry.manifest);
-    await expect(
-      s.importer.execute({ ...write, dir: ROOT, out, posture: { readOnly: true, source: 'env' } }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    for (const inside of [
-      `${ROOT}/manifest/workspace.yaml`,
-      `${ROOT}/fx-example-api/x.yaml`,
-      `${ROOT}/..draft/out.yaml`,
-      ROOT,
-    ]) {
-      await expect(s.importer.execute({ ...write, dir: ROOT, out: inside })).rejects.toMatchObject({
-        category: 'conflict',
-        code: 'IMPORT_INSIDE_ROOT',
-      });
-    }
-    await expect(
-      s.importer.execute({
-        ...write,
-        dir: path.resolve('/alias'),
-        out: `${ROOT}/manifest/workspace.yaml`,
-      }),
-    ).rejects.toMatchObject({ code: 'IMPORT_INSIDE_ROOT' });
+    await s.fs.writeText(OUT, 'stale');
+    await s.importer.execute({ ...write, dir: ROOT, out: OUT });
+    expect(await s.fs.readText(OUT)).toBe(dry.manifest);
+    expect(s.fs.writes).toEqual([OUT, OUT, OUT]);
+  });
+
+  it('refuses to write under read-only posture', async () => {
+    const s = stage();
     await expect(
       s.importer.execute({
         ...write,
         dir: ROOT,
-        out: path.resolve('/alias/manifest/workspace.yaml'),
+        out: OUT,
+        posture: { readOnly: true, source: 'env' },
       }),
-    ).rejects.toMatchObject({ code: 'IMPORT_INSIDE_ROOT' });
-    expect(s.fs.writes).toEqual([out, out, out]);
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect(s.fs.writes).toEqual([]);
+  });
+
+  it.each([
+    { target: 'a file under the directory', dir: ROOT, out: `${ROOT}/manifest/workspace.yaml` },
+    { target: 'a file inside a checkout', dir: ROOT, out: `${ROOT}/fx-example-api/x.yaml` },
+    { target: 'a child whose name starts with dots', dir: ROOT, out: `${ROOT}/..draft/out.yaml` },
+    { target: 'the directory itself', dir: ROOT, out: ROOT },
+    {
+      target: 'the directory when it was named through a link',
+      dir: path.resolve('/alias'),
+      out: `${ROOT}/manifest/workspace.yaml`,
+    },
+    {
+      target: 'a link that leads back into the directory',
+      dir: ROOT,
+      out: path.resolve('/alias/manifest/workspace.yaml'),
+    },
+  ])('refuses to write to $target', async ({ dir, out }) => {
+    const s = stage();
+    await expect(s.importer.execute({ ...write, dir, out })).rejects.toMatchObject({
+      category: 'conflict',
+      code: 'IMPORT_INSIDE_ROOT',
+    });
+    expect(s.fs.writes).toEqual([]);
+  });
+
+  it('quotes a directory with a space in the command that retries elsewhere', async () => {
+    const dir = path.resolve('/team ws');
+    await expect(
+      stage().importer.execute({ ...write, dir, out: path.join(dir, 'workspace.yaml') }),
+    ).rejects.toMatchObject({
+      code: 'IMPORT_INSIDE_ROOT',
+      nextSteps: [`fx manifest import '${dir}' -o <manifest repository>/manifest/workspace.yaml`],
+    });
+    await expect(
+      stage({ commandShell: 'cmd' }).importer.execute({
+        ...write,
+        dir,
+        out: path.join(dir, 'workspace.yaml'),
+      }),
+    ).rejects.toMatchObject({
+      nextSteps: [
+        `fx ^"manifest^" ^"import^" ^"${dir}^" -o <manifest repository>/manifest/workspace.yaml`,
+      ],
+    });
+  });
+
+  it.each([
+    ['a remote host', 'ssh://git@git.example.com:12345'],
+    ['a directory this machine does not have', path.resolve('/srv/absent')],
+    ['a path that is not absolute', RELATIVE_HOST],
+  ])('asks no code host about a fork on %s and leaves it unverified', async (_name, forkHost) => {
+    const s = stage({ forkHost });
+    s.fs.mkdir(RELATIVE_HOST);
+    const out = await s.importer.execute({ ...write, dir: ROOT });
+    expect(s.asked).toEqual([]);
+    expect(out.report.repos).toBe(4);
+    expect(out.report.skipped.map((item) => item.path)).toContain('fx-example-scripts');
   });
 
   it('surfaces a code-host lookup failure instead of importing as if nothing were asked', async () => {
@@ -172,7 +221,7 @@ describe('Import', () => {
       git: s.git,
       fs: s.fs,
       reporter: new FakeReporter(),
-      codeHost: async () => {
+      localCodeHost: () => {
         throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no provider is bound for code-host');
       },
     });

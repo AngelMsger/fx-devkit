@@ -6,7 +6,7 @@ import { expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, repository, tempDir } from './harness.js';
+import { freshHome, fx, manifestDirOf, repository, searchPath, tempDir } from './harness.js';
 
 it('completes authorized local preparation, preserves guides, and resumes after all human prerequisites', () => {
   const base = tempDir('fx-onboarding-');
@@ -60,7 +60,7 @@ tools:
   const env = {
     FX_HOME: home,
     FX_AGENTS: 'codex',
-    PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+    PATH: searchPath(bin),
   };
   const args = ['init', root, '--from', source, '--format', 'json'];
   const preview = fx([...args, '--dry-run'], env);

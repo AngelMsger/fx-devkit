@@ -2,8 +2,9 @@
 
 `fx source push` contributes selected source files to a verified personal fork and opens a
 PR against its upstream. CodeHost exposes createPullRequest for contributions;
-release receives only its existing query projection. The sync Git port is
-unchanged. Contribution Git and transport have separate, narrow responsibilities.
+release receives only the `CodeHostQueries` projection, and the repository-sync Git
+port has no contribution operations. Contribution Git and transport have separate,
+narrow responsibilities.
 
 ## Planning and source isolation
 
@@ -95,7 +96,7 @@ by the provider against the current repository website before an ID query; the
 supplied URL is never used as an arbitrary request destination.
 
 Probe recording is described in [its execution contract](probe-recording.md).
-The expanded contribution e2e matrix now covers recovery through the built CLI.
+The contribution e2e matrix covers recovery through the built CLI.
 Automated acceptance and native limitations are recorded in the validation guidance.
 
 The identity guard retains the registered logical source path alongside the captured

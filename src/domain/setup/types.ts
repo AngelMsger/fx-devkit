@@ -1,6 +1,13 @@
 // The setup vocabulary: a provider's template for one readiness step, the concrete
 // step the planner makes of it, and the preparation an adapter may attach.
 
+import type { Origin } from '../manifest/overlay.js';
+import type { DeclaredSetupStep } from '../manifest/types.js';
+
+// The tools schema declares both lists; recipes and planned steps use its words.
+export type StepKind = DeclaredSetupStep['kind'];
+export type StepPhase = NonNullable<DeclaredSetupStep['phase']>;
+
 export interface JsonExpectation {
   readonly path: string;
   readonly equals: string | number | boolean | null;
@@ -55,11 +62,11 @@ export type ServicePreparation =
     };
 
 export interface SetupRecipe {
-  readonly phase?: 'prepare' | 'authenticate';
+  readonly phase?: StepPhase;
   readonly id: string;
   readonly tool: string;
   readonly perEnv: boolean;
-  readonly kind: 'run' | 'manual' | 'file';
+  readonly kind: StepKind;
   readonly title: string;
   readonly run?: readonly string[];
   readonly instructions?: string;
@@ -74,11 +81,11 @@ export interface SetupRecipe {
 // One concrete step: variables substituted, the tool's binary in front of
 // every vector, and an id that local.setup and doctor can refer to.
 export interface SetupStep {
-  readonly phase?: 'prepare' | 'authenticate';
+  readonly phase?: StepPhase;
   readonly id: string;
   readonly tool: string;
   readonly env?: string;
-  readonly kind: 'run' | 'manual' | 'file';
+  readonly kind: StepKind;
   readonly title: string;
   readonly run?: readonly string[];
   readonly instructions?: string;
@@ -86,10 +93,16 @@ export interface SetupStep {
   readonly expects?: { readonly path: string };
   readonly verify: SetupCheck;
   readonly requires: readonly string[];
-  readonly origin: 'base' | 'patch';
+  readonly origin: Origin;
   readonly required: boolean;
   readonly preparation?: ServicePreparation;
   readonly executionEnv?: Readonly<Record<string, string>>;
+}
+
+// The only setup fx carries out by itself; sign-in and operator-owned files stay with
+// the person.
+export function isLocalPreparation(step: Pick<SetupStep, 'phase'>): boolean {
+  return step.phase === 'prepare';
 }
 
 export type PlanProblemReason =

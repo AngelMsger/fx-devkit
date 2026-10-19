@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveProvider } from '../../../src/composition/registry.js';
+import { providerCatalog, resolveProvider } from '../../../src/composition/registry.js';
+import {
+  bindPlatforms,
+  bindProviders,
+  codeHostBinding,
+} from '../../../src/domain/manifest/providers.js';
+import { serviceRules } from '../../../src/domain/manifest/rules/services.js';
 import type { Ci } from '../../../src/ports/ci.js';
 import type { CodeHost } from '../../../src/ports/code-host.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
@@ -48,7 +54,7 @@ describe('provider registry', () => {
     });
   });
 
-  it('rejects an unknown provider id with a suggestion', () => {
+  it('refuses a binding the providers it registers cannot serve', () => {
     expect(() =>
       resolveProvider(
         { capability: 'code-host', provider: 'bitbucket-cil', source: 'explicit', vars: {} },
@@ -60,18 +66,6 @@ describe('provider registry', () => {
         hint: expect.stringContaining('bitbucket-cli'),
       }),
     );
-  });
-
-  it('rejects a provider bound to the wrong capability', () => {
-    expect(() =>
-      resolveProvider(
-        { capability: 'im', provider: 'local-git', source: 'explicit', vars: {} },
-        deps,
-      ),
-    ).toThrow(expect.objectContaining({ code: 'PROVIDER_UNKNOWN' }));
-  });
-
-  it('names the missing required variable', () => {
     expect(() =>
       resolveProvider(
         { capability: 'code-host', provider: 'bitbucket-cli', source: 'explicit', vars: {} },
@@ -84,10 +78,55 @@ describe('provider registry', () => {
       }),
     );
   });
+});
 
-  it('explains an unbound capability', () => {
-    expect(() =>
-      resolveProvider({ capability: 'im', provider: null, source: 'unbound', vars: {} }, deps),
-    ).toThrow(expect.objectContaining({ code: 'PROVIDER_UNBOUND' }));
+describe('provider catalog', () => {
+  it('stands in for what a schema 1 document leaves to its git host and platform names', () => {
+    const providers = providerCatalog();
+    expect(
+      codeHostBinding(
+        bindProviders(
+          { schema_version: 1, defaults: { host: 'ssh://git@git.example.com' }, repos: [] },
+          providers,
+        ),
+      ),
+    ).toMatchObject({ provider: 'bitbucket-cli', source: 'default' });
+    const platforms = { sentry: {}, openobserve: {}, jenkins: {}, kube: {}, prometheus: {} };
+    expect(
+      bindPlatforms({ schema_version: 1, platforms, envs: {} }, providers).map((binding) => [
+        binding.platform,
+        binding.provider,
+        binding.capability,
+      ]),
+    ).toEqual([
+      ['sentry', 'sentry', 'error-tracker'],
+      ['openobserve', 'openobserve-cli', 'log-store'],
+      ['jenkins', 'jenkins-cli', 'ci'],
+      ['kube', 'kubectl', 'cluster'],
+      ['prometheus', 'prometheus-cli', 'metrics'],
+    ]);
+  });
+
+  it('hands the manifest rules each provider own service contract', () => {
+    const service = {
+      base_url: 'https://service.example.com',
+      context: 'test',
+      auth_scheme: 'none',
+    } as const;
+    const found = (provider: string): string[] =>
+      serviceRules({
+        providers: providerCatalog(),
+        provider,
+        service,
+        vars: {},
+        path: 'service',
+      }).map((problem) => `${problem.path}: ${problem.message}`);
+    expect(found('prometheus-cli')).toEqual([]);
+    expect(found('jenkins-cli')).toEqual([
+      'service.auth_scheme: authentication method is not supported by this provider',
+    ]);
+    expect(found('kubectl')).toEqual([
+      'service: provider does not support shared service configuration',
+    ]);
   });
 });

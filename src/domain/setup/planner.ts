@@ -4,10 +4,11 @@
 // is stable: required tools, the toolchain's order, the environments' order, prerequisites
 // first.
 
-import type { Environments } from '../manifest/types.js';
+import type { DeclaredSetupStep, Environments } from '../manifest/types.js';
 import { substitute, substituteAll, type Vars } from '../template.js';
 import { commandOrigin, type ResolvedTool } from '../toolchain/resolve.js';
 
+import { setupVars, stepId } from './names.js';
 import type {
   FailureCase,
   PlanProblem,
@@ -72,7 +73,7 @@ export function planSetup(input: PlanInput): SetupPlan {
         ...source.recipe.defaults,
         ...source.vars,
         ...onPlatform.vars,
-        ...prefixed('setup', onPlatform.setup),
+        ...setupVars(onPlatform.setup),
         env,
       };
       draft(fromRecipe(tool, source.recipe, vars, env));
@@ -94,8 +95,10 @@ export function planSetup(input: PlanInput): SetupPlan {
     if (!alreadyCovered) drafts.push(auth);
   }
 
-  const selected = drafts.filter((s) => within(s.tool, input.filter?.tools));
-  return { steps: order(uniqueSteps(selected, problems), input, problems), problems };
+  const unique = uniqueSteps(drafts.filter((s) => within(s.tool, input.filter?.tools)));
+  const ordered = order(unique.steps, input);
+  problems.push(...unique.problems, ...ordered.problems);
+  return { steps: ordered.steps, problems };
 
   function draft(result: SetupStep | PlanProblem): void {
     if ('reason' in result) problems.push(result);
@@ -175,7 +178,7 @@ function fromRecipe(
   };
 }
 
-function fromTeam(tool: ResolvedTool, step: ResolvedTool['setup'][number]): SetupStep {
+function fromTeam(tool: ResolvedTool, step: DeclaredSetupStep): SetupStep {
   const withBinary = (parts: readonly string[]): readonly string[] => [tool.binary, ...parts];
   return {
     id: stepId(tool.name, step.id),
@@ -246,9 +249,10 @@ function advised(source: FailureCase, vars: Vars): FailureCase {
 
 // A stable step ID may be shared only by identical expanded definitions. Conflicts
 // and their dependants are withheld so no platform inherits another one's check.
-function uniqueSteps(steps: readonly SetupStep[], problems: PlanProblem[]): SetupStep[] {
+function uniqueSteps(steps: readonly SetupStep[]): SetupPlan {
   const byId = new Map<string, SetupStep>();
-  const blocked = conflictingServices(steps, problems);
+  const problems = serviceConflicts(steps);
+  const blocked = new Set(problems.map((problem) => problem.step));
   for (const step of steps) {
     const existing = byId.get(step.id);
     if (existing === undefined) byId.set(step.id, step);
@@ -276,14 +280,10 @@ function uniqueSteps(steps: readonly SetupStep[], problems: PlanProblem[]): Setu
       changed = true;
     }
   }
-  return [...byId.values()].filter((step) => !blocked.has(step.id));
+  return { steps: [...byId.values()].filter((step) => !blocked.has(step.id)), problems };
 }
 
-function order(
-  steps: readonly SetupStep[],
-  input: PlanInput,
-  problems: PlanProblem[],
-): SetupStep[] {
+function order(steps: readonly SetupStep[], input: PlanInput): SetupPlan {
   const toolRank = new Map(input.tools.map((t, i) => [t.name, (t.required ? 0 : 1) * 1000 + i]));
   const envRank = new Map(Object.keys(input.environments?.envs ?? {}).map((e, i) => [e, i + 1]));
   const byId = new Map(steps.map((s) => [s.id, s]));
@@ -293,6 +293,7 @@ function order(
       (envRank.get(a.env ?? '') ?? 0) - (envRank.get(b.env ?? '') ?? 0),
   );
   const resolved: SetupStep[] = [];
+  const problems: PlanProblem[] = [];
   const placed = new Set<string>();
   const visiting = new Set<string>();
   // A step follows its prerequisites and otherwise keeps its group order.
@@ -325,25 +326,18 @@ function order(
     resolved.push({ ...step, requires });
   };
   grouped.forEach(place);
-  return resolved;
-}
-
-function stepId(tool: string, id: string, env?: string): string {
-  return `${tool}.${id}${env === undefined ? '' : `@${env}`}`;
+  return { steps: resolved, problems };
 }
 
 function within(name: string, list: readonly string[] | undefined): boolean {
   return list === undefined || list.includes(name);
 }
 
-function prefixed(prefix: string, record: Readonly<Record<string, string>> | undefined): Vars {
-  return Object.fromEntries(Object.entries(record ?? {}).map(([k, v]) => [`${prefix}.${k}`, v]));
-}
-
-// One native destination cannot receive incompatible declarations in one plan.
-function conflictingServices(steps: readonly SetupStep[], problems: PlanProblem[]): Set<string> {
+// One native destination cannot receive incompatible declarations in one plan: a problem
+// for every step that disagrees with another about it.
+function serviceConflicts(steps: readonly SetupStep[]): PlanProblem[] {
   const targets = new Map<string, SetupStep[]>();
-  const blocked = new Set<string>();
+  const problems: PlanProblem[] = [];
   for (const step of steps) {
     const prep = step.preparation;
     if (!prep) continue;
@@ -354,15 +348,13 @@ function conflictingServices(steps: readonly SetupStep[], problems: PlanProblem[
   }
   for (const group of targets.values()) {
     if (new Set(group.map((step) => JSON.stringify(step.preparation))).size < 2) continue;
-    for (const step of group) {
-      blocked.add(step.id);
+    for (const step of group)
       problems.push({
         step: step.id,
         reason: 'step_conflict',
         detail:
           'Multiple service declarations disagree about the same local destination; use distinct contexts.',
       });
-    }
   }
-  return blocked;
+  return problems;
 }

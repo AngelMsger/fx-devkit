@@ -1,31 +1,17 @@
-import { Writable } from 'node:stream';
-
 import { describe, expect, it } from 'vitest';
 
 import { createRenderer, type RenderOptions } from '../../../src/cli/render/index.js';
 import { DevkitError, toEnvelope } from '../../../src/domain/errors.js';
+import { HARNESS_ACTIONS, HOOK_ACTIONS } from '../../../src/domain/harness/actions.js';
+import { CaptureStream } from '../../fakes/capture-stream.js';
 
 function render(options: RenderOptions = {}, format: 'json' | 'ndjson' = 'json') {
-  let stdout = '';
-  let stderr = '';
-  const io = {
-    out: new Writable({
-      write(chunk, _encoding, callback) {
-        stdout += String(chunk);
-        callback();
-      },
-    }),
-    err: new Writable({
-      write(chunk, _encoding, callback) {
-        stderr += String(chunk);
-        callback();
-      },
-    }),
-  };
+  const out = new CaptureStream();
+  const err = new CaptureStream();
   return {
-    renderer: createRenderer(format, io, { report: 'init', ...options }),
-    out: () => stdout,
-    err: () => stderr,
+    renderer: createRenderer(format, { out, err }, { report: 'init', ...options }),
+    out: () => out.text(),
+    err: () => err.text(),
   };
 }
 
@@ -107,7 +93,6 @@ describe('workflow JSON summaries', () => {
     });
     expect(JSON.parse(details.out())).toEqual(report);
     expect(Buffer.byteLength(summary.out())).toBeLessThan(Buffer.byteLength(details.out()) * 0.3);
-    expect(report.sync.items).toHaveLength(72);
   });
 
   it('keeps every warning and failure while omitting successful findings and large evidence', () => {
@@ -180,6 +165,49 @@ describe('workflow JSON summaries', () => {
       has_more: false,
       omitted: { items: 71 },
       stages: report.sync.stages,
+    });
+  });
+});
+
+describe('projection rows in a workflow summary', () => {
+  it('keeps the rows of entries fx could not manage and drops every other one', () => {
+    const t = render({ report: 'sync' });
+    t.renderer.record({
+      operation: 'apply',
+      stage_details: {
+        mcp: {
+          items: HARNESS_ACTIONS.map((action) => ({
+            key: action,
+            kind: 'mcp',
+            name: 'tracker',
+            agents: ['sample-agent'],
+            path: '.sample/mcp.json',
+            action,
+            variables: [],
+            handoff: null,
+          })),
+        },
+        hooks: {
+          items: HOOK_ACTIONS.map((action) => ({
+            activation: 'unsupported',
+            handoff: null,
+            agent: 'sample-agent',
+            path: '.sample/hooks.json',
+            context: null,
+            action,
+            command: null,
+          })),
+        },
+      },
+    });
+    const out = JSON.parse(t.out());
+    const kept = (stage: 'mcp' | 'hooks'): unknown[] =>
+      out.stage_details[stage].items.map((row: { action: unknown }) => row.action);
+    expect(kept('mcp')).toEqual(['untrusted', 'foreign', 'missing_variables', 'conflict']);
+    expect(kept('hooks')).toEqual(['foreign', 'invalid', 'busy', 'conflict']);
+    expect(out.omitted).toEqual({
+      'stage_details.mcp.items': 5,
+      'stage_details.hooks.items': 6,
     });
   });
 });

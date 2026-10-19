@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { sourceValidationError } from '../../../../src/application/manifest/source-error.js';
 import { workspaceItemNotFound } from '../../../../src/application/workspace/guidance.js';
+import { materializeRebindSource } from '../../../../src/application/workspace/source-preview.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
 
 describe('scoped recovery formatting', () => {
   it('keeps the resolved workspace in PowerShell recovery commands', () => {
@@ -47,9 +49,6 @@ describe('scoped recovery formatting', () => {
 });
 
 it('identifies materialized candidates without redirecting validation to the registered source', async () => {
-  const { materializeRebindSource } =
-    await import('../../../../src/application/workspace/source-preview.js');
-  const { FakeFs } = await import('../../../fakes/fake-fs.js');
   const fs = new FakeFs();
   const source = {
     kind: 'repo' as const,

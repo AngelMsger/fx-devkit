@@ -1,15 +1,14 @@
 // File-symlink cases require a POSIX host; junction behavior has native Windows coverage.
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { ContributionOperation } from '../../../src/domain/contribution/operation.js';
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileLock } from '../../../src/infra/lock.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
 const record: ContributionOperation = {
   id: 'operation',
   branch: 'fx/contribution/operation',
@@ -29,17 +28,13 @@ const record: ContributionOperation = {
   updatedAt: '2026-09-09T00:00:00.000Z',
 };
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'fx-contribution-store-'));
-  roots.push(root);
+  const root = tempDir('fx-contribution-store-');
   return {
     root,
     store: new FileContributionStore(root, new FileLock(root)),
     file: path.join(root, 'workspaces/test/contributions.json'),
   };
 }
-afterEach(async () => {
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
-});
 
 describe('contribution operation journal', () => {
   it('round-trips explicit pending state and treats absence as empty', async () => {
@@ -62,6 +57,22 @@ describe('contribution operation journal', () => {
     });
     expect(await f.store.read('test')).toEqual([]);
   });
+  it.each(['.GIT/config', 'docs/a\x7f.md'])(
+    'refuses the recorded path %j on write and on read',
+    async (file) => {
+      const f = await fixture();
+      const recorded = [{ ...record, paths: [file], files: [file] }];
+      await expect(f.store.write('test', recorded)).rejects.toMatchObject({
+        code: 'SOURCE_JOURNAL_INVALID',
+      });
+      await mkdir(path.dirname(f.file), { recursive: true });
+      await writeFile(
+        f.file,
+        JSON.stringify({ owner: 'fx:contributions:v1', operations: recorded }),
+      );
+      await expect(f.store.read('test')).rejects.toMatchObject({ code: 'SOURCE_JOURNAL_INVALID' });
+    },
+  );
   it('preserves malformed or foreign metadata instead of replacing it', async () => {
     const f = await fixture();
     await f.store.write('test', [record]);

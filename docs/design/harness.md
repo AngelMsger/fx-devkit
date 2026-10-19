@@ -1,7 +1,7 @@
 # Harness projections
 
 The optional `manifest/harness.yaml` declares team MCP resources and enables
-workspace rules pointers. A missing document leaves existing workspaces compatible.
+workspace rules pointers.
 `AgentHostSpec` owns native capabilities and locations; adapters own serialization.
 Application code does not branch on agent names.
 
@@ -14,7 +14,7 @@ MCP server. A declared JSON assertion must pass as well as the exit-code check.
 `--agent` also checks that the native projection matches its ownership record.
 Native host activation remains separate from service readiness.
 
-Startup and check vectors use the existing workspace trust store. The trust
+Startup and check vectors use the workspace trust store. The trust
 identity includes the resource and reference bindings, without environment values.
 Projection requires trust because the native host may subsequently run the command.
 

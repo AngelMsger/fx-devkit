@@ -34,6 +34,7 @@ The container serves port 80 with directory indexes, a `/healthz` check and actu
 404 responses. Only static output is copied into the NGINX runtime. Configure the
 internal domain, HTTPS and network/access restrictions in Dokploy. `noindex`
 metadata and headers discourage indexing; they do not provide access control.
+Jenkins builds and checks the site under a subpath and at the origin root.
 
 Build arguments:
 
@@ -89,7 +90,8 @@ English is the default language. The site root and unprefixed documentation
 routes always serve English, including under a static-host subpath.
 Do not redirect based on browser language, geolocation, or a remembered preference.
 Other languages are selected explicitly through their URLs or the language menu.
-The `x-default` alternate points to the English equivalent.
+The `x-default` alternate points to the English equivalent. Keep locale routes,
+assets, 404 navigation and canonical/hreflang URLs consistent across the versions.
 
 The language switch opens the equivalent page. All four versions have localized
 homepage copy, navigation, metadata, copy feedback, motion controls and error
@@ -97,7 +99,8 @@ recovery navigation. English remains the canonical technical source.
 
 The site is for fx users. Localized bodies cover introduction, getting started,
 manifest setup, data and credentials, support/updates and changelog. The generated
-CLI and agent reference pages retain English bodies with explicit language notices.
+CLI and agent reference pages retain English bodies with an explicit language notice
+and `lang="en"`, so untranslated text never appears as translated content.
 Maintainer and publishing guides have no public site routes or localized entries.
 
 UI copy lives in `i18n/<locale>.json`; translated guides live in the matching locale
@@ -127,6 +130,9 @@ heading IDs (`{#install}`) retain stable cross-language section links.
 
 Build state is written to the ignored `.build-state.json` outside `dist/`. It is
 used locally for freshness checks and preview configuration and must never ship.
+The audience checks reject non-user sources and maintainer content in deployable
+HTML. A removed route stays absent from a fresh build; verify its removal after
+deployment.
 
 Change the canonical user Markdown, then rebuild. Do not edit `docs/website/dist/` by hand.
 The homepage must describe the same current behavior as the CLI and documentation.
@@ -134,7 +140,8 @@ Keep plans, pre-release availability and platform acceptance limits explicit.
 The terminal demo is illustrative, not a live connection or exact output fixture.
 
 Use the locale catalogs and translated guides for public-facing text. Keep code,
-command identifiers and the canonical technical references in English. Keep
+command identifiers, flags, real CLI output and the canonical technical references
+verbatim in English. Keep
 examples fictional. Before adding a route, review its source for public suitability;
 team manifests, live transcripts and private evaluation data must never be exported.
 Raw HTML from Markdown is escaped. Mermaid source is displayed in a readable code
@@ -187,9 +194,7 @@ Keep these behaviors when changing the theme or interactions.
 
 ## Documentation consistency
 
-A change to a feature, command, configuration, default, compatibility guarantee or
-design contract must update the matching external documentation in the same change.
-Update homepage claims and page descriptions when affected. Regenerate CLI reference
-with `npm run docs:gen` after CLI changes, then run `npm run site:build` and
-`npm run site:check`. Repository-wide contributor requirements live in
-[AGENTS.md](../../AGENTS.md).
+[AGENTS.md](../../AGENTS.md#user-website-and-documentation-consistency) owns the rule
+that a change updates its external documentation in the same change. For this site,
+regenerate the CLI reference with `npm run docs:gen` after CLI changes, then run
+`npm run site:build` and `npm run site:check`.

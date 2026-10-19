@@ -1,6 +1,5 @@
 // The architecture's dependency rules and the house style, enforced.
-// Zones are listed from the innermost layer outwards; a layer may only import
-// the layers above it in this list.
+// `forbidden` names, for each layer, the layers it must not import.
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import importX from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
@@ -36,11 +35,24 @@ const innerImports = (formats = []) => ({
   ],
 });
 
+const dynamicImport = {
+  selector: 'ImportExpression',
+  message: 'Load optional implementations in adapters or composition, not inner layers.',
+};
+
+// An application class names what it is built from, so no caller matches dependencies by
+// position.
+const positionalConstructor = {
+  selector: "MethodDefinition[kind='constructor'] > FunctionExpression[params.length>2]",
+  message:
+    'An application class takes at most two constructor parameters, each a named dependency bundle or a single port.',
+};
+
 export default tseslint.config(
   { ignores: ['dist/', 'node_modules/', 'docs/website/dist/', 'docs/website/node_modules/'] },
   ...tseslint.configs.recommended,
   {
-    // src's two JavaScript modules are shared with scripts that run before a
+    // src's JavaScript modules are shared with scripts that run before a
     // build; the type-checked project covers them and the delivery scripts, so
     // the layering and style rules reach all of them too.
     files: ['**/*.ts', 'src/**/*.js', 'scripts/**/*.mjs'],
@@ -89,14 +101,13 @@ export default tseslint.config(
     files: ['src/domain/**/*.{ts,js}', 'src/application/**/*.{ts,js}', 'src/ports/**/*.{ts,js}'],
     rules: {
       'no-restricted-imports': ['error', innerImports()],
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ImportExpression',
-          message: 'Load optional implementations in adapters or composition, not inner layers.',
-        },
-      ],
+      'no-restricted-syntax': ['error', dynamicImport],
     },
+  },
+  {
+    // A later block replaces the rule's options, so application repeats the inner layers'.
+    files: ['src/application/**/*.{ts,js}'],
+    rules: { 'no-restricted-syntax': ['error', dynamicImport, positionalConstructor] },
   },
   {
     files: [

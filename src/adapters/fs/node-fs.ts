@@ -8,7 +8,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { asDevkitError, busyError, DevkitError } from '../../domain/errors.js';
-import { pathKey } from '../../domain/path.js';
+import { projectionLeaseKey } from '../../domain/lease.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lock } from '../../ports/lock.js';
 
@@ -43,10 +43,7 @@ export class NodeFs implements FileSystem {
   }
 
   async writeText(file: string, text: string): Promise<void> {
-    const lease = await this.lock?.acquire({
-      key: `projection:${pathKey(file)}`,
-      waitMs: 2000,
-    });
+    const lease = await this.lock?.acquire({ key: projectionLeaseKey(file), waitMs: 2000 });
     if (lease === null) throw busyError('LOCK_BUSY', 'The projection');
     const temporary = `${file}.${randomUUID()}.tmp`;
     try {
@@ -80,7 +77,7 @@ export class NodeFs implements FileSystem {
         'LOCK_UNAVAILABLE',
         'Directory replacement requires a lock',
       );
-    const lease = await this.lock.acquire({ key: `projection:${pathKey(to)}`, waitMs: 2000 });
+    const lease = await this.lock.acquire({ key: projectionLeaseKey(to), waitMs: 2000 });
     if (!lease) throw busyError('LOCK_BUSY', 'The Skill projection');
     try {
       const current = await fs.lstat(to).catch((err) => {
@@ -108,7 +105,7 @@ export class NodeFs implements FileSystem {
     const requested = path.resolve(target);
     const parent = await fs.realpath(path.dirname(requested));
     const file = path.join(parent, path.basename(requested));
-    const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 2000 });
+    const lease = await this.lock.acquire({ key: projectionLeaseKey(file), waitMs: 2000 });
     if (!lease) throw busyError('LOCK_BUSY', 'The replacement');
     try {
       await assertBackupParent(requested, parent);
@@ -120,7 +117,7 @@ export class NodeFs implements FileSystem {
       for (let suffix = 0; ; suffix += 1) {
         const backup = `${file}.fx-backup${suffix === 0 ? '' : `-${suffix}`}`;
         const backupLease = await this.lock.acquire({
-          key: `projection:${pathKey(backup)}`,
+          key: projectionLeaseKey(backup),
           waitMs: 0,
         });
         if (!backupLease) throw busyError('LOCK_BUSY', 'The backup');

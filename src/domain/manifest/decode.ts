@@ -6,11 +6,12 @@
 import type * as z from 'zod';
 
 import { DevkitError } from '../errors.js';
+import { isRecord } from '../values.js';
 
-import { formatPath, isRaw, parseManifest, type LineOf, type Raw } from './document.js';
+import { formatPath, parseManifest, type LineOf, type Raw } from './document.js';
 import { remapIndexes, validateDocument, type EntrySpec, type Validated } from './issues.js';
 import type { ProviderCatalog } from './providers.js';
-import { partitionProblems } from './quarantine.js';
+import { droppedEntry, partitionProblems } from './quarantine.js';
 import { stripUnknown } from './reflect.js';
 import type {
   Dropped,
@@ -150,11 +151,9 @@ function finishValid<T>(input: FinishValidInput<T>): LoadResult<T> {
   }
   const key = spec.entries.key;
   const { entries, document } = partitionProblems(problems, key);
-  const dropped: Dropped[] = [...entries.entries()].map(([index, list]) => ({
-    collection: key,
-    name: entryName(value, key, index),
-    reason: list.map((p) => `${p.path}: ${p.message}`).join('; '),
-  }));
+  const dropped: Dropped[] = [...entries.entries()].map(([index, list]) =>
+    droppedEntry(key, entryName(value, key, index), list),
+  );
   if (document.length > 0) throw invalid(spec, problems);
   const survivors = (input.parsed as Raw)[key] as unknown[];
   const remaining = survivors.filter((_, i) => !entries.has(validated.kept[i] ?? i));
@@ -175,7 +174,7 @@ function finishValid<T>(input: FinishValidInput<T>): LoadResult<T> {
 
 function entryName(value: Raw, key: string, index: number): string {
   const entry = (value[key] as unknown[])[index];
-  const name = isRaw(entry) ? entry['name'] : undefined;
+  const name = isRecord(entry) ? entry['name'] : undefined;
   return typeof name === 'string' && name.length > 0 ? name : `${key}[${index}]`;
 }
 

@@ -1,9 +1,10 @@
-// The one place that knows a family CLI's global flags, JSON envelopes and exit codes
-// (bitbucket-cli, jenkins-cli). Raw stdout is kept too, because some answers are not JSON
-// at all — a file's bytes.
+// A call to a family CLI (bitbucket-cli, jenkins-cli): its global flags, JSON envelope
+// and exit codes. Raw stdout is kept too, because some answers are not JSON at all — a
+// file's bytes.
 
-import { type Category, DevkitError } from '../../domain/errors.js';
+import { type Category, DevkitError, exitCodeFor, toolMissingError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
+import { isRecord } from '../../domain/values.js';
 import type { Process, ProcessResult } from '../../ports/process.js';
 
 import { serviceFlags } from './service.js';
@@ -22,15 +23,14 @@ export interface CallOptions {
 }
 
 export const EXIT = {
-  auth: 4,
-  permission: 5,
-  not_found: 6,
-  rate_limit: 7,
-  network: 8,
-  server: 9,
-  conflict: 11,
-  missing_binary: 127,
-} as const;
+  auth: exitCodeFor('auth'),
+  permission: exitCodeFor('permission'),
+  not_found: exitCodeFor('not_found'),
+  rate_limit: exitCodeFor('rate_limit'),
+  network: exitCodeFor('network'),
+  server: exitCodeFor('server'),
+  conflict: exitCodeFor('conflict'),
+};
 
 export class FamilyCli {
   constructor(
@@ -52,7 +52,7 @@ export class FamilyCli {
       timeoutMs: options.timeoutMs,
       diagnostic: { phase: `${this.binary} ${args.slice(0, 2).join(' ')}`.trim() },
     });
-    if (result.code === EXIT.missing_binary) throw toolMissing(this.binary);
+    if (result.notStarted) throw toolMissing(this.binary);
     return {
       code: result.code,
       stdout: result.stdout,
@@ -108,7 +108,7 @@ export class FamilyCli {
 }
 
 export function toolMissing(binary: string): DevkitError {
-  return new DevkitError('config', 'TOOL_MISSING', `${binary} is not installed or not on PATH`, {
+  return toolMissingError(binary, {
     hint: 'The platform is driven through its own CLI.',
     nextSteps: [`fx can ${binary}`, `fx tool install ${binary}`],
   });
@@ -151,9 +151,7 @@ export function unreadableError(binary: string, what: string): DevkitError {
 }
 
 export function objectOf(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 // A family list answer is `{items, has_more, next?}`; a bare array is accepted

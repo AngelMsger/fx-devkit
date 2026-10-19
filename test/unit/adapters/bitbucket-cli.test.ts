@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BitbucketCodeHost,
-  bitbucketCliProvider,
-} from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
+import { BitbucketCodeHost } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
+import { DevkitError } from '../../../src/domain/errors.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
@@ -59,6 +57,14 @@ describe('BitbucketCodeHost', () => {
       );
       expect(await host(proc).canRead(ref)).toBe(expected);
     }
+  });
+
+  it('gives the readability probe five seconds and leaves a missed deadline as PROCESS_TIMEOUT', async () => {
+    const proc = new FakeProcess().always(
+      new DevkitError('internal', 'PROCESS_TIMEOUT', 'bitbucket-cli did not finish within 5000ms'),
+    );
+    await expect(host(proc).canRead(ref)).rejects.toMatchObject({ code: 'PROCESS_TIMEOUT' });
+    expect(proc.soleCallTo(['bitbucket-cli']).options.timeoutMs).toBe(5000);
   });
 
   it('adds --use-context only when the binding names a context', async () => {
@@ -128,10 +134,5 @@ describe('BitbucketCodeHost', () => {
       'ssh://git@git.example.com:12345/~alice/fx-example-api.git',
     );
     expect(h.webUrl(ref)).toBe('https://git.example.com/projects/FX/repos/fx-example-api/browse');
-  });
-
-  it('declares its tool and the host variable as required', () => {
-    expect(bitbucketCliProvider.tools).toEqual(['bitbucket-cli']);
-    expect(bitbucketCliProvider.vars.find((v) => v.name === 'host')?.required).toBe(true);
   });
 });

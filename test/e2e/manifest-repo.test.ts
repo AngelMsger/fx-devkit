@@ -76,8 +76,19 @@ function stage(): Stage {
 const names = (run: ReturnType<typeof fx>): string[] =>
   (run.json() as Items<{ name: string }>).items.map((i) => i.name).sort();
 
+// A workspace initialized from the manifest repository, and where its checkout lives.
+function initialized(): Stage & { readonly sourceDir: string } {
+  const s = stage();
+  const boot = fx(
+    ['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'],
+    s.env,
+  );
+  expect(boot.status, boot.stderr).toBe(0);
+  return { ...s, sourceDir: manifestDirOf(s.env.FX_HOME, 'ws') };
+}
+
 describe('a manifest repository', () => {
-  it('is cloned under FX_HOME, derives the root documents, and is refreshed by sync unless told not to', () => {
+  it('is cloned under FX_HOME, and the root documents and Skill link are derived from it', () => {
     const s = stage();
     const sourceDir = manifestDirOf(s.env.FX_HOME, 'ws');
 
@@ -85,6 +96,7 @@ describe('a manifest repository', () => {
       ['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'],
       s.env,
     );
+
     expect(boot.status, boot.stderr).toBe(0);
     expect(boot.json()).toMatchObject({ manifest: 'materialized', manifest_dir: sourceDir });
     expect(readFileSync(path.join(s.env.FX_HOME, 'config.yaml'), 'utf8')).toContain(
@@ -107,20 +119,30 @@ describe('a manifest repository', () => {
     expect(pathKey(readlinkSync(path.join(s.ws, '.claude', 'skills')))).toBe(
       pathKey(path.join(sourceDir, 'skills')),
     );
+  });
+
+  it("is a repository of its own workspace, with the person's fork as origin, that cannot be picked", () => {
+    const s = initialized();
 
     const repos = fx(['repo', 'list', '--format', 'json'], s.env, s.ws);
+    const status = fx(['status', '--format', 'json'], s.env, s.ws);
+    const pick = fx(['repo', 'pick', 'fx-workspace', '--format', 'json'], s.env, s.ws);
+
     expect(repos.status, repos.stderr).toBe(0);
     expect((repos.json() as Items<{ name: string; origin: string; path: string }>).items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'fx-workspace', origin: 'manifest', path: sourceDir }),
+        expect.objectContaining({ name: 'fx-workspace', origin: 'manifest', path: s.sourceDir }),
       ]),
     );
-    expect(git(['remote', 'get-url', 'origin'], sourceDir)).toContain('~alice/fx-workspace');
-    const status = fx(['status', '--format', 'json'], s.env, s.ws);
+    expect(git(['remote', 'get-url', 'origin'], s.sourceDir)).toContain('~alice/fx-workspace');
     expect(status.status, status.stderr).toBe(0);
     expect(names(status)).toEqual(['a', 'b', 'fx-workspace']);
-    const pick = fx(['repo', 'pick', 'fx-workspace', '--format', 'json'], s.env, s.ws);
     expect(pick.status).toBe(6);
+  });
+
+  it('is refreshed by sync unless told not to, and left alone while its checkout is on a branch', () => {
+    const s = initialized();
+    const { sourceDir } = s;
 
     s.manifest.commit(
       { 'manifest/workspace.yaml': workspaceYaml(s.host, ['a', 'b', 'c']) },
@@ -182,31 +204,41 @@ describe('a manifest repository', () => {
     const back = fx(['sync', '--details', '--format', 'json'], s.env, s.ws);
     expect(back.status, back.stderr).toBe(0);
     expect(back.stderr).not.toContain('MANIFEST_REFRESH_KEPT');
+  });
 
+  it('refuses another source for an initialized root and refreshes from the same one', () => {
+    const s = initialized();
     const other = repository(path.dirname(s.ws), 'other', {
       'manifest/workspace.yaml': workspaceYaml(s.host, ['a']),
     });
+
     const swapped = fx(
       ['init', '--details', s.ws, '--from', other.bare, '--format', 'json'],
       s.env,
     );
-    expect(swapped.status).toBe(11);
-    expect(swapped.error().code).toBe('SOURCE_MISMATCH');
     const again = fx(
       ['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'],
       s.env,
     );
+
+    expect(swapped.status).toBe(11);
+    expect(swapped.error().code).toBe('SOURCE_MISMATCH');
     expect(again.status, again.stderr).toBe(0);
     expect(again.json()).toMatchObject({ manifest: 'refreshed', registered: true });
+  });
 
-    const ws2 = path.join(path.dirname(s.ws), 'ws2');
-    mkdirSync(ws2);
-    git(['init', '-q', ws2], ws2);
-    writeFileSync(path.join(ws2, 'notes.txt'), 'x');
+  it('previews adopting a root that is itself a git checkout, and says so', () => {
+    const s = stage();
+    const root = path.join(path.dirname(s.ws), 'ws2');
+    mkdirSync(root);
+    git(['init', '-q', root], root);
+    writeFileSync(path.join(root, 'notes.txt'), 'x');
+
     const adopt = fx(
-      ['init', ws2, '--from', s.manifest.bare, '--adopt', '--dry-run', '--format', 'json'],
+      ['init', root, '--from', s.manifest.bare, '--adopt', '--dry-run', '--format', 'json'],
       s.env,
     );
+
     expect(adopt.status, adopt.stderr).toBe(0);
     expect(adopt.json()).toMatchObject({ adopted: true, written: false });
     expect(adopt.stderr).toContain('ROOT_IS_GIT');

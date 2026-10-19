@@ -26,7 +26,11 @@ export default class ManifestImportCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ManifestImportCommand);
-    const out = await new Import(importDeps(this.container, this.reporter)).execute({
+    const deps = importDeps(this.container, {
+      reporter: this.reporter,
+      commandShell: this.commandShell,
+    });
+    const out = await new Import(deps).execute({
       dir: args.dir,
       out: flags.out,
       ...writeIntent(flags, this.posture),

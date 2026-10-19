@@ -2,6 +2,7 @@
 // while emitting a bounded, credential-free account of each completed call.
 
 import { redactText, redactVector, summarizeDiagnostic } from '../../domain/diagnostics.js';
+import { messageOf } from '../../domain/values.js';
 import type { DiagnosticEvent, DiagnosticReporter } from '../../ports/diagnostics.js';
 import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
 
@@ -17,9 +18,7 @@ export class DiagnosticProcess implements Process {
       this.diagnostics.emit(eventOf(vector, options, result));
       return result;
     } catch (err) {
-      const stderr = options.sensitiveOutput
-        ? undefined
-        : summarizeDiagnostic(err instanceof Error ? err.message : String(err));
+      const stderr = options.sensitiveOutput ? undefined : summarizeDiagnostic(messageOf(err));
       this.diagnostics.emit({
         ...baseEvent(vector, options),
         ...(stderr === undefined ? {} : { stderr }),

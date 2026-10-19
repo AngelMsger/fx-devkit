@@ -1,9 +1,11 @@
 // Which provider fulfils each capability, read off the two documents that bind them and
 // the catalog this fx ships. A schema 1 document names no providers, so its git host and
-// its platform names imply one through what the providers themselves declare. Whether an
-// id names a real adapter is the registry's business.
+// its platform names imply one through what the providers themselves declare. Whether a
+// binding can be served is answered against the providers the registry hands in.
 
 import { capabilitiesInScope, type Capability, type CapabilityName } from '../capability.js';
+import { DevkitError } from '../errors.js';
+import { nearest, suggestionHint } from '../fuzzy.js';
 
 import {
   serviceVars,
@@ -127,6 +129,11 @@ export interface PlatformBinding extends Binding {
   readonly platform: string;
 }
 
+// The platform instance a binding belongs to; a workspace-wide binding has none.
+export function platformOf(binding: Binding | PlatformBinding): string | null {
+  return 'platform' in binding ? binding.platform : null;
+}
+
 export function bindPlatforms(
   environments: Environments | undefined,
   providers: ProviderCatalog,
@@ -164,4 +171,55 @@ export function bindPlatforms(
       vars,
     };
   });
+}
+
+export interface VarSpec {
+  readonly name: string;
+  readonly desc: string;
+  readonly required: boolean;
+}
+
+// What resolving a binding reads from a provider: its facts and the variables it takes.
+export interface BindableProvider extends ProviderFacts {
+  readonly vars: readonly VarSpec[];
+}
+
+// The registered provider a binding names, once it serves the bound capability and the
+// binding supplies every variable it requires.
+export function requireProvider<P extends BindableProvider>(
+  binding: Binding | PlatformBinding,
+  registered: readonly P[],
+): P {
+  const { capability } = binding;
+  const ids = registered.filter((p) => p.capability === capability).map((p) => p.id);
+  const available = `Available: ${ids.join(', ') || '(none)'}.`;
+  if (binding.provider === null)
+    throw new DevkitError('config', 'PROVIDER_UNBOUND', `No provider is bound for ${capability}`, {
+      hint: `Add \`providers.${capability}\` to manifest/workspace.yaml. ${available}`,
+      nextSteps: ['fx manifest providers', 'fx manifest explain providers'],
+    });
+  const named = binding.provider;
+  const provider = registered.find((candidate) => candidate.id === named);
+  if (!servesCapability(provider, capability))
+    throw new DevkitError(
+      'config',
+      'PROVIDER_UNKNOWN',
+      `"${named}" is not a ${capability} provider this fx knows`,
+      {
+        hint: suggestionHint(nearest(named, ids), available),
+        nextSteps: ['fx manifest providers', 'fx --version'],
+      },
+    );
+  const missing = provider.vars.filter((v) => v.required && !binding.vars[v.name]?.trim());
+  if (missing.length > 0)
+    throw new DevkitError(
+      'config',
+      'PROVIDER_VAR_MISSING',
+      `providers.${capability} (${provider.id}) is missing ${missing.map((v) => v.name).join(', ')}`,
+      {
+        hint: missing.map((v) => `${v.name}: ${v.desc}`).join('; '),
+        nextSteps: ['fx manifest explain providers'],
+      },
+    );
+  return provider;
 }

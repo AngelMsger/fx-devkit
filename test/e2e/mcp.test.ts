@@ -56,14 +56,16 @@ describe('MCP can command', () => {
       code: 'MCP_UNKNOWN',
       hint: 'Did you mean "knowledge"?',
     });
-    expect(fx([...args, '--agent', 'claud-code'], f.env, f.root).error().code).toBe(
-      'AGENT_UNKNOWN',
-    );
+    expect(fx([...args, '--agent', 'claud-code'], f.env, f.root).error()).toMatchObject({
+      code: 'AGENT_UNKNOWN',
+      message: '"claud-code" is not an agent fx knows',
+      hint: 'Did you mean "claude-code"?',
+    });
     expect(fx([...args, '--env', 'test'], f.env, f.root).error().code).toBe('MCP_ENV_UNSUPPORTED');
   });
   it('projects MCP through sync and reports the managed result in doctor', () => {
     const f = fixture();
-    const env = { ...f.env, FX_MCP_TEST_TOKEN: 'synthetic-sensitive-value', FX_READ_ONLY: '0' };
+    const env = { ...f.env, FX_MCP_TEST_TOKEN: 'synthetic-sensitive-value' };
     const preview = fx(['sync', '--only', 'mcp', '--dry-run', '--format', 'json'], env, f.root);
     expect(preview.status, preview.stderr).toBe(0);
     const synced = fx(['sync', '--only', 'mcp', '--yes', '--format', 'json'], env, f.root);

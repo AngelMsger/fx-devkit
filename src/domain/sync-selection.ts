@@ -2,7 +2,7 @@
 // selection independent of execution lets previews reject typos before IO.
 
 import { DevkitError } from './errors.js';
-import { nearest } from './fuzzy.js';
+import { nearest, suggestionHint } from './fuzzy.js';
 
 export function selectSyncStages(
   value: string | undefined,
@@ -14,10 +14,7 @@ export function selectSyncStages(
   if (unknown !== undefined) {
     const suggestion = nearest(unknown, available);
     throw new DevkitError('usage', 'SYNC_STAGE_UNKNOWN', `Unknown sync stage "${unknown}"`, {
-      hint:
-        suggestion === undefined
-          ? `Choose from ${available.join(', ')}.`
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, `Choose from ${available.join(', ')}.`),
       nextSteps: ['fx sync --help'],
     });
   }

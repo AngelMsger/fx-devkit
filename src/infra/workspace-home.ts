@@ -13,7 +13,15 @@ export function manifestSourceDir(home: string, name: string): string {
   return path.join(workspaceHome(home, name), 'source');
 }
 
-function workspaceHome(home: string, name: string): string {
+export function harnessStatePath(home: string, name: string): string {
+  return path.join(workspaceHome(home, name), 'harness.json');
+}
+
+export function contributionJournalPath(home: string, name: string): string {
+  return path.join(workspaceHome(home, name), 'contributions.json');
+}
+
+export function workspaceHome(home: string, name: string): string {
   assertWorkspaceName(name);
   return path.join(home, 'workspaces', name);
 }

@@ -11,12 +11,10 @@ import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');
 
-async function stage(withMembers = true) {
+async function stage(members: string | null = fixture('members.yaml')) {
   return harness({
     workspace: fixture('workspace.yaml'),
-    files: withMembers
-      ? { [`${MANIFEST_DIR}/manifest/members.yaml`]: fixture('members.yaml') }
-      : {},
+    files: members === null ? {} : { [`${MANIFEST_DIR}/manifest/members.yaml`]: members },
   });
 }
 
@@ -39,9 +37,10 @@ describe('member who / list / owners', () => {
         via: null,
       },
     ]);
-    expect(h.cache.entries.size).toBe(0);
-    expect(h.reporter.notices.map((n) => n.code)).not.toContain('PERSON');
-    expect(() => new MemberShow(h.deps).execute('carol')).toThrow(/Nobody/);
+    expect(h.reporter.notices).toEqual([]);
+    expect(() => new MemberShow(h.deps).execute('carol')).toThrow(
+      expect.objectContaining({ code: 'PERSON_NOT_FOUND' }),
+    );
   });
 
   it('lists people with their areas, filtered by area or status', async () => {
@@ -56,26 +55,35 @@ describe('member who / list / owners', () => {
     expect(new MemberList(h.deps).execute({ status: 'resigned' }).map((r) => r.id)).toEqual([
       'bob',
     ]);
-    expect(() => new MemberList(h.deps).execute({ area: 'Platfrom' })).toThrow(/not an area/);
+    expect(() => new MemberList(h.deps).execute({ area: 'Platfrom' })).toThrow(
+      expect.objectContaining({ code: 'AREA_NOT_FOUND', hint: 'Did you mean "Platform"?' }),
+    );
   });
 
   it('puts the owners of a repository, and its contact, on repo show', async () => {
-    const h = await stage();
-    expect(await new RepoShow(h.deps).execute({ name: 'fx-example-api' })).toMatchObject({
-      name: 'fx-example-api',
-      owners: [],
-      contact: '#platform',
+    const h = await stage(
+      fixture('members.yaml').replace('[fx-example-auth]', '[fx-example-data]'),
+    );
+    expect(await new RepoShow(h.deps).execute({ name: 'fx-example-data' })).toMatchObject({
+      name: 'fx-example-data',
+      owners: [{ area: 'Platform', scenario: 'Login', devLead: { id: 'alice' } }],
+      contact: '#data',
     });
-    const none = await stage(false);
+    expect(
+      await new RepoShow(h.deps).execute({ name: 'fx-example-api' }),
+      'a repository no scenario names has no owners',
+    ).toMatchObject({ owners: [], contact: '#platform' });
+    const none = await stage(null);
     expect(
       (await new RepoShow(none.deps).execute({ name: 'fx-example-api' })).owners,
       'no members document is not the same as nobody',
     ).toBeNull();
-    expect((await new RepoShow(h.deps).execute({ name: 'fx-example-data' })).contact).toBe('#data');
   });
 
   it('says so when there is no members document', async () => {
-    const h = await stage(false);
-    expect(() => new MemberShow(h.deps).execute('alice')).toThrow(/no manifest\/members.yaml/);
+    const h = await stage(null);
+    expect(() => new MemberShow(h.deps).execute('alice')).toThrow(
+      expect.objectContaining({ code: 'MEMBERS_MISSING' }),
+    );
   });
 });

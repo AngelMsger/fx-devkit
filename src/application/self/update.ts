@@ -1,5 +1,6 @@
 // Update fx through its distribution registry after confirmation and the write gate.
-// Capture installer output so machine-readable results remain valid on stdout.
+// Capture installer output so machine-readable results remain valid on stdout. A
+// completed install settles the update-check window on the version it installed.
 
 import { DevkitError } from '../../domain/errors.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
@@ -7,12 +8,14 @@ import type { Installer } from '../../ports/installer.js';
 import type { Process } from '../../ports/process.js';
 import type { Prompter } from '../../ports/prompter.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
+import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 
 import { REGISTRY_HANDOFF } from './registry.js';
 
-export interface SelfUpdateInput {
-  readonly packageName: string;
-  readonly registry: string | null;
+export interface SelfUpdateInput extends Pick<
+  FxUpdateInput,
+  'current' | 'packageName' | 'registry'
+> {
   readonly dryRun: boolean;
   readonly yes: boolean;
   readonly posture: WritePosture;
@@ -25,12 +28,19 @@ export interface SelfUpdateOutput {
   readonly reason: string | null;
 }
 
+export function isUpdated(output: SelfUpdateOutput): boolean {
+  return output.ran && output.code === 0;
+}
+
+export interface SelfUpdateDeps {
+  readonly process: Pick<Process, 'run'>;
+  readonly prompter: Prompter;
+  readonly installer: Installer;
+  readonly check: Pick<FxUpdateCheck, 'execute' | 'markCurrent'>;
+}
+
 export class SelfUpdate {
-  constructor(
-    private readonly process: Pick<Process, 'run'>,
-    private readonly prompter: Prompter,
-    private readonly installer: Installer,
-  ) {}
+  constructor(private readonly deps: SelfUpdateDeps) {}
 
   async execute(input: SelfUpdateInput): Promise<SelfUpdateOutput> {
     if (input.registry === null) {
@@ -45,7 +55,7 @@ export class SelfUpdate {
         },
       );
     }
-    const vector = this.installer.vector(input.packageName, {
+    const vector = this.deps.installer.vector(input.packageName, {
       registry: input.registry,
       update: true,
       registryScope: 'package',
@@ -56,7 +66,7 @@ export class SelfUpdate {
       });
     if (input.dryRun) return { vector, ran: false, code: null, reason: 'dry run' };
     assertWritable(input.posture, 'self update');
-    if (!(await this.installer.available()))
+    if (!(await this.deps.installer.available()))
       throw new DevkitError('config', 'TOOL_MISSING', 'The self-update installer is unavailable', {
         nextSteps: ['Install npm or add it to PATH, then retry.'],
         handoff: {
@@ -68,15 +78,24 @@ export class SelfUpdate {
         },
       });
     if (!input.yes) {
-      const go = await this.prompter.confirm(`Run \`${vector.join(' ')}\`?`, { defaultYes: true });
+      const go = await this.deps.prompter.confirm(`Run \`${vector.join(' ')}\`?`, {
+        defaultYes: true,
+      });
       if (!go) return { vector, ran: false, code: null, reason: 'declined' };
     }
-    const result = await this.process.run(vector, { interactive: false });
-    return {
+    const result = await this.deps.process.run(vector, { interactive: false });
+    const output: SelfUpdateOutput = {
       vector,
       ran: true,
       code: result.code,
       reason: result.code === 0 ? null : stderrReason(result.stderr, result.code),
     };
+    if (isUpdated(output)) await this.settleCheck(input);
+    return output;
+  }
+
+  private async settleCheck(input: SelfUpdateInput): Promise<void> {
+    const { latest } = await this.deps.check.execute(input);
+    if (latest !== null) await this.deps.check.markCurrent(input, latest);
   }
 }

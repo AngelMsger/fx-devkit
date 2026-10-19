@@ -156,7 +156,7 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
-`manifest repo-set` はファイルロックを保持した状態で元の文書を再確認してから置き換えます。他の書き込みで内容が変わった場合、通常ファイルではない場合、または manifest ディレクトリがシンボリックリンクの場合は、`MANIFEST_EDIT_CONFLICT` を返して既存の内容を保持します。実体のソースパスを確認し、`--dry-run` で再試行してください。ロックを削除したり、他の編集を上書きしたりしないでください。同じ内容への編集は `written: false` を返します。
+`manifest repo-set` は同時に行われた編集を上書きしません。`MANIFEST_EDIT_CONFLICT` で停止し、ファイルはそのまま残ります。ソースを確認し、`--dry-run` で再試行してください。応答の内容は[マニフェストの同時編集](../skills/fx-workspace/references/commands.md#concurrent-manifest-edits)を参照してください。
 
 `manifest validate/lint/providers/repo-set/render` は、別のソース checkout 内でも明示的な `--workspace` または `FX_WORKSPACE` を優先します。明示した名前が未知ならエラーになり、近くの manifest の編集には切り替えません。明示的な選択がなければ、現在のディレクトリ付近のソース checkout を優先し、単独のソース保守も可能です。`manifest import <dir>` はディレクトリ引数を使い、`manifest record-probe` は選択した登録済みワークスペースを使います。render を含むファイル出力フラグは `-o` と `--out` に対応します。
 

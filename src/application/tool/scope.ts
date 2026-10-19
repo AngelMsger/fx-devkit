@@ -4,17 +4,18 @@
 import { servesCapability } from '../../domain/manifest/providers.js';
 import { finding, type Finding } from '../../domain/report.js';
 import type { ResolvedShell } from '../../domain/shell.js';
-import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import { installsOnInit, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import {
   keyedBinding,
   keyedPlatform,
+  manifestProviderTool,
   providerTools,
   type KeyedBinding,
 } from '../../domain/toolchain/select.js';
 import type { WorkspaceContext } from '../workspace/context.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
-import { declaredIn, toolchainOf } from './toolchain.js';
+import { toolchainOf } from './toolchain.js';
 
 export interface ToolScopeSelection {
   readonly tools?: readonly string[] | undefined;
@@ -43,11 +44,9 @@ export function workspaceToolScope(
   const available = toolchain.all;
   const known = (tool: string): boolean => available.some((entry) => entry.name === tool);
   const bindings = activeBindings(ctx, selection);
-  const dependencies = new Set(
-    providerTools(bindings, ctx.providers, declaredIn(available)).keys(),
-  );
+  const dependencies = new Set(providerTools(bindings, ctx.providers, available).keys());
   const problems: Finding[] = [
-    ...unservedBindings(ctx, bindings, declaredIn(available)).map((binding) =>
+    ...unservedBindings(ctx, bindings, available).map((binding) =>
       finding(
         'manifest',
         `provider:${binding.key}`,
@@ -99,13 +98,13 @@ export function workspaceToolScope(
 function unservedBindings(
   ctx: WorkspaceContext,
   bindings: readonly KeyedBinding[],
-  declaresTool: (tool: string) => boolean,
+  tools: readonly ResolvedTool[],
 ): KeyedBinding[] {
   return bindings.filter((binding) => {
     if (binding.provider === null || binding.source === 'misplaced') return false;
     const provider = ctx.providers.find((candidate) => candidate.id === binding.provider);
     if (servesCapability(provider, binding.capability)) return false;
-    return provider !== undefined || !declaresTool(binding.provider);
+    return provider !== undefined || manifestProviderTool(binding.provider, tools) === undefined;
   });
 }
 
@@ -128,7 +127,7 @@ function activeBindings(ctx: WorkspaceContext, selection: ToolScopeSelection): K
 function isRequired(tool: ResolvedTool, dependencies: ReadonlySet<string>): boolean {
   return (
     tool.required ||
-    (tool.enabled && tool.installOnInit === true) ||
+    installsOnInit(tool) ||
     (dependencies.has(tool.name) && !tool.patchedFields.includes('required'))
   );
 }

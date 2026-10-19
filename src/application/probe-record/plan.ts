@@ -10,7 +10,7 @@ import { loadEnvironments, loadWorkspace } from '../../domain/manifest/loader.js
 import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import type { Environments } from '../../domain/manifest/types.js';
 import { coordinateFingerprint, probeScope } from '../../domain/obs/observation.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { Where } from '../readiness/where.js';
 import { findKnownRepo } from '../workspace/inspect.js';
 
@@ -25,7 +25,8 @@ export async function planProbeRecord(
   deps: ProbeRecordDeps,
   input: ProbeRecordInput,
 ): Promise<ProbeRecordPlan> {
-  if (!input.probe || !input.env || !input.platform) throw inputRequired(input.repo);
+  if (!input.probe || !input.env || !input.platform)
+    throw inputRequired(input.repo, deps.workspace.commandShell);
   const documents = await readDocuments(deps);
   const [row] = await new Where(deps.workspace, deps.login).execute({
     ...input,
@@ -199,13 +200,15 @@ export function assertSafeNote(text: string): void {
     );
 }
 
-function inputRequired(repo: string): DevkitError {
+function inputRequired(repo: string, shell: ResolvedShell | undefined): DevkitError {
   return new DevkitError(
     'usage',
     'PROBE_RECORD_INPUT_REQUIRED',
     'Recording requires --probe, --env and --platform',
     {
-      nextSteps: [`fx where ${repo} --env <env> --platform <platform> --probe --record --dry-run`],
+      nextSteps: [
+        `${shellLine(['fx', 'where', repo], shell)} --env <env> --platform <platform> --probe --record --dry-run`,
+      ],
     },
   );
 }

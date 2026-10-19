@@ -2,48 +2,41 @@
 // optional one only narrows what can be done.
 
 import { DevkitError } from '../../domain/errors.js';
-import type { LoginDeps } from '../login/deps.js';
+import { approveCheckAction, toolRecovery } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
-import { toolChecks } from '../sync/checks.js';
 import type { Tally } from '../tally.js';
-import { ToolCheck, type ToolStatus } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand, type ToolStatus } from '../tool/check.js';
 import type { WorkspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
 import { finding, type Finding } from './types.js';
 
-export interface ToolCheckOptions extends WorkspaceToolScope {
-  readonly trust: LoginDeps['trust'];
-}
-
 export async function checkTools(
   deps: WorkspaceDeps,
-  options: ToolCheckOptions,
+  options: WorkspaceToolScope,
   checks: Tally,
 ): Promise<Finding[]> {
-  const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
+  const check = new ToolCheck(deps.process);
   const tools = options.covered;
   const findings: Finding[] = [];
-  const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
   checks.plan(tools.length);
   for (const tool of tools) {
     try {
       const [status] = await checks.unit(tool.name, () =>
         check.execute({
           tools: [{ ...tool, required: options.required.has(tool.name) }],
-          trust,
+          trust: deps.trust,
         }),
       );
       if (status !== undefined)
         findings.push({
           ...fromStatus(status, options.dependencies.has(tool.name), deps),
           required: options.required.has(tool.name),
-          actions:
-            toolChecks(
-              [{ ...status, preparation_required: options.required.has(tool.name) }],
-              deps,
-            )[0]!.actions ?? [],
+          actions: toolRecovery(deps, {
+            ...status,
+            preparation_required: options.required.has(tool.name),
+          }),
           evidence: {
             binary: status.binary,
             binary_path: status.binary_path ?? null,
@@ -65,7 +58,7 @@ export async function checkTools(
 
 function toolCheckFailure(
   deps: WorkspaceDeps,
-  options: ToolCheckOptions,
+  options: WorkspaceToolScope,
   name: string,
   error: DevkitError,
 ): Finding {
@@ -76,26 +69,17 @@ function toolCheckFailure(
       required,
       fix: workspaceCommand(deps, 'tool', 'show', name),
     });
-  const handoff = commandTrustHandoff({
-    tool: name,
-    workspace: deps.ctx.name,
-    posture: options.trust.posture,
-    commandShell: deps.commandShell,
-  });
+  const handoff = commandTrustHandoff(deps.trust, name);
   return finding('tools', name, 'warn', error.message, {
     coverage: 'incomplete',
     required,
     fix: handoff.command,
     handoff,
     actions: [
-      {
+      approveCheckAction(deps, name, {
         id: `approve:${name}`,
         description: `Review ${name}'s exact probe arguments, then approve the check`,
-        argv: ['fx', 'doctor', '--tool', name, '--workspace', deps.ctx.name, '--yes'],
-        cwd: deps.ctx.root,
-        actor: 'agent',
-        requires_approval: true,
-      },
+      }),
     ],
   });
 }
@@ -105,10 +89,10 @@ function fromStatus(
   activeDependency: boolean,
   deps: WorkspaceGuidance,
 ): Finding {
-  const { name } = status;
-  switch (status.state) {
-    case 'ok':
-      return finding('tools', name, 'ok', `${status.installed} installed`);
+  const { name, state } = status;
+  if (state === 'ok') return finding('tools', name, 'ok', `${status.installed} installed`);
+  const fix = workspaceCommand(deps, 'tool', toolRecoveryCommand(state), name);
+  switch (state) {
     case 'disabled':
       return status.required || activeDependency
         ? finding(
@@ -118,30 +102,25 @@ function fromStatus(
             status.required
               ? 'disabled by the manifest but required by the workspace'
               : 'disabled by the manifest but used by an active provider',
-            {
-              coverage: 'incomplete',
-              fix: workspaceCommand(deps, 'tool', 'show', name),
-            },
+            { coverage: 'incomplete', fix },
           )
         : finding('tools', name, 'ok', 'disabled by the manifest; not checked', {
             coverage: 'not_applicable',
           });
     case 'missing':
-      return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', {
-        fix: workspaceCommand(deps, 'tool', 'install', name),
-      });
+      return finding('tools', name, status.required ? 'fail' : 'warn', 'not installed', { fix });
     case 'outdated':
       return finding(
         'tools',
         name,
         status.required ? 'fail' : 'warn',
         `${status.installed} installed, ${status.min_version} required`,
-        { fix: workspaceCommand(deps, 'tool', 'update', name) },
+        { fix },
       );
     case 'unknown':
       return finding('tools', name, 'warn', 'installed but its version could not be read', {
         coverage: 'incomplete',
-        fix: workspaceCommand(deps, 'tool', 'show', name),
+        fix,
       });
   }
 }

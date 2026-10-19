@@ -2,7 +2,7 @@
 // silent subset.
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { recoveryCommand, type CommandGuidance } from '../workspace/guidance.js';
 
@@ -31,10 +31,10 @@ export function selectTools(
       tools.map((t) => t.name),
     );
     throw new DevkitError('not_found', 'TOOL_UNKNOWN', `No tool named "${name}" in the toolchain`, {
-      hint:
-        suggestion === undefined
-          ? 'A tool joins the toolchain by being driven by a bound provider, or by being named in manifest/tools.yaml.'
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(
+        suggestion,
+        'A tool joins the toolchain by being driven by a bound provider, or by being named in manifest/tools.yaml.',
+      ),
       nextSteps: [recoveryCommand(context, 'tool', 'list', '--catalog')],
     });
   });

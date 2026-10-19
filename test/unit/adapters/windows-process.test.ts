@@ -10,6 +10,7 @@ import {
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { writeNodeShim } from '../../platform.js';
 import { tempDir } from '../../temp.js';
+import { alive, until } from '../../waiting.js';
 
 describe('Windows executable resolution', () => {
   it('uses PATHEXT in order and never implicitly searches the working directory', () => {
@@ -132,11 +133,11 @@ describe('portable command execution', () => {
       timeoutMs: 5000,
     });
     const failure = expect(run).rejects.toMatchObject({ code: 'PROCESS_ABORTED' });
-    for (let n = 0; n < 100 && !existsSync(file); n++) await new Promise((r) => setTimeout(r, 20));
+    await until(() => existsSync(file));
     control.abort();
     await failure;
     const pid = Number(readFileSync(file, 'utf8'));
-    await new Promise((r) => setTimeout(r, 200));
-    expect(() => process.kill(pid, 0)).toThrow();
+    await until(() => !alive(pid));
+    expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }));
   });
 });

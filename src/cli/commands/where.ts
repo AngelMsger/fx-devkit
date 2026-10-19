@@ -4,6 +4,7 @@ import { DevkitError } from '../../domain/errors.js';
 import { FxCommand } from '../base.js';
 import { requiredArgument, writeIntent } from '../flags.js';
 import { selectWhereColumns, whereFlags } from '../where-flags.js';
+import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class WhereCommand extends FxCommand {
   static override description =
@@ -16,6 +17,8 @@ export default class WhereCommand extends FxCommand {
     repo: requiredArgument('repository name'),
   };
   static override flags = whereFlags;
+  static override writeScope: WriteScopeDeclaration = (flags) =>
+    flags['record'] ? 'workspace' : null;
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(WhereCommand);

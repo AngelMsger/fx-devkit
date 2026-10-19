@@ -1,16 +1,17 @@
 // Resolves workspace hook settings and owns sync and doctor workflow policy.
 import { asDevkitError, handoffEnvelope } from '../../domain/errors.js';
+import { hookActionState } from '../../domain/harness/actions.js';
 import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
+import { countBy } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
-import type { DoctorExtension } from '../doctor/types.js';
+import type { DoctorExtension, StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync/types.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { ReconcileHooks } from './reconcile.js';
-import type { HookDeps, HookOutput, ReconcileInput } from './types.js';
+import type { HookDeps, HookOutput, HookStageDetails, ReconcileInput } from './types.js';
 
 export interface HookSession {
   readonly deps: HookDeps;
@@ -41,22 +42,18 @@ export async function manageHooks(input: ManageHooksInput): Promise<HookOutput> 
 
 export function hookStage(
   input: HookSession & { readonly dryRun: boolean },
-): () => Promise<StageResult> {
+): () => Promise<StageResult<HookStageDetails>> {
   return async () => {
     const out = await manageHooks({ ...input, action: 'sync' });
-    const summary: Record<string, number> = {};
-    for (const item of out.items) summary[item.action] = (summary[item.action] ?? 0) + 1;
-    const projection = out.items.map((item) => {
-      let state: 'ready' | 'blocked' | 'skipped' = 'blocked';
-      if (['create', 'update', 'unchanged', 'remove'].includes(item.action)) state = 'ready';
-      if (['disabled', 'unsupported'].includes(item.action)) state = 'skipped';
-      return preparationCheck(
+    const summary = countBy(out.items, (item) => item.action);
+    const projection = out.items.map((item) =>
+      preparationCheck(
         `hook:${item.agent}:projection`,
-        state,
+        hookActionState(item.action),
         `${item.agent}: ${item.action}`,
         { required: false, owner: 'user' },
-      );
-    });
+      ),
+    );
     const activation = out.items
       .filter((item) => item.activation === 'unverified')
       .map((item) =>
@@ -83,7 +80,7 @@ export function hookDoctor(input: HookSession): DoctorExtension {
       try {
         const out = await manageHooks({ ...input, action: 'inspect', dryRun: true });
         return out.items.map((item) => {
-          const ok = ['disabled', 'unsupported'].includes(item.action);
+          const ok = hookActionState(item.action) === 'skipped';
           return finding(
             'hooks',
             item.agent,

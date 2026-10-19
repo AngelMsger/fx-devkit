@@ -1,29 +1,20 @@
 // Stores harness ownership metadata atomically and rejects foreign files.
 
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-
 import * as z from 'zod';
 
 import { busyError, DevkitError } from '../domain/errors.js';
 import type { HarnessIntent, HarnessReceipt, HarnessState } from '../domain/harness/ownership.js';
-import { assertWorkspaceName } from '../domain/workspace/name.js';
+import { isPlainRelativePath } from '../domain/path.js';
 import type { HarnessStateStore } from '../ports/harness-state.js';
 import type { Lock } from '../ports/lock.js';
 
-import { writeAtomicFile } from './atomic-file.js';
-import { assertStoreParents } from './store-parents.js';
+import { OwnedJournal } from './owned-journal.js';
 import type { ShapeOf } from './stored-shape.js';
+import { harnessStatePath } from './workspace-home.js';
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().regex(/^[A-Za-z0-9_-]+$/);
-const relative = z
-  .string()
-  .refine(
-    (value) =>
-      !/[\\\x00-\x1f:]/.test(value) &&
-      value.split('/').every((part) => !!part && part !== '.' && part !== '..' && part !== '.git'),
-  );
+const relative = z.string().refine(isPlainRelativePath);
 const receipt = {
   key: id,
   kind: z.enum(['mcp', 'rules']),
@@ -58,6 +49,8 @@ const state = (object: typeof z.strictObject) =>
 const written = state(z.strictObject);
 const read = state(z.object);
 
+type StoredState = HarnessState & { readonly owner: 'fx:harness:v1' };
+
 export class FileHarnessState implements HarnessStateStore {
   constructor(
     private readonly home: string,
@@ -65,45 +58,27 @@ export class FileHarnessState implements HarnessStateStore {
   ) {}
 
   async read(workspace: string): Promise<HarnessState | null> {
-    return this.readFile(this.file(workspace));
+    const stored = await this.journal(workspace).read();
+    if (stored === undefined) return null;
+    const { owner: _owner, ...state } = stored;
+    return state;
   }
 
   async write(workspace: string, state: HarnessState): Promise<void> {
-    const file = this.file(workspace);
-    let text: string;
-    try {
-      text = JSON.stringify(written.parse({ owner: 'fx:harness:v1', ...state }));
-    } catch {
-      throw invalid();
-    }
-    await assertStoreParents(this.home, file, invalid);
-    const lease = await this.lock.acquire({ key: `harness-state:${workspace}`, waitMs: 2000 });
-    if (!lease) throw busyError('LOCK_BUSY', 'The harness metadata');
-    try {
-      await this.readFile(file);
-      await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
-      await assertStoreParents(this.home, file, invalid);
-      await writeAtomicFile(file, text, { durable: true });
-    } finally {
-      await lease.release();
-    }
+    await this.journal(workspace).replace({ owner: 'fx:harness:v1', ...state });
   }
 
-  private async readFile(file: string): Promise<HarnessState | null> {
-    await assertStoreParents(this.home, file, invalid);
-    try {
-      const stat = await fs.lstat(file);
-      if (!stat.isFile() || stat.nlink !== 1) throw invalid();
-      const { owner: _owner, ...state } = read.parse(JSON.parse(await fs.readFile(file, 'utf8')));
-      return state;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      throw invalid();
-    }
-  }
-  private file(workspace: string): string {
-    assertWorkspaceName(workspace);
-    return path.join(this.home, 'workspaces', workspace, 'harness.json');
+  private journal(workspace: string): OwnedJournal<StoredState> {
+    return new OwnedJournal({
+      home: this.home,
+      file: harnessStatePath(this.home, workspace),
+      lock: this.lock,
+      lease: { key: `harness-state:${workspace}`, waitMs: 2000 },
+      encode: (value) => JSON.stringify(written.parse(value)),
+      decode: (document) => read.parse(document),
+      invalid,
+      busy: () => busyError('LOCK_BUSY', 'The harness metadata'),
+    });
   }
 }
 

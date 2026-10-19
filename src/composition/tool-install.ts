@@ -6,9 +6,9 @@ import { ToolInstall } from '../application/tool/install.js';
 import type { Container } from './container.js';
 
 export function toolInstall(container: Container): ToolInstall {
-  return new ToolInstall(
-    container.installers,
-    container.process,
-    new ToolAudit(container.toolHistory, container.clock),
-  );
+  return new ToolInstall({
+    installers: container.installers,
+    process: container.process,
+    audit: new ToolAudit(container.toolHistory, container.clock),
+  });
 }

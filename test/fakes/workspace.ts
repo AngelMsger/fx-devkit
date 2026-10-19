@@ -5,15 +5,16 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { TrustGate, type TrustContext } from '../../src/application/safety/trust.js';
 import { WorkspaceContext } from '../../src/application/workspace/context.js';
 import type { WorkspaceDeps } from '../../src/application/workspace/deps.js';
 import { providerCatalog } from '../../src/composition/registry.js';
 import type { ProviderCatalog } from '../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';
 import type { Platform } from '../../src/ports/platform.js';
+import { bundledTools } from '../bundled-tools.js';
 
 import { FakeActivity } from './fake-activity.js';
-import { FakeCache } from './fake-cache.js';
 import { FakeCodeHost } from './fake-code-host.js';
 import { FakeConfigStore } from './fake-config-store.js';
 import { FakeFileProjection } from './fake-file-projection.js';
@@ -21,7 +22,9 @@ import { FakeFs } from './fake-fs.js';
 import { FakeGit } from './fake-git.js';
 import { FakeLocalStore } from './fake-local-store.js';
 import { FakeProcess } from './fake-process.js';
+import { FakePrompter } from './fake-prompter.js';
 import { FakeReporter } from './fake-reporter.js';
+import { FakeTrustStore } from './fake-trust-store.js';
 
 export const ROOT = path.normalize(path.resolve('/ws/fx'));
 export const manifestDirFor = (name: string): string =>
@@ -35,10 +38,13 @@ export interface Harness {
   readonly fs: FakeFs;
   readonly codeHost: FakeCodeHost;
   readonly localStore: FakeLocalStore;
-  readonly cache: FakeCache;
   readonly reporter: FakeReporter;
   readonly activity: FakeActivity;
   readonly process: FakeProcess;
+  // What the bundle's trust gate remembers and whom it asks: nothing is trusted and
+  // nobody answers until a case says otherwise.
+  readonly trusted: FakeTrustStore;
+  readonly prompter: FakePrompter;
 }
 
 export interface HarnessOptions {
@@ -53,8 +59,6 @@ export interface HarnessOptions {
   readonly providers?: ProviderCatalog;
 }
 
-const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
-
 export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const workspace =
     options.workspace ??
@@ -67,10 +71,12 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const git = new FakeGit((dir) => fs.mkdir(dir));
   const codeHost = options.codeHost === undefined ? new FakeCodeHost() : options.codeHost;
   const localStore = FakeLocalStore.with('fx', options.local ?? {});
-  const cache = new FakeCache();
   const reporter = new FakeReporter();
   const activity = new FakeActivity();
   const process = new FakeProcess();
+  const trusted = new FakeTrustStore();
+  const prompter = new FakePrompter();
+  prompter.unavailable = true;
   const ctx = await WorkspaceContext.locate({
     cwd: ROOT,
     config: new FakeConfigStore({
@@ -82,7 +88,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     fs,
     git,
     localStore,
-    bundledTools: bundled,
+    bundledTools,
     providers: options.providers ?? providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
@@ -94,13 +100,17 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     fs,
     projections: new FakeFileProjection(fs),
     localStore,
-    cache,
     reporter,
     activity,
     cliVersion: '1.0.0',
     user: options.user,
-    processRun: (vector, opts) => process.run(vector, opts),
-    processWhich: (binary) => process.which(binary),
+    process,
+    trust: {
+      gate: new TrustGate(trusted, prompter),
+      workspace: ctx.name,
+      yes: false,
+      posture: { readOnly: false, source: 'default' },
+    },
     codeHost: () => {
       if (codeHost === null) throw new Error('no code host bound');
       return codeHost;
@@ -118,9 +128,26 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     fs,
     codeHost: codeHost ?? new FakeCodeHost(),
     localStore,
-    cache,
     reporter,
     activity,
     process,
+    trusted,
+    prompter,
   };
+}
+
+// The same bundle answering manifest-supplied commands differently: another gate, --yes,
+// posture or a preview.
+export function withTrust(deps: WorkspaceDeps, trust: Partial<TrustContext>): WorkspaceDeps {
+  return { ...deps, trust: { ...deps.trust, ...trust } };
+}
+
+// The same bundle over a context that differs in what its manifest bound. The result is
+// still a WorkspaceContext, so its accessors answer as they do on the one it started from.
+export function withContext(
+  deps: WorkspaceDeps,
+  bound: Partial<Pick<WorkspaceContext, 'manifest' | 'bindings' | 'platforms'>>,
+): WorkspaceDeps {
+  const ctx = Object.create(WorkspaceContext.prototype) as WorkspaceContext;
+  return { ...deps, ctx: Object.assign(ctx, deps.ctx, bound) };
 }

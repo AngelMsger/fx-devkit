@@ -33,7 +33,9 @@ describe('renderRegions', () => {
       '<!-- fx:begin a --><!-- fx:begin b --><!-- fx:end b --><!-- fx:end a -->',
       '<!-- fx:begin a --><!-- fx:end a --><!-- fx:begin a --><!-- fx:end a -->',
     ])
-      expect(() => completeRegions(malformed, { a: 'new a' })).toThrow('ambiguous');
+      expect(() => completeRegions(malformed, { a: 'new a' })).toThrow(
+        expect.objectContaining({ code: 'DOCS_REGIONS_INVALID' }),
+      );
   });
   it('removes retired rules blocks, reports them as unknown, and preserves custom blocks and prose', () => {
     const retired = '<!-- fx:begin rules -->\nold generated rules\n<!-- fx:end rules -->';

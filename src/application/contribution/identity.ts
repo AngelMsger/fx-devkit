@@ -10,7 +10,7 @@ import type { PushSourceDeps } from './push-types.js';
 export async function assertContributionIdentity(
   deps: Pick<PushSourceDeps, 'registration' | 'source'>,
 ): Promise<void> {
-  const { config, fs, expected, physicalRoot, logicalSourceDir } = deps.registration;
+  const { config, fs, commandShell, expected, physicalRoot, logicalSourceDir } = deps.registration;
   const current = (await config.read()).workspaces?.[deps.source.workspace];
   if (
     !current ||
@@ -28,11 +28,11 @@ export async function assertContributionIdentity(
       'The registered source identity changed after contribution planning',
       {
         hint: 'Inspect the current workspace and preview the contribution again before retrying.',
-        nextSteps: [shellLine(['fx', 'workspace', 'show', deps.source.workspace])],
+        nextSteps: [shellLine(['fx', 'workspace', 'show', deps.source.workspace], commandShell)],
       },
     );
   await assertNoWorkspaceOperation(
-    { fs },
+    { fs, commandShell },
     { name: deps.source.workspace, manifestDir: logicalSourceDir },
   );
 }

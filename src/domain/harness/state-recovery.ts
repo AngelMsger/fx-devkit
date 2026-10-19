@@ -3,22 +3,20 @@
 
 import { createHash } from 'node:crypto';
 
+import type { ProjectionSnapshot } from '../projection.js';
+
 import type { HarnessState } from './ownership.js';
 
-interface Snapshot {
-  readonly kind: 'absent' | 'file' | 'foreign';
-  readonly text: string | null;
-}
 export interface HarnessRecoveryInput {
   readonly state: HarnessState;
-  readonly snapshot: Snapshot;
+  readonly snapshot: ProjectionSnapshot;
 }
 export interface HarnessRecovery {
   readonly action: 'none' | 'finish' | 'retry' | 'conflict';
   readonly state: HarnessState;
 }
 
-export function snapshotDigest(snapshot: Snapshot): string | null {
+export function snapshotDigest(snapshot: ProjectionSnapshot): string | null {
   return snapshot.kind === 'file'
     ? createHash('sha256')
         .update(snapshot.text ?? '')

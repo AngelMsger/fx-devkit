@@ -2,9 +2,9 @@
 // locked plan is re-read before journal, object, ref or network writes begin.
 
 import { busyError, DevkitError } from '../../domain/errors.js';
-import type { Lease } from '../../ports/lock.js';
+import { withLease, workspaceLeaseKey } from '../../domain/lease.js';
 import { assertWritable } from '../safety/posture.js';
-import { acquireWorkspaceOperation } from '../workspace/operation.js';
+import { withWorkspaceOperation } from '../workspace/operation.js';
 
 import { applySource } from './apply-source.js';
 import { assertContributionIdentity } from './identity.js';
@@ -50,22 +50,19 @@ export class PushSource {
 }
 
 async function withLeases<T>(deps: PushSourceDeps, work: () => Promise<T>): Promise<T> {
-  const leases: Lease[] = [];
-  try {
-    leases.push(await acquireWorkspaceOperation(deps.lock, deps.source.workspace));
+  const { lock, source } = deps;
+  const busy = (): DevkitError => busyError('SOURCE_BUSY', 'The contribution source');
+  return withWorkspaceOperation(lock, source.workspace, async () => {
     await assertContributionIdentity(deps);
-    for (const key of [`workspace:${deps.source.workspace}`, `source:${deps.source.dir}`]) {
-      const lease = await deps.lock.acquire({ key, waitMs: 2000 });
-      if (!lease) throw busyError('SOURCE_BUSY', 'The contribution source');
-      leases.push(lease);
-    }
-    // Again, now that every lease is held: waiting for one can outlast the identity
-    // checked before it.
-    await assertContributionIdentity(deps);
-    return await work();
-  } finally {
-    for (const lease of leases.reverse()) await lease.release();
-  }
+    return withLease(lock, { key: workspaceLeaseKey(source.workspace), waitMs: 2000 }, busy, () =>
+      withLease(lock, { key: `source:${source.dir}`, waitMs: 2000 }, busy, async () => {
+        // Again, now that every lease is held: waiting for one can outlast the identity
+        // checked before it.
+        await assertContributionIdentity(deps);
+        return work();
+      }),
+    );
+  });
 }
 
 async function confirm(deps: PushSourceDeps, plan: SourcePlan): Promise<boolean> {

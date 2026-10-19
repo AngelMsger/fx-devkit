@@ -31,7 +31,7 @@ export interface ConfigImportDeps {
 }
 
 export interface ConfigImportInput {
-  readonly text: string;
+  readonly file: string;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
 }
@@ -56,7 +56,7 @@ export class ConfigImport {
   constructor(private readonly deps: ConfigImportDeps) {}
 
   async execute(input: ConfigImportInput): Promise<ConfigImportOutput> {
-    const profile = parseProfile(input.text);
+    const profile = parseProfile(await this.readProfile(input.file));
     const current = await this.deps.config.read();
     const plan = await this.plan(current, profile);
     if (input.dryRun || !changed(plan.output)) return plan.output;
@@ -77,13 +77,13 @@ export class ConfigImport {
         });
       }
       const latest = await this.deps.config.read();
-      assertImportIdentitiesUnchanged(current, latest, names);
+      assertImportIdentitiesUnchanged(current, latest, names, this.deps.commandShell);
       const locked = await this.plan(latest, profile);
-      assertImportIdentitiesUnchanged(plan.merged, locked.merged, names);
+      assertImportIdentitiesUnchanged(plan.merged, locked.merged, names, this.deps.commandShell);
       if (!changed(locked.output)) return locked.output;
       if (locked.output.config === 'changed')
         await this.deps.config.update(async (nextCurrent) => {
-          assertImportIdentitiesUnchanged(latest, nextCurrent, names);
+          assertImportIdentitiesUnchanged(latest, nextCurrent, names, this.deps.commandShell);
           return mergeProfileConfig(nextCurrent, profile.config, this.deps);
         });
       for (const [name, layer] of Object.entries(profile.workspaces)) {
@@ -94,6 +94,14 @@ export class ConfigImport {
     } finally {
       await Promise.all(leases.reverse().map((lease) => lease.release()));
     }
+  }
+
+  private async readProfile(file: string): Promise<string> {
+    const text = await this.deps.fs.readText(file);
+    if (text !== undefined) return text;
+    throw new DevkitError('not_found', 'CONFIG_IMPORT_NOT_FOUND', `${file} does not exist`, {
+      nextSteps: ['fx config export -o profile.yaml'],
+    });
   }
 
   private async plan(

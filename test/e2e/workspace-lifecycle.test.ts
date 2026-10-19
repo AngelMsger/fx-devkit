@@ -30,7 +30,7 @@ function setup() {
     path.join(source, 'manifest/workspace.yaml'),
     readFileSync(path.resolve('test/fixtures/manifest/v1-minimal/workspace.yaml'), 'utf8'),
   );
-  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0' };
+  const env = { FX_HOME: home };
   cpSync(source, manifestDirOf(home, 'alpha'), { recursive: true });
   writeFileSync(
     path.join(home, 'config.yaml'),
@@ -119,6 +119,20 @@ describe('workspace discovery and lifecycle', () => {
     expect(existsSync(path.join(moved, 'AGENTS.md'))).toBe(true);
   });
 
+  it('quotes the commands that follow a relocation for the configured command shell', () => {
+    const s = setup();
+    const moved = path.join(s.base, 'moved');
+    renameSync(s.root, moved);
+    const preview = fx(
+      ['workspace', 'relocate', 'alpha', moved, '--dry-run', '--format', 'json'],
+      { ...s.env, FX_COMMAND_SHELL: 'cmd' },
+      s.base,
+    );
+    expect(preview.json()).toMatchObject({
+      next_steps: ['fx ^"sync^" ^"--workspace^" ^"alpha^"', 'fx ^"workspace^" ^"show^" ^"alpha^"'],
+    });
+  });
+
   it('stages rebind and retains the old source and local scope', () => {
     const s = setup();
     const oldSource = manifestDirOf(s.home, 'alpha');
@@ -151,7 +165,7 @@ describe('workspace discovery and lifecycle', () => {
       { ...s.env, FX_READ_ONLY: '1' },
       s.base,
     );
-    expect(readOnly.status).not.toBe(0);
+    expect(readOnly.error()).toMatchObject({ code: 'READONLY_BLOCKED' });
     expect(existsSync(managed)).toBe(true);
     expect(s.run(['workspace', 'unregister', 'alpha', '--dry-run']).json()).toMatchObject({
       written: false,
@@ -319,7 +333,7 @@ describe('workspace public mutation serialization', () => {
   });
 });
 
-describe('workspace review regressions', () => {
+describe('workspace cleanup and read-only requests', () => {
   it('refuses cleanup through symlinked agent directories without touching the outside link or registration', () => {
     const s = setup();
     const outside = path.join(s.base, 'outside');
@@ -346,7 +360,7 @@ describe('workspace review regressions', () => {
     const home = path.join(base, 'uncreated-state');
     const root = path.join(base, 'uncreated-workspace');
     const source = path.resolve('test/fixtures/manifest/v1-minimal');
-    const env = { FX_HOME: home, FX_READ_ONLY: '1', FX_AGENTS: '' };
+    const env = { FX_HOME: home, FX_READ_ONLY: '1' };
     const init = fx(
       ['init', root, '--name', 'readonly', '--from', source, '--format', 'json'],
       env,

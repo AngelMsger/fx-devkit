@@ -3,12 +3,21 @@
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
+import type { PlanProblem } from '../../domain/setup/types.js';
+
+export const SERVICE_STATUSES = [
+  'unchanged',
+  'configured',
+  'planned',
+  'blocked',
+  'failed',
+] as const;
 
 export interface ServiceResult {
   readonly id: string;
   readonly tool: string;
   readonly env: string | null;
-  readonly status: 'unchanged' | 'configured' | 'planned' | 'blocked' | 'failed';
+  readonly status: (typeof SERVICE_STATUSES)[number];
   readonly detail: string;
   readonly changes?: Readonly<Record<string, unknown>>;
   readonly failure?: ErrorEnvelope['error'];
@@ -18,3 +27,8 @@ export interface ServiceResult {
 
 // The part a preparation decides; the caller owns the row's identity.
 export type ServiceOutcome = Omit<ServiceResult, 'id' | 'tool' | 'env'>;
+
+export interface ServiceStageDetails {
+  readonly items: readonly ServiceResult[];
+  readonly problems: readonly PlanProblem[];
+}

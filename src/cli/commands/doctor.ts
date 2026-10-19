@@ -4,6 +4,7 @@ import { Doctor } from '../../application/doctor/index.js';
 import { toolInventory } from '../../composition/tool-inventory.js';
 import { FxCommand } from '../base.js';
 import { listFlag, writeIntent } from '../flags.js';
+import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class DoctorCommand extends FxCommand {
   static override description =
@@ -22,12 +23,14 @@ export default class DoctorCommand extends FxCommand {
       description: 'print the fix plan instead of applying it',
     }),
   };
+  static override writeScope: WriteScopeDeclaration = (flags) =>
+    flags['fix'] ? 'workspace' : null;
 
   async run(): Promise<void> {
     const { flags } = await this.parse(DoctorCommand);
     const deps = await this.workspaceDeps();
     const report = await new Doctor(deps, {
-      extensions: this.hookDoctorChecks(),
+      ...this.lifecycleSessions(),
       inventory: toolInventory(this.container, this.config.version),
       login: this.loginDeps(),
       skills: this.skillDeps(),

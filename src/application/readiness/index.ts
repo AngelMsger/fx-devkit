@@ -4,16 +4,18 @@
 // remembered per tool, because one command judges many targets.
 
 import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
-import type { Binding, PlatformBinding } from '../../domain/manifest/providers.js';
+import { platformOf, type Binding, type PlatformBinding } from '../../domain/manifest/providers.js';
 import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
+import { problemsOfTool } from '../../domain/setup/names.js';
+import { gaveNoAnswer, SetupProgress } from '../../domain/setup/progress.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
-import { gaveNoAnswer, Verifier } from '../login/verify.js';
+import { Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
-import { ToolCheck } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
@@ -23,14 +25,14 @@ import type {
   PendingSteps,
   ReadyStatus,
   Target,
-  ToolState,
+  ToolReadiness,
   UnfinishedCheck,
   Verdict,
 } from './types.js';
 import { untrusted, versionUnknown } from './verdicts.js';
 
 export class Readiness {
-  private readonly toolStates = new Map<string, Promise<ToolState>>();
+  private readonly toolStates = new Map<string, Promise<ToolReadiness>>();
   private readonly pending = new Map<string, Promise<PendingSteps>>();
 
   constructor(
@@ -64,7 +66,7 @@ export class Readiness {
     if (target.tool === null) return this.verdict('ready');
 
     const state = await this.toolState(target.tool);
-    if (state === 'untrusted') return untrusted(this.deps, this.login, target.tool.name);
+    if (state === 'untrusted') return untrusted(this.deps, target.tool.name);
     if (state === 'unknown') return versionUnknown(this.deps, target.tool);
     if (state !== 'ok')
       return this.verdict(
@@ -78,14 +80,14 @@ export class Readiness {
             command: workspaceCommand(
               this.deps,
               'tool',
-              { disabled: 'show', outdated: 'update', missing: 'install' }[state],
+              toolRecoveryCommand(state),
               target.tool.name,
             ),
           }),
         },
       );
 
-    const setupEnv = target.binding !== null && 'platform' in target.binding ? env : null;
+    const setupEnv = target.binding !== null && platformOf(target.binding) !== null ? env : null;
     return this.setupVerdict(target.tool.name, setupEnv);
   }
 
@@ -93,11 +95,10 @@ export class Readiness {
     return { status, handoff: null, alternatives: [this.command('doctor')], ...extra };
   }
 
-  // A step whose check failed is handed over, and outranks a check that could not finish:
-  // nobody is handed a sign-in for the latter, checking again is its only step.
+  // A step whose check failed is handed over, and outranks a check that could not finish.
   private async setupVerdict(tool: string, env: string | null): Promise<Verdict> {
     const pending = await this.pendingSteps(tool, env);
-    if (pending === 'untrusted') return untrusted(this.deps, this.login, tool);
+    if (pending === 'untrusted') return untrusted(this.deps, tool);
     if ('problems' in pending)
       return this.verdict('unconfigured', {
         handoff: handoffEnvelope({
@@ -134,12 +135,11 @@ export class Readiness {
 
   // Why the environment does not cover the target, when it does not.
   private coverage(target: Target, env: string | null): string | undefined {
-    if (env === null || target.binding === null || !('platform' in target.binding))
-      return undefined;
+    const platform = target.binding === null ? null : platformOf(target.binding);
+    if (env === null || platform === null) return undefined;
     const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const spec = environments.envs[env];
     if (spec === undefined) throw envNotFound(this.deps, env, Object.keys(environments.envs));
-    const { platform } = target.binding;
     return spec.platforms?.[platform] === undefined ? undeclaredPlatform(env, platform) : undefined;
   }
 
@@ -148,7 +148,7 @@ export class Readiness {
     return scope === undefined || scope.includes(env);
   }
 
-  private async toolState(tool: ResolvedTool): Promise<ToolState> {
+  private async toolState(tool: ResolvedTool): Promise<ToolReadiness> {
     const cached = this.toolStates.get(tool.name);
     if (cached !== undefined) return cached;
     const state = this.inspectToolState(tool);
@@ -156,20 +156,11 @@ export class Readiness {
     return state;
   }
 
-  private async inspectToolState(tool: ResolvedTool): Promise<ToolState> {
+  private async inspectToolState(tool: ResolvedTool): Promise<ToolReadiness> {
     try {
-      const [status] = await new ToolCheck({
-        run: this.deps.processRun,
-        which: this.deps.processWhich,
-      }).execute({
+      const [status] = await new ToolCheck(this.deps.process).execute({
         tools: [tool],
-        trust: {
-          gate: this.login.trust.gate,
-          workspace: this.deps.ctx.name,
-          commandShell: this.deps.commandShell,
-          yes: this.login.trust.yes,
-          posture: this.login.trust.posture,
-        },
+        trust: this.deps.trust,
       });
       if (status === undefined) return 'unknown';
       return status.state;
@@ -195,36 +186,29 @@ export class Readiness {
       envs: env === null ? undefined : [env],
       scopeEnvs: this.deps.ctx.local.scope?.envs,
     });
-    const problems = plan.problems.filter((p) => p.step.startsWith(`${tool}.`));
+    const problems = problemsOfTool(plan.problems, tool);
     if (problems.length > 0) return { problems: problems.map((p) => p.detail) };
     const verifier = new Verifier(this.deps, this.login);
     const steps: PendingStep[] = [];
     const unfinished: UnfinishedCheck[] = [];
-    // A step waiting on an unfinished check is as unknown as that check is, whatever
-    // else it waits on.
-    const undone = new Set<string>();
-    const unknown = new Set<string>();
+    const progress = new SetupProgress();
     for (const step of plan.steps) {
-      if (step.requires.some((id) => unknown.has(id))) {
-        unknown.add(step.id);
-        continue;
-      }
-      const blockedBy = step.requires.find((id) => undone.has(id));
-      if (blockedBy !== undefined) {
-        steps.push({ step, pending: { blockedBy } });
-        undone.add(step.id);
+      const standing = progress.admit(step);
+      if (standing.kind === 'unanswered') continue;
+      if (standing.kind === 'blocked') {
+        steps.push({ step, pending: { blockedBy: standing.by } });
         continue;
       }
       try {
         const failed = await verifier.verify(step);
         if (failed.ok) continue;
         steps.push({ step, pending: { failed } });
-        undone.add(step.id);
+        progress.record(step, 'undone');
       } catch (err) {
         if (isTrustRequired(err)) return 'untrusted';
         if (!(err instanceof DevkitError) || !gaveNoAnswer(err.code)) throw err;
         unfinished.push({ id: step.id, code: err.code, message: err.message });
-        unknown.add(step.id);
+        progress.record(step, 'unanswered');
       }
     }
     return { steps, unfinished };

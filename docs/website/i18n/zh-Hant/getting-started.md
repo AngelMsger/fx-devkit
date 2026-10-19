@@ -228,7 +228,7 @@ fx skill status
 
 明確執行 install 會將已識別副本更新為呼叫 CLI 的版本，包括同版修復和取代較新副本；init/sync 同版重用且不降級。取代外來內容需要確認和備份。解除安裝不改變 Agent 選擇，後續 sync 可能再次安裝。
 
-`skill status` 報告安裝版本與 `activation: unverified`。檔案已安裝不代表宿主已載入。按需閱讀隨包指南，一般命令無需宣告 Skill 已載入。
+`skill status` 報告安裝版本與 `activation: unverified`。檔案已安裝不代表宿主已載入。按需閱讀隨包指南。
 
 團隊 Skill 位於 manifest 的 `skills/`，由 init/sync 連結到所選宿主，並在根 AGENTS.md 產生目錄。請從工作區根啟動，子儲存庫的探索行為沒有保證。使用 `fx sync --only docs,skills` 更新；不要透過團隊共用連結安裝 fx 伴生 Skill，應使用使用者副本或獨立目錄。
 
@@ -257,7 +257,7 @@ fx skill status
 
 ## 給編碼 Agent {#for-coding-agents}
 
-先執行 `fx self info --format json`。初始化任務讀取傳回的 `initialization_guide`，並持續使用同一準確入口；無需宣告已載入 Skill 的環境變數。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任務的路由。
+先執行 `fx self info --format json`。初始化任務讀取傳回的 `initialization_guide`，並持續使用同一準確入口。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任務的路由。
 
 使用 `--format json` 分開保存 stdout 結果與 stderr 進度、通知和錯誤。預設結果保留準備結論及全部阻塞項，`--details` 展開階段證據。human 預設先顯示任務結論與下一步。`release check` 的 human 輸出在每個儲存庫開頭先說明它將發佈的內容：目標分支宣告的版本、兩個分支的最新提交，以及來源分支上尚未合併到目標分支的提交數。每個有失敗或警告檢查的儲存庫單獨列一塊，列出它的全部檢查；所有儲存庫共有的問題只在它們上方說明一次；全部檢查都通過的儲存庫在最後各占一行。`--details` 也會列出這些儲存庫的檢查。在終端上還會加上顏色與符號、依寬度收窄表格，並以文字顯示錯誤；管線或檔案取得純文字和 JSON 錯誤信封，`NO_COLOR` 去掉顏色。命令執行期間，終端上還會有一行狀態列，顯示已用時間、可計數工作的進度與正在等待的對象；命令結束後這一行消失，管線、檔案、JSON 輸出與 `--quiet` 都不會收到它。git 或安裝器執行期間可能在同一終端上詢問主機金鑰或密碼片語，這時狀態列不再原地重繪，改為每五秒列印一行。明確的 `--fields` 從完整報告擷取欄位，點路徑保留為扁平鍵，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
@@ -279,16 +279,6 @@ Init 會自行執行已授權的本地準備。結果保留已完成步驟；認
 
 檔案衝突的逐項結果保留在 `stage_details.docs.files`（init 中位於 `sync` 下）。取代外來內容需要批准，並保留同層備份。詳見[回應契約](../skills/fx-workspace/references/commands.md)。
 
-## 遷移到 0.4.0 {#migrating-to-040}
-
-- 工具文件使用 `schema_version: 3`。`kind: run` 必須宣告 `phase: prepare`（本機非互動準備）或 `phase: authenticate`（個人登入）。舊格式在產生工作區效果前回報遷移問題，fx 不猜測腳本用途。
-- 已移除 Skill 載入握手及 `skill_notice` 設定。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；請改讀安裝版本和 `activation`，不要再讀取 loaded/version_verified。
-- `preparation.state` 取代 `preparation_complete`。doctor 的頂層 `ok/complete` 改為準備結果與診斷 `coverage`；release 保留原契約。準備未完成結束代碼為 12。
-- 工作區發現使用 `registration_status: available` 表示註冊可讀，不代表準備完成。
-- `init --resume --workspace <name>` 使用託管來源與現有選擇繼續。普通來源指南無需 fx 標記：缺少的區域會補入產生的目標指南，共享來源保持不變。
-
-設定格式見 [manifest 指南](manifest-guide.md)。
-
 ## 設定 {#configuration}
 
 `~/.fx` 儲存工作區註冊、個人層、資源擁有權狀態、信任和快取。`FX_HOME` 只改變 fx 的個人目錄，不改變配套工具的憑證位置。
@@ -307,22 +297,9 @@ Init 會自行執行已授權的本地準備。結果保留已完成步驟；認
 
 ## 整合 {#integrations}
 
-manifest 選擇工作區使用的 provider 和配套 CLI。目前實作包括：
+manifest 選擇工作區使用的 provider 和配套 CLI。`fx manifest providers` 列出本工作區中每項能力繫結了什麼；`fx tool list --catalog` 列出 fx 已知的全部配套工具，包括這裡沒有被選用的。通訊和知識入口交接給配套工具，不代表 fx 代理了所有服務 API。
 
-| 能力           | 提供者                                          |
-| -------------- | ----------------------------------------------- |
-| 程式碼託管     | Bitbucket CLI、GitHub CLI、本機 bare Git 儲存庫 |
-| CI             | Jenkins CLI、透過 GitHub CLI 的 GitHub Actions  |
-| 日誌           | OpenObserve CLI                                 |
-| 錯誤追蹤       | Sentry CLI                                      |
-| 叢集探索       | kubectl，唯讀查詢向量                           |
-| 工作項目與知識 | 飛書專案、Confluence CLI                        |
-| 通訊入口       | Lark CLI、WeCom CLI                             |
-| 行事曆         | Lark CLI、WeCom CLI、WeCom calendar CLI         |
-
-使用 `fx manifest providers` 與 `fx tool list` 查看實際繫結。通訊和知識入口交接給配套工具，不代表 fx 代理了所有服務 API。
-
-Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill、hook、MCP 與規則的支援因宿主而異；使用 `agent list`、`hook list`、`mcp list` 檢查具體能力。請參閱[宿主契約](user-guide.md#for-coding-agents)。
+Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill、hook、MCP 與規則的支援因宿主而異；使用 `agent list`、`hook list`、`mcp list` 檢查具體能力，不要假定各宿主功能一致。
 
 ## 判讀初始化與復原結果 {#reading-initialization-and-recovery-results}
 

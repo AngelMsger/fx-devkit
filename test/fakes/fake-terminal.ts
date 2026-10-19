@@ -1,9 +1,8 @@
-import { Writable } from 'node:stream';
+import { CaptureStream } from './capture-stream.js';
 
 // A stream that answers the way a terminal does and keeps what was written to it.
-export class FakeTerminal extends Writable {
+export class FakeTerminal extends CaptureStream {
   readonly isTTY = true;
-  private readonly chunks: string[] = [];
 
   constructor(
     readonly columns = 120,
@@ -15,15 +14,6 @@ export class FakeTerminal extends Writable {
   // The part of Node's own answer the renderer relies on.
   hasColors(env: NodeJS.ProcessEnv): boolean {
     return this.colours && !env['NO_COLOR'] && env['TERM'] !== 'dumb';
-  }
-
-  override _write(chunk: unknown, _encoding: string, callback: () => void): void {
-    this.chunks.push(String(chunk));
-    callback();
-  }
-
-  text(): string {
-    return this.chunks.join('');
   }
 }
 

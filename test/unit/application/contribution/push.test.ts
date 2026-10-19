@@ -17,6 +17,7 @@ import {
   FakeContributionTransport,
 } from '../../../fakes/fake-contribution.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 
 const input: PushSourceInput = {
@@ -38,7 +39,7 @@ function fixture() {
   const expected = { root: path.resolve('/workspace'), source: SETTINGS.upstreamUrls[0]! };
   const config = new FakeConfigStore({ workspaces: { test: expected } });
   const fs = new FakeFs();
-  const lockKeys: string[] = [];
+  const lock = new FakeLock();
   host.identities.set('~alice/manifest', {
     ref: SOURCE,
     cloneUrls: SETTINGS.originUrls,
@@ -54,10 +55,7 @@ function fixture() {
     parent: null,
   });
   let next = 0;
-  let leases = 0;
-  let releases = 0;
   let valid = true;
-  let afterLock: (() => void) | undefined;
   transport.onFetch = () => {
     git.available = true;
   };
@@ -92,25 +90,13 @@ function fixture() {
             ],
       }),
     },
-    lock: {
-      acquire: async (request: { key: string }) => {
-        lockKeys.push(request.key);
-        leases++;
-        afterLock?.();
-        afterLock = undefined;
-        return {
-          release: async () => {
-            releases++;
-          },
-        };
-      },
-    },
+    lock,
   };
   return {
     deps,
     config,
     fs,
-    lockKeys,
+    lock,
     git,
     transport,
     records,
@@ -120,14 +106,11 @@ function fixture() {
     invalidate: () => {
       valid = false;
     },
-    onLock: (callback: () => void) => {
-      afterLock = callback;
-    },
-    leases: () => leases,
-    releases: () => releases,
   };
 }
-async function opened(f: ReturnType<typeof fixture>) {
+type Fixture = ReturnType<typeof fixture>;
+type Registration = Fixture['deps']['registration']['expected'];
+async function opened(f: Fixture) {
   await f.usecase.execute(input);
   return f.records.operations[0]!;
 }
@@ -147,7 +130,7 @@ describe('source contribution orchestration', () => {
       files: ['a.md'],
     });
     expect(JSON.stringify(result)).not.toContain('selected private contents');
-    expect(f.leases()).toBe(0);
+    expect(f.lock.requests).toEqual([]);
     expect(f.records.writes).toEqual([]);
     expect(f.git.prepared).toEqual([]);
     expect(f.transport.pushes).toEqual([]);
@@ -161,7 +144,7 @@ describe('source contribution orchestration', () => {
     await expect(f.usecase.execute({ ...input, yes: false })).rejects.toMatchObject({
       code: 'CONFIRM_REQUIRED',
     });
-    expect(f.leases()).toBe(0);
+    expect(f.lock.requests).toEqual([]);
     expect(f.records.writes).toEqual([]);
   });
   it('records the expected commit before publishing its branch and creates one PR', async () => {
@@ -182,7 +165,7 @@ describe('source contribution orchestration', () => {
     expect(f.transport.pushes).toHaveLength(1);
     expect(f.host.createdPullRequests).toHaveLength(1);
     expect(JSON.stringify(f.records.operations)).not.toContain('selected private contents');
-    expect(f.releases()).toBe(f.leases());
+    expect(f.lock.unreleased()).toEqual([]);
   });
   it('uses the explicitly configured fork owner when the companion cannot report an actor', async () => {
     const f = fixture();
@@ -240,34 +223,40 @@ describe('source contribution orchestration', () => {
     await expect(f.usecase.execute(input)).rejects.toMatchObject({ category: 'network' });
     expect(f.records.operations).toEqual(before);
   });
-  it.each(['closed', 'missing'] as const)(
-    'retires a record only after authoritative %s evidence',
-    async (state) => {
-      const f = fixture();
-      const previous = await opened(f);
-      if (state === 'closed')
-        f.host.pullRequests.set('TEAM/manifest/1', {
-          ...f.host.pullRequests.get('TEAM/manifest/1')!,
-          state: 'merged',
-        });
-      else f.transport.heads.delete(previous.branch);
-      const preview = await f.usecase.execute({ ...input, dryRun: true });
-      expect(preview.retired).toEqual([previous.id]);
-      expect(f.records.operations).toHaveLength(1);
-      await f.usecase.execute(input);
-      expect(f.records.operations).toHaveLength(1);
-      expect(f.records.operations[0]?.id).not.toBe(previous.id);
+  it.each([
+    {
+      state: 'closed',
+      settle: (f: Fixture): void => {
+        const request = f.host.pullRequests.get('TEAM/manifest/1')!;
+        f.host.pullRequests.set('TEAM/manifest/1', { ...request, state: 'merged' });
+      },
     },
-  );
+    {
+      state: 'missing',
+      settle: (f: Fixture, branch: string): void => {
+        f.transport.heads.delete(branch);
+      },
+    },
+  ])('retires a record only after authoritative $state evidence', async ({ settle }) => {
+    const f = fixture();
+    const previous = await opened(f);
+    settle(f, previous.branch);
+    const preview = await f.usecase.execute({ ...input, dryRun: true });
+    expect(preview.retired).toEqual([previous.id]);
+    expect(f.records.operations).toHaveLength(1);
+    await f.usecase.execute(input);
+    expect(f.records.operations).toHaveLength(1);
+    expect(f.records.operations[0]?.id).not.toBe(previous.id);
+  });
   it('revalidates a plan under its leases before writing', async () => {
     const f = fixture();
-    f.onLock(() => {
+    f.lock.onAcquire(() => {
       f.git.fingerprint = 'concurrent edit';
     });
     await expect(f.usecase.execute(input)).rejects.toMatchObject({ code: 'SOURCE_PLAN_CHANGED' });
     expect(f.git.prepared).toEqual([]);
     expect(f.records.writes).toEqual([]);
-    expect(f.releases()).toBe(f.leases());
+    expect(f.lock.unreleased()).toEqual([]);
   });
   it('does not publish a branch when the committed journal write fails', async () => {
     const f = fixture();
@@ -361,29 +350,36 @@ describe('source contribution orchestration', () => {
   it('acquires identity, workspace and source leases only after confirmation', async () => {
     const f = fixture();
     f.prompter.confirm = async () => {
-      expect(f.lockKeys).toEqual([]);
+      expect(f.lock.requests).toEqual([]);
       return true;
     };
     await f.usecase.execute({ ...input, yes: false });
-    expect(f.lockKeys).toEqual([
+    expect(f.lock.requests.map((request) => request.key)).toEqual([
       'workspace-operation:test',
       'workspace:test',
       `source:${f.deps.source.dir}`,
     ]);
-    expect(f.releases()).toBe(3);
+    expect(f.lock.unreleased()).toEqual([]);
   });
 
-  it.each(['unregister', 'relocate', 'rebind'] as const)(
-    'rejects a stale registration changed by %s during confirmation',
-    async (operation) => {
+  it.each([
+    { operation: 'unregister', registered: (): Record<string, Registration> => ({}) },
+    {
+      operation: 'relocate',
+      registered: (entry: Registration) => ({ test: { ...entry, root: path.resolve('/moved') } }),
+    },
+    {
+      operation: 'rebind',
+      registered: (entry: Registration) => ({
+        test: { ...entry, source: 'https://git.example.com/other/source.git' },
+      }),
+    },
+  ])(
+    'rejects a stale registration changed by $operation during confirmation',
+    async ({ registered }) => {
       const f = fixture();
       f.prompter.confirm = async () => {
-        const entry = f.deps.registration.expected;
-        const changed =
-          operation === 'relocate'
-            ? { ...entry, root: path.resolve('/moved') }
-            : { ...entry, source: 'https://git.example.com/other/source.git' };
-        await f.config.write({ workspaces: operation === 'unregister' ? {} : { test: changed } });
+        await f.config.write({ workspaces: registered(f.deps.registration.expected) });
         return true;
       };
       await expect(f.usecase.execute({ ...input, yes: false })).rejects.toMatchObject({
@@ -394,7 +390,7 @@ describe('source contribution orchestration', () => {
       expect(f.transport.fetches).toEqual([]);
       expect(f.transport.pushes).toEqual([]);
       expect(f.records.writes).toEqual([]);
-      expect(f.releases()).toBe(f.leases());
+      expect(f.lock.unreleased()).toEqual([]);
     },
   );
 
@@ -406,7 +402,7 @@ describe('source contribution orchestration', () => {
       code: 'WORKSPACE_OPERATION_PENDING',
     });
     expect(f.git.captureCalls).toBe(0);
-    expect(f.leases()).toBe(0);
+    expect(f.lock.requests).toEqual([]);
     await f.fs.remove(journal);
     f.prompter.confirm = async () => {
       await f.fs.writeText(journal, '{}');
@@ -418,6 +414,6 @@ describe('source contribution orchestration', () => {
     expect(f.records.writes).toEqual([]);
     expect(f.git.prepared).toEqual([]);
     expect(f.transport.pushes).toEqual([]);
-    expect(f.releases()).toBe(f.leases());
+    expect(f.lock.unreleased()).toEqual([]);
   });
 });

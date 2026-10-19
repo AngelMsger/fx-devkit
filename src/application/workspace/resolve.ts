@@ -5,7 +5,7 @@
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import { isAtOrInside, samePath } from '../../domain/path.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { DiagnosticReporter } from '../../ports/diagnostics.js';
@@ -50,7 +50,13 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
     manifestDir: input.manifestDirFor(name),
   });
   if (input.name !== undefined) {
-    const selected = await explicitWorkspace(input.name, input.cwd, registry, input.fs);
+    const selected = await explicitWorkspace(
+      input.name,
+      input.cwd,
+      registry,
+      input.fs,
+      input.commandShell,
+    );
     return await locate(selected.name, selected.entry, input.selection ?? 'explicit');
   }
   // Nested roots are legal; the innermost one owns cwd, judged on real paths.
@@ -68,7 +74,8 @@ export async function resolveWorkspace(input: ResolveInput): Promise<Located> {
   assertDefaultWorkspace(config);
   const fallback = config.default_workspace;
   const entry = fallback === undefined ? undefined : registry[fallback];
-  if (fallback === undefined || entry === undefined) throw workspaceNotFound(input.cwd, names);
+  if (fallback === undefined || entry === undefined)
+    throw workspaceNotFound(input.cwd, names, input.commandShell);
   if (names.length > 1) {
     input.reporter.notice({
       code: 'WORKSPACE_IMPLICIT',
@@ -86,6 +93,7 @@ export async function explicitWorkspace(
   cwd: string,
   registry: Readonly<Record<string, WorkspaceEntry>>,
   fs: FileSystem,
+  shell?: ResolvedShell,
 ): Promise<{ name: string; entry: WorkspaceEntry }> {
   const named = registry[selector];
   if (Object.hasOwn(registry, selector) && named) return { name: selector, entry: named };
@@ -99,7 +107,7 @@ export async function explicitWorkspace(
   );
   const matches = entries.filter((entry) => samePath(root, entry.root));
   if (matches.length > 1) throw ambiguousRoot(matches.map((entry) => entry.name));
-  if (!matches[0]) throw unknownWorkspace(selector, Object.keys(registry).sort());
+  if (!matches[0]) throw unknownWorkspace(selector, Object.keys(registry).sort(), shell);
   return { name: matches[0].name, entry: matches[0].entry };
 }
 
@@ -119,7 +127,11 @@ function ambiguousRoot(names: readonly string[]): DevkitError {
   );
 }
 
-export function workspaceNotFound(cwd: string, names: readonly string[] = []): DevkitError {
+function workspaceNotFound(
+  cwd: string,
+  names: readonly string[] = [],
+  shell?: ResolvedShell,
+): DevkitError {
   return new DevkitError(
     'not_found',
     'WORKSPACE_NOT_FOUND',
@@ -129,27 +141,28 @@ export function workspaceNotFound(cwd: string, names: readonly string[] = []): D
         ? `Registered: ${names.join(', ')}. Choose one with --workspace or set default_workspace.`
         : 'No workspaces are registered. Initialize one first.',
       nextSteps: names.length
-        ? ['fx workspace list', shellLine(['fx', 'status', '--workspace', names[0]!])]
+        ? ['fx workspace list', shellLine(['fx', 'status', '--workspace', names[0]!], shell)]
         : ['fx init <dir> --from <manifest repository>'],
     },
   );
 }
 
-function unknownWorkspace(name: string, names: readonly string[]): DevkitError {
+function unknownWorkspace(
+  name: string,
+  names: readonly string[],
+  shell: ResolvedShell | undefined,
+): DevkitError {
   const suggestion = nearest(name, names);
   return new DevkitError(
     'not_found',
     'WORKSPACE_UNKNOWN',
     `No registered workspace matches "${name}"`,
     {
-      hint:
-        suggestion === undefined
-          ? `Registered: ${names.join(', ') || '(none)'}.`
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, `Registered: ${names.join(', ') || '(none)'}.`),
       nextSteps: [
         'fx workspace list',
         ...(names.length
-          ? [shellLine(['fx', 'workspace', 'show', suggestion ?? names[0]!])]
+          ? [shellLine(['fx', 'workspace', 'show', suggestion ?? names[0]!], shell)]
           : ['fx init <dir> --from <source>']),
       ],
     },

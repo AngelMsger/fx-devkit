@@ -108,37 +108,62 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(isDerived(text ?? '')).toBe(false);
     const again = await s.regions.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
-    expect(await s.regions.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.regions.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'unchanged' }],
+    });
   });
 
-  it('only touches regions of an existing document, reports the missing ones, and never inserts', async () => {
-    const prose = `# Mine\n\nRouting rules people wrote.\n\n${begin('rules')}\nstale\n${end('rules')}\n`;
-    const s = await stage({ [ORIGIN]: prose, [ORIGIN_CLAUDE]: 'keep' });
-    const out = await s.regions.execute(write);
-    expect(out.files[0]).toMatchObject({
-      action: 'updated',
-      replaced: [],
-      unknown: ['rules'],
-      missing: [
-        'project-index',
-        'capabilities',
-        'environments',
-        'ask-fx',
-        'workspace-layout',
-        'team-skills',
-      ],
+  describe('over a document people already wrote', () => {
+    const PROSE = '# Mine\n\nRouting rules people wrote.\n\n';
+    // The document marks one retired region, `rules`, and none of the regions fx generates.
+    async function existing() {
+      const s = await stage({
+        [ORIGIN]: `${PROSE}${begin('rules')}\nstale\n${end('rules')}\n`,
+        [ORIGIN_CLAUDE]: 'keep',
+      });
+      const out = await s.regions.execute(write);
+      return { s, out, text: (await s.h.fs.readText(ORIGIN)) ?? '' };
+    }
+
+    it('reports the regions the document does not mark and the retired one it does', async () => {
+      const { s, out } = await existing();
+      expect(out.files).toEqual([
+        expect.objectContaining({
+          action: 'updated',
+          replaced: [],
+          unknown: ['rules'],
+          missing: [
+            'project-index',
+            'capabilities',
+            'environments',
+            'ask-fx',
+            'workspace-layout',
+            'team-skills',
+          ],
+        }),
+      ]);
+      expect(s.h.reporter.codes()).toContain('DOCS_REGION_UNKNOWN');
+      expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(
+        REGIONS.length,
+      );
     });
-    expect(out.files).toHaveLength(1);
-    const text = (await s.h.fs.readText(ORIGIN)) ?? '';
-    expect(text.startsWith('# Mine\n\nRouting rules people wrote.\n\n')).toBe(true);
-    expect(text).not.toContain('stale');
-    expect(text).not.toContain('fx:begin rules');
-    expect(s.h.reporter.codes()).toContain('DOCS_REGION_UNKNOWN');
-    expect(text).not.toContain('fx:begin project-index');
-    expect(await s.h.fs.readText(ORIGIN_CLAUDE)).toBe('keep');
-    expect(s.h.reporter.notices.filter((n) => n.code === 'DOCS_REGION_MISSING')).toHaveLength(
-      REGIONS.length,
-    );
+
+    it('keeps the prose and never inserts a region the document does not mark', async () => {
+      const { text } = await existing();
+      expect(text.startsWith(PROSE)).toBe(true);
+      expect(text).not.toContain('fx:begin project-index');
+    });
+
+    it('removes the retired block it marks', async () => {
+      const { text } = await existing();
+      expect(text).not.toContain('stale');
+      expect(text).not.toContain('fx:begin rules');
+    });
+
+    it('leaves the file beside the document alone', async () => {
+      const { s } = await existing();
+      expect(await s.h.fs.readText(ORIGIN_CLAUDE)).toBe('keep');
+    });
   });
 
   it('objects under --check when stale, writes nothing under --dry-run or --out', async () => {
@@ -181,7 +206,9 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(ORIGIN)).toBe(prose);
     const again = await s.derive.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
-    expect(await s.derive.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.derive.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'unchanged' }],
+    });
   });
 
   it('removes the pointer an earlier version derived beside the guide', async () => {
@@ -233,36 +260,59 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(AGENTS)).toBe('# Mine\n');
     expect(await s.h.fs.readText(CLAUDE)).toBe('keep');
     expect(s.h.reporter.codes()).toContain('DOCS_FOREIGN');
-    expect(await s.derive.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.derive.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'foreign' }],
+    });
   });
 
-  it('objects under --check when a derived file is stale; --dry-run writes nothing and --out leaves the root alone', async () => {
-    const s = await stage({ [ORIGIN]: prose, [AGENTS]: derive('# old\n', ORIGIN) });
-    await expect(s.derive.execute({ ...write, check: true })).rejects.toMatchObject({
-      code: 'DOCS_STALE',
+  describe('over a derived file that has gone stale', () => {
+    const STALE = derive('# old\n', ORIGIN);
+    const stale = () => stage({ [ORIGIN]: prose, [AGENTS]: STALE });
+
+    it('objects under --check', async () => {
+      const s = await stale();
+      await expect(s.derive.execute({ ...write, check: true })).rejects.toMatchObject({
+        code: 'DOCS_STALE',
+      });
     });
-    await s.derive.execute({ ...write, dryRun: true });
-    expect(await s.h.fs.readText(AGENTS)).toBe(derive('# old\n', ORIGIN));
-    const draft = await s.derive.execute({ ...write, out: path.resolve('/tmp/draft.md') });
-    expect(draft.files.map((f) => [f.path, f.action])).toEqual([
-      [path.resolve('/tmp/draft.md'), 'created'],
-    ]);
-    expect(await s.h.fs.readText(path.resolve('/tmp/draft.md'))).toContain(
-      'Routing rules people wrote.',
-    );
-    expect(
-      (await s.derive.execute({ ...write, out: path.resolve('/tmp/draft.md') })).files[0]?.action,
-    ).toBe('unchanged');
-    await s.h.fs.writeText(path.resolve('/tmp/stale.md'), derive('# old\n', ORIGIN));
-    expect(
-      (await s.derive.execute({ ...write, out: path.resolve('/tmp/stale.md') })).files[0]?.action,
-    ).toBe('updated');
-    await s.h.fs.writeText(path.resolve('/tmp/notes.md'), '# mine\n');
-    const kept = await s.derive.execute({ ...write, out: path.resolve('/tmp/notes.md') });
-    expect(kept.files[0]?.action, 'a draft never replaces a person file either').toBe('foreign');
-    expect(await s.h.fs.readText(path.resolve('/tmp/notes.md'))).toBe('# mine\n');
-    await expect(
-      s.derive.execute({ ...write, posture: { readOnly: true, source: 'env' } }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+
+    it('writes nothing under --dry-run', async () => {
+      const s = await stale();
+      await s.derive.execute({ ...write, dryRun: true });
+      expect(await s.h.fs.readText(AGENTS)).toBe(STALE);
+    });
+
+    it('refuses to refresh it under read-only posture', async () => {
+      const s = await stale();
+      await expect(
+        s.derive.execute({ ...write, posture: { readOnly: true, source: 'env' } }),
+      ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+      expect(await s.h.fs.readText(AGENTS)).toBe(STALE);
+    });
+
+    it('writes a draft where --out points and leaves the root alone', async () => {
+      const s = await stale();
+      const out = path.resolve('/tmp/draft.md');
+      const draft = await s.derive.execute({ ...write, out });
+      expect(draft.files.map((f) => [f.path, f.action])).toEqual([[out, 'created']]);
+      expect(await s.h.fs.readText(out)).toContain('Routing rules people wrote.');
+      expect(await s.h.fs.readText(AGENTS)).toBe(STALE);
+      expect((await s.derive.execute({ ...write, out })).files[0]?.action).toBe('unchanged');
+    });
+
+    it('refreshes a derived draft that --out already holds', async () => {
+      const s = await stale();
+      const out = path.resolve('/tmp/stale.md');
+      await s.h.fs.writeText(out, STALE);
+      expect((await s.derive.execute({ ...write, out })).files[0]?.action).toBe('updated');
+    });
+
+    it('never replaces a file a person wrote with a draft', async () => {
+      const s = await stale();
+      const out = path.resolve('/tmp/notes.md');
+      await s.h.fs.writeText(out, '# mine\n');
+      expect((await s.derive.execute({ ...write, out })).files[0]?.action).toBe('foreign');
+      expect(await s.h.fs.readText(out)).toBe('# mine\n');
+    });
   });
 });

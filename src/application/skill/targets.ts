@@ -1,10 +1,8 @@
 // Resolve selected hosts to user Skill directories and deduplicated project links.
 
-import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { Lock } from '../../ports/lock.js';
-import { enabledHosts } from '../agent/list.js';
+import { enabledHosts, findHost } from '../agent/list.js';
 
 export interface SkillDeps {
   readonly globalLock: Lock;
@@ -46,21 +44,5 @@ async function selectHosts(
   wanted: readonly string[] | undefined,
 ): Promise<AgentHost[]> {
   if (wanted === undefined) return enabledHosts(deps.hosts, deps.configured);
-  return wanted.map((id) => {
-    const host = deps.hosts.find((h) => h.id === id);
-    if (host === undefined) {
-      const suggestion = nearest(
-        id,
-        deps.hosts.map((h) => h.id),
-      );
-      throw new DevkitError('not_found', 'AGENT_UNKNOWN', `"${id}" is not an agent fx knows`, {
-        hint:
-          suggestion === undefined
-            ? 'fx agent list shows the known ids.'
-            : `Did you mean "${suggestion}"?`,
-        nextSteps: ['fx agent list'],
-      });
-    }
-    return host;
-  });
+  return wanted.map((id) => findHost(deps.hosts, id));
 }
