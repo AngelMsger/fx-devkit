@@ -4,6 +4,7 @@ import { beginWorkspaceCommand } from '../../../../src/application/workspace/com
 import { withWorkspaceOperation } from '../../../../src/application/workspace/operation.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
 describe('workspace operation leases', () => {
@@ -11,17 +12,9 @@ describe('workspace operation leases', () => {
     const config = new FakeConfigStore({
       workspaces: { alpha: { root: '/old', source: '/source' } },
     });
-    let released = false;
-    const lock = {
-      acquire: async () => {
-        await config.write({ workspaces: { alpha: { root: '/moved', source: '/source' } } });
-        return {
-          release: async () => {
-            released = true;
-          },
-        };
-      },
-    };
+    const lock = new FakeLock().onAcquire(async () => {
+      await config.write({ workspaces: { alpha: { root: '/moved', source: '/source' } } });
+    });
     await expect(
       beginWorkspaceCommand(
         {
@@ -36,18 +29,13 @@ describe('workspace operation leases', () => {
         'workspace',
       ),
     ).rejects.toMatchObject({ code: 'WORKSPACE_PLAN_CHANGED' });
-    expect(released).toBe(true);
+    expect(lock.requests).not.toEqual([]);
+    expect(lock.unreleased()).toEqual([]);
   });
 
   it('uses the shared operation namespace', async () => {
-    const keys: string[] = [];
-    const lock = {
-      acquire: async (input: { key: string }) => {
-        keys.push(input.key);
-        return { release: async () => undefined };
-      },
-    };
+    const lock = new FakeLock();
     await withWorkspaceOperation(lock, 'alpha', async () => undefined);
-    expect(keys).toEqual(['workspace-operation:alpha']);
+    expect(lock.requests.map((request) => request.key)).toEqual(['workspace-operation:alpha']);
   });
 });

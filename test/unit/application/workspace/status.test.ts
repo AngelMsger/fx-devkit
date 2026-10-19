@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import type { RootInventory } from '../../../../src/application/workspace/root-entries.js';
 import { Status, WorkspaceStatus } from '../../../../src/application/workspace/status.js';
-import { FakeGit } from '../../../fakes/fake-git.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, ROOT } from '../../../fakes/workspace.js';
 import { HeldWork } from '../../../held-work.js';
@@ -18,19 +17,11 @@ describe('Status', () => {
   it('inspects no more than --jobs repositories at once', async () => {
     const h = await harness();
     const inspecting = new HeldWork<string>();
-    const git = new (class extends FakeGit {
-      override async status(dir: string) {
-        await inspecting.hold(dir);
-        return super.status(dir);
-      }
-    })();
-    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs']) {
-      const dir = path.join(ROOT, name);
-      h.git.add(dir, { remotes: { upstream: upstream(name) } });
-      git.add(dir, { remotes: { upstream: upstream(name) } });
-    }
+    h.git.before('status', (dir) => inspecting.hold(dir));
+    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs'])
+      h.git.add(path.join(ROOT, name), { remotes: { upstream: upstream(name) } });
 
-    const rows = new Status({ ...h.deps, git }).execute({
+    const rows = new Status(h.deps).execute({
       fetch: false,
       dirtyOnly: false,
       jobs: 2,

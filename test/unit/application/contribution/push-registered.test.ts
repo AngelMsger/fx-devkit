@@ -22,6 +22,7 @@ import {
 } from '../../../fakes/fake-contribution.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
@@ -114,7 +115,7 @@ function fixture(scene: Scene = {}) {
       records: new FakeContributionStore(),
       ids: { next: () => 'operation-1' },
       clock: new FakeClock(),
-      lock: { acquire: async () => ({ release: async () => undefined }) },
+      lock: new FakeLock(),
     },
   });
   return { usecase, fs, prompter, bound, validatedAt };

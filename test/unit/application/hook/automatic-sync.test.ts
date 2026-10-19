@@ -8,6 +8,7 @@ import { createContainer } from '../../../../src/composition/container.js';
 import { automaticSyncWiring } from '../../../../src/composition/hook-wiring.js';
 import type { HookObservation, HookState } from '../../../../src/domain/harness/state.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { tempDir } from '../../../temp.js';
 
 describe('automatic workspace synchronization', () => {
@@ -35,7 +36,7 @@ describe('automatic workspace synchronization', () => {
     const clock = new FakeClock();
     const sync = new AutomaticSync({
       clock,
-      lock: { acquire: async () => ({ release: async () => {} }) },
+      lock: new FakeLock(),
       state: {
         read: async () => state,
         write: async (_name, next) => {
@@ -75,7 +76,7 @@ describe('automatic workspace synchronization', () => {
     });
     const sync = new AutomaticSync({
       clock,
-      lock: { acquire: async () => ({ release: async () => {} }) },
+      lock: new FakeLock(),
       state: {
         read: async () => state,
         write: async (_name, next) => {
@@ -149,7 +150,9 @@ describe('automatic workspace synchronization', () => {
       ['ROOT_ACCOUNTED', null],
     ]);
   });
-  it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
+  // A workspace whose harness declares an MCP server with a check, once the background
+  // run has derived its documents under the workspace lease its caller already holds.
+  async function backgroundDocs(): Promise<{ home: string; root: string }> {
     const home = realpathSync.native(tempDir('fx-background-rules-'));
     const root = path.join(home, 'workspace');
     mkdirSync(root);
@@ -167,7 +170,7 @@ describe('automatic workspace synchronization', () => {
     writeFileSync(path.join(source, 'AGENTS.md'), 'Workspace guide.\n');
     await container.config.write({ workspaces: { test: { root } }, agents: ['gemini'] });
     const lease = await container.lock.acquire({ key: 'workspace:test', waitMs: 0 });
-    expect(lease).not.toBeNull();
+    if (lease === null) throw new Error('the workspace lease was not free');
     try {
       const wiring = await automaticSyncWiring({
         container,
@@ -182,12 +185,21 @@ describe('automatic workspace synchronization', () => {
         env: { FX_UPDATE_CHECK: '0' },
         canWrite: async () => true,
       });
-      await wiring.docs(lease!);
-      expect(readFileSync(path.join(root, 'GEMINI.md'), 'utf8')).toContain('AGENTS.md');
-      expect(existsSync(path.join(root, '.gemini/settings.json'))).toBe(false);
-      expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);
+      await wiring.docs(lease);
     } finally {
-      await lease?.release();
+      await lease.release();
     }
+    return { home, root };
+  }
+
+  it('derives the rules file under the workspace lease it is handed', async () => {
+    const { root } = await backgroundDocs();
+    expect(readFileSync(path.join(root, 'GEMINI.md'), 'utf8')).toContain('AGENTS.md');
+  });
+
+  it('neither projects the declared MCP server nor records trust for it', async () => {
+    const { home, root } = await backgroundDocs();
+    expect(existsSync(path.join(root, '.gemini/settings.json'))).toBe(false);
+    expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);
   });
 });

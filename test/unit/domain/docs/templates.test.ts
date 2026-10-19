@@ -3,32 +3,43 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerCatalog } from '../../../../src/composition/registry.js';
 import { renderAll, REGIONS } from '../../../../src/domain/docs/templates.js';
 import {
   loadEnvironments,
   loadTools,
   loadWorkspace,
 } from '../../../../src/domain/manifest/loader.js';
-import { bindPlatforms, bindProviders } from '../../../../src/domain/manifest/providers.js';
+import {
+  bindPlatforms,
+  bindProviders,
+  type ProviderCatalog,
+} from '../../../../src/domain/manifest/providers.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
 
 const cli = { cliVersion: '1.0.0' };
-const bundled = readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
+// What the schema 1 fixture leaves to names: its git host and its platforms.
+const providers: ProviderCatalog = [
+  { id: 'bitbucket-cli', capability: 'code-host', tools: [], impliedByDefaultHost: true },
+  { id: 'sentry', capability: 'error-tracker', tools: [], impliedByPlatform: ['sentry'] },
+  { id: 'openobserve-cli', capability: 'log-store', tools: [], impliedByPlatform: ['openobserve'] },
+  { id: 'jenkins-cli', capability: 'ci', tools: [], impliedByPlatform: ['jenkins'] },
+  { id: 'kubectl', capability: 'cluster', tools: [], impliedByPlatform: ['kube'] },
+];
 
 function render(fixture: string) {
   const read = (name: string): string =>
     readFileSync(path.resolve('test/fixtures/manifest', fixture, name), 'utf8');
   const workspace = loadWorkspace(read('workspace.yaml'), cli).doc;
   const environments = loadEnvironments(read('environments.yaml'), cli, { workspace }).doc;
-  const tools = loadTools(bundled, undefined, cli);
+  const tools = loadTools(bundledTools(), undefined, cli);
   return {
     environments,
     regions: renderAll({
       workspace,
       environments,
-      bindings: bindProviders(workspace, providerCatalog()),
-      platforms: bindPlatforms(environments, providerCatalog()),
+      bindings: bindProviders(workspace, providers),
+      platforms: bindPlatforms(environments, providers),
       tools: resolveTools(tools.doc, tools.provenance),
       toolsOf: (provider) => [provider],
     }),

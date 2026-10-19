@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -7,6 +6,7 @@ import { SnapshotReader } from '../../../../src/adapters/fs/snapshot-reader.js';
 import { ValidateContribution } from '../../../../src/application/contribution/validate.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import { buildContributionCandidate } from '../../../../src/domain/contribution/candidate.js';
+import { bundledTools } from '../../../bundled-tools.js';
 
 const workspace =
   'schema_version: 2\nproviders:\n  code-host: { provider: local-git, vars: { host: https://git.example.com } }\ndefaults: { branch: main }\nrepos: [{ name: example, desc: Example repository }]\n';
@@ -22,7 +22,7 @@ const validator = new ValidateContribution(
       reader: new SnapshotReader({ root: path.resolve('/candidate'), files }),
     }),
   },
-  () => readFileSync('defaults/tools.yaml', 'utf8'),
+  bundledTools,
   providerCatalog(),
 );
 const file = (path: string, content: string) => ({

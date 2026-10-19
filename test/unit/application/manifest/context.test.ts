@@ -6,19 +6,19 @@ import { describe, expect, it } from 'vitest';
 import { loadManifestContext } from '../../../../src/application/manifest/context.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { DiagnosticEvent } from '../../../../src/ports/diagnostics.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
-const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
 
 function load(dir: string, doc: string) {
   const reporter = new FakeReporter();
   return loadManifestContext({
     dir,
     fs: FakeFs.from({ [`${dir}/manifest/workspace.yaml`]: fixture(doc) }),
-    bundledTools: bundled,
+    bundledTools,
     providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
@@ -55,7 +55,7 @@ describe('loadManifestContext', () => {
           ],
         }),
       }),
-      bundledTools: bundled,
+      bundledTools,
       providers: providerCatalog(),
       cliVersion: '1.0.0',
       reporter,
@@ -85,7 +85,7 @@ describe('loadManifestContext', () => {
           [path.resolve('/co/manifest/workspace.yaml')]:
             'schema_version: 1\ndefaults: {host: ssh://git@git.example.com}\nrepos: nope\n',
         }),
-        bundledTools: bundled,
+        bundledTools,
         providers: providerCatalog(),
         cliVersion: '1.0.0',
         reporter: new FakeReporter(),

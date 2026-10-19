@@ -1,17 +1,11 @@
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
 import { ProbeRecord } from '../../../../src/application/probe-record/index.js';
-import type { Process } from '../../../../src/ports/process.js';
-import type {
-  ProjectionPath,
-  ProjectionStore,
-  ProjectionWrite,
-} from '../../../../src/ports/projection.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
 
@@ -39,68 +33,30 @@ async function fixture(
     probe: { label: 'item {path}', command: ['tool', 'get', '{path}'] },
   });
   const h = await harness({ workspace, files: { [envFile]: env }, platforms: { tool: platform } });
-  const writes: ProjectionWrite[] = [];
-  let acquire = 0;
-  let releases = 0;
-  let conflict = false;
-  let onProbe: (() => Promise<void>) | undefined;
-  const files: ProjectionStore = {
-    read: async (at: ProjectionPath) => {
-      const text = await h.fs.readText(path.join(at.root, at.relative));
-      return text === undefined ? { kind: 'absent', text: null } : { kind: 'file', text };
-    },
-    write: async (request) => {
-      if (
-        conflict ||
-        (await h.fs.readText(path.join(request.root, request.relative))) !== request.before.text
-      )
-        return 'conflict';
-      writes.push(request);
-      await h.fs.writeText(path.join(request.root, request.relative), request.text!);
-      return 'written';
-    },
-  };
-  const process: Process = {
-    run: async (vector, runOptions) => {
-      await onProbe?.();
-      return h.process.run(vector, runOptions);
-    },
-    which: (binary) => h.process.which(binary),
-  };
+  const lock = new FakeLock();
+  const projecting = new FakeLock();
+  const files = new FakeFileProjection(h.fs, projecting);
   const deps = {
     workspace: {
       ...h.deps,
       ...(options.commandShell === undefined ? {} : { commandShell: options.commandShell }),
-      process,
     },
     login: fakeLoginDeps({}),
     files,
     clock: new FakeClock(new Date('2026-09-09T10:00:00Z')),
-    lock: {
-      acquire: async () => {
-        acquire++;
-        return {
-          release: async () => {
-            releases++;
-          },
-        };
-      },
-    },
+    lock,
   };
   h.process.always({ code: 0, stdout: '{}', stderr: '' });
   return {
     h,
     env,
     workspace,
-    writes,
+    files,
     usecase: new ProbeRecord(deps),
-    acquired: () => acquire,
-    released: () => releases,
-    conflict: () => {
-      conflict = true;
-    },
-    onProbe: (callback: () => Promise<void>) => {
-      onProbe = callback;
+    lock,
+    // Another writer saves the file once the record is being written, past every recheck.
+    changeDuringWrite: (text: string) => {
+      projecting.onAcquire(() => h.fs.writeText(envFile, text));
     },
   };
 }
@@ -117,8 +73,8 @@ describe('recording coordinate probes', () => {
       }),
     ).toMatchObject({ action: 'preview', scope: 'repository', written: false, after: null });
     expect(f.h.process.calls).toEqual([]);
-    expect(f.writes).toEqual([]);
-    expect(f.acquired()).toBe(0);
+    expect(f.files.writes).toBe(0);
+    expect(f.lock.requests).toEqual([]);
   });
   it('gates an actual write before asking the platform', async () => {
     const f = await fixture();
@@ -126,7 +82,7 @@ describe('recording coordinate probes', () => {
       f.usecase.execute({ ...input, posture: { readOnly: true, source: 'env' } }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
     expect(f.h.process.calls).toEqual([]);
-    expect(f.writes).toEqual([]);
+    expect(f.files.writes).toBe(0);
   });
   it('records only repository-specific evidence and preserves unrelated bytes and notes', async () => {
     const f = await fixture();
@@ -143,7 +99,8 @@ describe('recording coordinate probes', () => {
     expect(text).toContain("note: 'keep this explanation' # keep comment\n");
     expect(await f.h.fs.readText(wsFile)).toBe(f.workspace);
     expect(f.h.process.calls).toHaveLength(1);
-    expect(f.released()).toBe(1);
+    expect(f.lock.requests).not.toEqual([]);
+    expect(f.lock.unreleased()).toEqual([]);
   });
   it('updates environment confidence only when no repository-dependent scope would be promoted', async () => {
     const f = await fixture({ path: 'shared' });
@@ -169,7 +126,7 @@ describe('recording coordinate probes', () => {
         handoff: expect.any(Object),
       });
       expect(await f.h.fs.readText(envFile)).toBe(f.env);
-      expect(f.writes).toEqual([]);
+      expect(f.files.writes).toBe(0);
     },
   );
   it('quotes the capability check it hands over for the configured shell', async () => {
@@ -195,26 +152,19 @@ describe('recording coordinate probes', () => {
         }),
       },
     });
-    const files: ProjectionStore = {
-      read: async (at) => ({
-        kind: 'file',
-        text: (await h.fs.readText(path.join(at.root, at.relative)))!,
-      }),
-      write: async () => {
-        throw new Error('must not write');
-      },
-    };
+    const files = new FakeFileProjection(h.fs);
     const record = new ProbeRecord({
       workspace: h.deps,
       login: fakeLoginDeps({}),
       files,
       clock: new FakeClock(),
-      lock: { acquire: async () => null },
+      lock: new FakeLock().busy(),
     });
     await expect(record.execute({ ...input, dryRun: true })).rejects.toMatchObject({
       code: 'PROBE_RECORD_SENSITIVE',
     });
     expect(h.process.calls).toEqual([]);
+    expect(files.writes).toBe(0);
   });
   it('records confirmed absence as not_found rather than verified', async () => {
     const f = await fixture();
@@ -223,19 +173,22 @@ describe('recording coordinate probes', () => {
   });
   it('refuses stale evidence when workspace bytes change during the probe', async () => {
     const f = await fixture();
-    f.onProbe(async () => {
+    f.h.process.clear().always(async () => {
       await f.h.fs.writeText(wsFile, f.workspace + '# concurrent change\n');
+      return { code: 0, stdout: '{}', stderr: '' };
     });
     await expect(f.usecase.execute(input)).rejects.toMatchObject({ code: 'PROBE_RECORD_CHANGED' });
     expect(await f.h.fs.readText(envFile)).toBe(f.env);
-    expect(f.writes).toEqual([]);
-    expect(f.released()).toBe(1);
+    expect(f.files.writes).toBe(0);
+    expect(f.lock.requests).not.toEqual([]);
+    expect(f.lock.unreleased()).toEqual([]);
   });
   it('does not overwrite a conflicting file at the final atomic write', async () => {
     const f = await fixture();
-    f.conflict();
+    const saved = `${f.env}# saved by someone else\n`;
+    f.changeDuringWrite(saved);
     await expect(f.usecase.execute(input)).rejects.toMatchObject({ code: 'PROBE_RECORD_CHANGED' });
-    expect(await f.h.fs.readText(envFile)).toBe(f.env);
+    expect(await f.h.fs.readText(envFile)).toBe(saved);
   });
   it('requires a real probe and an explicit environment and platform', async () => {
     const f = await fixture();

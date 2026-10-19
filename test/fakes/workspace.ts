@@ -12,6 +12,7 @@ import { providerCatalog } from '../../src/composition/registry.js';
 import type { ProviderCatalog } from '../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../src/domain/manifest/types.js';
 import type { Platform } from '../../src/ports/platform.js';
+import { bundledTools } from '../bundled-tools.js';
 
 import { FakeActivity } from './fake-activity.js';
 import { FakeCodeHost } from './fake-code-host.js';
@@ -58,8 +59,6 @@ export interface HarnessOptions {
   readonly providers?: ProviderCatalog;
 }
 
-const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
-
 export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const workspace =
     options.workspace ??
@@ -89,7 +88,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     fs,
     git,
     localStore,
-    bundledTools: bundled,
+    bundledTools,
     providers: options.providers ?? providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
@@ -141,4 +140,14 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
 // posture or a preview.
 export function withTrust(deps: WorkspaceDeps, trust: Partial<TrustContext>): WorkspaceDeps {
   return { ...deps, trust: { ...deps.trust, ...trust } };
+}
+
+// The same bundle over a context that differs in what its manifest bound. The result is
+// still a WorkspaceContext, so its accessors answer as they do on the one it started from.
+export function withContext(
+  deps: WorkspaceDeps,
+  bound: Partial<Pick<WorkspaceContext, 'manifest' | 'bindings' | 'platforms'>>,
+): WorkspaceDeps {
+  const ctx = Object.create(WorkspaceContext.prototype) as WorkspaceContext;
+  return { ...deps, ctx: Object.assign(ctx, deps.ctx, bound) };
 }

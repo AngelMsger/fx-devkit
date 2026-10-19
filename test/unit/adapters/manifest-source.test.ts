@@ -273,10 +273,9 @@ describe('GitRepoSource refresh decisions', () => {
     });
     expect(git.calls).toContain(`fast-forward ${dir} upstream/main`);
 
-    const offline = new FakeGit().add(dir, { state: clean });
-    offline.fetch = async () => {
+    const offline = new FakeGit().add(dir, { state: clean }).before('fetch', () => {
       throw new Error('could not resolve host');
-    };
+    });
     await expect(source(offline).refresh(dir)).rejects.toMatchObject({
       category: 'network',
       code: 'MANIFEST_REFRESH_FAILED',

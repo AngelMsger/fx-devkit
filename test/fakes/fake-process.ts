@@ -7,6 +7,13 @@ export interface RecordedCall {
 
 type Matcher = (vector: readonly string[]) => boolean;
 
+// What a rule answers with: a result, an error the port raises instead of one (a
+// deadline, an abort), or a function of the call when the answer depends on it.
+type Answer =
+  | ProcessResult
+  | Error
+  | ((vector: readonly string[], options: RunOptions) => ProcessResult | Promise<ProcessResult>);
+
 const startsWith = (vector: readonly string[], prefix: readonly string[]): boolean =>
   prefix.every((word, index) => vector[index] === word);
 
@@ -16,25 +23,40 @@ const startsWith = (vector: readonly string[], prefix: readonly string[]): boole
 export class FakeProcess implements Process {
   readonly calls: RecordedCall[] = [];
   readonly binaries = new Set<string>();
-  private readonly rules: { matcher: Matcher; result: ProcessResult }[] = [];
+  private readonly locations = new Map<string, string>();
+  private readonly rules: { matcher: Matcher; answer: Answer }[] = [];
 
-  on(prefix: readonly string[], result: ProcessResult): this {
-    this.rules.push({ matcher: (v) => prefix.every((p, i) => v[i] === p), result });
+  on(prefix: readonly string[], answer: Answer): this {
+    this.rules.push({ matcher: (vector) => startsWith(vector, prefix), answer });
     return this;
   }
 
-  when(matcher: Matcher, result: ProcessResult): this {
-    this.rules.push({ matcher, result });
+  when(matcher: Matcher, answer: Answer): this {
+    this.rules.push({ matcher, answer });
     return this;
   }
 
-  always(result: ProcessResult): this {
-    this.rules.push({ matcher: () => true, result });
+  always(answer: Answer): this {
+    this.rules.push({ matcher: () => true, answer });
+    return this;
+  }
+
+  // Tried before every rule registered so far: a case changes one answer of its fixture.
+  override(match: readonly string[] | Matcher, answer: Answer): this {
+    const matcher: Matcher =
+      typeof match === 'function' ? match : (vector) => startsWith(vector, match);
+    this.rules.unshift({ matcher, answer });
     return this;
   }
 
   clear(): this {
     this.rules.length = 0;
+    return this;
+  }
+
+  // Puts a binary on PATH at a path the case names, not under the fake's own directory.
+  locate(binary: string, at: string): this {
+    this.locations.set(binary, at);
     return this;
   }
 
@@ -49,11 +71,13 @@ export class FakeProcess implements Process {
         notStarted: true,
       };
     }
-    return rule.result;
+    if (rule.answer instanceof Error) throw rule.answer;
+    return typeof rule.answer === 'function' ? rule.answer(vector, options) : rule.answer;
   }
 
   async which(binary: string): Promise<string | undefined> {
-    return this.binaries.has(binary) ? `/fake/bin/${binary}` : undefined;
+    const fallback = this.binaries.has(binary) ? `/fake/bin/${binary}` : undefined;
+    return this.locations.get(binary) ?? fallback;
   }
 
   // Every recorded vector in call order, for the tests whose contract is the order.

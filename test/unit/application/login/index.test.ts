@@ -1,8 +1,7 @@
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login, type LoginInput } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
@@ -10,7 +9,7 @@ import { DevkitError } from '../../../../src/domain/errors.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import type { FakePrompter } from '../../../fakes/fake-prompter.js';
 import type { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { MANIFEST_DIR, harness, withTrust, type Harness } from '../../../fakes/workspace.js';
@@ -119,13 +118,7 @@ async function stage(
   const h = { ...base, deps: withTrust(base.deps, { yes: options.yes ?? false }) };
   const { prompter, trusted: trust } = h;
   prompter.unavailable = options.unavailable ?? false;
-  const deps: LoginDeps = {
-    serviceProtocol: new FamilyServiceProtocol(),
-    describeProvider: (id) => DESCRIPTORS[id],
-    prompter,
-    clock: new FakeClock(),
-    home: HOME,
-  };
+  const deps: LoginDeps = { ...fakeLoginDeps(DESCRIPTORS), prompter, home: HOME };
   const s: Stage = {
     h,
     prompter,
@@ -162,29 +155,48 @@ const run: LoginInput = {
 };
 
 describe('Verifier', () => {
-  it('checks a file under ~, a command, and trusts a patch-supplied command first', async () => {
+  async function verifying() {
     const s = await stage();
-    const verifier = new Verifier(s.h.deps, s.deps);
     const plan = await s.setup.plan({});
-    const file = plan.steps.find((x) => x.id === 'kubectl.kubeconfig@dev')!;
+    return {
+      s,
+      verifier: new Verifier(s.h.deps, s.deps),
+      step: (id: string) => plan.steps.find((step) => step.id === id)!,
+    };
+  }
+
+  it('checks a file under ~ by whether it is there', async () => {
+    const { s, verifier, step } = await verifying();
+    const file = step('kubectl.kubeconfig@dev');
     expect(await verifier.verify(file)).toEqual({
       ok: false,
       detail: `${path.join(HOME, '.kube/dev')} is missing`,
     });
     await s.h.fs.writeText(`${HOME}/.kube/dev`, 'k');
     expect((await verifier.verify(file)).ok).toBe(true);
+  });
 
-    const team = plan.steps.find((x) => x.id === 'worklog.token')!;
+  it('refuses a patch-supplied check that nobody can approve, without running it', async () => {
+    const { s, verifier, step } = await verifying();
+    const team = step('worklog.token');
     expect(team.origin).toBe('patch');
     s.prompter.unavailable = true;
     await expect(verifier.verify(team)).rejects.toMatchObject({ code: 'VECTOR_UNTRUSTED' });
-    s.prompter.unavailable = false;
-    s.prompter.confirmWith = true;
-    expect(await verifier.verify(team)).toEqual({ ok: false, detail: 'no token' });
-    expect(s.trust.entries.map((e) => e.label)).toEqual(['worklog.token check']);
+    expect(s.h.process.calls).toEqual([]);
+    expect(s.trust.entries).toEqual([]);
+  });
 
-    const base = plan.steps.find((x) => x.id === 'kubectl.access@dev')!;
-    expect((await verifier.verify(base)).ok).toBe(false);
+  it('runs a patch-supplied check once the person approves it, and records the approval', async () => {
+    const { s, verifier, step } = await verifying();
+    s.prompter.confirmWith = true;
+    expect(await verifier.verify(step('worklog.token'))).toEqual({ ok: false, detail: 'no token' });
+    expect(s.trust.entries.map((e) => e.label)).toEqual(['worklog.token check']);
+  });
+
+  it('runs a bundled check on the step variables without asking for trust', async () => {
+    const { s, verifier, step } = await verifying();
+    s.prompter.unavailable = true;
+    expect((await verifier.verify(step('kubectl.access@dev'))).ok).toBe(false);
     expect(s.h.process.soleCallTo(['kubectl']).vector).toEqual([
       'kubectl',
       '--kubeconfig',
@@ -196,7 +208,7 @@ describe('Verifier', () => {
       'get',
       'pods',
     ]);
-    expect(s.trust.entries, 'a bundled recipe needs no trust').toHaveLength(1);
+    expect(s.trust.entries).toEqual([]);
   });
 
   it('refuses a bundled provider recipe when the patch replaced its executable', async () => {
@@ -398,11 +410,9 @@ describe('Login', () => {
     const s = await stage();
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
     const answers = ['forbidden', 'token expired'];
-    const original = s.h.process.run.bind(s.h.process);
-    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) =>
-      vector.includes('can-i')
-        ? { code: 1, stdout: '', stderr: answers.shift() ?? '' }
-        : original(vector, options),
+    s.h.process.override(
+      (vector) => vector.includes('can-i'),
+      () => ({ code: 1, stdout: '', stderr: answers.shift() ?? '' }),
     );
     const out = await s.setup.execute({ ...run, envs: ['test'], tools: ['kubectl'] });
     expect(s.prompter.questions[0]).toContain('Check: forbidden');
@@ -440,12 +450,10 @@ describe('Login', () => {
   it('reports completed setup when a later permission probe times out', async () => {
     const s = await stage({ unavailable: true, yes: true });
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
-    const original = s.h.process.run.bind(s.h.process);
-    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
-      if (vector[0] === 'kubectl')
-        throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'Permission probe timed out');
-      return original(vector, options);
-    });
+    s.h.process.override(
+      ['kubectl'],
+      new DevkitError('internal', 'PROCESS_TIMEOUT', 'Permission probe timed out'),
+    );
     const failure: unknown = await s.setup
       .execute({
         ...run,

@@ -132,48 +132,63 @@ describe('Import', () => {
     expect(out.manifest).toContain('# review: upstream inferred');
   });
 
-  it('writes only where -o points, previews that under --dry-run, and respects posture', async () => {
+  const OUT = path.resolve('/src/manifest/workspace.yaml');
+
+  it('previews the write under --dry-run without making it', async () => {
     const s = stage();
-    const out = path.resolve('/src/manifest/workspace.yaml');
-    const dry = await s.importer.execute({ ...write, dir: ROOT, out, dryRun: true });
-    expect(dry).toMatchObject({ path: out, written: false });
+    const dry = await s.importer.execute({ ...write, dir: ROOT, out: OUT, dryRun: true });
+    expect(dry).toMatchObject({ path: OUT, written: false });
     expect(s.fs.writes).toEqual([]);
-    const real = await s.importer.execute({ ...write, dir: ROOT, out });
-    expect(real).toMatchObject({ path: out, written: true });
-    expect(await s.fs.readText(out)).toBe(dry.manifest);
+  });
+
+  it('writes what the preview showed, only where -o points, over what a run left there', async () => {
+    const s = stage();
+    const dry = await s.importer.execute({ ...write, dir: ROOT, out: OUT, dryRun: true });
+    const real = await s.importer.execute({ ...write, dir: ROOT, out: OUT });
+    expect(real).toMatchObject({ path: OUT, written: true });
+    expect(await s.fs.readText(OUT)).toBe(dry.manifest);
     // The person named the target; a second run replaces it.
-    await s.fs.writeText(out, 'stale');
-    await s.importer.execute({ ...write, dir: ROOT, out });
-    expect(await s.fs.readText(out)).toBe(dry.manifest);
-    await expect(
-      s.importer.execute({ ...write, dir: ROOT, out, posture: { readOnly: true, source: 'env' } }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    for (const inside of [
-      `${ROOT}/manifest/workspace.yaml`,
-      `${ROOT}/fx-example-api/x.yaml`,
-      `${ROOT}/..draft/out.yaml`,
-      ROOT,
-    ]) {
-      await expect(s.importer.execute({ ...write, dir: ROOT, out: inside })).rejects.toMatchObject({
-        category: 'conflict',
-        code: 'IMPORT_INSIDE_ROOT',
-      });
-    }
-    await expect(
-      s.importer.execute({
-        ...write,
-        dir: path.resolve('/alias'),
-        out: `${ROOT}/manifest/workspace.yaml`,
-      }),
-    ).rejects.toMatchObject({ code: 'IMPORT_INSIDE_ROOT' });
+    await s.fs.writeText(OUT, 'stale');
+    await s.importer.execute({ ...write, dir: ROOT, out: OUT });
+    expect(await s.fs.readText(OUT)).toBe(dry.manifest);
+    expect(s.fs.writes).toEqual([OUT, OUT, OUT]);
+  });
+
+  it('refuses to write under read-only posture', async () => {
+    const s = stage();
     await expect(
       s.importer.execute({
         ...write,
         dir: ROOT,
-        out: path.resolve('/alias/manifest/workspace.yaml'),
+        out: OUT,
+        posture: { readOnly: true, source: 'env' },
       }),
-    ).rejects.toMatchObject({ code: 'IMPORT_INSIDE_ROOT' });
-    expect(s.fs.writes).toEqual([out, out, out]);
+    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    expect(s.fs.writes).toEqual([]);
+  });
+
+  it.each([
+    { target: 'a file under the directory', dir: ROOT, out: `${ROOT}/manifest/workspace.yaml` },
+    { target: 'a file inside a checkout', dir: ROOT, out: `${ROOT}/fx-example-api/x.yaml` },
+    { target: 'a child whose name starts with dots', dir: ROOT, out: `${ROOT}/..draft/out.yaml` },
+    { target: 'the directory itself', dir: ROOT, out: ROOT },
+    {
+      target: 'the directory when it was named through a link',
+      dir: path.resolve('/alias'),
+      out: `${ROOT}/manifest/workspace.yaml`,
+    },
+    {
+      target: 'a link that leads back into the directory',
+      dir: ROOT,
+      out: path.resolve('/alias/manifest/workspace.yaml'),
+    },
+  ])('refuses to write to $target', async ({ dir, out }) => {
+    const s = stage();
+    await expect(s.importer.execute({ ...write, dir, out })).rejects.toMatchObject({
+      category: 'conflict',
+      code: 'IMPORT_INSIDE_ROOT',
+    });
+    expect(s.fs.writes).toEqual([]);
   });
 
   it('quotes a directory with a space in the command that retries elsewhere', async () => {

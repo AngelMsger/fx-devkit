@@ -6,6 +6,7 @@ import type { WritePosture } from '../../../../src/application/safety/posture.js
 import { replacementFor } from '../../../../src/application/safety/replace-files.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { SkillList } from '../../../../src/application/skill/list.js';
+import { observeLink } from '../../../../src/application/skill/observe.js';
 import { SkillStage } from '../../../../src/application/skill/stage.js';
 import { skillChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
@@ -14,6 +15,7 @@ import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
 import type { Process } from '../../../../src/ports/process.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -59,19 +61,12 @@ describe('SkillStage partial execution', () => {
   it('performs no projections, tool calls or global lock acquisition for configured empty selection', async () => {
     const { h, skills } = await setup();
     const before = [...h.fs.writes];
-    const stage = new SkillStage(h.deps, {
-      ...skills,
-      configured: [],
-      globalLock: {
-        acquire: async () => {
-          throw new Error('must not acquire global lock');
-        },
-      },
-    });
+    const stage = new SkillStage(h.deps, { ...skills, configured: [] });
     const result = await stage.execute({ dryRun: false, posture: writable });
     expect(result).toMatchObject({ links: [], fx: [], tools: [] });
     expect(h.fs.writes).toEqual(before);
     expect(h.process.calls).toEqual([]);
+    expect(skills.globalLock.requests).toEqual([]);
   });
 
   it('does not call a missing companion or call its skipped Skill preparation complete', async () => {
@@ -197,9 +192,30 @@ describe('SkillStage partial execution', () => {
     },
   );
 
-  it.each(['link', 'replaceDir'] as const)(
-    'retains disk observations when %s throws after writing',
-    async (method) => {
+  it.each([
+    {
+      method: 'link',
+      retained: {
+        links: [
+          { status: 'failed', observed: { kind: 'link', target: teamSkills } },
+          { status: 'not_started' },
+        ],
+        fx: [{ status: 'not_started' }, { status: 'not_started' }],
+      },
+    },
+    {
+      method: 'replaceDir',
+      retained: {
+        links: [{ status: 'done' }, { status: 'done' }],
+        fx: [
+          { status: 'failed', observed: { kind: 'ours', version: '1.0.0' } },
+          { status: 'not_started' },
+        ],
+      },
+    },
+  ] as const)(
+    'retains disk observations when $method throws after writing',
+    async ({ method, retained }) => {
       const { h, skills } = await setup();
       const original = h.fs[method].bind(h.fs);
       let calls = 0;
@@ -209,25 +225,7 @@ describe('SkillStage partial execution', () => {
       };
       await expect(
         new SkillStage(h.deps, skills).execute({ dryRun: false, posture: writable }),
-      ).rejects.toMatchObject({
-        code: 'INTERNAL',
-        partialResult:
-          method === 'link'
-            ? {
-                links: [
-                  { status: 'failed', observed: { kind: 'link', target: teamSkills } },
-                  { status: 'not_started' },
-                ],
-                fx: [{ status: 'not_started' }, { status: 'not_started' }],
-              }
-            : {
-                links: [{ status: 'done' }, { status: 'done' }],
-                fx: [
-                  { status: 'failed', observed: { kind: 'ours', version: '1.0.0' } },
-                  { status: 'not_started' },
-                ],
-              },
-      });
+      ).rejects.toMatchObject({ code: 'INTERNAL', partialResult: retained });
       expect(calls).toBe(1);
     },
   );
@@ -447,8 +445,11 @@ describe('SkillStage: the fx copy and the tools', () => {
       '# somebody else\n',
     );
   });
+});
 
-  it("runs each installed tool's own skill command for every enabled agent, through the trust gate", async () => {
+describe('SkillStage: a Skill command the team patch authored', () => {
+  // alpha's command comes from the patch, so it runs only once approved; beta has none.
+  async function patched() {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
@@ -462,19 +463,28 @@ describe('SkillStage: the fx copy and the tools', () => {
       'schema_version: 3\ntools: [{ name: alpha, skill: { command: [skill, add], agent_flag: --for } }]',
       { cliVersion: '1.0.0' },
     );
-    const tools = resolveTools(loaded.doc, loaded.provenance);
+    const toolchain = resolveTools(loaded.doc, loaded.provenance);
     h.process.binaries.add('alpha').add('beta');
     h.process.always({ code: 0, stdout: '[]', stderr: '' });
+    const store = new FakeTrustStore();
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const gate = new TrustGate(new FakeTrustStore(), prompter);
-    await expect(
-      new SkillStage(withTrust(h.deps, { gate, yes: false }), skills).execute({
-        toolchain: tools,
-        dryRun: false,
-        posture: writable,
-      }),
-    ).resolves.toMatchObject({
+    const gate = new TrustGate(store, prompter);
+    const run = (
+      trust: { yes: boolean; posture?: WritePosture },
+      input: { dryRun?: boolean } = {},
+    ) =>
+      new SkillStage(withTrust(h.deps, { gate, ...trust }), skills).execute({
+        toolchain,
+        dryRun: input.dryRun ?? false,
+        posture: trust.posture ?? writable,
+      });
+    return { h, store, run };
+  }
+
+  it('blocks the command nobody approved and does not run it', async () => {
+    const { h, run } = await patched();
+    expect(await run({ yes: false })).toMatchObject({
       summary: { tools_blocked: 1 },
       tools: expect.arrayContaining([
         expect.objectContaining({
@@ -483,46 +493,46 @@ describe('SkillStage: the fx copy and the tools', () => {
         }),
       ]),
     });
-    const out = await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
-      toolchain: tools,
-      dryRun: false,
-      posture: writable,
-    });
+    expect(h.process.calls).toEqual([]);
+  });
+
+  it("runs each installed tool's own skill command for every enabled agent once approved", async () => {
+    const { run } = await patched();
+    const out = await run({ yes: true });
     expect(out.tools.map((t) => [t.tool, t.vector, t.code])).toEqual([
       ['alpha', ['alpha', 'skill', 'add', '--for', 'claude-code', '--for', 'codex'], 0],
       ['beta', null, null],
     ]);
     expect(out.summary).toMatchObject({ tools_run: 1, tools_skipped: 1, tools_failed: 0 });
-
-    h.process.clear().always({ code: 1, stdout: '', stderr: 'no such agent' });
-    const failed = await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
-      toolchain: tools,
-      dryRun: false,
-      posture: writable,
-    });
-    expect(failed.tools[0]).toMatchObject({ code: 1, note: 'no such agent' });
-    expect(failed.summary).toMatchObject({ tools_failed: 1 });
-    const store = new FakeTrustStore();
-    const fresh = new TrustGate(store, prompter);
-    const readOnly = withTrust(h.deps, { gate: fresh, yes: true, posture: locked });
-    const planned = await new SkillStage(readOnly, skills).execute({
-      toolchain: tools,
-      dryRun: true,
-      posture: locked,
-    });
-    expect(planned.tools[0]).toMatchObject({ code: null, vector: expect.any(Array) });
-    expect(store.entries, 'a dry run trusts nothing').toEqual([]);
-    await expect(
-      new SkillStage(readOnly, skills).execute({
-        toolchain: tools,
-        dryRun: false,
-        posture: locked,
-      }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    expect(store.entries, 'the write gate comes before the trust record').toEqual([]);
   });
 
-  it('refuses an inherited Skill command when the patch replaced its executable', async () => {
+  it('reports a failed skill command with what the tool said', async () => {
+    const { h, run } = await patched();
+    h.process.clear().always({ code: 1, stdout: '', stderr: 'no such agent' });
+    const failed = await run({ yes: true });
+    expect(failed.tools[0]).toMatchObject({ code: 1, note: 'no such agent' });
+    expect(failed.summary).toMatchObject({ tools_failed: 1 });
+  });
+
+  it('plans the command under dry-run without recording trust', async () => {
+    const { store, run } = await patched();
+    const planned = await run({ yes: true, posture: locked }, { dryRun: true });
+    expect(planned.tools[0]).toMatchObject({ code: null, vector: expect.any(Array) });
+    expect(store.entries).toEqual([]);
+  });
+
+  it('refuses under read-only posture before recording trust', async () => {
+    const { h, store, run } = await patched();
+    await expect(run({ yes: true, posture: locked })).rejects.toMatchObject({
+      code: 'READONLY_BLOCKED',
+    });
+    expect(store.entries).toEqual([]);
+    expect(h.process.calls).toEqual([]);
+  });
+});
+
+describe('SkillStage: an inherited Skill command whose executable the patch replaced', () => {
+  async function replaced() {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
@@ -537,19 +547,22 @@ describe('SkillStage: the fx copy and the tools', () => {
     h.process.always({ code: 0, stdout: '', stderr: '' });
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const untrusting = (): SkillStage =>
+    const run = (background: boolean) =>
       new SkillStage(
         withTrust(h.deps, { gate: new TrustGate(new FakeTrustStore(), prompter), yes: false }),
         skills,
-      );
-
-    await expect(
-      untrusting().execute({
+      ).execute({
         toolchain: resolveTools(loaded.doc, loaded.provenance),
         dryRun: false,
         posture: writable,
-      }),
-    ).resolves.toMatchObject({
+        background,
+      });
+    return { h, run };
+  }
+
+  it('refuses the command without running it, and still installs the fx copy', async () => {
+    const { h, run } = await replaced();
+    expect(await run(false)).toMatchObject({
       summary: { tools_blocked: 1 },
       tools: expect.arrayContaining([
         expect.objectContaining({
@@ -559,20 +572,20 @@ describe('SkillStage: the fx copy and the tools', () => {
       ]),
     });
     expect(h.process.calls).toEqual([]);
-    const background = await untrusting().execute({
-      toolchain: resolveTools(loaded.doc, loaded.provenance),
-      dryRun: false,
-      posture: writable,
-      background: true,
-    });
+    expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace', 'SKILL.md'))).toBe(true);
+  });
+
+  it('leaves the command untrusted in a background run, which never asks or runs it', async () => {
+    const { h, run } = await replaced();
+    const background = await run(true);
     expect(background.tools[0]).toMatchObject({ vector: null, note: 'untrusted' });
     expect(h.process.calls).toEqual([]);
-    expect(background.fx.every((item) => item.action === 'unchanged')).toBe(true);
   });
 });
 
 describe('SkillStage: independent local effects and command trust', () => {
-  it('blocks only the untrusted tool while projecting local resources and running approved tools', async () => {
+  // Two patched Skill commands, of which only alpha's has been approved.
+  async function partlyApproved() {
     const { h, skills } = await setup();
     const loaded = loadTools(
       [
@@ -590,19 +603,12 @@ describe('SkillStage: independent local effects and command trust', () => {
       ].join('\n'),
       { cliVersion: '1.0.0' },
     );
-    const tools = resolveTools(loaded.doc, loaded.provenance);
     h.process.binaries.add('alpha').add('gamma');
     h.process.always({ code: 0, stdout: '', stderr: '' });
     const store = new FakeTrustStore();
     const prompter = new FakePrompter();
     prompter.unavailable = true;
     const gate = new TrustGate(store, prompter);
-    const alpha = tools.filter((t) => t.name === 'alpha');
-    await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
-      toolchain: alpha,
-      dryRun: true,
-      posture: writable,
-    });
     await gate.ensure({
       workspace: 'fx',
       vector: ['alpha', 'skill', 'add'],
@@ -611,14 +617,17 @@ describe('SkillStage: independent local effects and command trust', () => {
       yes: true,
       posture: writable,
     });
-    h.fs.links.clear();
-    await expect(
-      new SkillStage(withTrust(h.deps, { gate, yes: false }), skills).execute({
-        toolchain: tools,
-        dryRun: false,
-        posture: writable,
-      }),
-    ).resolves.toMatchObject({
+    const result = await new SkillStage(withTrust(h.deps, { gate, yes: false }), skills).execute({
+      toolchain: resolveTools(loaded.doc, loaded.provenance),
+      dryRun: false,
+      posture: writable,
+    });
+    return { h, store, result };
+  }
+
+  it('blocks only the untrusted tool and never runs it', async () => {
+    const { h, store, result } = await partlyApproved();
+    expect(result).toMatchObject({
       summary: { tools_blocked: 1 },
       tools: expect.arrayContaining([
         expect.objectContaining({
@@ -627,14 +636,19 @@ describe('SkillStage: independent local effects and command trust', () => {
         }),
       ]),
     });
-    expect(h.fs.links.size, 'owned team links were made').toBe(2);
-    expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace')), 'owned fx copy').toBe(true);
-    expect(
-      h.process.calls.some((c) => c.vector[1] === 'skill'),
-      'the approved vector ran',
-    ).toBe(true);
     expect(h.process.calls.some((c) => c.vector[0] === 'gamma')).toBe(false);
     expect(store.entries.map((e) => e.label)).toEqual(['alpha']);
+  });
+
+  it('runs the tool whose command was approved', async () => {
+    const { h } = await partlyApproved();
+    expect(h.process.calledWith(['alpha', 'skill'])).toBe(true);
+  });
+
+  it('projects the team links and the fx copy whatever the tools were allowed', async () => {
+    const { h } = await partlyApproved();
+    expect(h.fs.links.size).toBe(2);
+    expect(await h.fs.exists(path.join(claudeDir, 'fx-workspace'))).toBe(true);
   });
 });
 
@@ -723,8 +737,6 @@ describe('SkillList', () => {
 
 describe('observeLink with a relative target', () => {
   it("resolves it against the link's directory", async () => {
-    const { observeLink } = await import('../../../../src/application/skill/observe.js');
-    const { FakeFs } = await import('../../../fakes/fake-fs.js');
     const fs = FakeFs.from({});
     fs.links.set(path.resolve('/home/me/.claude/skills/review'), '../elsewhere/review');
     const observed = await observeLink(fs, path.resolve('/home/me/.claude/skills/review'));

@@ -1,23 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { providerCatalog } from '../../../../src/composition/registry.js';
 import { capabilitiesInScope } from '../../../../src/domain/capability.js';
 import {
   bindProviders,
   requireProvider,
   type BindableProvider,
   type Binding,
+  type ProviderCatalog,
 } from '../../../../src/domain/manifest/providers.js';
 import type { Workspace } from '../../../../src/domain/manifest/types.js';
 
 describe('bindProviders', () => {
+  const providers: ProviderCatalog = [
+    { id: 'bitbucket-cli', capability: 'code-host', tools: [], impliedByDefaultHost: true },
+  ];
+
   it('binds the code host by default on a schema 1 document, taking the host from defaults', () => {
     const ws: Workspace = {
       schema_version: 1,
       defaults: { host: 'ssh://git@git.example.com:12345' },
       repos: [{ name: 'a' }],
     };
-    const bindings = bindProviders(ws, providerCatalog());
+    const bindings = bindProviders(ws, providers);
     expect(bindings.find((b) => b.capability === 'code-host')).toEqual({
       capability: 'code-host',
       provider: 'bitbucket-cli',
@@ -45,7 +49,7 @@ describe('bindProviders', () => {
       defaults: {},
       repos: [{ name: 'a' }],
     };
-    const bindings = bindProviders(ws, providerCatalog());
+    const bindings = bindProviders(ws, providers);
     expect(bindings.map((b) => b.capability)).toEqual(capabilitiesInScope('workspace'));
     expect(bindings.find((b) => b.capability === 'im')).toMatchObject({
       provider: 'lark-cli',
@@ -60,7 +64,7 @@ describe('bindProviders', () => {
       defaults: {},
       repos: [{ name: 'a' }],
     };
-    expect(bindProviders(ws, providerCatalog()).find((b) => b.capability === 'ci')).toMatchObject({
+    expect(bindProviders(ws, providers).find((b) => b.capability === 'ci')).toMatchObject({
       source: 'misplaced',
     });
   });

@@ -29,6 +29,7 @@ import {
   ROOT,
   harness,
   manifestDirFor,
+  withContext,
   withTrust,
 } from '../../../fakes/workspace.js';
 
@@ -139,14 +140,7 @@ describe('Can', () => {
       source: 'explicit',
       vars: { host: path.resolve('/host') },
     } as const;
-    const deps = {
-      ...h.deps,
-      ctx: {
-        ...h.deps.ctx,
-        manifestDir: h.deps.ctx.manifestDir,
-        bindings: [binding],
-      },
-    };
+    const deps = withContext(h.deps, { bindings: [binding] });
     const loginDeps = fakeLoginDeps({ 'local-git': localGitProvider });
     expect(await new Can(deps, loginDeps).execute({ target: 'code-host' })).toMatchObject({
       status: 'ready',
@@ -158,7 +152,7 @@ describe('Can', () => {
       open: true,
     });
     expect(h.process.calls).toEqual([]);
-    const unbound = { ...deps, ctx: { ...deps.ctx, bindings: [{ ...binding, provider: null }] } };
+    const unbound = withContext(h.deps, { bindings: [{ ...binding, provider: null }] });
     await expect(
       new Can(unbound, loginDeps).execute({ target: 'code-host' }),
     ).rejects.toMatchObject({ code: 'CAPABILITY_UNBOUND' });
@@ -179,14 +173,9 @@ describe('Can', () => {
     const bound = async (provider: string | null, tools?: string) => {
       const { h } = await stage(tools === undefined ? {} : { tools });
       return new Can(
-        {
-          ...h.deps,
-          ctx: {
-            ...h.deps.ctx,
-            manifestDir: h.deps.ctx.manifestDir,
-            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
-          },
-        },
+        withContext(h.deps, {
+          bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+        }),
         fakeLoginDeps({ ...DESCRIPTORS, 'acme-host': acme }),
       ).execute({ target: 'code-host' });
     };
@@ -210,14 +199,9 @@ describe('Can', () => {
     const bound = async (provider: string, tools?: string) => {
       const { h } = await stage(tools === undefined ? {} : { tools });
       return new Can(
-        {
-          ...h.deps,
-          ctx: {
-            ...h.deps.ctx,
-            manifestDir: h.deps.ctx.manifestDir,
-            bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
-          },
-        },
+        withContext(h.deps, {
+          bindings: [{ capability: 'code-host', provider, source: 'explicit', vars: {} }],
+        }),
         fakeLoginDeps(DESCRIPTORS),
       ).execute({ target: 'code-host' });
     };
@@ -240,15 +224,10 @@ describe('Can', () => {
     // Declared rather than derived: without the environments document nothing binds it.
     const { h } = await stage({ tools: 'schema_version: 3\ntools: [{ name: jenkins-cli }]' });
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          manifest: { ...h.deps.ctx.manifest, environments: undefined },
-          platforms: [],
-        },
-      },
+      withContext(h.deps, {
+        manifest: { ...h.deps.ctx.manifest, environments: undefined },
+        platforms: [],
+      }),
       fakeLoginDeps(DESCRIPTORS),
     );
     const capability = readiness.resolve('code-host', 'test');
@@ -267,14 +246,7 @@ describe('Can', () => {
     const { h } = await stage();
     const binding = h.deps.ctx.platforms.find((b) => b.platform === 'jenkins')!;
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          platforms: [{ ...binding, platform: 'other-ci' }, binding],
-        },
-      },
+      withContext(h.deps, { platforms: [{ ...binding, platform: 'other-ci' }, binding] }),
       fakeLoginDeps(DESCRIPTORS),
     );
     expect(readiness.resolve('jenkins-cli', 'prod').binding).toEqual(binding);
@@ -291,14 +263,7 @@ describe('Can', () => {
     const { h } = await stage();
     const binding = h.deps.ctx.platforms.find((b) => b.platform === 'jenkins')!;
     const readiness = new Readiness(
-      {
-        ...h.deps,
-        ctx: {
-          ...h.deps.ctx,
-          manifestDir: h.deps.ctx.manifestDir,
-          platforms: [binding, { ...binding, platform: 'sentry' }],
-        },
-      },
+      withContext(h.deps, { platforms: [binding, { ...binding, platform: 'sentry' }] }),
       fakeLoginDeps(DESCRIPTORS),
     );
     for (const name of ['ci', 'jenkins-cli']) {

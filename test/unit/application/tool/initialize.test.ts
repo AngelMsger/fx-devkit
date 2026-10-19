@@ -1,13 +1,12 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { ToolInitialize } from '../../../../src/application/tool/initialize.js';
 import { ToolInstall } from '../../../../src/application/tool/install.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -57,7 +56,7 @@ tools:
 // approve is the automatic installation itself.
 function bundled() {
   const loaded = loadTools(
-    readFileSync(path.resolve('defaults/tools.yaml'), 'utf8'),
+    bundledTools(),
     `schema_version: 3
 tools:
   - { name: jenkins-cli, install_on_init: true }
@@ -116,16 +115,15 @@ describe('manifest initialization installs', () => {
     expect(await s.initialize.execute(s.input)).toEqual([]);
     expect(s.process.calls).toEqual([]);
   });
-  it('does not install when trust is rejected or no interactive answer is available', async () => {
-    for (const unavailable of [false, true]) {
-      const s = setup();
-      s.prompter.unavailable = unavailable;
-      s.prompter.confirmWith = false;
-      await expect(s.initialize.execute(s.input)).rejects.toMatchObject({
-        code: unavailable ? 'VECTOR_UNTRUSTED' : 'VECTOR_REJECTED',
-      });
-      expect(s.process.calls).toEqual([]);
-    }
+  it.each([
+    { answer: 'the person declines', unavailable: false, code: 'VECTOR_REJECTED' },
+    { answer: 'nobody can answer', unavailable: true, code: 'VECTOR_UNTRUSTED' },
+  ])('does not install when $answer', async ({ unavailable, code }) => {
+    const s = setup();
+    s.prompter.unavailable = unavailable;
+    s.prompter.confirmWith = false;
+    await expect(s.initialize.execute(s.input)).rejects.toMatchObject({ code });
+    expect(s.process.calls).toEqual([]);
   });
   it('honors read-only posture before writing trust or installing', async () => {
     const s = setup();
@@ -135,20 +133,53 @@ describe('manifest initialization installs', () => {
     expect(s.process.calls).toEqual([]);
     expect(s.prompter.questions).toEqual([]);
   });
-  it('fails initialization on npm failure or an unusable installed version', async () => {
-    for (const [code, version] of [
-      [1, '1.2.0'],
-      [0, ''],
-      [0, '0.1.0'],
-    ] as const) {
-      const s = setup();
-      s.process
-        .clear()
-        .on(['npm'], { code, stdout: '', stderr: '' })
-        .on(['example-log'], { code: 0, stdout: version, stderr: '' });
-      await expect(s.initialize.execute(s.input)).rejects.toMatchObject({
-        code: 'INIT_TOOL_INSTALL_FAILED',
-      });
-    }
+  it.each([
+    { outcome: 'npm fails', code: 1, version: '1.2.0' },
+    { outcome: 'the installed tool reports no version', code: 0, version: '' },
+    { outcome: 'the installed version is below the requirement', code: 0, version: '0.1.0' },
+  ])('fails initialization when $outcome', async ({ code, version }) => {
+    const s = setup();
+    s.process
+      .clear()
+      .on(['npm'], { code, stdout: '', stderr: '' })
+      .on(['example-log'], { code: 0, stdout: version, stderr: '' });
+    await expect(s.initialize.execute(s.input)).rejects.toMatchObject({
+      code: 'INIT_TOOL_INSTALL_FAILED',
+    });
+  });
+
+  it('lets an interruption through with the rows the installation had reached', async () => {
+    const s = setup();
+    const optIn = s.input.tools.find((tool) => tool.name === 'example-log')!;
+    const tools = ['alpha', 'beta', 'gamma'].map((name) => ({
+      ...optIn,
+      name,
+      binary: name,
+      install: [{ via: 'npm' as const, spec: name }],
+    }));
+    s.process
+      .clear()
+      .on(
+        ['npm', 'install', '-g', 'beta@latest'],
+        new DevkitError('internal', 'PROCESS_ABORTED', 'interrupted'),
+      )
+      .always({ code: 0, stdout: '1.2.3', stderr: '' });
+    await expect(
+      s.initialize.execute({ ...s.input, tools, trust: { ...s.input.trust, yes: true } }),
+    ).rejects.toMatchObject({
+      code: 'PROCESS_ABORTED',
+      partialResult: {
+        tool_install: [
+          { name: 'alpha', status: 'done', version_after: '1.2.3' },
+          {
+            name: 'beta',
+            status: 'failed',
+            phase: 'install',
+            failure: { code: 'PROCESS_ABORTED' },
+          },
+          { name: 'gamma', status: 'not_started', ran: false },
+        ],
+      },
+    });
   });
 });
