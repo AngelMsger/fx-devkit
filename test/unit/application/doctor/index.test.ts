@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
-import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
 import type { HarnessSession } from '../../../../src/application/harness/session.js';
@@ -23,6 +21,7 @@ import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
@@ -30,6 +29,7 @@ import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeHarnessState } from '../../../fakes/fake-harness.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import type { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeRegistry } from '../../../fakes/fake-registry.js';
 import {
@@ -176,10 +176,9 @@ async function stage(
   const { prompter } = h;
   prompter.unavailable = false;
   const setup: LoginDeps = {
-    serviceProtocol: new FamilyServiceProtocol(),
+    ...fakeLoginDeps({}),
     describeProvider: options.describeProvider ?? ((id) => DESCRIPTORS[id]),
     prompter,
-    clock: new FakeClock(),
     home: HOME,
   };
   const registry = new FakeRegistry('1.0.0');
@@ -202,7 +201,7 @@ async function stage(
         bundledSkillDir: bundledSkill.dir,
         globalLock: new FakeLock(),
       },
-      bundledTools: readBundled,
+      bundledTools,
       updates: {
         fx: new FxUpdateCheck(probe, () => registry),
         manifest: new ManifestUpdateCheck(probe, h.git),
@@ -266,10 +265,6 @@ async function stage(
       posture: { readOnly: false, source: 'default' },
     });
   return s;
-}
-
-function readBundled(): string {
-  return readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
 }
 
 // What the lifecycle repairs wrote: projected files and the receipts that own them.
@@ -512,13 +507,13 @@ describe('Doctor', () => {
       describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
     });
     s.h.process.binaries.add('kubectl');
-    const calls = s.h.process.run.bind(s.h.process);
-    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
-      if (vector.includes('get-contexts')) return { code: 0, stdout: 'dev', stderr: '' };
-      if (vector.includes('can-i'))
-        return { code: 1, stdout: '', stderr: 'error: You must be logged in (Unauthorized)' };
-      return calls(vector, options);
-    });
+    s.h.process
+      .override((vector) => vector.includes('get-contexts'), { code: 0, stdout: 'dev', stderr: '' })
+      .override((vector) => vector.includes('can-i'), {
+        code: 1,
+        stdout: '',
+        stderr: 'error: You must be logged in (Unauthorized)',
+      });
     const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
     expect(report.findings.find((f) => f.id === 'kubectl.access@dev')).toMatchObject({
       message: 'error: You must be logged in (Unauthorized)',
@@ -542,12 +537,11 @@ describe('Doctor', () => {
     const s = await stage({
       describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
     });
-    const calls = s.h.process.run.bind(s.h.process);
-    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) =>
-      vector.includes('get-contexts')
-        ? { code: 1, stdout: '', stderr: 'error: context dev not found\n' }
-        : calls(vector, options),
-    );
+    s.h.process.override((vector) => vector.includes('get-contexts'), {
+      code: 1,
+      stdout: '',
+      stderr: 'error: context dev not found\n',
+    });
     const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
     expect(
       report.preparation.blockers.find((c) => c.id === 'login:kubectl.kubeconfig@dev')?.actions,
@@ -564,14 +558,12 @@ describe('Doctor', () => {
     const s = await stage({
       describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
     });
-    const calls = s.h.process.run.bind(s.h.process);
-    const run = vi
-      .spyOn(s.h.process, 'run')
-      .mockImplementation(async (vector, options) =>
-        vector[0] === 'kubectl' && vector[1] !== 'version'
-          ? { code: 127, stdout: '', stderr: 'command not found: kubectl\n', notStarted: true }
-          : calls(vector, options),
-      );
+    s.h.process.override((vector) => vector[0] === 'kubectl' && vector[1] !== 'version', {
+      code: 127,
+      stdout: '',
+      stderr: 'command not found: kubectl\n',
+      notStarted: true,
+    });
     const report = await s.doctor.execute({ ...check, tools: ['kubectl'] });
     const finding = report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev');
     expect(finding).toMatchObject({
@@ -580,7 +572,7 @@ describe('Doctor', () => {
       fix: 'fx tool install kubectl --workspace fx',
     });
     expect(finding).not.toHaveProperty('handoff');
-    expect(run.mock.calls.some(([vector]) => vector.includes('can-i'))).toBe(false);
+    expect(s.h.process.calls.some((call) => call.vector.includes('can-i'))).toBe(false);
 
     const inspect = {
       actor: 'agent',
@@ -606,57 +598,53 @@ describe('Doctor', () => {
     ).toEqual([]);
   });
 
-  it.each([[['role', 'token']], [['token', 'role']]])(
-    'hands nobody a step that waits on an unanswered check, whatever else it waits on: %j',
-    async (requires) => {
-      const manual = (id: string, needs: readonly string[] = []): SetupRecipe => ({
-        id,
-        tool: 'bitbucket-cli',
-        perEnv: false,
-        kind: 'manual',
-        title: `Confirm ${id}`,
-        verify: { command: ['check', id] },
-        requires: needs,
-      });
-      const recipes = [manual('role'), manual('token'), manual('quota', requires)];
-      const s = await stage({
-        describeProvider: (id) =>
-          id === 'bitbucket-cli' ? { ...DESCRIPTORS[id]!, recipes } : DESCRIPTORS[id],
-      });
-      const calls = s.h.process.run.bind(s.h.process);
-      vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
-        if (!vector.includes('check')) return calls(vector, options);
-        if (vector.includes('token'))
-          throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'bitbucket-cli did not finish');
-        return { code: 1, stdout: '', stderr: 'role missing' };
-      });
-      const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
-      const blockers = Object.fromEntries(report.preparation.blockers.map((c) => [c.id, c]));
-      // The failure that was established is still a person's; the step behind both is not.
-      expect(blockers['login:bitbucket-cli.role']).toMatchObject({
-        state: 'blocked',
-        owner: 'user',
-      });
-      expect(blockers['login:bitbucket-cli.quota']).toMatchObject({
-        state: 'unknown',
-        actions: [],
-      });
-    },
-  );
+  it('hands nobody a step that waits on a failed check and an unanswered one', async () => {
+    const manual = (id: string, needs: readonly string[] = []): SetupRecipe => ({
+      id,
+      tool: 'bitbucket-cli',
+      perEnv: false,
+      kind: 'manual',
+      title: `Confirm ${id}`,
+      verify: { command: ['check', id] },
+      requires: needs,
+    });
+    // The failed check is listed first; the unanswered one still decides whose the step is.
+    const recipes = [manual('role'), manual('token'), manual('quota', ['role', 'token'])];
+    const s = await stage({
+      describeProvider: (id) =>
+        id === 'bitbucket-cli' ? { ...DESCRIPTORS[id]!, recipes } : DESCRIPTORS[id],
+    });
+    // The later override is tried first: every check fails but the token's, which never ends.
+    s.h.process
+      .override(['bitbucket-cli', 'check'], { code: 1, stdout: '', stderr: 'role missing' })
+      .override(
+        ['bitbucket-cli', 'check', 'token'],
+        new DevkitError('internal', 'PROCESS_TIMEOUT', 'bitbucket-cli did not finish'),
+      );
+    const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
+    const blockers = Object.fromEntries(report.preparation.blockers.map((c) => [c.id, c]));
+    // The failure that was established is still a person's; the step behind both is not.
+    expect(blockers['login:bitbucket-cli.role']).toMatchObject({
+      state: 'blocked',
+      owner: 'user',
+    });
+    expect(blockers['login:bitbucket-cli.quota']).toMatchObject({
+      state: 'unknown',
+      actions: [],
+    });
+  });
 
   it('asks nobody to sign in for a check that could not finish', async () => {
     const s = await stage({ healthy: true });
-    const run = s.h.process.run.bind(s.h.process);
-    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
-      if (vector[0] === 'bitbucket-cli' && vector[1] === 'auth')
-        throw new DevkitError(
-          'internal',
-          'PROCESS_TIMEOUT',
-          'bitbucket-cli did not finish within 30000ms',
-          { nextSteps: ['Retry.'] },
-        );
-      return run(vector, options);
-    });
+    s.h.process.override(
+      ['bitbucket-cli', 'auth'],
+      new DevkitError(
+        'internal',
+        'PROCESS_TIMEOUT',
+        'bitbucket-cli did not finish within 30000ms',
+        { nextSteps: ['Retry.'] },
+      ),
+    );
     const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
     expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')).toMatchObject({
       coverage: 'incomplete',
@@ -696,39 +684,52 @@ describe('Doctor', () => {
     expect(report.summary.ok).toBeGreaterThan(5);
   });
 
-  it('counts every check for a watcher, one that fails or is withheld included', async () => {
-    for (const s of [await stage({ healthy: true }), await stage()]) {
-      const report = await s.doctor.execute(check);
-      const counts = s.h.activity.of('checks');
-      const last = counts.at(-1)!;
-      expect(last.completed).toBe(last.total);
-      expect(last.active).toEqual([]);
-      // The groups that are one check each, then one per tool and per sign-in step.
-      expect(last.total).toBeGreaterThan(report.findings.filter((f) => f.group === 'login').length);
-      expect(s.h.activity.counts.at(-1)).toEqual({ id: 'checks', count: undefined });
-    }
+  it.each([
+    ['on a healthy machine', { healthy: true }],
+    ['when some fail or are withheld', {}],
+  ])('counts every check for a watcher %s', async (_when, options) => {
+    const s = await stage(options);
+    const report = await s.doctor.execute(check);
+    const counts = s.h.activity.of('checks');
+    const last = counts.at(-1)!;
+    expect(last.completed).toBe(last.total);
+    expect(last.active).toEqual([]);
+    // The groups that are one check each, then one per tool and per sign-in step.
+    expect(last.total).toBeGreaterThan(report.findings.filter((f) => f.group === 'login').length);
+    expect(s.h.activity.counts.at(-1)).toEqual({ id: 'checks', count: undefined });
   });
 
-  it('with --fix, repairs owned Skills but leaves personal authentication and operator files for the user', async () => {
+  // A repair that reaches a sign-in, an operator's file and the Skills fx owns, all missing.
+  const repair: DoctorInput = {
+    ...check,
+    fix: true,
+    tools: ['bitbucket-cli', 'kubectl'],
+    envs: ['dev'],
+  };
+
+  it('with --fix, repairs the Skills it owns', async () => {
     const s = await stage({ yes: true });
+    const report = await s.doctor.execute(repair);
+    expect(report.findings.find((f) => f.id === 'claude-code:review')?.level).toBe('ok');
+  });
+
+  it('with --fix, leaves personal authentication and operator files for the user', async () => {
+    const s = await stage({ yes: true });
+    // Another environment's kubeconfig is in place; the one the repair covers is not.
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'k');
-    const report = await s.doctor.execute({
-      ...check,
-      fix: true,
-      tools: ['bitbucket-cli', 'kubectl'],
-      envs: ['dev'],
-    });
+    const report = await s.doctor.execute(repair);
     expect(report.findings.find((f) => f.id === 'bitbucket-cli.login')?.level).toBe('fail');
     expect(report.findings.find((f) => f.id === 'kubectl.kubeconfig@dev')?.level).toBe('fail');
-    expect(report.findings.find((f) => f.id === 'claude-code:review')?.level).toBe('ok');
     expect(s.h.process.calls.some((c) => c.vector[2] === 'login')).toBe(false);
     expect(s.prompter.questions).toEqual([]);
+  });
 
-    const dry = await stage({ yes: true });
-    await dry.doctor.execute({ ...check, fix: true, dryRun: true, tools: ['bitbucket-cli'] });
-    expect(dry.h.process.calls.some((c) => c.vector[2] === 'login')).toBe(false);
-    expect(dry.h.localStore.writes).toEqual([]);
-    expect(dry.h.fs.links.size).toBe(0);
+  it('with --fix --dry-run, signs nobody in, records nothing and links no Skill', async () => {
+    const s = await stage({ yes: true });
+    await s.doctor.execute({ ...check, fix: true, dryRun: true, tools: ['bitbucket-cli'] });
+    expect(s.h.process.calls.some((c) => c.vector[2] === 'login')).toBe(false);
+    expect(s.h.localStore.writes).toEqual([]);
+    expect(s.h.fs.links.size).toBe(0);
   });
 
   it('refuses --fix under read-only posture but still diagnoses without it', async () => {

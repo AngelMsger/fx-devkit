@@ -2,15 +2,15 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import type { StageResult } from '../../../../src/application/preparation.js';
 import { runStage, type SyncStageInput } from '../../../../src/application/sync/stages.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
+import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
+
 const blocked = (result: StageResult) =>
   result.checks.some((check) => check.required && ['blocked', 'unknown'].includes(check.state));
-import { FakeClock } from '../../../fakes/fake-clock.js';
-import { FakeLock } from '../../../fakes/fake-lock.js';
-import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
 
 interface StageOptions {
   readonly active?: boolean;
@@ -49,13 +49,7 @@ async function stage(options: StageOptions = {}) {
   const input: SyncStageInput = {
     deps: h.deps,
     dryRun: false,
-    login: {
-      serviceProtocol: new FamilyServiceProtocol(),
-      describeProvider: (id) => describeProvider(id),
-      prompter: h.prompter,
-      clock: new FakeClock(),
-      home: '/home',
-    },
+    login: { ...fakeLoginDeps({}), describeProvider, prompter: h.prompter },
     skills: { hosts: [], configured: [], bundledSkillDir: '/skills', globalLock: new FakeLock() },
   };
   return { h, run: () => runStage('tools', input) };
