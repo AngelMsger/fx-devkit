@@ -199,8 +199,9 @@ source defers content-dependent effects. Actual success returns `tool_install`
 records. Missing installers, trust refusal, failed installs and
 unverified/below-minimum installed versions stop init with an error; the source
 registration may already exist and the same invocation can be retried. Normal
-`sync` never installs packages, and neither do lifecycle hooks; its services stage
-prepares declared public settings. npm owns Registry authentication.
+`sync` never installs packages; its services stage prepares declared public
+settings. Lifecycle hooks never install packages either. npm owns Registry
+authentication.
 
 ## Tool installation evidence
 
