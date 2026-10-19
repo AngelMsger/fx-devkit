@@ -4,6 +4,8 @@
 
 import { LineCounter, parseDocument } from 'yaml';
 
+import { isRecord } from '../values.js';
+
 import type { Problem } from './types.js';
 
 export type PathPart = string | number;
@@ -29,7 +31,8 @@ export function parseManifest(
   }));
   const raw = doc.toJS() as unknown;
   if (syntax.length > 0) return { problems: syntax };
-  if (!isRaw(raw)) return { problems: [{ path: '(root)', message: 'document must be a mapping' }] };
+  if (!isRecord(raw))
+    return { problems: [{ path: '(root)', message: 'document must be a mapping' }] };
   const lineOf: LineOf = (path) => {
     const node = doc.getIn(toParts(path), true) as { range?: [number, number, number] } | undefined;
     return node?.range === undefined ? undefined : lines.linePos(node.range[0]).line;
@@ -44,7 +47,7 @@ export function formatPath(parts: readonly PathPart[]): string {
   }, '');
 }
 
-export function toParts(path: string): PathPart[] {
+function toParts(path: string): PathPart[] {
   const parts: PathPart[] = [];
   for (const segment of path.split('.')) {
     const match = /^([^[]*)((?:\[\d+\])*)$/.exec(segment);
@@ -53,8 +56,4 @@ export function toParts(path: string): PathPart[] {
     for (const index of match[2]?.match(/\d+/g) ?? []) parts.push(Number(index));
   }
   return parts;
-}
-
-export function isRaw(value: unknown): value is Raw {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

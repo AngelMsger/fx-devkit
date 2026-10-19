@@ -68,12 +68,6 @@ export function shellEnvironmentLine(
     : shellLine(['powershell', '-NoProfile', '-Command', script], 'cmd');
 }
 
-export function changeDirectoryCommand(root: string, shell: ResolvedShell = 'posix'): string {
-  if (shell === 'powershell') return `Set-Location -LiteralPath ${powershellQuote(root)}`;
-  if (shell === 'cmd') return `cd /d ${root.replace(/([()%!^"<>&|\s])/g, '^$1')}`;
-  return `cd ${shellLine([root])}`;
-}
-
 function cmdQuote(arg: string): string {
   // cmd consumes carets before the native executable parses its command line.
   const quoted = '"' + arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1') + '"';

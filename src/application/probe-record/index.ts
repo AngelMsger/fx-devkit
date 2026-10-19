@@ -6,6 +6,7 @@ import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../../domain/obs/observation.js';
 import { confidenceForProbe } from '../../domain/obs/probe.js';
+import { isLostWrite } from '../../domain/projection.js';
 import { shellLine } from '../../domain/shell.js';
 import { Where, type WhereRow } from '../readiness/where.js';
 import { assertWritable } from '../safety/posture.js';
@@ -85,7 +86,7 @@ export class ProbeRecord {
       before: plan.environmentSnapshot,
       text,
     });
-    if (result === 'conflict' || result === 'busy') throw probeChangedError();
+    if (isLostWrite(result)) throw probeChangedError();
     return {
       ...output,
       action: result === 'written' ? 'recorded' : 'unchanged',

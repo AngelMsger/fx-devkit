@@ -1,5 +1,6 @@
 // Build the shared synchronization plan from checkout facts; offline previews do not query providers or mutate caches.
 import { DevkitError } from '../../domain/errors.js';
+import { messageOf } from '../../domain/values.js';
 import {
   planSync,
   type DiskState,
@@ -88,7 +89,7 @@ async function resolvePlanningUser(deps: WorkspaceDeps): Promise<string | undefi
       throw err;
     deps.reporter.notice({
       code: 'CODE_HOST_USER_UNKNOWN',
-      message: `no origin remote can be set: ${err instanceof Error ? err.message : String(err)}`,
+      message: `no origin remote can be set: ${messageOf(err)}`,
       nextSteps: ['fx config set user <your code-host user name>', 'fx repo fork <name>'],
     });
     return undefined;

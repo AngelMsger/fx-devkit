@@ -241,8 +241,8 @@ export class Import {
   private async prefetch(
     later: readonly RepoObservation[],
     seen: readonly string[],
-  ): Promise<Map<string, ProbeOutcome>> {
-    const answers = new Map<string, ProbeOutcome>();
+  ): Promise<Map<string, RepoPresence>> {
+    const answers = new Map<string, RepoPresence>();
     const hosts = new Map<string, Promise<CodeHost | undefined>>();
     for (const obs of later) {
       const host = hostOf(obs.remotes['origin'] ?? '');
@@ -259,9 +259,9 @@ export class Import {
   }
 }
 
-type ProbeOutcome = 'readable' | 'absent' | 'unknown';
+type RepoPresence = 'readable' | 'absent' | 'unknown';
 
-async function probe(codeHost: CodeHost, project: string, name: string): Promise<ProbeOutcome> {
+async function probe(codeHost: CodeHost, project: string, name: string): Promise<RepoPresence> {
   try {
     return outcomeOf(await codeHost.canRead({ project, name }));
   } catch {
@@ -272,7 +272,7 @@ async function probe(codeHost: CodeHost, project: string, name: string): Promise
 // Only `readable` names an upstream and only `missing` rules a project out. A
 // query that could not be completed, or that was refused, leaves the project
 // unsettled, and an unsettled project never counts as an absence.
-function outcomeOf(readability: Readability): ProbeOutcome {
+function outcomeOf(readability: Readability): RepoPresence {
   if (readability === 'readable') return 'readable';
   return readability === 'missing' ? 'absent' : 'unknown';
 }
@@ -281,7 +281,7 @@ function outcomeOf(readability: Readability): ProbeOutcome {
 // match never entered the decision.
 function unsettledProjects(
   seen: readonly string[],
-  answers: ReadonlyMap<string, ProbeOutcome>,
+  answers: ReadonlyMap<string, RepoPresence>,
   name: string,
   matched: string | undefined,
 ): string[] {

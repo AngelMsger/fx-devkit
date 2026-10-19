@@ -17,6 +17,7 @@ import { harnessSchema, mcpSchema } from './harness.schema.js';
 import { localSchema } from './local.schema.js';
 import { membersSchema } from './members.schema.js';
 import { mergeTools, splitNulls, type Provenance } from './overlay.js';
+import { droppedEntryOf } from './quarantine.js';
 import {
   environmentsRules,
   obsReferenceRules,
@@ -165,8 +166,8 @@ export function loadTools(
   const retainedDrops = base.dropped.filter(
     (entry) => !result.doc?.tools.some((tool) => tool.name === entry.name),
   );
-  const retainedProblems = base.problems.filter((problem) =>
-    retainedDrops.some((entry) => entry.reason.includes(`${problem.path}: ${problem.message}`)),
+  const retainedProblems = base.problems.filter(
+    (problem) => droppedEntryOf(problem, retainedDrops) !== undefined,
   );
   return {
     ...result,

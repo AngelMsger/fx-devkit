@@ -7,6 +7,7 @@ import type { Binding, PlatformBinding } from '../../domain/manifest/providers.j
 import type { SetupStep } from '../../domain/setup/types.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { Pending } from '../login/handoff.js';
+import type { ToolState } from '../tool/check.js';
 
 export type ReadyStatus =
   | 'ready'
@@ -18,7 +19,7 @@ export type ReadyStatus =
   | 'not_covered'
   | 'unknown';
 
-export type ToolState = 'ok' | 'missing' | 'outdated' | 'disabled' | 'unknown' | 'untrusted';
+export type ToolReadiness = ToolState | 'untrusted';
 
 // A step that keeps a target from being ready, with what is known about why.
 export interface PendingStep {

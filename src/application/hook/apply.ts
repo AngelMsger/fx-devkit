@@ -1,11 +1,11 @@
 // Writes planned entries under the caller's hooks lease and records what survived.
 
+import { hookActionState } from '../../domain/harness/actions.js';
 import type { HookReceipt, HookState } from '../../domain/harness/state.js';
+import { isLostWrite } from '../../domain/projection.js';
 
 import { ownedReceipts } from './plan.js';
 import type { HookDeps, HookOutput, HookPlan, HookRow, ReconcileInput } from './types.js';
-
-const UNFINISHED = ['busy', 'conflict', 'foreign', 'invalid'];
 
 export async function applyHookPlan(
   deps: HookDeps,
@@ -27,9 +27,9 @@ export async function applyHookPlan(
     });
     items.push({
       ...item.row,
-      ...(result === 'busy' || result === 'conflict' ? { action: result } : {}),
+      ...(isLostWrite(result) ? { action: result } : {}),
     });
-    if (result === 'busy' || result === 'conflict') continue;
+    if (isLostWrite(result)) continue;
     const at = receipts.findIndex((r) => r.agent === item.receipt!.agent);
     if (at >= 0) receipts.splice(at, 1);
     if (item.row.action !== 'remove') receipts.push(item.receipt);
@@ -69,7 +69,7 @@ async function commitPreference(
   input: ReconcileInput,
   items: readonly HookRow[],
 ): Promise<void> {
-  const complete = items.every((item) => !UNFINISHED.includes(item.action));
+  const complete = items.every((item) => hookActionState(item.action) !== 'blocked');
   if (complete && (input.action === 'inject' || input.action === 'remove')) {
     await deps.local.update(input.workspace, (local) => ({
       ...local,

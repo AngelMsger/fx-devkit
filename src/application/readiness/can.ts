@@ -10,6 +10,7 @@ import {
 import { DevkitError } from '../../domain/errors.js';
 import {
   bindingOf,
+  platformOf,
   servesCapability,
   type Binding,
   type PlatformBinding,
@@ -97,7 +98,7 @@ export class Can {
       this.bindingsOf(capability).map((binding) => ({
         capability,
         scope: CAPABILITY_INFO[capability].scope,
-        platform: 'platform' in binding ? binding.platform : null,
+        platform: platformOf(binding),
         provider: binding.provider,
         tool: readiness.targetOf(binding)?.tool?.name ?? null,
         desc: CAPABILITY_INFO[capability].desc,

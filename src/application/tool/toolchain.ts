@@ -32,7 +32,7 @@ export function toolchainOf(ctx: WorkspaceContext): Toolchain {
 
 // Installing is a machine-wide act, so the toolchain spans every environment the manifest
 // declares. Narrowing to the selected ones belongs to the checks that run per environment.
-export function boundToolchain(ctx: WorkspaceContext): KeyedBinding[] {
+function boundToolchain(ctx: WorkspaceContext): KeyedBinding[] {
   return [...ctx.bindings.map(keyedBinding), ...ctx.platforms.map(keyedPlatform)];
 }
 

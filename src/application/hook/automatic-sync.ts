@@ -3,6 +3,7 @@
 // upstream; dated evidence never asserts current tool readiness.
 
 import { asDevkitError } from '../../domain/errors.js';
+import { SESSION_BURST_MS } from '../../domain/harness/deadlines.js';
 import type { HookObservation, HookState } from '../../domain/harness/state.js';
 import { samePath } from '../../domain/path.js';
 import type { Clock } from '../../ports/clock.js';
@@ -60,7 +61,7 @@ export class AutomaticSync {
       previous?.lastAttempt !== null &&
       previous?.lastAttempt !== undefined &&
       now - previous.lastAttempt >= 0 &&
-      now - previous.lastAttempt < 15000
+      now - previous.lastAttempt < SESSION_BURST_MS
     )
       return;
     const refreshAt = previous?.lastRefresh;

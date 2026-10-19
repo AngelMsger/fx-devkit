@@ -2,7 +2,7 @@
 // keys, later repos, tools and agents. One implementation so the correction
 // reads the same everywhere.
 
-export function levenshtein(a: string, b: string): number {
+function levenshtein(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const current = [i];

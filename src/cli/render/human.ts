@@ -3,6 +3,7 @@
 
 import { checkNote, type ErrorEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
 import { shellLine, type ResolvedShell } from '../../domain/shell.js';
+import { isRecord } from '../../domain/values.js';
 import type { DiagnosticEvent } from '../../ports/diagnostics.js';
 import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
@@ -101,10 +102,6 @@ export function humanRecord(value: object, display: Display, describe: Describer
     return [`${padded(display, 'quiet', key, width)}  ${display.paint(role, text)}`.trimEnd()];
   };
   return entries.flatMap(([key, item]) => field(key, item)).join('\n');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isRecordList(value: unknown): value is Record<string, unknown>[] {

@@ -4,6 +4,7 @@ import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import { messageOf } from '../../domain/values.js';
 import type { RepoState } from '../../domain/workspace/state.js';
 import type { FileReader } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
@@ -157,7 +158,7 @@ export class GitRepoSource implements ManifestSource {
       throw new DevkitError(
         'network',
         'MANIFEST_REFRESH_FAILED',
-        `Could not fetch the manifest repository into ${dir}: ${err instanceof Error ? err.message : String(err)}`,
+        `Could not fetch the manifest repository into ${dir}: ${messageOf(err)}`,
         {
           hint: 'The manifest repository must be reachable with your git credentials.',
           nextSteps: [`git -C ${dir} fetch upstream`],

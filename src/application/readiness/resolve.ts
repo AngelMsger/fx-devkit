@@ -12,6 +12,7 @@ import {
 import { DevkitError } from '../../domain/errors.js';
 import { nearest } from '../../domain/fuzzy.js';
 import {
+  platformOf,
   servesCapability,
   type Binding,
   type PlatformBinding,
@@ -224,18 +225,19 @@ function selectBinding(
   name: string,
 ): Binding | PlatformBinding | null {
   let scoped = candidates;
-  if (env !== undefined && candidates.some((binding) => 'platform' in binding)) {
+  if (env !== undefined && candidates.some((binding) => platformOf(binding) !== null)) {
     const environments = environmentsOf(deps.ctx, deps.commandShell);
     const spec = environments.envs[env];
     if (spec === undefined) throw envNotFound(deps, env, Object.keys(environments.envs));
-    const covered = candidates.filter(
-      (b) => !('platform' in b) || spec.platforms?.[b.platform] !== undefined,
-    );
+    const covered = candidates.filter((b) => {
+      const platform = platformOf(b);
+      return platform === null || spec.platforms?.[platform] !== undefined;
+    });
     // Retain a single uncovered binding so coverage remains a negative verdict.
     if (covered.length > 0) scoped = covered;
   }
   if (scoped.length > 1) {
-    const names = scoped.map((b) => ('platform' in b ? b.platform : b.capability)).sort();
+    const names = scoped.map((b) => platformOf(b) ?? b.capability).sort();
     throw new DevkitError(
       'usage',
       'CAN_AMBIGUOUS',

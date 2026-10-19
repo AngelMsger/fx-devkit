@@ -1,5 +1,6 @@
 // Plans resource edits from declarations and current ownership evidence.
 
+import type { HarnessAction } from '../../domain/harness/actions.js';
 import { referencedVariables } from '../../domain/harness/mcp.js';
 import type { HarnessReceipt, HarnessState } from '../../domain/harness/ownership.js';
 import type { RulesProjectionResult } from '../../domain/harness/rules.js';
@@ -63,7 +64,7 @@ async function planTarget(
     variables: target.resource ? referencedVariables(target.resource) : [],
     handoff: null,
   };
-  const blocked = (action: string, message: string) => ({
+  const blocked = (action: HarnessAction, message: string) => ({
     row: { ...row, action, handoff: harnessHandoff(message) },
     change: null,
     trusts: [],
@@ -165,16 +166,10 @@ async function finishTarget({
   const trusts: TrustInput[] = [];
   for (const request of required) if (!(await deps.trust.isTrusted(request))) trusts.push(request);
   const trusted = trusts.length === 0;
-  let action = 'unchanged';
-  if (change) action = receipt === undefined ? 'created' : 'updated';
-  if (change && target.remove) action = 'removed';
-  // Last, so it wins: an unapproved vector is what the row has to say, whatever the
-  // change would otherwise have been called.
-  if (!trusted) action = 'untrusted';
   return {
     row: {
       ...row,
-      action,
+      action: plannedAction({ trusted, changed: change !== null, target, receipt }),
       handoff: trusted
         ? null
         : harnessHandoff(
@@ -184,6 +179,19 @@ async function finishTarget({
     change,
     trusts,
   };
+}
+function plannedAction(input: {
+  readonly trusted: boolean;
+  readonly changed: boolean;
+  readonly target: HarnessTarget;
+  readonly receipt: HarnessReceipt | undefined;
+}): HarnessAction {
+  // An unapproved vector is what the row has to say, whatever the change would
+  // otherwise have been called.
+  if (!input.trusted) return 'untrusted';
+  if (!input.changed) return 'unchanged';
+  if (input.target.remove) return 'removed';
+  return input.receipt === undefined ? 'created' : 'updated';
 }
 export function mcpTrust(
   input: Pick<HarnessInput, 'workspace' | 'posture' | 'yes'>,

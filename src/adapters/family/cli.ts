@@ -4,6 +4,7 @@
 
 import { type Category, DevkitError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
+import { isRecord } from '../../domain/values.js';
 import type { Process, ProcessResult } from '../../ports/process.js';
 
 import { serviceFlags } from './service.js';
@@ -151,9 +152,7 @@ export function unreadableError(binary: string, what: string): DevkitError {
 }
 
 export function objectOf(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 // A family list answer is `{items, has_more, next?}`; a bare array is accepted

@@ -1,6 +1,8 @@
 // `--fields` projection. It only shapes what is printed; nothing upstream
 // (queries, pagination) knows it exists.
 
+import { isRecord } from '../../domain/values.js';
+
 export function parseFields(flag: string | undefined): string[] | undefined {
   const fields = (flag ?? '')
     .split(',')
@@ -36,10 +38,6 @@ function lookup(value: unknown, path: readonly string[]): Lookup {
   }
   if (!isRecord(value) || !(head in value)) return { present: false };
   return lookup(value[head], rest);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // Absence is a notice, not a schema rejection: optional and dynamic fields

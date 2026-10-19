@@ -1,8 +1,11 @@
 // Connects harness projection and readiness to sync and doctor.
 
 import { asDevkitError, DevkitError } from '../../domain/errors.js';
+import { harnessActionState } from '../../domain/harness/actions.js';
+import type { HarnessKind } from '../../domain/harness/ownership.js';
 import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
+import { countBy } from '../../domain/values.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
 import type { StageResult } from '../sync/types.js';
@@ -49,9 +52,8 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
 export function harnessStage(command: ManageHarness): () => Promise<StageResult> {
   return async () => {
     const result = await manageHarness(command);
-    const summary: Record<string, number> = {};
-    for (const row of result.items) {
-      summary[row.action] = (summary[row.action] ?? 0) + 1;
+    const summary = countBy(result.items, (row) => row.action);
+    for (const row of result.items)
       if (row.handoff)
         command.resolve.reporter.notice({
           code: 'HARNESS_NOT_READY',
@@ -59,19 +61,16 @@ export function harnessStage(command: ManageHarness): () => Promise<StageResult>
           nextSteps: ['fx doctor'],
           data: { handoff: row.handoff },
         });
-    }
-    const checks = result.items.map((row) => {
-      let state: 'ready' | 'skipped' | 'blocked' = 'blocked';
-      if (['created', 'updated', 'unchanged', 'removed'].includes(row.action)) state = 'ready';
-      if (row.action === 'unsupported') state = 'skipped';
-      return preparationCheck(`harness:${row.key}`, state, `${row.name}: ${row.action}`, {
-        resource: row.name,
-        required: row.kind === 'rules',
-        owner: 'user',
-      });
-    });
+    const checks = result.items.map((row) =>
+      preparationCheck(
+        `harness:${row.key}`,
+        harnessActionState(row.action),
+        `${row.name}: ${row.action}`,
+        { resource: row.name, required: row.kind === 'rules', owner: 'user' },
+      ),
+    );
     const activation = result.items
-      .filter((row) => row.kind === 'mcp' && row.action !== 'unsupported')
+      .filter((row) => row.kind === 'mcp' && harnessActionState(row.action) !== 'skipped')
       .map((row) =>
         preparationCheck(
           `activation:${row.key}`,
@@ -88,7 +87,7 @@ export function harnessStage(command: ManageHarness): () => Promise<StageResult>
     };
   };
 }
-export function harnessDoctor(command: HarnessSession, kind: 'mcp' | 'rules'): DoctorExtension {
+export function harnessDoctor(command: HarnessSession, kind: HarnessKind): DoctorExtension {
   return {
     group: kind,
     check: () => checkHarness(command, kind),
@@ -98,7 +97,7 @@ export function harnessDoctor(command: HarnessSession, kind: 'mcp' | 'rules'): D
   };
 }
 
-async function checkHarness(command: HarnessSession, kind: 'mcp' | 'rules') {
+async function checkHarness(command: HarnessSession, kind: HarnessKind) {
   try {
     const { deps, input } = await loadHarnessCommand(command);
     const output = await new ReconcileHarness(deps).execute({ ...input, only: kind });

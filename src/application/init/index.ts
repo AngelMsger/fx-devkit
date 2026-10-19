@@ -24,7 +24,13 @@ import { withWorkspaceOperation } from '../workspace/operation.js';
 import { assertDistinctWorkspaceRoot } from '../workspace/registry.js';
 import { scopeMode } from '../workspace/scope.js';
 
-import { initFailure, initializationSourceError, nameTaken, sourceMismatch } from './errors.js';
+import {
+  initFailure,
+  initializationSourceError,
+  nameTaken,
+  sourceMismatch,
+  type InitPhase,
+} from './errors.js';
 import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
@@ -146,7 +152,7 @@ export class Init {
   }
 
   private async apply({ output, config }: Plan, input: InitInput): Promise<InitOutput> {
-    let phase = 'manifest';
+    let phase: InitPhase = 'manifest';
     let registered = config.workspaces?.[output.name] !== undefined;
     let materialized = false;
     let prepared: object | null = null;

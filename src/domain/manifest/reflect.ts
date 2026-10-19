@@ -2,6 +2,8 @@
 
 import type * as z from 'zod';
 
+import { isRecord } from '../values.js';
+
 export interface FieldInfo {
   readonly type: string;
   readonly required: boolean;
@@ -162,7 +164,7 @@ export function stripUnknown(schema: AnySchema, value: unknown): Stripped {
         ? current
         : current.map((item, i) => visit(elements, item, [...path, i]));
     }
-    if (!isPlainObject(current)) return current;
+    if (!isRecord(current)) return current;
     const shapes = alternatives.flatMap((node) => {
       const shape = shapeOf(node);
       return shape === undefined ? [] : [shape];
@@ -208,8 +210,4 @@ export function acceptsNullAt(schema: AnySchema, path: readonly (string | number
     if (nodes.length === 0) return false;
   }
   return nodes.some((node) => node.safeParse(null).success);
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -17,6 +17,7 @@ import type {
   ProjectionSnapshot,
   ProjectionStore,
   ProjectionWrite,
+  ProjectionWriteResult,
 } from '../ports/projection.js';
 
 import { writeAtomicFile } from './atomic-file.js';
@@ -51,9 +52,7 @@ export class FileProjectionStore implements ProjectionStore, LinkProjectionStore
     }
   }
 
-  async writeLink(
-    input: LinkProjectionWrite,
-  ): Promise<'written' | 'unchanged' | 'conflict' | 'busy'> {
+  async writeLink(input: LinkProjectionWrite): Promise<ProjectionWriteResult> {
     if (input.before.kind !== 'link') return 'conflict';
     const file = path.resolve(input.root, input.relative);
     const lease = await this.lock.acquire({ key: `projection:${pathKey(file)}`, waitMs: 0 });
@@ -73,7 +72,7 @@ export class FileProjectionStore implements ProjectionStore, LinkProjectionStore
     }
   }
 
-  async write(input: ProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'> {
+  async write(input: ProjectionWrite): Promise<ProjectionWriteResult> {
     if (input.before.kind === 'foreign') return 'conflict';
     if (input.before.text === input.text) return 'unchanged';
     const file = path.resolve(input.root, input.relative);

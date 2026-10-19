@@ -7,6 +7,7 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../../domain/errors.js';
+import type { EffectOutcome } from '../../domain/outcome.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { ToolInstallation } from '../../domain/toolchain/installation.js';
 import {
@@ -58,7 +59,7 @@ export interface ToolInstallOutput {
   readonly code: number | null;
   readonly version_after: string | null;
   readonly error?: string;
-  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
+  readonly status?: EffectOutcome;
   readonly phase?: 'install' | 'version';
   readonly failure?: ErrorEnvelope['error'];
 }

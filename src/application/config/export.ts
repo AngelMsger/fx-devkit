@@ -2,7 +2,8 @@
 // personal layer, as one document stamped with the profile version.
 
 import { renderProfile } from '../../domain/config/codec.js';
-import { PROFILE_VERSION, profileConfig, type Profile } from '../../domain/config/profile.js';
+import { configFileSchema } from '../../domain/config/file.js';
+import { PROFILE_VERSION, type Profile } from '../../domain/config/profile.js';
 import type { Clock } from '../../ports/clock.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { ConfigStore, LocalLayerStore } from '../../ports/stores.js';
@@ -42,7 +43,7 @@ export class ConfigExport {
       fx_profile: PROFILE_VERSION,
       exported_at: this.deps.clock.now().toISOString(),
       // Unknown keys of config.yaml stay behind: only what the schema names travels.
-      config: profileConfig.parse(file),
+      config: configFileSchema.parse(file),
       workspaces,
     };
     const text = renderProfile(profile);

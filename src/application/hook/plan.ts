@@ -1,6 +1,7 @@
 // Plans one entry per selected host from its current file and ownership receipt.
 
 import { handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import type { HookAction } from '../../domain/harness/actions.js';
 import { BUILTIN_HOOKS } from '../../domain/harness/hooks.js';
 import type { HookReceipt, HookState } from '../../domain/harness/state.js';
 import { samePath } from '../../domain/path.js';
@@ -152,7 +153,7 @@ function projectionAction(
   remove: boolean,
   before: ProjectionSnapshot,
   text: string | null,
-): string {
+): HookAction {
   if (remove) return 'remove';
   if (before.text === text) return 'unchanged';
   return before.kind === 'absent' ? 'create' : 'update';

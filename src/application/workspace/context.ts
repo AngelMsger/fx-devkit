@@ -17,7 +17,7 @@ import { assertWorkspacePrepared, contextualWorkspaceError } from './health.js';
 import { resolveWorkspace, type Located, type ResolveInput } from './resolve.js';
 import { validateWorkspaceLayer } from './validate-layer.js';
 
-export interface LocateInput extends ResolveInput {
+export interface LocateWorkspaceInput extends ResolveInput {
   readonly allowMissingRoot?: boolean;
   readonly git: Pick<Git, 'remoteHead'>;
   readonly localStore: LocalLayerStore;
@@ -66,7 +66,7 @@ export class WorkspaceContext {
     return new WorkspaceContext(root, name, context, local, workspace, 'explicit');
   }
 
-  static async locate(input: LocateInput): Promise<WorkspaceContext> {
+  static async locate(input: LocateWorkspaceInput): Promise<WorkspaceContext> {
     const located = await resolveWorkspace(input);
     await assertWorkspacePrepared(input, located, input.allowMissingRoot);
     const context = await loadManifestContext({ ...input, dir: located.manifestDir }).catch(
@@ -97,7 +97,7 @@ export class WorkspaceContext {
 // The manifest checkout is a repository of the workspace when the source is
 // one; an entry of the same name in the manifest wins.
 async function manifestRepoOf(
-  input: LocateInput,
+  input: LocateWorkspaceInput,
   located: Located,
 ): Promise<ResolvedRepo | undefined> {
   const source = (await input.config.read()).workspaces?.[located.name]?.source;

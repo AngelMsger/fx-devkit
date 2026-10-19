@@ -4,11 +4,19 @@
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
 
+export const SERVICE_STATUSES = [
+  'unchanged',
+  'configured',
+  'planned',
+  'blocked',
+  'failed',
+] as const;
+
 export interface ServiceResult {
   readonly id: string;
   readonly tool: string;
   readonly env: string | null;
-  readonly status: 'unchanged' | 'configured' | 'planned' | 'blocked' | 'failed';
+  readonly status: (typeof SERVICE_STATUSES)[number];
   readonly detail: string;
   readonly changes?: Readonly<Record<string, unknown>>;
   readonly failure?: ErrorEnvelope['error'];

@@ -1,6 +1,7 @@
 // The three Skill product lines report one row per item: a linked team Skills
 // directory, a copied fx Skill, or an external tool asked to install its own.
 
+import type { EffectOutcome } from '../../domain/outcome.js';
 import type { CopyAction, LinkAction } from '../../domain/skills/projection.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
@@ -19,7 +20,7 @@ export interface SkillStageInput {
 }
 
 export interface ItemOutcome {
-  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
+  readonly status?: EffectOutcome;
   readonly failure?: Readonly<Record<string, unknown>>;
 }
 

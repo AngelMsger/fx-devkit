@@ -7,6 +7,7 @@ import type { ProviderFacts } from '../domain/manifest/providers.js';
 import type { ServiceSettings } from '../domain/manifest/service.schema.js';
 import type { ServiceDefinition } from '../domain/setup/service.js';
 import type { SetupRecipe } from '../domain/setup/types.js';
+import type { Vars } from '../domain/template.js';
 
 import type { Clock } from './clock.js';
 import type { FileSystem } from './fs.js';
@@ -23,8 +24,6 @@ export interface AdapterDeps {
   readonly fs: FileSystem;
   readonly clock: Clock;
 }
-
-export type Vars = Readonly<Record<string, string>>;
 
 export interface ProviderDescriptor<P> extends ProviderFacts {
   readonly recipes: readonly SetupRecipe[];

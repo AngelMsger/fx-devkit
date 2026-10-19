@@ -1,8 +1,8 @@
 // The three hook commands differ only in the action they ask for; what they
 // report about the workspace projection is one view.
 
-import { HARNESS_COLUMNS } from '../application/harness/types.js';
 import { manageHooks } from '../application/hook/session.js';
+import { HOOK_COLUMNS } from '../application/hook/types.js';
 import type { ReconcileInput } from '../application/hook/types.js';
 import { hookSession } from '../composition/hooks.js';
 
@@ -25,7 +25,7 @@ export abstract class HookCommand extends FxCommand {
       dryRun,
     });
     this.renderer.list(out.items, {
-      columns: HARNESS_COLUMNS,
+      columns: HOOK_COLUMNS,
       trailer: {
         workspace: out.workspace,
         root: out.root,

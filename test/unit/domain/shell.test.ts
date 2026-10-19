@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  changeDirectoryCommand,
-  resolveCommandShell,
-  shellLine,
-} from '../../../src/domain/shell.js';
+import { resolveCommandShell, shellLine } from '../../../src/domain/shell.js';
 
 describe('shellLine', () => {
   it('selects presentation independently of the operating system when overridden', () => {
@@ -15,10 +11,6 @@ describe('shellLine', () => {
     expect(shellLine(['tool', "it's $value; `command`"], 'powershell')).toBe(
       "& 'tool' 'it''s $value; `command`'",
     );
-    expect(changeDirectoryCommand('D:\\Work Space', 'powershell')).toBe(
-      "Set-Location -LiteralPath 'D:\\Work Space'",
-    );
-    expect(changeDirectoryCommand('D:\\Work Space', 'cmd')).toBe('cd /d D:\\Work^ Space');
   });
   it('quotes only what a shell would misread', () => {
     expect(shellLine(['kubectl', '-n', 'fx', 'get', 'pods'])).toBe('kubectl -n fx get pods');

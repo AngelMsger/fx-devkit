@@ -1,10 +1,11 @@
 // Session-start context is a bounded description of prior observations, never
 // a fresh readiness claim. Scheduling keeps bursts from spawning more workers.
 
+import { SESSION_BURST_MS } from './deadlines.js';
 import type { HookState } from './state.js';
 
 export function shouldScheduleSessionStart(ageMs: number): boolean {
-  return ageMs < 0 || ageMs >= 15000;
+  return ageMs < 0 || ageMs >= SESSION_BURST_MS;
 }
 
 export function describeSessionStart(input: {

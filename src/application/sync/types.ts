@@ -3,11 +3,20 @@
 // release does not implement is reported as such rather than silently skipped.
 
 import type { ErrorEnvelope } from '../../domain/errors.js';
+import type { EffectOutcome } from '../../domain/outcome.js';
 import type { Preparation, PreparationCheck } from '../../domain/preparation.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
 import type { WritePosture } from '../safety/posture.js';
 
 export type SyncStage = string;
+
+// Native activation stays optional: a failure in one of these stages is reported
+// without stopping a full sync or blocking its preparation.
+const ADVISORY_STAGES: readonly SyncStage[] = ['hooks', 'mcp'];
+
+export function isAdvisoryStage(stage: SyncStage): boolean {
+  return ADVISORY_STAGES.includes(stage);
+}
 
 export type StageSummary = Readonly<Record<string, number | string>>;
 
@@ -33,15 +42,13 @@ export interface SyncInput {
 }
 
 export interface SyncItem extends PlanItem {
-  readonly result: 'planned' | 'done' | 'skipped' | 'failed';
+  readonly result: Exclude<EffectOutcome, 'not_started'>;
   readonly outcome?: string;
   readonly origin_added?: boolean;
   readonly upstream_added?: boolean;
   readonly error?: string;
   readonly failure?: ErrorEnvelope['error'];
 }
-
-export const SYNC_COLUMNS = ['name', 'action', 'result', 'outcome', 'reason'] as const;
 
 export interface SyncSummary {
   readonly done: number;

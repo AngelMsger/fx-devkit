@@ -19,6 +19,7 @@ import type {
 import type { FileSystem } from '../../ports/fs.js';
 import type { Identifiers } from '../../ports/identifiers.js';
 import type { Lock } from '../../ports/lock.js';
+import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { ConfigStore, WorkspaceEntry } from '../../ports/stores.js';
 import type { WritePosture } from '../safety/posture.js';
@@ -55,7 +56,7 @@ export interface PushSourceDeps {
   readonly source: {
     readonly workspace: string;
     readonly dir: string;
-    readonly kind: 'repo' | 'file' | 'stdin';
+    readonly kind: ManifestSource['kind'];
   };
   readonly git: ContributionGit;
   readonly transport: ContributionTransport;

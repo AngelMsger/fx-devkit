@@ -6,7 +6,7 @@ import {
   type PreparationAction,
   type PreparationCheck,
 } from '../../domain/preparation.js';
-import type { PlanItem } from '../../domain/workspace/plan.js';
+import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
 import { workspacePreparation } from '../preparation.js';
@@ -17,7 +17,13 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import { checkoutDir } from '../workspace/inspect.js';
 import { planRepositories } from '../workspace/plan.js';
 
-import type { StageSummary, SyncInput, SyncItem, SyncOutput } from './types.js';
+import {
+  isAdvisoryStage,
+  type StageSummary,
+  type SyncInput,
+  type SyncItem,
+  type SyncOutput,
+} from './types.js';
 
 export class Sync {
   constructor(private readonly deps: WorkspaceDeps) {}
@@ -72,10 +78,10 @@ export class Sync {
           preparationCheck(stage, 'blocked', failure.message, {
             code: failure.code,
             failure: toEnvelope(failure).error,
-            required: input.only !== undefined || !['hooks', 'mcp'].includes(stage),
+            required: input.only !== undefined || !isAdvisoryStage(stage),
           }),
         );
-        if (input.only === undefined && ['hooks', 'mcp'].includes(stage)) continue;
+        if (input.only === undefined && isAdvisoryStage(stage)) continue;
         markPending(ordered.slice(index + 1), stage, stages, checks);
         throw withPartialResult(error, output());
       }
@@ -200,7 +206,7 @@ function repositoryChecks(items: readonly SyncItem[]): PreparationCheck[] {
       const ready =
         item.result !== 'failed' &&
         item.outcome !== 'diverged' &&
-        ['clone', 'fast_forward', 'skip_manifest'].includes(item.action);
+        leavesCheckoutUsable(item.action);
       let state: PreparationCheck['state'] = ready ? 'ready' : 'blocked';
       if (item.result === 'planned') state = 'unknown';
       return preparationCheck(
@@ -267,7 +273,7 @@ function markPending(
     stages[stage] = { status: 'not_started' };
     checks.push(
       preparationCheck(stage, 'blocked', `Not started after ${failedStage} failed`, {
-        required: !['hooks', 'mcp'].includes(stage),
+        required: !isAdvisoryStage(stage),
       }),
     );
   }

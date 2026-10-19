@@ -4,13 +4,20 @@ import path from 'node:path';
 
 import { CLAUDE_GUIDE, DERIVED_GUIDE, marker } from '../../domain/docs/derived.js';
 import { DevkitError } from '../../domain/errors.js';
+import {
+  harnessActionState,
+  hookActionState,
+  type HarnessAction,
+  type HookAction,
+} from '../../domain/harness/actions.js';
 import { samePath } from '../../domain/path.js';
+import { isLostWrite } from '../../domain/projection.js';
 import { GO_WORK, isDerivedGoWork } from '../../domain/workspace/go-work.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { LinkProjectionStore } from '../../ports/projection.js';
 import { applyHarnessChange, readHarnessState } from '../harness/apply.js';
 import { planHarness } from '../harness/plan.js';
-import type { HarnessDeps, HarnessInput } from '../harness/types.js';
+import type { HarnessDeps, HarnessInput, HarnessRow } from '../harness/types.js';
 import { ReconcileHooks } from '../hook/reconcile.js';
 import type { HookDeps } from '../hook/types.js';
 import type { WritePosture } from '../safety/posture.js';
@@ -25,11 +32,17 @@ export interface ResourceCleanupInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;
 }
-export interface ResourceCleanupRow {
-  readonly kind: string;
-  readonly path: string | null;
-  readonly action: string;
-}
+type FileKind = 'guide' | 'team_skills' | 'go_work';
+type FileAction = 'foreign' | 'retarget_shared' | 'remove' | 'preserved';
+export type ResourceCleanupRow =
+  | {
+      readonly kind: HarnessRow['kind'];
+      readonly path: string | null;
+      readonly action: HarnessAction | 'preserved_shared';
+    }
+  | { readonly kind: 'hook'; readonly path: string | null; readonly action: HookAction }
+  | { readonly kind: FileKind; readonly path: string; readonly action: FileAction }
+  | { readonly kind: 'workspace'; readonly path: string; readonly action: 'retained_unreachable' };
 export class WorkspaceResources {
   constructor(
     private readonly fs: FileSystem,
@@ -48,11 +61,11 @@ export class WorkspaceResources {
       ...shared.map((item) => ({
         kind: item.kind,
         path: item.relative,
-        action: 'preserved_shared',
+        action: 'preserved_shared' as const,
       })),
       ...hookPlan.items
         .filter((item) => hookRequest.removeAgents.includes(item.agent))
-        .map((item) => ({ kind: 'hook', path: item.path, action: item.action })),
+        .map((item) => ({ kind: 'hook' as const, path: item.path, action: item.action })),
       ...files.map(({ kind, file, owned, retarget, blocked }) => ({
         kind,
         path: file,
@@ -76,7 +89,7 @@ export class WorkspaceResources {
       hooks.items.some(
         (item) =>
           hookRequest.removeAgents.includes(item.agent) &&
-          ['busy', 'conflict', 'foreign', 'invalid'].includes(item.action),
+          hookActionState(item.action) === 'blocked',
       )
     )
       throw new DevkitError(
@@ -107,7 +120,7 @@ export class WorkspaceResources {
           before: { kind: 'link', target: file.link },
           target: file.retarget ?? null,
         });
-        if (result === 'conflict' || result === 'busy') throw changedResource();
+        if (isLostWrite(result)) throw changedResource();
       } else {
         const result = await this.harness.files.write({
           root: root,
@@ -115,7 +128,7 @@ export class WorkspaceResources {
           before: { kind: 'file', text: file.text! },
           text: null,
         });
-        if (result === 'conflict' || result === 'busy') throw changedResource();
+        if (isLostWrite(result)) throw changedResource();
       }
     }
   }
@@ -187,7 +200,7 @@ export class WorkspaceResources {
 
   private async files(input: ResourceCleanupInput) {
     const files: {
-      kind: string;
+      kind: FileKind;
       file: string;
       owned: boolean;
       link?: string;
@@ -254,11 +267,26 @@ function changedResource(): DevkitError {
   );
 }
 
+// An owned entry stays on disk both when fx is refused its removal and when no
+// protocol is left to remove it with.
+function staysBehind(row: ResourceCleanupRow): boolean {
+  switch (row.kind) {
+    case 'mcp':
+    case 'rules':
+      return row.action !== 'preserved_shared' && harnessActionState(row.action) !== 'ready';
+    case 'hook':
+      return hookActionState(row.action) !== 'ready';
+    case 'guide':
+    case 'team_skills':
+    case 'go_work':
+      return row.action === 'foreign';
+    case 'workspace':
+      return false;
+  }
+}
+
 function assertCleanup(name: string, rows: readonly ResourceCleanupRow[]): void {
-  const blocked = rows.filter((item) =>
-    ['foreign', 'invalid', 'conflict', 'unsupported', 'busy'].includes(item.action),
-  );
-  if (blocked.length)
+  if (rows.some(staysBehind))
     throw new DevkitError(
       'conflict',
       'WORKSPACE_CLEANUP_BLOCKED',
@@ -271,7 +299,7 @@ function assertCleanup(name: string, rows: readonly ResourceCleanupRow[]): void 
     );
 }
 
-function resourceAction(owned: boolean, retarget?: string, blocked?: boolean): string {
+function resourceAction(owned: boolean, retarget?: string, blocked?: boolean): FileAction {
   if (blocked) return 'foreign';
   if (retarget) return 'retarget_shared';
   return owned ? 'remove' : 'preserved';

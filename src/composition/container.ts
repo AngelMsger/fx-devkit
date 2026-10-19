@@ -99,15 +99,22 @@ export interface Container {
   readonly activity: ActivityChannel;
 }
 
-export function createContainer(env: NodeJS.ProcessEnv): Container {
+export interface ContainerOptions {
+  // Wraps the one subprocess port before anything is built on it, so every member
+  // that starts a process obeys the wrapper.
+  readonly decorateProcess?: (process: Process) => Process;
+}
+
+export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOptions = {}): Container {
   const home = fxHome(env);
   const clock = new SystemClock();
   const diagnostics = new DiagnosticChannel();
   const activity = new ActivityChannel();
-  const process = new WatchedProcess(
+  const watched = new WatchedProcess(
     new DiagnosticProcess(new NodeProcess(), diagnostics),
     activity,
   );
+  const process = options.decorateProcess?.(watched) ?? watched;
   const lock = new FileLock(home);
   const fs = new NodeFs(lock);
   return {

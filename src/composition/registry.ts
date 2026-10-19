@@ -35,6 +35,7 @@ import { nearest } from '../domain/fuzzy.js';
 import type { HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
 import {
+  platformOf,
   servesCapability,
   type Binding,
   type PlatformBinding,
@@ -157,7 +158,7 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
     phase: 'provider query',
     capability,
     provider: descriptor.id,
-    binding: 'platform' in binding ? binding.platform : capability,
+    binding: platformOf(binding) ?? capability,
   });
   return descriptor.create({ ...deps, process: scoped }, binding.vars) as P;
 }

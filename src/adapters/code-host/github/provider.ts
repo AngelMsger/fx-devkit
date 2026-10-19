@@ -9,6 +9,7 @@ import type {
 } from '../../../domain/contribution/pull-request.js';
 import type { RepositoryIdentity } from '../../../domain/contribution/remote.js';
 import { DevkitError } from '../../../domain/errors.js';
+import type { Vars } from '../../../domain/template.js';
 import { repoUrl } from '../../../domain/workspace/ref.js';
 import type {
   Branch,
@@ -19,7 +20,7 @@ import type {
   Readability,
   RepoRef,
 } from '../../../ports/code-host.js';
-import type { AdapterDeps, ProviderDescriptor, Vars } from '../../../ports/provider.js';
+import type { AdapterDeps, ProviderDescriptor } from '../../../ports/provider.js';
 import { EXIT, objectOf, queryFailed, stringAt, unreadableError } from '../../family/cli.js';
 import {
   BINARY,

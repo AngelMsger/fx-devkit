@@ -1,4 +1,5 @@
 // Translate each stage's typed results into preparation evidence at its owning boundary.
+import { isUnfinished } from '../../domain/outcome.js';
 import {
   preparationCheck,
   type PreparationAction,
@@ -14,9 +15,7 @@ export function documentChecks(files: readonly RenderedFile[]): PreparationCheck
   return files.map((file) =>
     preparationCheck(
       `docs:${file.path}`,
-      file.action === 'foreign' || file.result === 'failed' || file.result === 'not_started'
-        ? 'blocked'
-        : 'ready',
+      file.action === 'foreign' || isUnfinished(file.result) ? 'blocked' : 'ready',
       file.action === 'foreign' ? 'An existing guide needs replacement approval' : file.result,
       { resource: file.path, owner: 'user', ...(file.failure ? { failure: file.failure } : {}) },
     ),
@@ -46,9 +45,7 @@ export function skillChecks(
   const own = [...output.links, ...output.fx].map((item) =>
     preparationCheck(
       `skill:${item.path}`,
-      item.action === 'foreign' || item.status === 'failed' || item.status === 'not_started'
-        ? 'blocked'
-        : 'ready',
+      item.action === 'foreign' || isUnfinished(item.status) ? 'blocked' : 'ready',
       item.action,
       { resource: item.path, owner: 'user' },
     ),
@@ -56,10 +53,7 @@ export function skillChecks(
   const tools = output.tools.map((item) =>
     preparationCheck(
       `skill:${item.tool}`,
-      item.failure ||
-        item.note === 'approval required' ||
-        item.status === 'failed' ||
-        (item.code !== null && item.code !== 0)
+      item.failure || item.status === 'failed' || (item.code !== null && item.code !== 0)
         ? 'blocked'
         : 'ready',
       item.note ?? item.status ?? 'No companion Skill declared',

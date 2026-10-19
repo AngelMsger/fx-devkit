@@ -138,6 +138,10 @@
   only the environment at hand.
 - Leave the capabilities fx wires itself out of what an unknown `fx can` target is
   offered, and point its next steps at `fx can` and `fx tool list`.
+- Keep MCP, rules and hook rows that report `untrusted`, `missing_variables`,
+  `invalid` or `busy` in the summary of an `init`, `sync` or `doctor` JSON report.
+  They were counted under `omitted`, while a `foreign` or `conflict` row of the same
+  stage was shown.
 
 ## 0.9.1 (2026-10-09)
 

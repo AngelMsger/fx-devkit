@@ -7,6 +7,7 @@ import YAML from 'yaml';
 
 import { DevkitError } from '../../domain/errors.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
+import { isRecord } from '../../domain/values.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
@@ -60,9 +61,9 @@ export class StdinSource implements ManifestSource {
     } catch {
       throw invalid('stdin must contain valid YAML or JSON');
     }
-    if (!record(value) || !('source_version' in value))
+    if (!isRecord(value) || !('source_version' in value))
       return [{ name: MANIFEST_FILES.workspace, bytes: Buffer.from(this.text), executable: false }];
-    if (value['source_version'] !== 1 || !record(value['files']))
+    if (value['source_version'] !== 1 || !isRecord(value['files']))
       throw invalid('Expected source_version: 1 and a files mapping');
     const files = Object.entries(value['files']).map(([name, content]) => decode(name, content));
     if (!files.some((file) => file.name === MANIFEST_FILES.workspace))
@@ -74,16 +75,12 @@ export class StdinSource implements ManifestSource {
   }
 }
 
-function record(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
 function decode(name: string, content: unknown): PayloadFile {
   assertPayloadPath(name);
   if (name === 'docs' || name === 'skills') throw invalid(`${name} must contain files`);
   if (typeof content === 'string') return { name, bytes: Buffer.from(content), executable: false };
   if (
-    !record(content) ||
+    !isRecord(content) ||
     typeof content['base64'] !== 'string' ||
     (content['executable'] !== undefined && typeof content['executable'] !== 'boolean')
   )

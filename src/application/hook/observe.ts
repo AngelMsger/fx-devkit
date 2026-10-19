@@ -2,6 +2,7 @@
 // A phase answers with dated codes rather than with its use case's result,
 // because the hook stores evidence a later command reads, not a report.
 
+import { harnessActionState } from '../../domain/harness/actions.js';
 import type { HookObservation } from '../../domain/harness/state.js';
 import { strayDigest } from '../../domain/workspace/root-entries.js';
 import type { Clock } from '../../ports/clock.js';
@@ -18,6 +19,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { RefreshManifest } from '../manifest/refresh.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
+import { wasHeldBack } from '../skill/tool-skills.js';
 import { Tally } from '../tally.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { FxUpdateCheck } from '../update/fx.js';
@@ -104,9 +106,7 @@ async function deriveDocs(deps: BackgroundDeps, lease: Lease): Promise<readonly 
     only: 'rules',
     workspaceLease: { workspace: deps.workspace, root: deps.root, lease },
   });
-  const foreignRules = harness.items.some(
-    (item) => item.action === 'foreign' || item.action === 'conflict',
-  );
+  const foreignRules = harness.items.some((item) => harnessActionState(item.action) === 'blocked');
   return [
     ...(foreignRules ? [observed('RULES_FOREIGN', 'fx sync --only docs')] : []),
     observed(
@@ -128,7 +128,7 @@ async function projectSkills(deps: BackgroundDeps): Promise<readonly HookObserva
     background: true,
   });
   const observations: HookObservation[] = [];
-  if (result.tools.some((tool) => tool.note === 'untrusted'))
+  if (result.tools.some(wasHeldBack))
     observations.push(observed('VECTOR_UNTRUSTED', 'fx sync --only skills'));
   if (
     result.fx.some((copy) => copy.action === 'foreign') ||

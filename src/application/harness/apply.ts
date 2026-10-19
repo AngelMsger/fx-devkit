@@ -3,6 +3,7 @@
 import { DevkitError } from '../../domain/errors.js';
 import type { HarnessState } from '../../domain/harness/ownership.js';
 import { recoverHarnessState, snapshotDigest } from '../../domain/harness/state-recovery.js';
+import { isLostWrite } from '../../domain/projection.js';
 
 import type { HarnessChange, HarnessDeps, HarnessInput } from './types.js';
 
@@ -27,7 +28,7 @@ export async function applyHarnessChange(
     before: change.before,
     text: change.text,
   });
-  if (result === 'busy' || result === 'conflict') throw harnessConflict();
+  if (isLostWrite(result)) throw harnessConflict();
   const observed = await deps.files.read({ root: input.root, relative: change.relative });
   const recovery = recoverHarnessState({ state: prepared, snapshot: observed });
   if (recovery.action !== 'finish') throw harnessConflict();

@@ -119,7 +119,7 @@ function ambiguousRoot(names: readonly string[]): DevkitError {
   );
 }
 
-export function workspaceNotFound(cwd: string, names: readonly string[] = []): DevkitError {
+function workspaceNotFound(cwd: string, names: readonly string[] = []): DevkitError {
   return new DevkitError(
     'not_found',
     'WORKSPACE_NOT_FOUND',

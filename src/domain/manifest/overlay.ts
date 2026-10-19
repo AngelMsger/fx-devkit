@@ -5,7 +5,9 @@
 
 import type * as z from 'zod';
 
-import { isRaw, type PathPart, type Raw } from './document.js';
+import { isRecord } from '../values.js';
+
+import type { PathPart, Raw } from './document.js';
 import { acceptsNullAt } from './reflect.js';
 import type { Tool, Toolchain } from './types.js';
 
@@ -93,7 +95,7 @@ function mergeValue(
     markBase(base, path, record);
     return base;
   }
-  if (isPlain(base) && isPlain(patch)) {
+  if (isRecord(base) && isRecord(patch)) {
     const out: Plain = {};
     for (const key of new Set([...Object.keys(base), ...Object.keys(patch)])) {
       const merged = mergeValue(base[key], patch[key], record, join(path, key));
@@ -108,7 +110,7 @@ function mergeValue(
       return mergeKeyedList(base as Plain[], patch as Plain[], keyOf);
     }
   }
-  if (isPlain(patch) && base === undefined) {
+  if (isRecord(patch) && base === undefined) {
     for (const key of Object.keys(patch)) record(join(path, key), 'patch');
     return patch;
   }
@@ -122,7 +124,7 @@ function markBase(
   record: (field: string, origin: Origin) => void,
 ): void {
   if (value === undefined) return;
-  if (isPlain(value)) {
+  if (isRecord(value)) {
     for (const [key, child] of Object.entries(value)) markBase(child, join(path, key), record);
     return;
   }
@@ -175,7 +177,7 @@ function removeAt(value: unknown, path: MergePath): unknown {
     else out[head] = removeAt(out[head], tail);
     return out;
   }
-  if (!isPlain(value) || typeof head !== 'string') return value;
+  if (!isRecord(value) || typeof head !== 'string') return value;
   const out: Plain = { ...value };
   if (tail.length === 0) delete out[head];
   else {
@@ -184,10 +186,6 @@ function removeAt(value: unknown, path: MergePath): unknown {
     else out[head] = child;
   }
   return out;
-}
-
-function isPlain(value: unknown): value is Plain {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function join(path: string, key: string): string {
@@ -203,7 +201,7 @@ export function splitNulls(schema: z.ZodType, raw: Raw): { value: Raw; deletions
   const deletions: MergePath[] = [];
   const visit = (node: unknown, path: PathPart[]): unknown => {
     if (Array.isArray(node)) return node.map((item, i) => visit(item, [...path, i]));
-    if (!isRaw(node)) return node;
+    if (!isRecord(node)) return node;
     const out: Raw = {};
     for (const [key, child] of Object.entries(node)) {
       if (child === null && !acceptsNullAt(schema, [...path, key])) deletions.push([...path, key]);

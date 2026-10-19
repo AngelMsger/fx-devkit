@@ -7,6 +7,7 @@ import { parse, stringify } from 'smol-toml';
 
 import { assessMcpSupport } from '../../domain/harness/mcp.js';
 import type { McpResource } from '../../domain/manifest/types.js';
+import { isRecord } from '../../domain/values.js';
 import type { McpCodec, McpProjectionInput, McpProjectionResult } from '../../ports/mcp-codec.js';
 
 import { mcpLaunch } from './mcp-launch.js';
@@ -57,9 +58,6 @@ function readToml(text: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
-}
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 function findFragment(
   text: string,

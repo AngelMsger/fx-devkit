@@ -17,7 +17,8 @@ import type { ToolInstallOutput } from '../tool/install.js';
 
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
-const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'];
+const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'] as const;
+export type InitPhase = (typeof PHASES)[number];
 
 export function nameTaken(name: string, root: string, existing: WorkspaceEntry): DevkitError {
   return new DevkitError(
@@ -80,7 +81,7 @@ export function initializationSourceError(
 
 export interface InitProgress {
   readonly cwd: string;
-  readonly phase: string;
+  readonly phase: InitPhase;
   readonly registered: boolean;
   readonly materialized: boolean;
   readonly prepared: object | null;
@@ -95,7 +96,7 @@ export function initFailure(
   const failure = asDevkitError(error);
   const { phase, registered, materialized, prepared, toolInstall } = progress;
   const resumable =
-    registered && (output.plan.manifest_action === 'keep' || ['tools', 'sync'].includes(phase));
+    registered && (output.plan.manifest_action === 'keep' || phase === 'tools' || phase === 'sync');
   const phases = phaseResults(progress);
   const install = failure.partialResult as
     { tool_install?: readonly ToolInstallOutput[] } | undefined;
@@ -186,7 +187,7 @@ function phaseResults(progress: InitProgress): Record<string, string> {
 }
 
 // Init owns the single preparation verdict; nested synchronization retains only its evidence.
-function synchronizationResult(failure: DevkitError, phase: string): object | null {
+function synchronizationResult(failure: DevkitError, phase: InitPhase): object | null {
   if (phase !== 'sync' || !failure.partialResult) return null;
   return Object.fromEntries(
     Object.entries(failure.partialResult).filter(([key]) => key !== 'preparation'),

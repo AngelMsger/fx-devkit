@@ -1,7 +1,8 @@
 // The shared structured failure and recovery contract; category determines the command exit code.
 
 import type { DiagnosticEvent } from './diagnostics.js';
-import type { CheckCause } from './setup/types.js';
+import type { CheckCause, StepKind } from './setup/types.js';
+import { messageOf } from './values.js';
 
 export const CATEGORIES = [
   'usage',
@@ -37,7 +38,7 @@ const EXIT_CODE: Record<Category, number> = {
 
 const RETRYABLE: ReadonlySet<Category> = new Set(['rate_limit', 'network', 'server']);
 
-export interface Guidance {
+interface Guidance {
   readonly hint: string;
   readonly nextSteps: readonly string[];
 }
@@ -86,7 +87,7 @@ const GUIDANCE: Record<Category, Guidance> = {
 
 export interface HandoffStep {
   readonly id: string;
-  readonly kind: 'run' | 'manual' | 'file';
+  readonly kind: StepKind;
   readonly title: string;
   readonly instructions?: string;
   readonly open?: string;
@@ -162,17 +163,13 @@ export function busyError(
   });
 }
 
-export function defaultGuidance(category: Category): Guidance {
-  return GUIDANCE[category];
-}
-
 export function exitCodeFor(category: Category): number {
   return EXIT_CODE[category];
 }
 
 export function asDevkitError(err: unknown): DevkitError {
   if (err instanceof DevkitError) return err;
-  const message = err instanceof Error ? err.message : String(err);
+  const message = messageOf(err);
   return new DevkitError('internal', 'INTERNAL', message, { cause: err });
 }
 

@@ -11,6 +11,7 @@ import type {
 } from '../../../domain/contribution/pull-request.js';
 import type { RepositoryIdentity } from '../../../domain/contribution/remote.js';
 import { DevkitError } from '../../../domain/errors.js';
+import type { Vars } from '../../../domain/template.js';
 import { refFromUrl, repoUrl } from '../../../domain/workspace/ref.js';
 import type {
   Branch,
@@ -22,7 +23,7 @@ import type {
   RepoRef,
 } from '../../../ports/code-host.js';
 import type { ProcessResult } from '../../../ports/process.js';
-import type { AdapterDeps, ProviderDescriptor, Vars } from '../../../ports/provider.js';
+import type { AdapterDeps, ProviderDescriptor } from '../../../ports/provider.js';
 
 // One line per commit: sha, author, ISO committer date, parents, subject.
 const COMMIT_FORMAT = '--format=%H%x00%an%x00%cI%x00%P%x00%s';
