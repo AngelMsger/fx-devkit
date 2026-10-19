@@ -11,10 +11,11 @@
 - 配套工具查询、`sentry` 和 `git` 只有在可执行文件无法启动时才报告 `TOOL_MISSING`。工具已启动但自身以 127 退出时，现在如实报告为失败的查询或 Git 操作，不再要求安装一个已经装好的工具。
 - `fx can mcp:<name>` 的 `--agent` 无法识别时，与 `fx agent pick`、`fx skill install` 一样提示 `"<id>" is not an agent fx knows`。`fx release check` 遇到未知仓库时采用其他仓库命令的说法，没有相近名称时列出已知名称，并在下一步中保留工作区。
 - 错误里建议的命令会给需要引号的目录、工具或仓库名加上引号：`IMPORT_INSIDE_ROOT` 中被导入的目录、被暂缓安装的工具或准备其 Skill 时缺失的配套工具，以及 `PROBE_RECORD_INPUT_REQUIRED` 的仓库。带空格的路径可以原样粘贴执行。
-- 以下场景给出的命令按配置的 `command_shell` 加引号：工作区 `relocate`、`rebind` 之后的命令，`fx init` 无法接受或继续的注册，工作区已变化的 profile 导入或源码贡献，未能记录的探测，以及 `--workspace` 指向未注册的名称。此前无论如何设置都按 POSIX 方式加引号。
+- 以下场景给出的命令按配置的 `command_shell` 加引号：工作区 `relocate`、`rebind` 之后的命令，`fx init` 无法接受或继续的注册，工作区已变化的 profile 导入或源码贡献，未能记录的探测，目标位于被描述目录之内的 manifest 导入，以及 `--workspace` 指向未注册的名称。此前无论如何设置都按 POSIX 方式加引号。
 - 读取 manifest 仓库或 `local-git` 代码托管时，git 与仓库同步一样在 C locale 下运行。在其他 locale 下，分支上不存在的文件曾被报告为查询失败，因为 git 的本地化消息无法识别。在这些场景中 git 无法启动时现在报告 `TOOL_MISSING`。
 - 拒绝记录中带有任意大小写的 `.git` 段或删除字符的 harness 路径与贡献路径。harness 所有权元数据此前接受 `.GIT/...`，在不区分大小写的卷上它会解析到仓库自身的目录；两个存储现在都按 `fx source push` 对所选文件使用的规则校验记录的路径。
 - fx 安装在名称含空格或非 ASCII 字符的目录下，或在 Windows 上时，`fx self info` 的 `bundled_tools` 给出文件系统可用的路径。此前该值是经过百分号编码的 URL 路径。
+- `fx init --resume` 继续一个没有记录 manifest 源的注册时保持其原样。此前继续执行会把 `source: "-"` 写入 `config.yaml`：之后 `fx sync` 把该工作区当作从 stdin 准备的工作区，不再提示没有可刷新的源，`fx init <dir> --from <source>` 则以 `SOURCE_MISMATCH` 拒绝该目录，而不是记录这个源。
 
 ## 0.11.0 (2026-10-12)
 
