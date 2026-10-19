@@ -1,5 +1,5 @@
-// What a preparation stage reports, and how its evidence is bound to the registered
-// workspace and an executable recovery action.
+// What a preparation stage and a doctor group report, and how their evidence is bound to
+// the registered workspace and an executable recovery action.
 import {
   preparation,
   preparationCheck,
@@ -11,6 +11,7 @@ import {
 import type { Finding } from '../domain/report.js';
 import type { SetupStep } from '../domain/setup/types.js';
 
+import type { WritePosture } from './safety/posture.js';
 import { toolRecoveryCommand, type ToolStatus } from './tool/check.js';
 import { workspaceToolScope } from './tool/scope.js';
 import type { WorkspaceDeps } from './workspace/deps.js';
@@ -27,6 +28,17 @@ export interface StageResult<Details extends object = object> {
   readonly operationChecks?: readonly PreparationCheck[];
   readonly summary: StageSummary;
   readonly details?: Details;
+}
+
+// The group a lifecycle resource adds to the doctor report, and the repair `doctor --fix`
+// runs for it.
+export interface DoctorExtension {
+  readonly group: string;
+  readonly check: () => Promise<readonly Finding[]>;
+  readonly fix?: (input: {
+    readonly dryRun: boolean;
+    readonly posture: WritePosture;
+  }) => Promise<void>;
 }
 
 // Approving a tool's read-only check and running it. Every check that asks for it gets

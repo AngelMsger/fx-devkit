@@ -119,6 +119,20 @@ describe('workspace discovery and lifecycle', () => {
     expect(existsSync(path.join(moved, 'AGENTS.md'))).toBe(true);
   });
 
+  it('quotes the commands that follow a relocation for the configured command shell', () => {
+    const s = setup();
+    const moved = path.join(s.base, 'moved');
+    renameSync(s.root, moved);
+    const preview = fx(
+      ['workspace', 'relocate', 'alpha', moved, '--dry-run', '--format', 'json'],
+      { ...s.env, FX_COMMAND_SHELL: 'cmd' },
+      s.base,
+    );
+    expect(preview.json()).toMatchObject({
+      next_steps: ['fx ^"sync^" ^"--workspace^" ^"alpha^"', 'fx ^"workspace^" ^"show^" ^"alpha^"'],
+    });
+  });
+
   it('stages rebind and retains the old source and local scope', () => {
     const s = setup();
     const oldSource = manifestDirOf(s.home, 'alpha');

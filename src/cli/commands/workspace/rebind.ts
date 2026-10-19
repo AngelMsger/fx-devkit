@@ -23,10 +23,7 @@ export default class WorkspaceRebind extends FxCommand {
     const { args, flags } = await this.parse(WorkspaceRebind);
     const source = await manifestSourceFor(flags.from, this.container, readStdin);
     this.renderer.record(
-      await workspaceManagement({
-        ...this.harnessInput(),
-        commandShell: this.commandShell,
-      }).execute({
+      await workspaceManagement(this.harnessInput()).execute({
         name: args.name,
         action: 'rebind',
         source,

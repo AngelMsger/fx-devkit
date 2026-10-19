@@ -7,6 +7,7 @@
 import path from 'node:path';
 
 import type { WorkspaceEntry } from '../config/file.js';
+import { isRecord } from '../values.js';
 
 export const OPERATION_ACTIONS = ['unregister', 'relocate', 'rebind'] as const;
 export type OperationAction = (typeof OPERATION_ACTIONS)[number];
@@ -88,9 +89,8 @@ export function parseJournal(text: string, name: string): OperationJournal | und
   } catch {
     return undefined;
   }
-  if (typeof value !== 'object' || value === null) return undefined;
-  const { id, action, before, after, root, phase } = value as Record<string, unknown>;
-  if ((value as Record<string, unknown>)['name'] !== name) return undefined;
+  if (!isRecord(value) || value['name'] !== name) return undefined;
+  const { id, action, before, after, root, phase } = value;
   if (typeof id !== 'string' || !ID.test(id) || typeof root !== 'string') return undefined;
   if (!isAction(action) || !isPhase(phase)) return undefined;
   if (!isEntry(before) || (after !== null && !isEntry(after))) return undefined;
@@ -107,12 +107,11 @@ function isPhase(value: unknown): value is OperationPhase {
 }
 
 function isEntry(value: unknown): value is WorkspaceEntry {
-  if (typeof value !== 'object' || value === null) return false;
-  const entry = value as Record<string, unknown>;
   return (
-    typeof entry['root'] === 'string' &&
-    (entry['source'] === undefined || typeof entry['source'] === 'string') &&
-    Object.keys(entry).every((key) => key === 'root' || key === 'source')
+    isRecord(value) &&
+    typeof value['root'] === 'string' &&
+    (value['source'] === undefined || typeof value['source'] === 'string') &&
+    Object.keys(value).every((key) => key === 'root' || key === 'source')
   );
 }
 

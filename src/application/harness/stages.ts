@@ -8,8 +8,7 @@ import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { Lease } from '../../ports/lock.js';
-import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../preparation.js';
+import type { DoctorExtension, StageResult } from '../preparation.js';
 
 import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';

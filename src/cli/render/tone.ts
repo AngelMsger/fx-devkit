@@ -1,6 +1,16 @@
 // The role a value reads as. Purely cosmetic: a word missing from this table is shown
 // unpainted, and no verdict is ever decided here.
 
+import {
+  HARNESS_ACTIONS,
+  HOOK_ACTIONS,
+  harnessActionState,
+  hookActionState,
+  type HarnessAction,
+  type HookAction,
+  type ProjectionState,
+} from '../../domain/harness/actions.js';
+
 import type { Role } from './display.js';
 
 const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
@@ -15,10 +25,6 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
     'reachable',
     'available',
     'up_to_date',
-    'updated',
-    'created',
-    'update',
-    'create',
     'recorded',
   ],
   warn: [
@@ -26,11 +32,8 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
     'outdated',
     'unknown',
     'unverified',
-    'untrusted',
-    'missing_variables',
     'not_started',
     'incomplete',
-    'foreign',
     'diverged',
     'skip_dirty',
     'skip_diverged',
@@ -42,9 +45,6 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
     'failed',
     'blocked',
     'missing',
-    'conflict',
-    'busy',
-    'invalid',
     'unauthorized',
     'unreadable',
     'not_installed',
@@ -52,13 +52,10 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
   ],
   // Nothing happened, or nothing applies.
   quiet: [
-    'unchanged',
     'skipped',
     'skip',
     'skip_unpicked',
     'skip_manifest',
-    'unsupported',
-    'disabled',
     'none',
     'not_applicable',
     'not_requested',
@@ -66,11 +63,38 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
   ],
 };
 
-const ROLE_OF = new Map<string, Role>(
-  Object.entries(VOCABULARY).flatMap(([role, words]) =>
+type ProjectionAction = HarnessAction | HookAction;
+
+// A projection action reads as its state does, unless it is named in ACTION_ROLE.
+const STATE_ROLE: Readonly<Record<ProjectionState, Role>> = {
+  ready: 'ok',
+  skipped: 'quiet',
+  blocked: 'fail',
+};
+
+// `null` leaves the word unpainted.
+const ACTION_ROLE: Readonly<Partial<Record<ProjectionAction, Role | null>>> = {
+  unchanged: 'quiet',
+  removed: null,
+  remove: null,
+  untrusted: 'warn',
+  foreign: 'warn',
+  missing_variables: 'warn',
+};
+
+function actionEntries(action: ProjectionAction, state: ProjectionState): [string, Role][] {
+  const named = ACTION_ROLE[action];
+  const role = named === undefined ? STATE_ROLE[state] : named;
+  return role === null ? [] : [[action, role]];
+}
+
+const ROLE_OF = new Map<string, Role>([
+  ...Object.entries(VOCABULARY).flatMap(([role, words]) =>
     words.map((word): [string, Role] => [word, role as Role]),
   ),
-);
+  ...HARNESS_ACTIONS.flatMap((action) => actionEntries(action, harnessActionState(action))),
+  ...HOOK_ACTIONS.flatMap((action) => actionEntries(action, hookActionState(action))),
+]);
 
 // A zero count says nothing happened. A boolean is left alone: whether `false` is the
 // good news depends on the field.

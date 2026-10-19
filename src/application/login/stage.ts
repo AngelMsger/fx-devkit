@@ -142,7 +142,6 @@ export function setupActions(
   }
   return [
     {
-      actor: 'user',
       id: `login:${step.id}`,
       description: `${handoff?.instructions ?? step.instructions ?? step.title}${expected === undefined ? '' : ` Expected file: ${expected}.`}`,
       argv: [
@@ -154,6 +153,7 @@ export function setupActions(
         ...(step.env ? ['--env', step.env] : []),
       ],
       cwd: deps.ctx.root,
+      actor: 'user',
       requires_approval: true,
     },
   ];

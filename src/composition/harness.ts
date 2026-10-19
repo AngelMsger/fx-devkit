@@ -5,6 +5,7 @@ import type { HarnessSession } from '../application/harness/session.js';
 import type { HarnessDeps } from '../application/harness/types.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
+import type { ResolvedShell } from '../domain/shell.js';
 import { FileHarnessState } from '../infra/harness-state.js';
 
 import { trustGate, type Container } from './container.js';
@@ -18,6 +19,7 @@ export interface HarnessCommandInput {
   readonly noInput: boolean;
   readonly yes: boolean;
   readonly posture: WritePosture;
+  readonly commandShell?: ResolvedShell;
 }
 
 export function harnessDeps(command: HarnessCommandInput): HarnessDeps {

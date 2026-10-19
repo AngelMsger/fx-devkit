@@ -6,8 +6,7 @@ import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
-import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../preparation.js';
+import type { DoctorExtension, StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 

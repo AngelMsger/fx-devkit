@@ -6,7 +6,7 @@
 
 import { pathKey } from './path.js';
 
-interface LeaseRequest {
+export interface LeaseRequest {
   readonly key: string;
   readonly waitMs: number;
 }

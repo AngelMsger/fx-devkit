@@ -34,6 +34,8 @@ export async function runHookWorker(
   };
   if (!background) return new DispatchHook(dispatchDeps).execute({ request, raw, env });
   const canWrite = (): Promise<boolean> => acceptBackground({ deps: dispatchDeps, request, env });
+  // Asked before the handler builds its wiring from the request: an unbound request,
+  // whose workspace name may not even be a usable one, ends silently.
   if (!(await canWrite())) return '';
   await lifecycleHandlers[request.event]?.background({ container, request, env, canWrite });
   return '';

@@ -5,7 +5,6 @@ import path from 'node:path';
 import { CLAUDE_GUIDE, DERIVED_GUIDE, marker } from '../../domain/docs/derived.js';
 import { DevkitError } from '../../domain/errors.js';
 import {
-  harnessActionState,
   hookActionState,
   type HarnessAction,
   type HookAction,
@@ -278,24 +277,16 @@ function changedResource(): DevkitError {
 
 // An owned entry stays on disk both when fx is refused its removal and when no
 // protocol is left to remove it with.
-function staysBehind(row: ResourceCleanupRow): boolean {
-  switch (row.kind) {
-    case 'mcp':
-    case 'rules':
-      return row.action !== 'preserved_shared' && harnessActionState(row.action) !== 'ready';
-    case 'hook':
-      return hookActionState(row.action) !== 'ready';
-    case 'guide':
-    case 'team_skills':
-    case 'go_work':
-      return row.action === 'foreign';
-    case 'workspace':
-      return false;
-  }
-}
+const LEFT_BEHIND = new Set<ResourceCleanupRow['action']>([
+  'foreign',
+  'invalid',
+  'conflict',
+  'unsupported',
+  'busy',
+]);
 
 function assertCleanup(name: string, rows: readonly ResourceCleanupRow[]): void {
-  if (rows.some(staysBehind))
+  if (rows.some((row) => LEFT_BEHIND.has(row.action)))
     throw new DevkitError(
       'conflict',
       'WORKSPACE_CLEANUP_BLOCKED',

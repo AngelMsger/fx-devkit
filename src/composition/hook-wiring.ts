@@ -8,7 +8,6 @@ import { BACKGROUND_POSTURE } from '../application/safety/posture.js';
 import { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { HookRequest } from '../domain/harness/request.js';
-import type { ManifestSource } from '../ports/manifest-source.js';
 import type { Reporter } from '../ports/reporter.js';
 
 import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
@@ -69,7 +68,9 @@ function phaseDeps(input: HookWiringInput): BackgroundDeps {
     skills: (agents) => skillDeps(container, agents),
     manifest: {
       dir: container.manifestDirFor(request.workspace),
-      source: () => manifestSourceOf(container, request.workspace),
+      // A stdin source cannot be rebuilt without the text it was given, and the
+      // background has no one to ask for it; it reads as a source that cannot refresh.
+      sourceFor: (spec) => manifestSourceFor(spec, container, async () => ''),
       update: updates.manifest,
     },
     self: {
@@ -113,14 +114,4 @@ function workspaceContextFor(
     });
     return loaded;
   };
-}
-
-// A stdin source cannot be rebuilt without the text it was given, and the
-// background has no one to ask for it; it reads as a source that cannot refresh.
-async function manifestSourceOf(
-  container: Container,
-  workspace: string,
-): Promise<ManifestSource | undefined> {
-  const spec = (await container.config.read()).workspaces?.[workspace]?.source;
-  return spec === undefined ? undefined : manifestSourceFor(spec, container, async () => '');
 }

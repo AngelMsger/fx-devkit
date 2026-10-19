@@ -75,8 +75,8 @@ export class CommandWiring {
   constructor(private readonly input: CommandWiringInput) {}
 
   harnessInput(): HarnessCommandInput {
-    const { container, resolve, env, cliVersion, noInput, yes, posture } = this.input;
-    return { container, resolve, env, cliVersion, noInput, yes, posture };
+    const { container, resolve, env, cliVersion, noInput, yes, posture, commandShell } = this.input;
+    return { container, resolve, env, cliVersion, noInput, yes, posture, commandShell };
   }
 
   // For a command that reaches a workspace's toolchain without its dependency bundle.

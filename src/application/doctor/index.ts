@@ -8,11 +8,12 @@ import { DeriveDocs } from '../docs/derive.js';
 import type { HarnessSession } from '../harness/session.js';
 import { harnessDoctor } from '../harness/stages.js';
 import { hookDoctor, type HookSession } from '../hook/session.js';
+import { checkLogin } from '../login/check.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
 import { validateSetupSelection } from '../login/selection.js';
 import { handoffOf, setupActions } from '../login/stage.js';
-import { findingCheck, workspacePreparation } from '../preparation.js';
+import { findingCheck, workspacePreparation, type DoctorExtension } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
@@ -25,7 +26,6 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { checkAgents } from './agents.js';
 import { checkInstallations } from './installations.js';
-import { checkLogin } from './login.js';
 import { checkManifest } from './manifest.js';
 import { checkRepos } from './repos.js';
 import { checkRoot } from './root.js';
@@ -35,7 +35,6 @@ import {
   GROUPS,
   type DoctorInput,
   type DoctorReport,
-  type DoctorExtension,
   type Finding,
   type RepairAttempt,
 } from './types.js';
