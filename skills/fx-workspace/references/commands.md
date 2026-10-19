@@ -18,7 +18,8 @@ not pagination. All warning/failure rows and exact pending command vectors remai
 `--details` returns the full application result; explicit `--fields` projects it.
 Explicit report projection applies in every format: JSON/NDJSON emit one object;
 human output emits selected key/value pairs. Dotted paths retain flat keys and
-array alignment. Without explicit fields, human/NDJSON defaults are unchanged.
+array alignment. Only JSON is summarized: without explicit fields, human output
+keeps its own view and NDJSON carries the complete result.
 Fact-query projections still apply per item and retain collection metadata. Error envelopes are never
 projected or compacted.
 
@@ -42,9 +43,8 @@ retains existing selection and work.
 
 `self info.bundled_skill_version` identifies the instructions shipped with the
 running executable. `skill status` reports `embedded_version`, installation
-versions and `activation: unverified`. Installation or an environment declaration
-cannot establish native host activation. Commands do not require a Skill-loaded
-handshake; load the bundled task guide when the task needs it.
+versions and `activation: unverified`. Installation cannot establish native host
+activation. Load the bundled task guide when the task needs it.
 
 `SKILL_WRITE_DENIED` keeps denied filesystem paths and partial stage evidence.
 Check access before repeating writes. To continue local repository/guide work,
@@ -61,7 +61,7 @@ management; these preserve business checkouts and respect owned-resource cleanup
 
 `repo select` / `env select` replace a personal collection. `--all` removes its
 explicit scope and follows future shared entries; `--none` stores an empty set.
-`pick/unpick` retain additive/removal semantics. Selection output reports modes
+`pick/unpick` add or remove individual names. Selection output reports modes
 and next steps; repository selection is separate from downloading via sync.
 
 `status` keeps `{items, has_more}` and adds workspace/root/selection context,
@@ -157,7 +157,7 @@ same ambiguous setup. Doctor marks its missing verification as incomplete.
 `fx doctor` returns `preparation`, diagnostic `coverage` (`complete` or `incomplete`),
 `summary {ok, warn, fail}` and `findings[]`. The preparation verdict owns task completion;
 optional host activation can remain unverified. An incomplete verdict exits 12.
-`fx release check` retains `ok`, `complete`, summary and findings and exits zero when its
+`fx release check` returns `ok`, `complete`, summary and findings and exits zero when its
 checklist was produced. Findings carry group, id, level, coverage, message, fix and
 handoff; full results also carry evidence. `repos[]` says what each release would ship,
 in summaries too. For `can`, inspect its capability status.
@@ -234,11 +234,11 @@ loaded performs no update check.
 is optional `FX_REGISTRY`, npm's package-scope setting, then npm's default setting.
 Discovery uses global mode, honoring user/global config and `NPM_CONFIG_USERCONFIG`
 while excluding project npmrc. Invalid chosen settings remain unresolved; internal
-packages never fall back to a public Registry. Historical tarball URLs are not used
-to guess Registry APIs. Metadata authentication is delegated to npm; the existing
-private `FX_REGISTRY_TOKEN` override remains supported when paired with explicit
-`FX_REGISTRY`; it is not applied to an inferred target. Self-update pins only the
-fx package scope, preserving npm's default route for other dependencies.
+packages never fall back to a public Registry, while the public package falls back
+to npmjs. Historical tarball URLs are not used to guess Registry APIs. Metadata
+authentication is delegated to npm; the private `FX_REGISTRY_TOKEN` override applies
+only with an explicit `FX_REGISTRY`, never to an inferred target. Self-update pins
+only the fx package scope, preserving npm's default route for other dependencies.
 
 ### Initialization and synchronization
 
@@ -258,8 +258,8 @@ hook and MCP `items` where those stages ran. Rules rows are nested under
 `stage_details.docs.rules.items`. Skill tool rows retain exit `code`, a concise
 `note`, and the companion's structured `failure` when supplied. `code: null`
 means no exit result is available; consult item status and `ran` where supplied.
-A dry run executes no command, but an interrupted process may also lack an exit result. `stages` keeps its existing
-counter shape; details supplement those counts rather than replacing them.
+A dry run executes no command, but an interrupted process may also lack an exit result.
+`stages` holds the counts; `stage_details` holds the rows behind them.
 `fx init` nests this result under `sync`; its `written` field confirms local
 registration work, not complete synchronization or readiness.
 
@@ -319,9 +319,8 @@ is not applicable. Use `sync --only mcp` for projection and `doctor` for repair.
 `skill path` uses the collection envelope. Each row has an optional `agent`, `path`,
 `status` (`installed`, `not_installed`, `foreign`), `version` (nullable) and
 `version_state` (`matching`, `older`, `newer`, `unknown`, `missing`). `skill status`
-returns `loaded`, `loaded_env`, `loaded_version`, `version_env`, `version_verified`,
-`embedded_version`, `installs` and `next`. The declared loaded flag and declared
-version are separate; neither proves reading. Neither command needs a workspace.
+returns `embedded_version`, `activation: unverified` and `installs`, which holds the
+same rows. Neither command needs a workspace.
 
 Install/uninstall detect agents in the selected scope by default; `--agent`
 accepts repeated or comma-separated IDs. Path/status list all known agents unless
@@ -399,9 +398,9 @@ on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
 completed steps remain visible. Handoff rows include the required action, and
 service preparation rows retain available `failure` and `next_steps` fields.
 After resolving the blocker, repeat the same invocation: setup verifies current
-state before rerunning actions. Consumers that previously discarded stdout on
-nonzero exit must now parse it when present. `self update` also captures installer
-output so its stdout remains parseable; inspect the returned installer `code`.
+state before rerunning actions. Parse stdout on a nonzero exit whenever it is
+present. `self update` also captures installer output so its stdout remains
+parseable; inspect the returned installer `code`.
 
 Retain the original task, repository/environment and readiness query while
 repairing prerequisites. Authorization already given in this session persists;

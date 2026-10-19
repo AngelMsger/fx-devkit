@@ -189,7 +189,7 @@ export interface ErrorEnvelope {
 }
 
 // The wire shape of a handoff, shared by error envelopes and by answers
-// that carry one as data (need, doctor).
+// that carry one as data.
 export interface HandoffEnvelope {
   readonly summary: string;
   readonly user_steps: readonly HandoffStep[];

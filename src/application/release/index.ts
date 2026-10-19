@@ -86,8 +86,8 @@ export class Release {
     if (envs[env] === undefined) throw envNotFound(this.deps, env, Object.keys(envs));
   }
 
-  // One gate at a time, before the pool: a version probe's short deadline would
-  // not survive thirty concurrent subprocesses, and a ready tool would read as unknown.
+  // One gate at a time, before the pool: a version probe's short deadline would not
+  // survive the pool's concurrent subprocesses, and a ready tool would read as unknown.
   private async warmGates(
     repos: readonly ResolvedRepo[],
     checks: readonly Check[],
@@ -165,7 +165,7 @@ export class Release {
 const COVERAGE_HINT =
   'A repository is on it unless its manifest entry says release.covered: false.';
 
-// The three ways a selection can name nothing. An empty report reads as a pass,
+// The ways a selection can name nothing. An empty report reads as a pass,
 // so each is an error instead; see Coverage in domain/report.ts.
 function emptyChecklist(): DevkitError {
   return new DevkitError(

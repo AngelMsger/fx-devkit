@@ -1,12 +1,11 @@
 # Development handover
 
-This stable entry is retained for workspace bootstrap guides that already link
-here. Team-specific delivery records and account state are maintained privately.
+Team-specific delivery records and account state are maintained privately.
 
-The current source supports workspace initialization and synchronization,
-manifest maintenance, companion setup/readiness, release checks, agent Skills,
-lifecycle resources and selected-file source contributions. Public source cleanup
-does not change those capabilities or require publishing a team's manifest.
+fx supports workspace initialization and synchronization, manifest maintenance,
+companion setup/readiness, release checks, agent Skills, lifecycle resources and
+selected-file source contributions. Using it does not require publishing a team's
+manifest.
 
 - Build and verify a checkout using [validation](../validation.md).
 - Use [architecture and contracts](../design/README.md) for implementation behavior.

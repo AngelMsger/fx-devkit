@@ -1,6 +1,5 @@
 // The architecture's dependency rules and the house style, enforced.
-// Zones are listed from the innermost layer outwards; a layer may only import
-// the layers above it in this list.
+// `forbidden` names, for each layer, the layers it must not import.
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import importX from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
@@ -40,7 +39,7 @@ export default tseslint.config(
   { ignores: ['dist/', 'node_modules/', 'docs/website/dist/', 'docs/website/node_modules/'] },
   ...tseslint.configs.recommended,
   {
-    // src's two JavaScript modules are shared with scripts that run before a
+    // src's JavaScript modules are shared with scripts that run before a
     // build; the type-checked project covers them and the delivery scripts, so
     // the layering and style rules reach all of them too.
     files: ['**/*.ts', 'src/**/*.js', 'scripts/**/*.mjs'],

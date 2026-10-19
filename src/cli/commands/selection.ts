@@ -1,7 +1,7 @@
 // The six commands that edit a personal selection. They differ in the
 // collection, the operation and their prose; parsing, the write gate and the
-// recorded answer are one. Their parser metadata stays on each command: see the
-// command contracts in AGENTS.md.
+// recorded answer are one. Their strict, args and flags stay on each command:
+// the parser copies a command's own static members and drops inherited ones.
 
 import { Flags, type Interfaces } from '@oclif/core';
 

@@ -12,7 +12,7 @@ fx init --resume --workspace <name>
 
 能力未就绪时，重新登录前先看它的检查得到了什么回答。待处理的步骤带有工具的信息；fx 能判断时还会指出是未能建立认证、权限被拒绝，还是连接未能建立。权限被拒绝或连接失败不需要重新登录。没有给出成因时，以工具的信息和步骤的说明为准，不要预设结论。在 `can` 与 `where` 中，没有得到回答的检查返回 `unknown`：修复它指出的工具，或在超时后重新查询。`fx doctor --tool <tool> --env <env>` 可查看单个工具的同一份细节。
 
-`preparation.state` 为 `ready` 或 `incomplete`，未完成退出 12。`doctor.coverage` 单独表示诊断覆盖；release 仍使用 `ok/complete`。非零退出也要解析部分 stdout。
+`preparation.state` 为 `ready` 或 `incomplete`，未完成退出 12。`doctor.coverage` 单独表示诊断覆盖；release 使用 `ok/complete`。非零退出也要解析部分 stdout。
 
 来源错误会标出文件和字段。工具 schema 3 要求 run 步骤明确区分本地准备与个人认证。新输入尚未被接受时，修好来源后使用返回的完整重试命令；已经接受的初始化使用托管来源续跑。`fx workspace list` 和 `fx self info` 可用于发现。目录移动后用 `workspace relocate`；个人凭据始终留在配套工具中。
 

@@ -376,7 +376,7 @@ without installation or a registered workspace:
 ```sh
 fx self info --format json   # bundled_skill and bundled_skill_version
 fx skill show               # print the bundled SKILL.md
-fx skill status             # installed copies and the declared session version
+fx skill status             # installed copies and their versions
 ```
 
 To make a copy discoverable by a host, use `fx skill install --agent codex`.
@@ -394,7 +394,7 @@ sync may install it again.
 
 `skill status` reports installation versions and `activation: unverified`.
 An installed file is not proof that the host loaded it. Read the bundled guide
-when needed; normal commands require no Skill-loaded environment declaration.
+when needed.
 
 **Team Skills** live in the manifest's `skills/` tree. Init/sync link that tree into
 selected hosts and generate a catalog in the root AGENTS.md. Start at the workspace
@@ -407,14 +407,15 @@ team Skill link; use a user copy or an independent directory.
 Harness declarations project owned MCP entries and rule pointers into selected
 hosts. Secret values remain environment references. `mcp list/show` and
 `can mcp:<name>` explain prerequisites; a correct configuration does not prove
-native host activation. See [agent usage](user-guide.md#for-coding-agents).
+native host activation.
 
 ### Workspace lifecycle
 
 Managed hooks may return cached context and schedule manifest/docs/Skills refresh
 at session start. They do not sync business repositories or approve trust. Native
 project and hook trust remain owned by the host. Use `hook list`, `hook enable`
-and `hook disable`; [lifecycle](user-guide.md#for-coding-agents) describes the boundaries.
+and `hook disable`; [host activation](#skill-ownership-and-host-activation) explains
+the unverified states `hook list` reports.
 
 ### Shared source contributions
 
@@ -453,36 +454,22 @@ selectors produce structured errors. The
 
 ## Integrations
 
-The manifest chooses which providers and companion tools a workspace uses.
-These are the currently implemented provider families:
-
-| Capability                 | Providers                                              |
-| -------------------------- | ------------------------------------------------------ |
-| Code hosting               | Bitbucket CLI; GitHub CLI; local bare Git repositories |
-| CI                         | Jenkins CLI; GitHub Actions through GitHub CLI         |
-| Logs                       | OpenObserve CLI                                        |
-| Error tracking             | Sentry CLI                                             |
-| Cluster discovery          | kubectl, with read-only query vectors                  |
-| Issues and knowledge       | Feishu Project; Confluence CLI                         |
-| Communication entry points | Lark CLI; WeCom CLI                                    |
-| Calendars                  | Lark CLI; WeCom CLI; WeCom calendar CLI                |
-
-Run `fx manifest providers` and `fx tool list` for your workspace's actual
-bindings. Communication and knowledge entries hand off to companion tools;
-fx does not proxy every service API.
+The manifest chooses which providers and companion tools a workspace uses. Run
+`fx manifest providers` for what each capability is bound to in your workspace,
+and `fx tool list --catalog` for every companion tool fx knows, including those
+nothing here selects. Communication and knowledge entries hand off to companion
+tools; fx does not proxy every service API.
 
 Agent discovery includes Claude Code, Codex CLI, Cursor and other registered
 hosts. **Skill delivery, hooks, MCP and rules have different support per host.**
 Use `fx agent list`, `fx hook list` and `fx mcp list` to inspect the relevant
-capabilities instead of assuming feature parity. See the
-[agent usage](user-guide.md#for-coding-agents).
+capabilities instead of assuming feature parity.
 
 ## For coding agents
 
 Start with `fx self info --format json`. For initialization, read the returned
 `initialization_guide`; it is the short route from a source and directory to a
-verified workspace. Keep the exact executable prefix. Initialization does not
-require a Skill-loaded environment declaration. The full
+verified workspace. Keep the exact executable prefix. The full
 [Skill](../skills/fx-workspace/SKILL.md) covers other tasks.
 
 stdout contains results; stderr contains progress, notices and structured errors.
@@ -541,27 +528,6 @@ or copy personal credentials into a manifest.
 For file conflicts, `stage_details.docs.files` (under `sync` in init) preserves
 completed and unstarted writes. Foreign replacements require approval and retain
 a sibling backup. See the [response contracts](../skills/fx-workspace/references/commands.md).
-
-## Migrating to 0.4.0
-
-- Tools documents now use `schema_version: 3`. A `kind: run` setup step declares
-  `phase: prepare` for local non-interactive preparation or `phase: authenticate`
-  for personal sign-in. Old documents fail before workspace effects, with a
-  migration explanation; fx does not guess a script's purpose.
-- The Skill-loaded handshake and `skill_notice` setting are removed.
-  `FX_SKILL_LOADED`, `FX_SKILL_VERSION` and `FX_SKILL_NOTICE` are no longer used.
-  Replace reads of skill status loaded/version_verified with its installation
-  versions and `activation` evidence.
-- `preparation.state` replaces `preparation_complete`. Doctor replaces its
-  top-level `ok/complete` with preparation plus diagnostic `coverage`; release
-  keeps its existing report contract. Incomplete preparation now exits 12.
-- Workspace discovery reports `registration_status: available` for a readable
-  registration. This is not a workspace preparation verdict.
-- `init --resume --workspace <name>` continues using the managed source and
-  existing selection. Ordinary source guides no longer need fx markers: missing
-  regions are appended to generated guides, preserving the shared source.
-
-See [the manifest guide](manifest-guide.md) for the authoring format.
 
 ## Configuration
 

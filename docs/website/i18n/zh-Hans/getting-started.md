@@ -228,7 +228,7 @@ fx skill status
 
 显式 install 将已识别副本刷新到调用 CLI 的版本，包括同版修复和替换较新副本；init/sync 同版复用且不降级。外来内容替换需要确认和备份。卸载不改变 Agent 选择，后续 sync 可能再次安装。
 
-`skill status` 报告安装版本与 `activation: unverified`。文件已安装不代表宿主已加载。按需读取随包指南，普通命令无需声明 Skill 已加载。
+`skill status` 报告安装版本与 `activation: unverified`。文件已安装不代表宿主已加载。按需读取随包指南。
 
 团队 Skill 位于 manifest 的 `skills/`，由 init/sync 链接到所选宿主，并在根 AGENTS.md 生成目录。请从工作区根启动，子仓库中的发现行为没有保证。用 `fx sync --only docs,skills` 刷新；不要通过团队共享链接安装 fx 伴生 Skill，应使用用户副本或独立目录。
 
@@ -257,7 +257,7 @@ fx skill status
 
 ## 给编码 Agent {#for-coding-agents}
 
-先执行 `fx self info --format json`。初始化任务读取返回的 `initialization_guide`，并持续使用同一准确入口；无需声明已加载 Skill 的环境变量。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任务的路由。
+先执行 `fx self info --format json`。初始化任务读取返回的 `initialization_guide`，并持续使用同一准确入口。[完整 Skill](../skills/fx-workspace/SKILL.md) 提供其他任务的路由。
 
 用 `--format json` 分开保存 stdout 结果与 stderr 进度、通知和错误。默认结果保留准备结论和全部阻塞项，`--details` 展开阶段证据。human 默认先显示任务结论和下一步。`release check` 的 human 输出在每个仓库开头先说明它将发布的内容：目标分支声明的版本、两个分支的最新提交，以及源分支上尚未合并到目标分支的提交数。每个有失败或警告检查的仓库单独列一块，列出它的全部检查；所有仓库共有的问题只在它们上方说明一次；全部检查都通过的仓库在最后各占一行。`--details` 也会列出这些仓库的检查。在终端上还会加上颜色和符号、按宽度收窄表格，并以文本显示错误；管道或文件得到纯文本和 JSON 错误信封，`NO_COLOR` 去掉颜色。命令执行期间，终端上还会有一行状态行，显示已用时间、可计数工作的进度和正在等待的对象；命令结束后这一行消失，管道、文件、JSON 输出和 `--quiet` 都不会收到它。git 或安装器运行期间可能在同一终端上询问主机密钥或口令，这时状态行不再原地刷新，改为每五秒打印一行。显式 `--fields` 从完整报告提取字段，点路径保留为扁平键，例如 `fx sync --format json --fields operation,preparation.state,items,summary`。
 
@@ -279,16 +279,6 @@ Init 会自行执行已授权的本地准备。结果保留已完成步骤；认
 
 文件冲突的逐项结果保留在 `stage_details.docs.files`（init 中位于 `sync` 下）。替换外来内容需要批准，并保留同级备份。详见[响应契约](../skills/fx-workspace/references/commands.md)。
 
-## 迁移到 0.4.0 {#migrating-to-040}
-
-- 工具文档使用 `schema_version: 3`。`kind: run` 必须声明 `phase: prepare`（本地非交互准备）或 `phase: authenticate`（个人登录）。旧格式在产生工作区效果前报出迁移问题，fx 不猜测脚本用途。
-- 已移除 Skill 加载握手及 `skill_notice` 配置。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` 不再使用；请改读安装版本和 `activation`，不要再读取 loaded/version_verified。
-- `preparation.state` 替代 `preparation_complete`。doctor 的顶层 `ok/complete` 改为准备结果和诊断 `coverage`；release 保留原契约。准备未完成退出 12。
-- 工作区发现使用 `registration_status: available` 表示注册可读，不代表准备完成。
-- `init --resume --workspace <name>` 使用托管来源和现有选择继续。普通源指南无需 fx 标记：缺少的区域会补入生成的目标指南，共享源保持不变。
-
-配置格式见 [manifest 指南](manifest-guide.md)。
-
 ## 配置 {#configuration}
 
 `~/.fx` 保存工作区注册、个人层、资源所有权状态、信任和缓存。`FX_HOME` 只改变 fx 的个人目录，不改变配套工具的凭据位置。
@@ -307,22 +297,9 @@ Init 会自行执行已授权的本地准备。结果保留已完成步骤；认
 
 ## 集成 {#integrations}
 
-manifest 选择工作区使用的 provider 和配套 CLI。当前实现包括：
+manifest 选择工作区使用的 provider 和配套 CLI。`fx manifest providers` 列出本工作区中每项能力绑定了什么；`fx tool list --catalog` 列出 fx 已知的全部配套工具，包括这里没有被选用的。通讯和知识入口交接给配套工具，不代表 fx 代理了所有服务 API。
 
-| 能力         | 提供者                                         |
-| ------------ | ---------------------------------------------- |
-| 代码托管     | Bitbucket CLI、GitHub CLI、本地 bare Git 仓库  |
-| CI           | Jenkins CLI、通过 GitHub CLI 的 GitHub Actions |
-| 日志         | OpenObserve CLI                                |
-| 错误追踪     | Sentry CLI                                     |
-| 集群发现     | kubectl，只读查询向量                          |
-| 工作项与知识 | 飞书项目、Confluence CLI                       |
-| 通讯入口     | Lark CLI、WeCom CLI                            |
-| 日历         | Lark CLI、WeCom CLI、WeCom calendar CLI        |
-
-使用 `fx manifest providers` 与 `fx tool list` 查看实际绑定。通讯和知识入口交接给配套工具，不代表 fx 代理了所有服务 API。
-
-Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力。参见[宿主契约](user-guide.md#for-coding-agents)。
+Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill、hook、MCP 与规则的支持因宿主而异；用 `agent list`、`hook list`、`mcp list` 检查具体能力，不要假定各宿主功能一致。
 
 ## 判读初始化与恢复结果 {#reading-initialization-and-recovery-results}
 

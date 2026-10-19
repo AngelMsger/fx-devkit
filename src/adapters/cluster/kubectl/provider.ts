@@ -1,6 +1,5 @@
-// Kubernetes through kubectl, read-only by construction: the only verbs that ever appear
-// in a generated vector are get, describe, logs, top, auth can-i and config get-
-// contexts; a test pins that.
+// Kubernetes through kubectl, read-only by construction: every generated vector leads
+// with one of READ_ONLY_VERBS, and a test pins that leading verb.
 
 import type { Cluster } from '../../../ports/cluster.js';
 import type { ProviderDescriptor } from '../../../ports/provider.js';

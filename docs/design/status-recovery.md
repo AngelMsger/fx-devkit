@@ -1,26 +1,32 @@
-# Repository status and validation recovery
+# Repository status and code-host readability
 
-`status` preserves the JSON `dirty` field for tracked index or worktree changes,
-including staged additions. `untracked` counts non-ignored untracked files, including files inside new
-directories and regardless of `status.showUntrackedFiles`; `uncommitted` combines either kind of work. Human output shows
-all three and `--dirty` selects `uncommitted`, so new files do not disappear from
-a work-in-progress check. Ignored paths are excluded. Empty selection remains an
-empty collection rather than inventing a clean checkout.
+## Status fields
 
-These presentation fields do not change sync's Git contract. Tracked changes on
-the tracked branch still skip a working-tree update. Nonconflicting untracked
-files can coexist with a fast-forward; Git refuses updates that would overwrite
-them. A task branch still permits only the tracked branch ref update.
+`status` reports three facts about a checkout's local work. `dirty` is true for
+tracked index or worktree changes, including staged additions. `untracked` counts
+non-ignored untracked files, including files inside new directories and regardless
+of `status.showUntrackedFiles`. `uncommitted` is true for either kind of work.
+Human output shows all three and `--dirty` selects `uncommitted`, so new files do
+not disappear from a work-in-progress check. Ignored paths are excluded. An empty
+selection is an empty collection rather than an invented clean checkout.
 
-Manifest validation judges every reported problem, including missing required
-`manifest/workspace.yaml`, in ordinary and strict modes. A missing optional
-manifest document has no problem; the bundled tools baseline remains available.
-Selecting one document kind validates that requested kind only. Validation prints
-its report before returning `MANIFEST_INVALID` when the report is not okay.
+## Relation to sync
 
-Code-host readability is a current observation rather than cached authorization.
-Every explicit sync planning pass queries each missing repository once; existing
-checkouts continue to use Git. Explicit unreadable listings also query live.
-Old cache files are ignored without requiring migration or manual deletion.
-Unavailable optional API prerequisites produce `unknown` and preserve the Git
-transport fallback. Readability never guarantees a subsequent Git operation.
+Status fields describe a checkout; sync's Git contract decides what happens to it.
+Tracked changes on the tracked branch skip a working-tree update. Nonconflicting
+untracked files can coexist with a fast-forward; Git refuses updates that would
+overwrite them. A task branch permits only the tracked branch ref update.
+
+## Code-host readability
+
+Code-host readability is a current observation rather than cached authorization:
+no readability record, positive or negative, is persisted or read. Every explicit
+sync planning pass asks the code host once per missing repository, and an explicit
+unreadable listing asks once per repository; existing checkouts use Git. A retry
+therefore sees recovered access and changed hosts.
+
+A probe that outlives its [deadline](runtime.md#deadlines-and-process-lifecycle),
+or whose optional API prerequisite is unavailable, reads as `unknown` and keeps the
+Git transport fallback. An explicit refusal or missing result applies only to the
+current operation. Cancellation and unexpected exceptions propagate. Readability
+never guarantees a subsequent Git operation.

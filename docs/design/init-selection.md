@@ -5,21 +5,24 @@ create the target directory, install opted-in tools, prepare public/local settin
 synchronize repositories and Agent resources, then verify required work. Local
 source semantic errors and discarded declarations block before registration or
 cloning. A remote source may first be acquired, but no business effect precedes
-validation. Unknown ordinary extension fields retain the documented warning policy.
+validation. Unknown ordinary extension fields are stripped and reported, as
+[setup](setup.md#manifest-verification-alternatives) describes.
 
 Preview and apply share toolchain selection and setup planning. The preview lists
 known guide ownership conflicts and exact available command vectors; it never grants
 trust. Source guidance stays unchanged: missing discovery regions are appended only
 to generated workspace guides, preserving prose and existing region positions.
-Malformed or duplicate markers require source repair. Foreign targets retain the
-existing approval, backup and concurrent-write protection.
+Malformed or duplicate markers require source repair. Replacing a foreign target
+requires approval, keeps a backup and is protected against concurrent writes.
 
 Init --resume --workspace uses the registered directory, managed manifest and
 personal selection without materialization or refresh. It verifies current state
 and skips successful work. A rejected new input returns the complete original retry
 instead of silently continuing an older source. A directory's valid basename is
 its default identity; spaces/Unicode get a deterministic safe name, and an existing
-physical-root registration is reused. The resolved name is fixed under its lease.
+physical-root registration is reused. Planning and registration both compare real
+paths, including symlink aliases. The resolved name is fixed under its lease, and
+registration rechecks current state under that lease.
 
 The [runtime contract](runtime.md) owns preparation output and exit codes; the
 [setup policy](setup.md) separates local preparation from personal sign-in.
@@ -31,7 +34,7 @@ checkout remain separately managed; the shared repository scope never removes th
 
 `repo select` and `env select` replace a scope with the supplied names. `--all`
 removes that key and `--none` writes an empty list. Names cannot accompany either
-flag. Existing `pick` and `unpick` keep their additive and subtractive meanings.
+flag. `pick` adds names and `unpick` removes them.
 Picking under dynamic all is a no-op, while unpicking expands the current universe
 into an explicit list. Duplicate additions cannot create duplicate entries.
 
@@ -64,8 +67,7 @@ Initialization separates planned effects in `plan` from completed facts.
 `registered` indicates actual registration, including on repeated initialization;
 `default_workspace` indicates whether this workspace is the actual default.
 `manifest: not_written` means preview did not materialize or refresh a source.
-The previous initialization booleans described intended/new changes; consumers
-should use `plan.registration` and `plan.default_workspace` for those decisions.
+`plan.registration` and `plan.default_workspace` carry the intended changes.
 
 Local directory, stdin and local Git previews inspect content without copying it.
 A first local Git preview reads committed HEAD because materialization clones
@@ -78,9 +80,10 @@ used by preview and refresh; upstream tracking refs can be fetched, but the sour
 branch and files remain unchanged while these local payloads exist. For a clean managed
 branch, local-source ancestry determines whether refresh can fast-forward; a
 non-fast-forward preview keeps the managed snapshot. Unknown remote refresh results
-remain uninspected instead of claiming future declarations are validated. Directory inspection rejects missing manifests and symlink payloads before
-validation. Source inspection supplies a read-only document reader to the same
-manifest loaders used during application.
+remain uninspected instead of claiming future declarations are validated. Directory
+inspection rejects missing manifests and symlink payloads before validation. Source
+inspection supplies a read-only document reader to the same manifest loaders used
+during application.
 
 The repository preview and ordinary sync share `planRepositories` and domain
 `planSync`. The repository plan reads local checkout state without querying

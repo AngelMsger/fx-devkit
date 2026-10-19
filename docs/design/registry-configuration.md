@@ -39,8 +39,7 @@ probe cache. npm owns authentication and
 configuration interpolation. Diagnostics do not expose its raw output. The explicit
 legacy `FX_REGISTRY_TOKEN` remains supported when paired with an explicit private
 `FX_REGISTRY` through HTTP;
-it is never sent to npmjs or passed as a process argument. fx no longer parses
-npmrc authentication itself.
+it is never sent to npmjs or passed as a process argument.
 
 Self-update pins only fx's package scope to the selected Registry. npm's default
 Registry continues to route public dependencies, avoiding an unnecessary private
