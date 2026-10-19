@@ -212,8 +212,16 @@ lists each one in its `root` group as a warning that does not affect readiness.
 
 Sync preserves working files and branches. Read the planned action: tracked
 modifications can cause `skip_dirty`, while a checkout on another branch can
-update only the tracked branch reference. A status report does not itself run
-fetch; add `--fetch` explicitly when remote comparisons must be refreshed.
+update only the tracked branch reference. An empty upstream is skipped with nothing
+to fast-forward; one that lacks the tracked branch is skipped too, and reported for
+review. A status report does not itself run fetch; add `--fetch` explicitly when
+remote comparisons must be refreshed.
+
+In a terminal, sync and init print a repository or Skill row only when it needs a
+look; what succeeded is counted on the status line. Both close with one line per
+stage, then the blockers grouped by what resolves them: a sign-in, access the service
+refused, or a server this machine cannot reach, which gets the command that checks it
+again. `--verbose` prints every row, and a pipe or `--format json` still receives them all.
 
 ## Concepts
 
@@ -606,7 +614,9 @@ readability. [Support](support.md#troubleshooting) explains discovery and update
 
 When `login` needs human input, complete the authorized handoff and repeat the
 same invocation. fx checks current state before rerunning actions; then recheck
-the original `can` or `doctor` query and continue your task.
+the original `can` or `doctor` query and continue your task. Like init and sync,
+`login` runs the bundled step that reuses an existing login without asking, even
+with `--no-input`; it asks before a sign-in.
 
 Machine callers must read partial stdout even after a nonzero exit, alongside
 the error on stderr. Completed steps remain visible; `handoff`, `blocked`,
@@ -647,3 +657,6 @@ to sign in. Tokens stay in the companion's credential store, and your current
 context and existing identities are preserved. If several identities match,
 choose a source with the companion's `auth reuse --from-context` command; network
 or keychain failures are diagnosed separately from missing credentials.
+Environments may share a stored login: when `fx login` signs you in for one of them,
+it checks the tool's earlier environments it could not finish again, and reports
+those that now work as verified.

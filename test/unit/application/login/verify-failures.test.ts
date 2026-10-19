@@ -65,7 +65,7 @@ it('reads no failure into a check that passed', async () => {
   h.process.on(['check'], { code: 0, stdout: 'yes', stderr: 'Warning: Unauthorized plugin' });
   expect(await new Verifier(h.deps, fakeLoginDeps({})).verify(step())).toEqual({
     ok: true,
-    detail: 'check succeeded',
+    detail: 'the check passed',
   });
 });
 

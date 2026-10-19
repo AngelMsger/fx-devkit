@@ -158,6 +158,8 @@ Sync clones missing repositories and fast-forwards eligible clean branches. When
 a different branch is checked out, it updates only the tracked branch ref.
 It never checks out, resets, stashes, merges or rebases. Dirty or diverged work is
 reported as `skip_dirty` / `skip_diverged`; inspect repository and resource outcomes.
+An empty upstream is skipped with outcome `empty_remote`; one lacking the tracked branch
+is skipped with `no_remote_branch` and still blocks readiness. Neither is a failure.
 
 The workspace root is a plain directory. Do not initialize or run Git there.
 Write output that belongs to no repository under `.workbench/` as the derived

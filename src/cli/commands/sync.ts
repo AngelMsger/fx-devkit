@@ -31,10 +31,13 @@ export default class SyncCommand extends FxCommand {
     const { flags } = await this.parse(SyncCommand);
     const only = selectSyncStages(flags.only?.join(','), syncStageIds());
     const run = { ...writeIntent(flags, this.posture) };
-    if (flags['refresh-manifest'])
-      await refreshManifestBeforeSync(this.container, this.resolveInput(), run);
+    this.foldRestatedOutcomes();
+    const manifest = flags['refresh-manifest']
+      ? await refreshManifestBeforeSync(this.container, this.resolveInput(), run)
+      : undefined;
     const out = await new Sync(await this.workspaceDeps(), this.stageDeps()).execute({
       ...run,
+      manifest,
       jobs: flags.jobs,
       only,
     });

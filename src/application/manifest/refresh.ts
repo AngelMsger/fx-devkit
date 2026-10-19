@@ -81,7 +81,7 @@ export async function refreshWorkspaceManifest(
   deps: RefreshWorkspaceDeps,
   resolve: ResolveInput,
   run: { readonly dryRun: boolean; readonly posture: WritePosture },
-): Promise<void> {
+): Promise<RefreshManifestOutput> {
   const located = await resolveWorkspace(resolve);
   const entry = (await resolve.config.read()).workspaces?.[located.name];
   const source = entry?.source === undefined ? undefined : await deps.sourceFor(entry.source);
@@ -92,7 +92,7 @@ export async function refreshWorkspaceManifest(
   if (lease === null)
     throw busyError('LOCK_BUSY', 'The workspace', { nextSteps: ['Retry fx sync shortly.'] });
   try {
-    await new RefreshManifest(resolve.reporter).execute({
+    return await new RefreshManifest(resolve.reporter).execute({
       manifestDir: located.manifestDir,
       source,
       ...run,

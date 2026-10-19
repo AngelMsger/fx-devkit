@@ -139,12 +139,10 @@ function commandVerdict(
         verify.json.unmet ??
         `expected ${verify.json.path} to be ${String(verify.json.equals)}`)
       : undefined;
-  if (result.code === 0)
-    return unmet === undefined
-      ? { ok: true, detail: `${verify.command.join(' ')} succeeded` }
-      : { ok: false, detail: unmet };
-  // A tool that fails silently still answered the declared expectation on stdout.
-  const silent = result.stderr.trim() === '';
+  if (result.code === 0 && unmet === undefined) return { ok: true, detail: passed(verify) };
+  // A tool that fails silently, or answers without failing, still answered the declared
+  // expectation on stdout.
+  const silent = result.code === 0 || result.stderr.trim() === '';
   const read = failureCaseOf(result, verify.failures);
   return {
     ok: false,
@@ -159,6 +157,13 @@ function commandVerdict(
           },
         }),
   };
+}
+
+// What a passing check established; the command itself is in the step's plan.
+function passed(verify: Extract<SetupCheck, { readonly command: readonly string[] }>): string {
+  return verify.json === undefined
+    ? 'the check passed'
+    : `${verify.json.path} is ${String(verify.json.equals)}`;
 }
 
 // Manifest paths say `~` the way a person would; a tool receiving them

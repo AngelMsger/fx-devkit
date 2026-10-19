@@ -111,7 +111,7 @@ function decide(repo: ResolvedRepo, input: SyncPlanInput): PlanItem {
       ...forkToAdd(disk.remotes, urls),
       action: 'skip_manifest',
       fetch: false,
-      reason: 'refreshed before the workspace loaded',
+      reason: 'the manifest source; not refreshed by this sync',
     };
   }
   return decideCheckout(base, repo, urls, disk.remotes, disk.state);

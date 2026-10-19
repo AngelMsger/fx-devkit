@@ -399,14 +399,24 @@ Team context names and public service settings stay separate from native identit
 association: after public setup, a separate `phase: prepare` recipe of the family
 adapters calls native `auth reuse` for the declared context. It runs under the
 [execution policy](#initialization-execution-policy) before credential readiness,
-so nobody has to know to ask for it; doctor without --fix only checks. Preview is
-read-only, and an unchanged post-write preview verifies association.
+so nobody has to know to ask for it; doctor without --fix only checks. Login applies
+a bundled prepare step the same way, off the terminal, under a deadline and without
+asking, and asks only before a sign-in; a step the team patch authored still asks.
+Preview is read-only, and an unchanged post-write preview verifies association.
 
 An unavailable or no-change result does not prove authentication. The independent credential
 recipe checks auth status and hands personal sign-in to the user. It depends on
 reuse, so ambiguity, inaccessible storage or failed verification blocks dependent
 login. Native tools own identity matching and credential access; fx stores no
 secrets or parallel identity registry.
+
+Which other contexts a sign-in also serves is the companion's to know, as when two
+environments share a stored login. So as soon as a `login` sign-in succeeds, the
+earlier steps of the same tool are brought up to date, prerequisites first: one that
+failed is checked again, and one that waited on a step now passing gets its first
+attempt. No setup action runs a second time. A check that still fails, or gives no
+answer, leaves the step's result as it was and records what it found in the row's
+`recheck`; an error fx does not recognize stops the run with its partial result.
 
 The companion version floors in defaults/tools.yaml must support reuse before an
 fx release requires it. Release validation covers a prepared destination and an
@@ -435,3 +445,14 @@ Human preparation output includes the required user actions and their commands,
 followed by the continuation command. Identical user commands appear once. Agent
 actions remain separate; displaying personal sign-in never executes it. Structured
 output retains all per-step evidence, including the workspace and recovery vectors.
+
+A preparation check keeps what its failed step's check read: `cause` (`credential`,
+`permission` or `network`) where the recipe can tell, and `waits_on`, the check it
+waited on without being checked itself. The view opens with one line per stage, groups
+blockers by cause once any check names one, and names a waiting check under the blocker
+its chain of waits leads to, so one problem is one row. A server that could not be reached gets the
+command that checks it again, not a sign-in. A preparation step whose companion says a
+retry will not help gets no fx command: repairing it would repeat the failure and a
+sign-in would wait on it again. The view shows the companion's own recovery, which its
+`failure` carries, under the check instead, and `fx login` repeats it in a
+`LOGIN_STEP_FAILED` notice for a step it ran off the terminal.

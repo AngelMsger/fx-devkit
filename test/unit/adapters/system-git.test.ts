@@ -30,7 +30,6 @@ function advance(work: string, name: string): void {
 
 describe('SystemGit command vectors', () => {
   it.each([
-    ["fatal: couldn't find remote ref gone", 'not_found'],
     ['Permission denied (publickey).', 'auth'],
     ['fatal: Could not resolve host: example.com', 'network'],
     ['fatal: Unable to create index.lock: File exists', 'conflict'],
@@ -216,6 +215,35 @@ describe('SystemGit against real git', () => {
     expect(await sut.status(dir, 'upstream/dev')).toMatchObject({ ahead: 1, behind: 1 });
     expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('diverged');
     expect(git(['rev-parse', 'HEAD'], dir)).toBe(before);
+  });
+
+  it('asks the remote before calling a branch absent, and fast-forwards an unborn checkout', async () => {
+    const root = tempDir('fx-git-');
+    const bare = path.join(root, 'a.git');
+    git(['init', '--bare', '-b', 'dev', bare], root);
+    const dir = path.join(root, 'a');
+    git(['init', '-q', '-b', 'dev', dir], root);
+    git(['remote', 'add', 'upstream', bare], dir);
+    await sut.fetch(dir, 'upstream');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('empty_remote');
+    expect(await sut.fastForward(dir, 'upstream', 'main'), 'only a ref would move').toBe(
+      'empty_remote',
+    );
+    const work = path.join(root, 'work');
+    git(['clone', '-q', bare, work], root);
+    git(['checkout', '-q', '-b', 'dev'], work);
+    advance(work, 'one');
+    await sut.fetch(dir, 'upstream');
+    expect(await sut.fastForward(dir, 'upstream', 'main')).toBe('no_remote_branch');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('updated');
+    expect(git(['rev-parse', 'HEAD'], dir)).toBe(git(['rev-parse', 'upstream/dev'], dir));
+    // A branch the remote has but this checkout never fetches is not an absent one.
+    git(['config', 'remote.upstream.fetch', '+refs/heads/main:refs/remotes/upstream/main'], dir);
+    git(['update-ref', '-d', 'refs/remotes/upstream/dev'], dir);
+    await expect(sut.fastForward(dir, 'upstream', 'dev')).rejects.toMatchObject({
+      code: 'GIT_FAST_FORWARD_FAILED',
+      hint: expect.stringContaining('remote.upstream.fetch'),
+    });
   });
 
   it('classifies an absent local clone source as not found', async () => {

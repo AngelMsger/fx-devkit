@@ -250,7 +250,7 @@ function diagnosticRenderer(
       answer({ _notice: notice }, () => humanNotice(notice, display));
     },
     notice: (notice: Notice) => {
-      if (options.quiet) return;
+      if (options.quiet || status?.takesNotice(notice)) return;
       err(human ? humanNotice(notice, display) : JSON.stringify({ _notice: notice }));
     },
     progress: (event: ProgressEvent) => {

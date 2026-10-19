@@ -1,6 +1,9 @@
 // Bind source adapters and update receipts to the pre-sync refresh workflow.
 
-import { refreshWorkspaceManifest } from '../application/manifest/refresh.js';
+import {
+  refreshWorkspaceManifest,
+  type RefreshManifestOutput,
+} from '../application/manifest/refresh.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 
@@ -12,7 +15,7 @@ export function refreshManifestBeforeSync(
   container: Container,
   resolve: ResolveInput,
   run: { readonly dryRun: boolean; readonly posture: WritePosture },
-): Promise<void> {
+): Promise<RefreshManifestOutput> {
   return refreshWorkspaceManifest(
     {
       lock: container.lock,

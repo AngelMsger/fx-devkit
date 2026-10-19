@@ -39,6 +39,7 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
     'skip_diverged',
     'skip_not_git',
     'skip_remote_mismatch',
+    'no_remote_branch',
   ],
   fail: [
     'fail',
@@ -52,10 +53,12 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
   ],
   // Nothing happened, or nothing applies.
   quiet: [
+    'current',
     'skipped',
     'skip',
     'skip_unpicked',
     'skip_manifest',
+    'empty_remote',
     'none',
     'not_applicable',
     'not_requested',

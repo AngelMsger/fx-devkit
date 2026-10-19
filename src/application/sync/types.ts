@@ -11,6 +11,7 @@ import type { RenderedFile } from '../docs/rendered.js';
 import type { HarnessStageDetails } from '../harness/types.js';
 import type { HookStageDetails } from '../hook/types.js';
 import type { SetupStageDetails } from '../login/stage.js';
+import type { RefreshManifestOutput } from '../manifest/refresh.js';
 import type { StageSummary } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import type { ServiceStageDetails } from '../services/types.js';
@@ -78,6 +79,8 @@ export interface SyncInput {
   readonly posture: WritePosture;
   readonly jobs: number;
   readonly only?: SyncStage | readonly SyncStage[] | undefined;
+  // What the refresh before this sync did with the manifest checkout, when one ran.
+  readonly manifest?: RefreshManifestOutput | undefined;
 }
 
 export interface SyncItem extends PlanItem {

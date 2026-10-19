@@ -13,9 +13,17 @@
 - 錯誤裡建議的命令會為需要引號的目錄、工具或儲存庫名稱加上引號：`IMPORT_INSIDE_ROOT` 中被匯入的目錄、被暫緩安裝的工具或準備其 Skill 時缺少的配套工具，以及 `PROBE_RECORD_INPUT_REQUIRED` 的儲存庫。帶空格的路徑可以原樣貼上執行。
 - 下列情況給出的命令依設定的 `command_shell` 加引號：工作區 `relocate`、`rebind` 之後的命令，`fx init` 無法接受或繼續的註冊，工作區已變更的 profile 匯入或原始碼貢獻，未能記錄的探測，目標位於被描述目錄之內的 manifest 匯入，以及 `--workspace` 指向未註冊的名稱。此前無論如何設定都以 POSIX 方式加引號。
 - 讀取 manifest 儲存庫或 `local-git` 程式碼託管時，git 與儲存庫同步一樣在 C locale 下執行。在其他 locale 下，分支上不存在的檔案曾被回報為查詢失敗，因為 git 的在地化訊息無法識別。在這些情況中 git 無法啟動時現在回報 `TOOL_MISSING`。
+- `fx sync` 和 `fx init` 在結論之前按階段各給一列結論：已更新、已是最新、已略過和失敗的儲存庫（帶名稱），manifest 更新的結果，以及其他階段回報的計數。在終端機裡，成功的列不再逐列印出而由狀態列計數，結尾檢視會重複的 `SYNC_PARTIAL` notice 也同樣處理；`--verbose` 會印出它們，管道或 JSON 仍會收到全部紀錄。Git 呼叫期間的狀態列在其他列持續輸出時不再重複出現。
+- 按解決方式分組 sync 和 init 的阻擋項：登入或憑證、被拒絕的存取，或本機連不上的伺服器；後者現在給出重新檢查的命令而不是 `fx login`，不回應的 Prometheus 伺服器算作連不上。直接或間接等待其他阻擋項的檢查列在其下方而不再單獨計數，companion 的錯誤碼跟在訊息後面；companion 表示重試也無濟於事的準備步驟不再建議 `fx doctor --fix`，而是顯示 companion 自己的建議。準備檢查新增 `cause` 和 `waits_on`。
+- `fx login` 與 init 和 sync 一樣，不詢問、不佔用終端機地執行重用現有登入的內建步驟，帶 `--no-input` 時也會執行。它失敗時保留 companion 的訊息和錯誤碼而不是 `exit 3`，終端機會在 `LOGIN_STEP_FAILED` notice 中顯示 companion 的建議，companion 的 JSON 也不再印到終端機；只有登入前才會詢問。
+- 人讀的 `fx login` 表格下方只顯示非零計數，不再顯示空的 `problems`；重複這些計數的 `LOGIN_SUMMARY` notice 留給 JSON 和管道。通過的檢查不再重複其命令，而是說明確認了什麼，例如 `authenticated is true`。
 - 拒絕記錄中帶有任意大小寫的 `.git` 區段或刪除字元的 harness 路徑與貢獻路徑。harness 所有權中繼資料此前接受 `.GIT/...`，在不區分大小寫的磁碟區上它會解析到儲存庫自身的目錄；兩個存放區現在都依 `fx source push` 對所選檔案使用的規則驗證記錄的路徑。
 - fx 安裝在名稱含空格或非 ASCII 字元的目錄下，或在 Windows 上時，`fx self info` 的 `bundled_tools` 給出檔案系統可用的路徑。此前該值是經過百分比編碼的 URL 路徑。
 - `fx init --resume` 繼續一個沒有記錄 manifest 來源的註冊時保持其原樣。此前繼續執行會把 `source: "-"` 寫入 `config.yaml`：之後 `fx sync` 把該工作區當作從 stdin 準備的工作區，不再提示沒有可重新整理的來源，`fx init <dir> --from <source>` 則以 `SOURCE_MISMATCH` 拒絕該目錄，而不是記錄這個來源。
+- upstream 仍為空的儲存庫（例如在首次 push 之前以 `fx repo add` 登記的儲存庫）會被略過，不再讓整個 sync 失敗。fx 在判定分支不存在之前會先詢問遠端：空的 upstream 是 outcome 為 `empty_remote` 的略過，不影響就緒判定；有其他分支但沒有被追蹤分支的 upstream 是 outcome 為 `no_remote_branch` 的略過，仍然影響就緒判定，因為 manifest 可能寫錯了分支。尚無提交的本地分支會在 upstream 有提交後 fast-forward，處於這兩種狀態的 manifest checkout 都保持原樣。
+- `fx login` 登入某個環境後，立即讓先前的環境跟上：該工具先前失敗的步驟會重新檢查，等待中的步驟若其前置步驟現在通過則會執行，因此共用已儲存登入的環境不會再在彙總裡停留為 failed 或 blocked。不會有設定操作執行第二次；仍然失敗的檢查保持原結果，並在 `recheck` 中記錄發現的內容。
+- manifest checkout 的 sync 列不再總寫 "refreshed"，而是說明實際結果：已更新、已是最新，或帶原因地保留；保留所在分支的提交已經在 upstream 時也會說明。
+- 失敗的檢查在前綴之後以 JSON 物件給出原因時（例如 kubectl 的 `Error from server (Forbidden): {…}`），讀取其中的原因，而不是原樣引用整個物件。
 
 ## 0.11.0 (2026-10-12)
 

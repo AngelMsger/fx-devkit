@@ -2,13 +2,15 @@
 // how far counted work has come and for how long. It is redrawn in place, steps aside
 // for everything else that reaches the terminal and leaves nothing behind. While a child
 // that can still write to the terminal runs, nothing is redrawn: the line is then said
-// as an ordinary one every few seconds, so a question the child asks is never wiped.
+// as an ordinary one once the terminal has been quiet for a few seconds, so a question
+// the child asks is never wiped. A command whose closing view restates some outcomes and
+// notices may leave them to the line's count; that only changes what this terminal shows.
 // It runs between `start` and `stop`; outside them it lets every write through untouched.
 
 import type { Writable } from 'node:stream';
 
 import type { Activity, Count, Release, Wait } from '../../ports/activity.js';
-import type { ProgressEvent } from '../../ports/reporter.js';
+import type { Notice, ProgressEvent } from '../../ports/reporter.js';
 
 import type { Display, LiveLine } from './display.js';
 import { humanProgress, humanStatus, type Underway } from './human.js';
@@ -23,6 +25,12 @@ const INTERRUPTS = ['SIGINT', 'SIGTERM'] as const;
 interface Since {
   readonly name: string;
   readonly since: number;
+}
+
+// What a command's closing view restates, so the terminal need not say it as it happens.
+export interface Folded {
+  readonly outcomes?: readonly ProgressEvent['state'][];
+  readonly notices?: readonly string[];
 }
 
 interface Counted {
@@ -44,6 +52,8 @@ export class StatusLine implements Activity {
   private startedAt = 0;
   private dueAt = 0;
   private saidAt = 0;
+  private wroteAt = 0;
+  private folded: Folded = {};
   private tick = 0;
   private handed = 0;
   private drawn = false;
@@ -75,6 +85,15 @@ export class StatusLine implements Activity {
     this.halt?.();
     this.halt = undefined;
     this.clear();
+  }
+
+  fold(folded: Folded): void {
+    this.folded = folded;
+  }
+
+  // Whether the closing view will say what this notice says.
+  takesNotice(notice: Notice): boolean {
+    return this.halt !== undefined && (this.folded.notices ?? []).includes(notice.code);
   }
 
   waiting({ label, mayAsk }: Wait): Release {
@@ -122,12 +141,13 @@ export class StatusLine implements Activity {
     if (event.state === 'running') return true;
     if (event.state === 'start') this.begun.set(event.id, event);
     else this.begun.delete(event.id);
-    return event.state === 'start';
+    return event.state === 'start' || (this.folded.outcomes ?? []).includes(event.state);
   }
 
   // Text that stays on the screen goes above the line, which follows it at once: more
   // is likely to come.
   above(text: string): void {
+    this.wroteAt = Date.now();
     const cleared = this.drawn ? this.live.redraw('') : '';
     this.stream.write(`${cleared}${text}\n${this.drawn ? this.text() : ''}`);
   }
@@ -137,6 +157,7 @@ export class StatusLine implements Activity {
   // its line's end leaves the cursor there, where a redraw would wipe what was written,
   // so the line then stays away.
   aside(write: () => void, ended: boolean): void {
+    this.wroteAt = Date.now();
     this.clear();
     this.dueAt = ended ? Date.now() + APPEARS_AFTER_MS : Infinity;
     write();
@@ -147,7 +168,8 @@ export class StatusLine implements Activity {
     if (this.handed > 0 || now < this.dueAt) return;
     this.tick += 1;
     const shared = [...this.waits.values()].some(({ mayAsk }) => mayAsk);
-    if (shared && now - this.saidAt < SAID_EVERY_MS) return;
+    // What the terminal just showed already says fx is working.
+    if (shared && now - Math.max(this.saidAt, this.wroteAt) < SAID_EVERY_MS) return;
     this.saidAt = now;
     this.drawn = !shared;
     this.stream.write(shared ? `${this.text()}\n` : this.live.redraw(this.text()));
