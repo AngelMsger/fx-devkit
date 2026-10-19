@@ -7,25 +7,39 @@ import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provid
 import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
-import type { DoctorExtension } from '../../../../src/application/doctor/types.js';
+import type { HarnessSession } from '../../../../src/application/harness/session.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { CachedProbe } from '../../../../src/application/update/check.js';
 import { FxUpdateCheck } from '../../../../src/application/update/fx.js';
 import { ManifestUpdateCheck } from '../../../../src/application/update/manifest.js';
-import { providerCatalog } from '../../../../src/composition/registry.js';
+import {
+  createAgentHosts,
+  mcpCodecFor,
+  providerCatalog,
+  rulesProjectorFor,
+} from '../../../../src/composition/registry.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
-import { finding } from '../../../../src/domain/report.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import type { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeRegistry } from '../../../fakes/fake-registry.js';
-import { MANIFEST_DIR, ROOT, harness, withTrust, type Harness } from '../../../fakes/workspace.js';
+import {
+  MANIFEST_DIR,
+  ROOT,
+  harness,
+  manifestDirFor,
+  withTrust,
+  type Harness,
+} from '../../../fakes/workspace.js';
 
 const HOME = path.resolve('/home/me');
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
@@ -85,11 +99,54 @@ const bundledSkill = {
 };
 const agents = [new FakeAgentHost('claude-code', true)];
 
+// One MCP resource for the host that takes MCP settings, and a guide for the one that takes rules.
+const lifecycleSource = {
+  [`${MANIFEST_DIR}/manifest/harness.yaml`]:
+    'schema_version: 2\nmcp: [{name: knowledge, transport: stdio, command: [server]}]\n',
+  [`${MANIFEST_DIR}/AGENTS.md`]: 'Workspace guide.\n',
+};
+
+interface Lifecycle {
+  readonly session: HarnessSession;
+  readonly state: FakeHarnessState;
+  readonly files: FakeFileProjection;
+}
+
+function lifecycle(h: Harness, state = new FakeHarnessState()): Lifecycle {
+  const files = new FakeFileProjection(h.fs);
+  const config = new FakeConfigStore({
+    agents: ['claude-code', 'gemini'],
+    workspaces: { fx: { root: ROOT } },
+  });
+  const session: HarnessSession = {
+    deps: {
+      files,
+      hosts: createAgentHosts({ fs: h.fs, process: h.process, home: HOME }),
+      state,
+      trust: h.deps.trust.gate,
+      env: {},
+      codec: mcpCodecFor,
+      rules: rulesProjectorFor,
+      lock: new FakeLock(),
+    },
+    config,
+    process: h.process,
+    resolve: { cwd: ROOT, config, fs: h.fs, reporter: h.reporter, manifestDirFor },
+    env: {},
+    cliVersion: '1.0.0',
+    yes: true,
+    posture: { readOnly: false, source: 'default' },
+  };
+  return { session, state, files };
+}
+
 interface Stage {
   readonly h: Harness;
   readonly doctor: Doctor;
   readonly prompter: FakePrompter;
   readonly registry: FakeRegistry;
+  // Present when the case asked for the lifecycle groups.
+  readonly lifecycle: Lifecycle | undefined;
   loggedIn: boolean;
 }
 
@@ -99,7 +156,7 @@ async function stage(
     healthy?: boolean;
     yes?: boolean;
     updates?: boolean;
-    extensions?: readonly DoctorExtension[];
+    lifecycle?: FakeHarnessState | true;
     describeProvider?: LoginDeps['describeProvider'];
     providers?: ProviderCatalog;
     workspace?: string;
@@ -111,6 +168,7 @@ async function stage(
     local: options.local ?? { scope: { envs: ['dev'] } },
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: environments,
+      ...(options.lifecycle === undefined ? {} : lifecycleSource),
       ...bundledSkill.files,
       [path.join(MANIFEST_DIR, 'skills', 'review', 'SKILL.md')]: '---\nname: review\n---\n',
     },
@@ -126,13 +184,17 @@ async function stage(
   };
   const registry = new FakeRegistry('1.0.0');
   const probe = new CachedProbe(new FakeCache(), new FakeClock());
+  let sessions: Lifecycle | undefined;
+  if (options.lifecycle !== undefined)
+    sessions = lifecycle(h, options.lifecycle === true ? undefined : options.lifecycle);
   const s: Stage = {
     h,
     prompter,
     registry,
+    lifecycle: sessions,
     loggedIn: options.healthy ?? false,
     doctor: new Doctor(withTrust(h.deps, { yes: options.yes ?? false }), {
-      extensions: options.extensions,
+      ...(sessions === undefined ? {} : { harness: sessions.session }),
       login: setup,
       skills: {
         hosts: agents,
@@ -210,6 +272,11 @@ function readBundled(): string {
   return readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
 }
 
+// What the lifecycle repairs wrote: projected files and the receipts that own them.
+function repaired(s: Stage): number {
+  return (s.lifecycle?.files.writes ?? 0) + (s.lifecycle?.state.writes ?? 0);
+}
+
 const check: DoctorInput = {
   fix: false,
   dryRun: false,
@@ -222,22 +289,11 @@ describe('Doctor', () => {
     { selection: { tools: ['bitbuckt-cli'] }, code: 'TOOL_UNKNOWN' },
     { selection: { envs: ['tset'] }, code: 'ENV_NOT_FOUND' },
   ])('rejects invalid selectors before any repair: $code', async ({ selection, code }) => {
-    let repaired = 0;
-    const s = await stage({
-      extensions: [
-        {
-          group: 'sample',
-          check: async () => [],
-          fix: async () => {
-            repaired++;
-          },
-        },
-      ],
-    });
+    const s = await stage({ lifecycle: true });
     await expect(s.doctor.execute({ ...check, fix: true, ...selection })).rejects.toMatchObject({
       code,
     });
-    expect(repaired).toBe(0);
+    expect(repaired(s)).toBe(0);
     expect(s.h.localStore.writes).toEqual([]);
     expect(s.h.process.calls).toEqual([]);
     expect(s.prompter.questions).toEqual([]);
@@ -284,50 +340,47 @@ describe('Doctor', () => {
   });
 
   it('includes a registered check and does not repair without --fix', async () => {
-    let repaired = 0;
-    const s = await stage({
-      extensions: [
-        {
-          group: 'sample',
-          check: async () => [
-            { group: 'sample', id: 'sample', level: 'ok', coverage: 'checked', message: 'checked' },
-          ],
-          fix: async () => {
-            repaired++;
-          },
-        },
-      ],
-    });
+    const s = await stage({ lifecycle: true });
     const out = await s.doctor.execute({
       fix: false,
       dryRun: false,
       noInput: true,
       posture: { readOnly: false, source: 'default' },
     });
-    expect(out.findings.find((f) => f.group === 'sample')?.id).toBe('sample');
-    expect(repaired).toBe(0);
+    expect(out.findings.find((f) => f.group === 'rules')?.message).toBe(
+      'fx-rules: created; native activation unverified',
+    );
+    expect(repaired(s)).toBe(0);
   });
+  it('reports the lifecycle groups after its own, MCP before rules', async () => {
+    const s = await stage({ lifecycle: true });
+    const out = await s.doctor.execute(check);
+    expect(out.preparation.scope.stages).toEqual([
+      'repos',
+      'root',
+      'tools',
+      'login',
+      'agents',
+      'manifest',
+      'self',
+      'mcp',
+      'rules',
+    ]);
+  });
+
   it('retains a failed repair and still checks its resulting state and later repairs', async () => {
-    let laterRepaired = false;
-    const s = await stage({
-      extensions: [
-        {
-          group: 'mcp',
-          fix: async () => {
-            throw new DevkitError('network', 'REPAIR_OFFLINE', 'offline');
-          },
-          check: async () => [finding('mcp', 'state', 'warn', 'still pending')],
-        },
-        {
-          group: 'rules',
-          fix: async () => {
-            laterRepaired = true;
-          },
-          check: async () => [finding('rules', 'state', 'ok', 'present')],
-        },
-      ],
-    });
+    // The first receipt the MCP repair records is refused; the rules repair records its own.
+    const state = new FakeHarnessState();
+    const record = state.write.bind(state);
+    let refused = false;
+    state.write = async (workspace, next) => {
+      if (refused) return record(workspace, next);
+      refused = true;
+      throw new DevkitError('network', 'REPAIR_OFFLINE', 'offline');
+    };
+    const s = await stage({ lifecycle: state });
     const out = await s.doctor.execute({ ...check, fix: true });
+    const laterRepaired = await s.h.fs.exists(path.join(ROOT, 'GEMINI.md'));
     expect(laterRepaired).toBe(true);
     expect(out.repairs.slice(0, 2)).toMatchObject([
       {
@@ -337,14 +390,14 @@ describe('Doctor', () => {
       },
       { group: 'rules', status: 'completed' },
     ]);
-    expect(out.findings.find((item) => item.group === 'mcp')?.message).toBe('still pending');
+    expect(out.findings.find((item) => item.group === 'mcp')?.message).toBe(
+      'fx-knowledge: created; native activation unverified',
+    );
     expect(out.repairs[0]?.failure?.next_steps.length).toBeGreaterThan(0);
   });
 
   it('reports previews separately from completed repairs', async () => {
-    const s = await stage({
-      extensions: [{ group: 'mcp', fix: async () => {}, check: async () => [] }],
-    });
+    const s = await stage({ lifecycle: true });
     const preview = await s.doctor.execute({ ...check, fix: true, dryRun: true });
     expect(preview.repairs[0]).toEqual({ group: 'mcp', status: 'planned' });
     expect((await s.doctor.execute(check)).repairs).toEqual([]);

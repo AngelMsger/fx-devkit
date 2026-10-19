@@ -30,7 +30,7 @@ export default class DoctorCommand extends FxCommand {
     const { flags } = await this.parse(DoctorCommand);
     const deps = await this.workspaceDeps();
     const report = await new Doctor(deps, {
-      extensions: this.hookDoctorChecks(),
+      ...this.lifecycleSessions(),
       inventory: toolInventory(this.container, this.config.version),
       login: this.loginDeps(),
       skills: this.skillDeps(),

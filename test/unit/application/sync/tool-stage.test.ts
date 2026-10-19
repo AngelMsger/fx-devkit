@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
-import { syncStages } from '../../../../src/application/sync/stages.js';
+import { runStage, type SyncStageInput } from '../../../../src/application/sync/stages.js';
 import type { StageResult } from '../../../../src/application/sync/types.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
 const blocked = (result: StageResult) =>
@@ -46,7 +46,7 @@ async function stage(options: StageOptions = {}) {
           },
   });
   h.prompter.unavailable = false;
-  const stages = syncStages({
+  const input: SyncStageInput = {
     deps: h.deps,
     dryRun: false,
     login: {
@@ -57,8 +57,8 @@ async function stage(options: StageOptions = {}) {
       home: '/home',
     },
     skills: { hosts: [], configured: [], bundledSkillDir: '/skills', globalLock: new FakeLock() },
-  });
-  return { h, run: stages['tools']! };
+  };
+  return { h, run: () => runStage('tools', input) };
 }
 
 describe('sync tool preparation', () => {

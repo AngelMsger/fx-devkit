@@ -7,9 +7,8 @@ import { expect, it } from 'vitest';
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { RenderRegions } from '../../../../src/application/docs/render-regions.js';
-import { documentChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
-import { syncStages } from '../../../../src/application/sync/stages.js';
+import type { SyncStageDeps } from '../../../../src/application/sync/stages.js';
 import { WorkspaceContext } from '../../../../src/application/workspace/context.js';
 import { createContainer } from '../../../../src/composition/container.js';
 import { harnessSession } from '../../../../src/composition/harness.js';
@@ -18,6 +17,7 @@ import { asDevkitError } from '../../../../src/domain/errors.js';
 import { FileLock } from '../../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../../src/infra/projection-store.js';
 import type { ProjectionStore } from '../../../../src/ports/projection.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, withTrust } from '../../../fakes/workspace.js';
 import { tempDir } from '../../../temp.js';
@@ -43,6 +43,13 @@ async function fixture() {
   const ctx = await WorkspaceContext.preview(root, 'docs', context, {}, fs);
   const deps = withTrust({ ...h.deps, fs, ctx, projections }, { workspace: ctx.name });
   return { root, source, projections, deps };
+}
+
+function stageDeps(s: { readonly source: string }): SyncStageDeps {
+  return {
+    login: fakeLoginDeps({}),
+    skills: { hosts: [], configured: [], bundledSkillDir: s.source, globalLock: new FakeLock() },
+  };
 }
 
 it('refuses an outdated render, then preserves the new prose on retry', async () => {
@@ -104,20 +111,8 @@ it('keeps the first write in a failed sync report and resumes without rewriting 
       return s.projections.write(request);
     },
   };
-  const deps = { ...s.deps, projections };
-  const docs = new DeriveDocs(deps, { describeProvider: () => undefined });
   const sync = () =>
-    new Sync(deps).execute({
-      ...input,
-      jobs: 1,
-      only: 'docs',
-      stages: {
-        docs: async () => {
-          const { files } = await docs.execute(input);
-          return { summary: {}, checks: documentChecks(files), details: { files } };
-        },
-      },
-    });
+    new Sync({ ...s.deps, projections }, stageDeps(s)).execute({ ...input, jobs: 1, only: 'docs' });
   const failure = await sync().then(() => {
     throw new Error('Expected a document conflict');
   }, asDevkitError);
@@ -154,11 +149,8 @@ it('retains completed documents when the following rules source cannot be projec
   await container.config.write({ workspaces: { docs: { root: s.root } }, agents: [] });
   const blocked = path.join(s.source, 'manifest/harness.yaml');
   await mkdir(blocked, { recursive: true });
-  const stages = syncStages({
-    deps: s.deps,
-    login: fakeLoginDeps({}),
-    dryRun: false,
-    skills: { hosts: [], configured: [], bundledSkillDir: s.source, globalLock: container.lock },
+  const stages = {
+    ...stageDeps(s),
     harness: harnessSession({
       container,
       env,
@@ -175,8 +167,8 @@ it('retains completed documents when the following rules source cannot be projec
         manifestDirFor: () => s.source,
       },
     }),
-  });
-  const sync = () => new Sync(s.deps).execute({ ...input, jobs: 1, only: 'docs', stages });
+  };
+  const sync = () => new Sync(s.deps, stages).execute({ ...input, jobs: 1, only: 'docs' });
   await expect(sync()).rejects.toMatchObject({
     code: 'HARNESS_SOURCE_FOREIGN',
     partialResult: {

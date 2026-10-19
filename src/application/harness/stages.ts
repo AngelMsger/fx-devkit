@@ -9,7 +9,7 @@ import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { Lease } from '../../ports/lock.js';
 import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../sync/types.js';
+import type { HarnessStageDetails, StageResult } from '../sync/types.js';
 
 import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';
@@ -50,7 +50,9 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
     only: command.only,
   });
 }
-export function harnessStage(command: ManageHarness): () => Promise<StageResult> {
+export function harnessStage(
+  command: ManageHarness,
+): () => Promise<StageResult<HarnessStageDetails>> {
   return async () => {
     const result = await manageHarness(command);
     const summary = countBy(result.items, (row) => row.action);

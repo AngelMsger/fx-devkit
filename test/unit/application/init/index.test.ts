@@ -9,19 +9,26 @@ import { ResumeInit } from '../../../../src/application/init/resume.js';
 import type { InitDeps } from '../../../../src/application/init/types.js';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
+import type { SkillDeps } from '../../../../src/application/skill/targets.js';
+import { ToolInstall } from '../../../../src/application/tool/install.js';
 import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { ManifestSource } from '../../../../src/ports/manifest-source.js';
 import { FakeActivity } from '../../../fakes/fake-activity.js';
+import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
+import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { fakeToolAudit } from '../../../fakes/fake-tool-history.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 
 const manifest = readFileSync(
@@ -52,6 +59,15 @@ class ScriptedSource implements ManifestSource {
   }
 }
 
+function skillDeps(hosts: SkillDeps['hosts'] = []): SkillDeps {
+  return {
+    hosts,
+    configured: undefined,
+    bundledSkillDir: path.resolve('/pkg/skills/fx-workspace'),
+    globalLock: new FakeLock(),
+  };
+}
+
 function setup(files: Record<string, string> = {}, configFile = {}) {
   const settled: string[] = [];
   const fs = FakeFs.from(files);
@@ -59,6 +75,9 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
   const config = new FakeConfigStore(configFile);
   const reporter = new FakeReporter();
   const codeHost = new FakeCodeHost();
+  // The code host's own CLI is installed and current, so nothing blocks preparation.
+  const process = new FakeProcess().always({ code: 0, stdout: '99.0.0', stderr: '' });
+  process.binaries.add('bitbucket-cli');
   const deps: InitDeps = {
     fs,
     lock: { acquire: async () => ({ release: async () => undefined }) },
@@ -70,7 +89,8 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     cliVersion: '1.0.0',
     reporter,
     manifestDirFor,
-    stagesFor: () => ({ docs: async () => ({ checks: [], summary: { created: 2 } }) }),
+    toolInstall: new ToolInstall(FakeInstaller.family(['npm']), process, fakeToolAudit()),
+    stages: { login: fakeLoginDeps({}), skills: skillDeps() },
     settleManifest: async (name: string) => {
       settled.push(name);
     },
@@ -84,7 +104,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
       activity: new FakeActivity(),
       cliVersion: '1.0.0',
       user: undefined,
-      process: new FakeProcess().always({ code: 0, stdout: '', stderr: '' }),
+      process,
       trust: {
         gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
         workspace: ctx.name,
@@ -97,7 +117,7 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     }),
   };
   const source = new ScriptedSource(fs);
-  return { deps, fs, git, config, reporter, source, settled };
+  return { deps, fs, git, config, reporter, source, settled, process };
 }
 
 describe('Init', () => {
@@ -125,6 +145,27 @@ describe('Init', () => {
       expect(await s.fs.exists(manifestDirFor('new'))).toBe(false);
     }
   });
+  it('previews the installation it then makes, for the opted-in tool alone', async () => {
+    const s = setup({
+      [path.resolve('/input/manifest/workspace.yaml')]: manifest,
+      [path.resolve('/input/manifest/tools.yaml')]:
+        "schema_version: 3\ntools: [{name: example-log, install_on_init: true, install: [{via: npm, spec: '@example/log'}]}, {name: example-other, install: [{via: npm, spec: '@example/other'}]}]",
+    });
+    const out = await new Init(s.deps).execute({
+      dir: ROOT,
+      source: new FileSource(path.resolve('/input'), s.fs),
+      adopt: false,
+      dryRun: false,
+      posture: writable,
+      jobs: 1,
+    });
+    expect(out.prepared).toMatchObject({ tool_install: [{ name: 'example-log', ran: false }] });
+    expect(out.tool_install).toMatchObject([{ name: 'example-log', ran: true, code: 0 }]);
+    expect(s.process.vectors().filter((vector) => vector[0] === 'npm')).toEqual([
+      ['npm', 'install', '-g', '@example/log@latest'],
+    ]);
+  });
+
   it('uses physical root identity both during planning and inside registration', async () => {
     const s = setup(
       {},
@@ -212,15 +253,16 @@ describe('Init', () => {
 
   it('returns completed registration and repository evidence when a later stage fails', async () => {
     const s = setup();
-    const deps = {
-      ...s.deps,
-      stagesFor: () => ({
-        docs: async () => ({ checks: [], summary: { created: 2 } }),
-        skills: async () => {
+    // Copying the bundled Skill to a selected host takes a lock that no preview takes.
+    const skills: SkillDeps = {
+      ...skillDeps([new FakeAgentHost('claude-code', true)]),
+      globalLock: {
+        acquire: async () => {
           throw new Error('fixture failure');
         },
-      }),
+      },
     };
+    const deps = { ...s.deps, stages: { ...s.deps.stages, skills } };
     await expect(
       new Init(deps).execute({
         dir: ROOT,
@@ -240,7 +282,7 @@ describe('Init', () => {
         ]),
         failed_phase: 'sync',
         phases: { registration: 'done', tools: 'done', sync: 'failed' },
-        sync: { stages: { docs: { created: 2 }, skills: { status: 'failed' } } },
+        sync: { stages: { docs: { created: 1 }, skills: { status: 'failed' } } },
       },
     });
   });
@@ -284,9 +326,7 @@ describe('Init', () => {
       written: true,
     });
     expect(source.materialized).toEqual([manifestDirFor('new')]);
-    expect(out.sync?.stages).toEqual({
-      docs: { created: 2 },
-    });
+    expect(out.sync?.stages).toMatchObject({ docs: { created: 1 } });
     expect(await config.read()).toEqual({
       default_workspace: 'new',
       workspaces: { new: { root: ROOT, source: path.resolve('/src/manifest') } },

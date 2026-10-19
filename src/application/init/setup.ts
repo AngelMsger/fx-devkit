@@ -14,7 +14,7 @@ import { isSettled, Login, type StepRow } from '../login/run.js';
 import { expandHome } from '../login/verify.js';
 import { noAnswerAction, resumeAction, verifyAction } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync/types.js';
+import type { SetupStageDetails, StageResult } from '../sync/types.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -27,7 +27,7 @@ export async function prepareWorkspaceSetup(
     readonly dryRun: boolean;
     readonly posture: WritePosture;
   },
-): Promise<StageResult> {
+): Promise<StageResult<SetupStageDetails>> {
   const scope = workspaceToolScope(deps.ctx, {});
   const useCase = new Login(deps, login);
   const plan = await useCase.plan({ tools: scope.configuredNames });

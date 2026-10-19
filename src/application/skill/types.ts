@@ -2,11 +2,15 @@
 // directory, a copied fx Skill, or an external tool asked to install its own.
 
 import type { EffectOutcome } from '../../domain/outcome.js';
-import type { CopyAction, LinkAction } from '../../domain/skills/projection.js';
+import type {
+  CopyAction,
+  CopyObservation,
+  LinkAction,
+  LinkObservation,
+} from '../../domain/skills/projection.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageSummary } from '../sync/types.js';
 
 export interface SkillStageInput {
   readonly background?: boolean;
@@ -50,5 +54,15 @@ export interface SkillStageOutput {
   readonly links: readonly SkillLinkItem[];
   readonly fx: readonly FxSkillItem[];
   readonly tools: readonly ToolSkillItem[];
-  readonly summary: StageSummary;
+  readonly summary: Readonly<Record<string, number>>;
+}
+
+// What is on disk where a planned item points; unknown when it could not be read.
+type Observed<Item, Observation> = Item & {
+  readonly observed: Observation | { readonly kind: 'unknown' };
+};
+
+export interface ObservedSkills {
+  readonly links: readonly Observed<SkillLinkItem, LinkObservation>[];
+  readonly fx: readonly Observed<FxSkillItem, CopyObservation>[];
 }

@@ -8,7 +8,6 @@ import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { SkillList } from '../../../../src/application/skill/list.js';
 import { observeLink } from '../../../../src/application/skill/observe.js';
 import { SkillStage } from '../../../../src/application/skill/stage.js';
-import { skillChecks } from '../../../../src/application/sync/checks.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
@@ -17,6 +16,7 @@ import type { Process } from '../../../../src/ports/process.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
@@ -40,9 +40,17 @@ const bundledSkill = {
   },
 };
 
-async function setup(extra: Record<string, string> = {}) {
+// A workspace whose provider needs no tool: the toolchain is what `tools` declares.
+const withoutProviderTools =
+  'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n';
+
+async function setup(extra: Record<string, string> = {}, tools?: string) {
   const h = await harness({
+    ...(tools === undefined ? {} : { workspace: withoutProviderTools }),
     files: {
+      ...(tools === undefined
+        ? {}
+        : { [path.join(MANIFEST_DIR, 'manifest', 'tools.yaml')]: tools }),
       [path.join(teamSkill, 'SKILL.md')]: '---\nname: review\n---\n',
       ...bundledSkill.files,
       ...extra,
@@ -70,35 +78,15 @@ describe('SkillStage partial execution', () => {
   });
 
   it('does not call a missing companion or call its skipped Skill preparation complete', async () => {
-    const { h, skills } = await setup();
-    const loaded = loadTools(
-      'schema_version: 3\ndefaults: {install: [{via: manual}], skill: {command: [skill, install]}}\ntools: [{name: absent}]',
-      undefined,
-      { cliVersion: '1.0.0' },
+    const { h, skills } = await setup(
+      {},
+      'schema_version: 3\ndefaults: {install: [{via: manual}], skill: {command: [skill, install]}}\ntools: [{name: absent, required: true}]',
     );
-    const stage = new SkillStage(h.deps, skills);
-    const result = await new Sync(h.deps).execute({
+    const result = await new Sync(h.deps, { login: fakeLoginDeps({}), skills }).execute({
       dryRun: false,
       posture: writable,
       jobs: 1,
       only: 'skills',
-      stages: {
-        skills: async () => {
-          const { summary, ...details } = await stage.execute({
-            dryRun: false,
-            posture: writable,
-            toolchain: resolveTools(loaded.doc, loaded.provenance),
-          });
-          return {
-            summary,
-            details,
-            checks: skillChecks(
-              { summary, ...details },
-              new Set(details.tools.map((tool) => tool.tool)),
-            ),
-          };
-        },
-      },
     });
     expect(result.preparation.state).toBe('incomplete');
     expect(result.stage_details?.skills?.tools).toEqual(
@@ -110,11 +98,9 @@ describe('SkillStage partial execution', () => {
   it.each(['PROCESS_ABORTED', 'PROCESS_TIMEOUT', 'INTERNAL'])(
     'preserves completed resources and tool rows on %s',
     async (code) => {
-      const { h, skills } = await setup();
-      const loaded = loadTools(
+      const { h, skills } = await setup(
+        {},
         'schema_version: 3\ndefaults: { install: [{via: manual}], skill: { command: [skill, install] } }\ntools: [{name: alpha}, {name: beta}, {name: gamma}]',
-        undefined,
-        { cliVersion: '1.0.0' },
       );
       const calls: string[] = [];
       const error =
@@ -129,34 +115,15 @@ describe('SkillStage partial execution', () => {
           return { code: 0, stdout: '', stderr: '' };
         },
       };
-      const deps = { ...h.deps, process };
-      const stage = new SkillStage(deps, skills);
+      const deps = withTrust({ ...h.deps, process }, { yes: true });
+      // One host, so each companion installs its Skill into one directory.
+      const stages = { login: fakeLoginDeps({}), skills: { ...skills, hosts: agents.slice(0, 1) } };
       await expect(
-        new Sync(deps).execute({
+        new Sync(deps, stages).execute({
           dryRun: false,
           posture: writable,
           jobs: 1,
           only: 'skills',
-          stages: {
-            skills: async () => {
-              const { summary, ...details } = await stage.execute({
-                dryRun: false,
-                posture: writable,
-                toolchain: resolveTools(loaded.doc, loaded.provenance),
-              });
-              return {
-                summary,
-                details,
-                checks: skillChecks(
-                  { summary, ...details },
-                  new Set(details.tools.map((tool) => tool.tool)),
-                ),
-              };
-            },
-            hooks: async () => {
-              throw new Error('must not run');
-            },
-          },
         }),
       ).rejects.toMatchObject({
         code,

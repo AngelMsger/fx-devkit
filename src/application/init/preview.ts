@@ -12,17 +12,21 @@ import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ProjectionStore } from '../../ports/projection.js';
 import type { ConfigFile } from '../../ports/stores.js';
 import { documentPath } from '../docs/rendered.js';
+import { Login } from '../login/run.js';
 import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
+import { SkillStage } from '../skill/stage.js';
 import { Tally } from '../tally.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import { WorkspaceContext } from '../workspace/context.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
 import { planRepositories } from '../workspace/plan.js';
 import { scopeMode } from '../workspace/scope.js';
 import { validateWorkspaceLayer } from '../workspace/validate-layer.js';
 
 import { initializationSourceError } from './errors.js';
+import { PreviewInitialization, type InitializationPreview } from './preview-initialization.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 export async function initialLocalLayer(
@@ -80,7 +84,7 @@ export async function inspectInitialization(
     inspection,
     workspaceDeps.projections,
   );
-  const setup = await checkedSetupPlan(deps, ctx);
+  const setup = await checkedSetupPlan(deps, workspaceDeps);
   const repos = ctx.workspace.repos.length;
   const repositories = await Tally.during(workspaceDeps.activity, 'repos', (tally) =>
     planRepositories(workspaceDeps, { jobs: input.jobs, remote: false, tally: tally.plan(repos) }),
@@ -99,7 +103,7 @@ export async function inspectInitialization(
       deps,
       input,
       output,
-      ctx,
+      workspace: workspaceDeps,
       guidePlan,
       guideConflicts,
       setup,
@@ -111,11 +115,22 @@ export async function inspectInitialization(
   };
 }
 
-async function checkedSetupPlan(
+// The preparation an initialized workspace would run, planned without granting trust.
+export function previewPreparation(
   deps: InitDeps,
-  ctx: WorkspaceContext,
-): Promise<SetupPlan | undefined> {
-  const toolScope = workspaceToolScope(ctx, {});
+  workspace: WorkspaceDeps,
+): Promise<InitializationPreview> {
+  const { login, skills } = deps.stages;
+  return new PreviewInitialization(
+    workspace,
+    login,
+    deps.toolInstall,
+    new SkillStage(workspace, skills),
+  ).execute();
+}
+
+async function checkedSetupPlan(deps: InitDeps, workspace: WorkspaceDeps): Promise<SetupPlan> {
+  const toolScope = workspaceToolScope(workspace.ctx, {});
   if (toolScope.problems.length)
     throw new DevkitError(
       'config',
@@ -126,8 +141,10 @@ async function checkedSetupPlan(
         nextSteps: ['Correct the named provider or tool declarations in the source, then retry.'],
       },
     );
-  const setup = await deps.setupPlan?.(ctx);
-  if (setup && setup.problems.length > 0)
+  const setup = await new Login(workspace, deps.stages.login).plan({
+    tools: toolScope.configuredNames,
+  });
+  if (setup.problems.length > 0)
     throw new DevkitError('config', 'SETUP_PLAN_INVALID', 'The declared setup cannot be prepared', {
       hint: setup.problems.map((problem) => `${problem.step}: ${problem.detail}`).join('\n'),
       nextSteps: ['Correct the listed setup definitions in the source, then retry initialization.'],
@@ -157,7 +174,7 @@ async function inspectedResources({
   deps,
   input,
   output,
-  ctx,
+  workspace,
   guidePlan,
   guideConflicts,
   setup,
@@ -165,11 +182,12 @@ async function inspectedResources({
   deps: InitDeps;
   input: InitInput;
   output: InitOutput;
-  ctx: WorkspaceContext;
+  workspace: WorkspaceDeps;
   guidePlan: RenderedRegions;
   guideConflicts: readonly string[];
-  setup: SetupPlan | undefined;
+  setup: SetupPlan;
 }): Promise<InitOutput['plan']['resources']> {
+  const { ctx } = workspace;
   const tools = toolchainOf(ctx).tools;
   return {
     ...output.plan.resources,
@@ -179,19 +197,18 @@ async function inspectedResources({
       action: 'requires_replacement_approval',
       backup: 'The original is preserved in a unique sibling backup before replacement',
     })),
-    preparation: input.dryRun ? ((await deps.preview?.(ctx)) ?? null) : null,
-    setup:
-      setup?.steps.map((step) => ({
-        id: step.id,
-        tool: step.tool,
-        phase: step.phase ?? 'manual',
-        title: step.title,
-        action: isLocalPreparation(step) ? 'prepare_if_needed' : 'verify_only',
-        command: isLocalPreparation(step) ? (step.run ?? null) : null,
-        cwd: ctx.root,
-        verify: step.verify,
-        requires: step.requires,
-      })) ?? [],
+    preparation: input.dryRun ? await previewPreparation(deps, workspace) : null,
+    setup: setup.steps.map((step) => ({
+      id: step.id,
+      tool: step.tool,
+      phase: step.phase ?? 'manual',
+      title: step.title,
+      action: isLocalPreparation(step) ? 'prepare_if_needed' : 'verify_only',
+      command: isLocalPreparation(step) ? (step.run ?? null) : null,
+      cwd: ctx.root,
+      verify: step.verify,
+      requires: step.requires,
+    })),
     tools: tools
       .filter((tool) => tool.enabled && tool.installOnInit)
       .map((tool) => ({

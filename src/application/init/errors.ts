@@ -16,6 +16,7 @@ import { sourceValidationError } from '../manifest/source-error.js';
 import { resumeAction } from '../preparation.js';
 import type { ToolInstallOutput } from '../tool/install.js';
 
+import type { InitializationPreview } from './preview-initialization.js';
 import { sourceIdentity } from './source.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
@@ -95,7 +96,7 @@ export interface InitProgress {
   readonly phase: InitPhase;
   readonly registered: boolean;
   readonly materialized: boolean;
-  readonly prepared: object | null;
+  readonly prepared: InitializationPreview | null;
   readonly toolInstall: readonly ToolInstallOutput[] | null;
 }
 

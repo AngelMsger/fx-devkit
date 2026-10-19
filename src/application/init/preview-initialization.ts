@@ -3,9 +3,20 @@
 import type { LoginDeps } from '../login/deps.js';
 import { prepareServices } from '../services/stage.js';
 import type { SkillStage } from '../skill/stage.js';
-import type { ToolInstall } from '../tool/install.js';
+import type { SkillStageOutput } from '../skill/types.js';
+import type { ServiceStageDetails, StageResult } from '../sync/types.js';
+import type { ToolInstall, ToolInstallOutput } from '../tool/install.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
+
+export interface InitializationPreview {
+  readonly root: string;
+  readonly source: string;
+  readonly tool_install: readonly ToolInstallOutput[];
+  readonly skills: SkillStageOutput;
+  readonly note: string;
+  readonly services: StageResult<ServiceStageDetails>;
+}
 
 export class PreviewInitialization {
   constructor(
@@ -15,7 +26,7 @@ export class PreviewInitialization {
     private readonly skills: SkillStage,
   ) {}
 
-  async execute(): Promise<object> {
+  async execute(): Promise<InitializationPreview> {
     const { ctx } = this.deps;
     const trust = { ...this.deps.trust, dryRun: true };
     const tools = toolchainOf(ctx).tools;

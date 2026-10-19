@@ -5,6 +5,9 @@ import type { PreparationCheck } from '../../domain/preparation.js';
 import { report } from '../../domain/report.js';
 import type { SetupPlan } from '../../domain/setup/types.js';
 import { DeriveDocs } from '../docs/derive.js';
+import type { HarnessSession } from '../harness/session.js';
+import { harnessDoctor } from '../harness/stages.js';
+import { hookDoctor, type HookSession } from '../hook/session.js';
 import { handoffOf, setupActions } from '../init/setup.js';
 import type { LoginDeps } from '../login/deps.js';
 import { Login } from '../login/run.js';
@@ -41,7 +44,8 @@ export type { DoctorInput };
 
 export interface DoctorDeps {
   readonly inventory?: ToolInstalled;
-  readonly extensions?: readonly DoctorExtension[] | undefined;
+  readonly harness?: HarnessSession;
+  readonly hooks?: HookSession;
   readonly login: LoginDeps;
   readonly skills: SkillDeps;
   readonly bundledTools: () => string;
@@ -54,11 +58,25 @@ export interface DoctorDeps {
   };
 }
 
+// The lifecycle resources doctor answers for after its own groups, in report order.
+function lifecycleExtensions({ harness, hooks }: DoctorDeps): DoctorExtension[] {
+  return [
+    ...(harness === undefined
+      ? []
+      : [harnessDoctor(harness, 'mcp'), harnessDoctor(harness, 'rules')]),
+    ...(hooks === undefined ? [] : [hookDoctor(hooks)]),
+  ];
+}
+
 export class Doctor {
+  private readonly extensions: readonly DoctorExtension[];
+
   constructor(
     private readonly deps: WorkspaceDeps,
     private readonly doctor: DoctorDeps,
-  ) {}
+  ) {
+    this.extensions = lifecycleExtensions(doctor);
+  }
 
   async execute(input: DoctorInput): Promise<DoctorReport> {
     validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
@@ -102,9 +120,7 @@ export class Doctor {
         checkManifest(this.deps, this.doctor.login, this.doctor.bundledTools, this.doctor.updates),
       ),
       group('self', () => checkSelf(this.doctor.updates)),
-      ...(this.doctor.extensions ?? []).map((extension) =>
-        group(extension.group, () => extension.check()),
-      ),
+      ...this.extensions.map((extension) => group(extension.group, () => extension.check())),
     ]);
   }
 
@@ -114,10 +130,7 @@ export class Doctor {
     findings: readonly Finding[],
     repairs: readonly RepairAttempt[],
   ): Promise<DoctorReport> {
-    const groupOrder = [
-      ...GROUPS,
-      ...(this.doctor.extensions ?? []).map((extension) => extension.group),
-    ];
+    const groupOrder = [...GROUPS, ...this.extensions.map((extension) => extension.group)];
     const diagnostic = report(groupOrder, findings);
     const plan = await new Login(this.deps, this.doctor.login).plan({
       tools: toolScope.configuredNames,
@@ -188,7 +201,7 @@ export class Doctor {
         repairs.push({ group, status: 'failed', failure: toEnvelope(failure).error });
       }
     };
-    for (const extension of this.doctor.extensions ?? []) {
+    for (const extension of this.extensions) {
       if (extension.fix) await attempt(extension.group, () => extension.fix!(input));
     }
     await attempt('agents', () =>

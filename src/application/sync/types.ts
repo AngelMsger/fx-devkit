@@ -5,8 +5,19 @@
 import type { ErrorEnvelope } from '../../domain/errors.js';
 import type { EffectOutcome } from '../../domain/outcome.js';
 import type { Preparation, PreparationCheck } from '../../domain/preparation.js';
+import type { Finding } from '../../domain/report.js';
+import type { PlanProblem } from '../../domain/setup/types.js';
 import type { PlanItem } from '../../domain/workspace/plan.js';
+import type { RenderedFile } from '../docs/rendered.js';
+import type { HarnessOutput } from '../harness/types.js';
+import type { HookOutput } from '../hook/types.js';
+import type { LoginOutput } from '../login/run.js';
 import type { WritePosture } from '../safety/posture.js';
+import type { ServiceResult } from '../services/types.js';
+import type { SkillStageOutput } from '../skill/types.js';
+import type { ToolStatus } from '../tool/check.js';
+import type { InstalledTool } from '../tool/installed.js';
+import type { GoWorkOutput } from '../workspace/go-work.js';
 
 export type SyncStage = string;
 
@@ -20,17 +31,67 @@ export function isAdvisoryStage(stage: SyncStage): boolean {
 
 export type StageSummary = Readonly<Record<string, number | string>>;
 
-export interface StageResult {
+export interface StageResult<Details extends object = object> {
   readonly checks: readonly PreparationCheck[];
   // Explicit stage selection requires its requested effects, while native activation stays advisory.
   readonly operationChecks?: readonly PreparationCheck[];
   readonly summary: StageSummary;
-  readonly details?: Readonly<Record<string, unknown>>;
+  readonly details?: Details;
 }
 
-export interface SyncStages {
-  readonly [id: string]: (() => Promise<StageResult>) | undefined;
+export interface ServiceStageDetails {
+  readonly items: readonly ServiceResult[];
+  readonly problems: readonly PlanProblem[];
 }
+
+export type SetupStageDetails = Pick<LoginOutput, 'items' | 'problems'>;
+
+export type HarnessStageDetails = Pick<HarnessOutput, 'items'>;
+
+export interface DocsStageDetails {
+  readonly files: readonly RenderedFile[];
+  readonly rules?: HarnessStageDetails;
+}
+
+export type GoStageDetails = GoWorkOutput;
+
+export type SkillStageDetails = Omit<SkillStageOutput, 'summary'>;
+
+export type HookStageDetails = Pick<HookOutput, 'items'>;
+
+interface PreparationRequirement {
+  readonly preparation_required: boolean;
+}
+
+export interface ToolStageDetails {
+  readonly items: readonly (ToolStatus & PreparationRequirement)[];
+  readonly problems: readonly Finding[];
+  readonly installations: readonly (InstalledTool & PreparationRequirement)[];
+}
+
+// What each resource stage reports beside its summary, under the id it runs by.
+export interface ResourceStageDetails {
+  readonly services: ServiceStageDetails;
+  readonly setup: SetupStageDetails;
+  readonly docs: DocsStageDetails;
+  readonly go: GoStageDetails;
+  readonly skills: SkillStageDetails;
+  readonly hooks: HookStageDetails;
+  readonly mcp: HarnessStageDetails;
+  readonly tools: ToolStageDetails;
+}
+
+export type ResourceStage = keyof ResourceStageDetails;
+
+// A stage that failed reports what its error retained, and the failure itself.
+export type FailedStageDetails = Readonly<Record<string, unknown>> & {
+  readonly failure: ErrorEnvelope['error'];
+};
+
+// The repository stage reports its rows as `items`; only its failure appears here.
+export type StageDetails = {
+  readonly [Stage in ResourceStage]?: ResourceStageDetails[Stage] | FailedStageDetails;
+} & { readonly repos?: FailedStageDetails };
 
 export interface SyncInput {
   readonly initializing?: boolean;
@@ -38,7 +99,6 @@ export interface SyncInput {
   readonly posture: WritePosture;
   readonly jobs: number;
   readonly only?: SyncStage | readonly SyncStage[] | undefined;
-  readonly stages?: SyncStages | undefined;
 }
 
 export interface SyncItem extends PlanItem {
@@ -63,5 +123,5 @@ export interface SyncOutput {
   readonly items: readonly SyncItem[];
   readonly summary: SyncSummary;
   readonly stages: Readonly<Record<string, StageSummary | 'not_implemented'>>;
-  readonly stage_details?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly stage_details?: StageDetails;
 }

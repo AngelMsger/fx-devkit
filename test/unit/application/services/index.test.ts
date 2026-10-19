@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
 import { buildPlan } from '../../../../src/application/login/collect.js';
@@ -8,7 +8,9 @@ import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
+import { Sync } from '../../../../src/application/sync/index.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
 
@@ -25,6 +27,13 @@ providers:
 // What a companion answers a configuration command that would change nothing, or something.
 const UNCHANGED = { code: 0, stdout: '{"changed":false}', stderr: '' };
 const CHANGED = { code: 0, stdout: '{"changed":true}', stderr: '' };
+
+const skills = {
+  hosts: [],
+  configured: undefined,
+  bundledSkillDir: '/skills',
+  globalLock: new FakeLock(),
+};
 
 // The opt-in CLIs a case binds; a workspace has to name one before fx checks it.
 function vendorTools(names: readonly string[]): string {
@@ -409,6 +418,53 @@ envs:
       'dev',
     ]);
     expect(plan.steps.filter((step) => step.preparation).map((step) => step.env)).toEqual(['prod']);
+  });
+
+  it('preserves completed service results if subsequent repository inspection fails', async () => {
+    const { h, login } = await fixture();
+    // The companion reports the settings as changed until it has been asked to write them.
+    let written = false;
+    h.process
+      .when((vector) => vector.includes('config') && (written ||= !vector.includes('--dry-run')), {
+        code: 0,
+        stdout: '{"changed":false}',
+        stderr: '',
+      })
+      .on(['bitbucket-cli', 'config'], { code: 0, stdout: '{"changed":true}', stderr: '' });
+    vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
+    const promise = new Sync(h.deps, { login, skills }).execute({
+      dryRun: false,
+      posture: { readOnly: false, source: 'default' },
+      jobs: 1,
+    });
+    await expect(promise).rejects.toMatchObject({
+      partialResult: { stages: { services: { configured: 1 } } },
+    });
+  });
+
+  it('runs service setup before repo/provider work and only when selected', async () => {
+    const { h, login } = await fixture();
+    const order: string[] = [];
+    vi.spyOn(h.deps, 'codeHost').mockImplementation(() => {
+      order.push('provider');
+      return h.codeHost;
+    });
+    h.process.when((vector) => vector.includes('config') && order.push('services') > 0, {
+      code: 0,
+      stdout: '{"changed":true}',
+      stderr: '',
+    });
+    const input = {
+      dryRun: true,
+      posture: { readOnly: false, source: 'default' as const },
+      jobs: 1,
+    };
+    const result = await new Sync(h.deps, { login, skills }).execute(input);
+    expect(order[0]).toBe('services');
+    expect(result.stages['services']).toMatchObject({ planned: 1 });
+    order.length = 0;
+    await new Sync(h.deps, { login, skills }).execute({ ...input, only: 'repos' });
+    expect(order).not.toContain('services');
   });
 
   it('uses selected per-environment contexts and browser login', async () => {

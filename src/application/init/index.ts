@@ -18,8 +18,11 @@ import { RefreshManifest } from '../manifest/refresh.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { Sync } from '../sync/index.js';
 import type { SyncOutput } from '../sync/types.js';
+import { ToolInitialize } from '../tool/initialize.js';
 import type { ToolInstallOutput } from '../tool/install.js';
+import { toolchainOf } from '../tool/toolchain.js';
 import { WorkspaceContext } from '../workspace/context.js';
+import type { WorkspaceDeps } from '../workspace/deps.js';
 import { assertNoWorkspaceOperation } from '../workspace/health.js';
 import { withWorkspaceOperation } from '../workspace/operation.js';
 import { assertDistinctWorkspaceRoot } from '../workspace/registry.js';
@@ -32,7 +35,13 @@ import {
   sourceMismatch,
   type InitPhase,
 } from './errors.js';
-import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';
+import type { InitializationPreview } from './preview-initialization.js';
+import {
+  initialLocalLayer,
+  initialPlan,
+  inspectInitialization,
+  previewPreparation,
+} from './preview.js';
 import { sourceIdentity, type InitSource } from './source.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
@@ -159,7 +168,7 @@ export class Init {
     let phase: InitPhase = 'manifest';
     let registered = config.workspaces?.[output.name] !== undefined;
     let materialized = false;
-    let prepared: object | null = null;
+    let prepared: InitializationPreview | null = null;
     let toolInstall: readonly ToolInstallOutput[] | null = null;
     try {
       phase = 'validation';
@@ -183,16 +192,15 @@ export class Init {
           initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos, current),
         );
       phase = 'tools';
-      const ctx = await this.context(output);
-      prepared = (await this.deps.preview?.(ctx)) ?? null;
-      toolInstall = (await this.deps.installTools?.(ctx)) ?? [];
+      const workspace = this.deps.workspaceDepsFor(await this.context(output));
+      prepared = await previewPreparation(this.deps, workspace);
+      toolInstall = await this.installTools(workspace, input.posture);
       phase = 'sync';
-      const sync = await new Sync(this.deps.workspaceDepsFor(ctx)).execute({
+      const sync = await new Sync(workspace, this.deps.stages).execute({
         initializing: true,
         dryRun: false,
         posture: input.posture,
         jobs: input.jobs,
-        stages: this.deps.stagesFor(ctx),
       });
       const done = completedInitialization(output, {
         sync,
@@ -212,6 +220,18 @@ export class Init {
         cwd: path.resolve('.'),
       });
     }
+  }
+
+  private installTools(
+    workspace: WorkspaceDeps,
+    posture: WritePosture,
+  ): Promise<readonly ToolInstallOutput[]> {
+    return new ToolInitialize(this.deps.toolInstall).execute({
+      tools: toolchainOf(workspace.ctx).tools,
+      commandShell: this.deps.commandShell,
+      posture,
+      trust: workspace.trust,
+    });
   }
 
   private async inspectSource(
@@ -350,7 +370,7 @@ export class Init {
 interface CompletedInitialization {
   readonly sync: SyncOutput;
   readonly toolInstall: readonly ToolInstallOutput[];
-  readonly prepared: object | null;
+  readonly prepared: InitializationPreview | null;
   readonly defaultWorkspace: string | undefined;
   readonly repos: readonly string[] | undefined;
 }
