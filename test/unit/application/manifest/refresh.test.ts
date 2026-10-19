@@ -6,10 +6,10 @@ import {
   RefreshManifest,
   refreshWorkspaceManifest,
 } from '../../../../src/application/manifest/refresh.js';
-import type { LockRequest } from '../../../../src/ports/lock.js';
 import type { ManifestSource, RefreshOutcome } from '../../../../src/ports/manifest-source.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 import { MANIFEST_DIR, manifestDirFor, ROOT } from '../../../fakes/workspace.js';
 
@@ -128,7 +128,8 @@ describe('RefreshManifest', () => {
 
 function registeredRefresh(options: { busy?: boolean; fail?: 'refresh' | 'settle' } = {}) {
   const { source, refreshed } = repoSource();
-  const acquired: LockRequest[] = [];
+  const lock = new FakeLock();
+  if (options.busy) lock.busy();
   const events: string[] = [];
   const resolve = {
     cwd: ROOT,
@@ -138,17 +139,13 @@ function registeredRefresh(options: { busy?: boolean; fail?: 'refresh' | 'settle
     manifestDirFor,
   };
   const deps = {
-    lock: {
-      acquire: async (request: LockRequest) => {
-        acquired.push(request);
-        return options.busy ? null : { release: async () => void events.push('released') };
-      },
-    },
+    lock,
     sourceFor: async (spec: string): Promise<ManifestSource> => {
       expect(spec).toBe(source.description);
       return {
         ...source,
         refresh: async (dir) => {
+          expect(lock.unreleased()).toEqual(['workspace:fx']);
           events.push('refresh');
           if (options.fail === 'refresh') throw new Error('refresh failed');
           return source.refresh!(dir);
@@ -157,11 +154,12 @@ function registeredRefresh(options: { busy?: boolean; fail?: 'refresh' | 'settle
     },
     settle: async (name: string, dir: string) => {
       expect([name, dir]).toEqual(['fx', MANIFEST_DIR]);
+      expect(lock.unreleased()).toEqual(['workspace:fx']);
       events.push('settle');
       if (options.fail === 'settle') throw new Error('settle failed');
     },
   };
-  return { deps, resolve, acquired, events, refreshed };
+  return { deps, resolve, lock, events, refreshed };
 }
 
 describe('registered workspace refresh', () => {
@@ -169,8 +167,9 @@ describe('registered workspace refresh', () => {
     const s = registeredRefresh();
     await refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: false, posture: writable });
     expect(s.refreshed).toEqual([MANIFEST_DIR]);
-    expect(s.acquired).toEqual([{ key: 'workspace:fx', waitMs: 2000 }]);
-    expect(s.events).toEqual(['refresh', 'settle', 'released']);
+    expect(s.lock.requests).toEqual([{ key: 'workspace:fx', waitMs: 2000 }]);
+    expect(s.events).toEqual(['refresh', 'settle']);
+    expect(s.lock.unreleased()).toEqual([]);
   });
 
   it('refuses a busy workspace without refreshing or settling it', async () => {
@@ -181,14 +180,16 @@ describe('registered workspace refresh', () => {
     expect(s.events).toEqual([]);
   });
 
-  it.each(['refresh', 'settle'] as const)('releases the workspace when %s fails', async (fail) => {
+  it.each([
+    { fail: 'refresh', reached: ['refresh'] },
+    { fail: 'settle', reached: ['refresh', 'settle'] },
+  ] as const)('releases the workspace when $fail fails', async ({ fail, reached }) => {
     const s = registeredRefresh({ fail });
     await expect(
       refreshWorkspaceManifest(s.deps, s.resolve, { dryRun: false, posture: writable }),
     ).rejects.toThrow(`${fail} failed`);
-    expect(s.events).toEqual(
-      fail === 'refresh' ? ['refresh', 'released'] : ['refresh', 'settle', 'released'],
-    );
+    expect(s.events).toEqual(reached);
+    expect(s.lock.unreleased()).toEqual([]);
   });
 
   it('creates no lease for a preview or refused read-only refresh', async () => {
@@ -200,7 +201,7 @@ describe('registered workspace refresh', () => {
         posture: { readOnly: true, source: 'env' },
       }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    expect(s.acquired).toEqual([]);
+    expect(s.lock.requests).toEqual([]);
     expect(s.events).toEqual([]);
   });
 });

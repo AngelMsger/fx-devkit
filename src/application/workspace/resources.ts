@@ -5,7 +5,6 @@ import path from 'node:path';
 import { CLAUDE_GUIDE, DERIVED_GUIDE, marker } from '../../domain/docs/derived.js';
 import { DevkitError } from '../../domain/errors.js';
 import {
-  harnessActionState,
   hookActionState,
   type HarnessAction,
   type HookAction,
@@ -43,16 +42,19 @@ export type ResourceCleanupRow =
   | { readonly kind: 'hook'; readonly path: string | null; readonly action: HookAction }
   | { readonly kind: FileKind; readonly path: string; readonly action: FileAction }
   | { readonly kind: 'workspace'; readonly path: string; readonly action: 'retained_unreachable' };
+
+export interface WorkspaceResourcesDeps {
+  readonly fs: FileSystem;
+  readonly harness: HarnessDeps;
+  readonly hooks: HookDeps;
+  readonly links: LinkProjectionStore;
+}
+
 export class WorkspaceResources {
-  constructor(
-    private readonly fs: FileSystem,
-    private readonly harness: HarnessDeps,
-    private readonly hooks: HookDeps,
-    private readonly links: LinkProjectionStore,
-  ) {}
+  constructor(private readonly deps: WorkspaceResourcesDeps) {}
 
   async cleanup(input: ResourceCleanupInput): Promise<readonly ResourceCleanupRow[]> {
-    if (!(await this.fs.isDirectory(input.root)))
+    if (!(await this.deps.fs.isDirectory(input.root)))
       return [{ kind: 'workspace', path: input.root, action: 'retained_unreachable' }];
     const { harness, request, plan, hookRequest, hookPlan, files, shared } =
       await this.prepare(input);
@@ -77,14 +79,17 @@ export class WorkspaceResources {
     let state = await readHarnessState(harness, request, { persist: true });
     for (const change of plan.changes)
       state = await applyHarnessChange(harness, request, state, change);
-    await this.harness.state.write(input.name, {
+    await this.deps.harness.state.write(input.name, {
       ...state,
       root: input.root,
       receipts: state.receipts.filter(
         (receipt) => !shared.some((other) => other.key === receipt.key),
       ),
     });
-    const hooks = await new ReconcileHooks(this.hooks).execute({ ...hookRequest, dryRun: false });
+    const hooks = await new ReconcileHooks(this.deps.hooks).execute({
+      ...hookRequest,
+      dryRun: false,
+    });
     if (
       hooks.items.some(
         (item) =>
@@ -114,7 +119,7 @@ export class WorkspaceResources {
     for (const file of files) {
       if (!file.owned) continue;
       if (file.link !== undefined) {
-        const result = await this.links.writeLink({
+        const result = await this.deps.links.writeLink({
           root,
           relative: path.relative(root, file.file),
           before: { kind: 'link', target: file.link },
@@ -122,7 +127,7 @@ export class WorkspaceResources {
         });
         if (isLostWrite(result)) throw changedResource();
       } else {
-        const result = await this.harness.files.write({
+        const result = await this.deps.harness.files.write({
           root: root,
           relative: path.relative(root, file.file),
           before: { kind: 'file', text: file.text! },
@@ -134,7 +139,7 @@ export class WorkspaceResources {
   }
 
   private async prepare(input: ResourceCleanupInput) {
-    const original = await this.harness.state.read(input.name);
+    const original = await this.deps.harness.state.read(input.name);
     if (
       original &&
       !samePath(original.root, input.ownershipRoot) &&
@@ -148,9 +153,9 @@ export class WorkspaceResources {
       );
     const statePort = {
       read: async () => (original === null ? null : { ...original, root: input.root }),
-      write: this.harness.state.write.bind(this.harness.state),
+      write: this.deps.harness.state.write.bind(this.deps.harness.state),
     };
-    const harness = { ...this.harness, state: statePort };
+    const harness = { ...this.deps.harness, state: statePort };
     const request: HarnessInput = {
       workspace: input.name,
       root: input.root,
@@ -169,7 +174,7 @@ export class WorkspaceResources {
         (receipt) => !shared.some((other) => other.key === receipt.key),
       ),
     });
-    const hookState = await this.hooks.state.read(input.name);
+    const hookState = await this.deps.hooks.state.read(input.name);
     const hookRequest = {
       workspace: input.name,
       root: input.root,
@@ -181,7 +186,7 @@ export class WorkspaceResources {
       posture: input.posture,
       removeAgents: hookState?.receipts.map((receipt) => receipt.agent) ?? [],
     };
-    const hookPlan = await new ReconcileHooks(this.hooks).execute(hookRequest);
+    const hookPlan = await new ReconcileHooks(this.deps.hooks).execute(hookRequest);
     const files = await this.files(input);
     return { harness, request, plan, hookRequest, hookPlan, files, shared };
   }
@@ -191,7 +196,9 @@ export class WorkspaceResources {
     state: Awaited<ReturnType<typeof readHarnessState>>,
   ) {
     const otherReceipts = (
-      await Promise.all((input.shared ?? []).map((owner) => this.harness.state.read(owner.name)))
+      await Promise.all(
+        (input.shared ?? []).map((owner) => this.deps.harness.state.read(owner.name)),
+      )
     ).flatMap((owner) => owner?.receipts ?? []);
     return state.receipts.filter((receipt) =>
       otherReceipts.some((other) => other.key === receipt.key && other.digest === receipt.digest),
@@ -210,7 +217,7 @@ export class WorkspaceResources {
     }[] = [];
     for (const file of [DERIVED_GUIDE, CLAUDE_GUIDE]) {
       const at = path.join(input.root, file);
-      const before = await this.harness.files.read({ root: input.root, relative: file });
+      const before = await this.deps.harness.files.read({ root: input.root, relative: file });
       if (before.kind === 'absent') continue;
       files.push({
         kind: 'guide',
@@ -223,7 +230,7 @@ export class WorkspaceResources {
         ...(before.text === null ? {} : { text: before.text }),
       });
     }
-    const goWork = await this.harness.files.read({ root: input.root, relative: GO_WORK });
+    const goWork = await this.deps.harness.files.read({ root: input.root, relative: GO_WORK });
     if (goWork.kind !== 'absent')
       files.push({
         kind: 'go_work',
@@ -234,11 +241,12 @@ export class WorkspaceResources {
     const target = teamSkillsRoot(input.manifestDir);
     const successor =
       input.shared?.length === 1 ? teamSkillsRoot(input.shared[0]!.manifestDir) : undefined;
-    const retarget = successor && (await this.fs.isDirectory(successor)) ? successor : undefined;
+    const retarget =
+      successor && (await this.deps.fs.isDirectory(successor)) ? successor : undefined;
     for (const at of new Set(
-      this.harness.hosts.map((host) => host.skillsDir('project', input.root)),
+      this.deps.harness.hosts.map((host) => host.skillsDir('project', input.root)),
     )) {
-      const observed = await this.links.readLink({
+      const observed = await this.deps.links.readLink({
         root: input.root,
         relative: path.relative(input.root, at),
       });
@@ -269,24 +277,16 @@ function changedResource(): DevkitError {
 
 // An owned entry stays on disk both when fx is refused its removal and when no
 // protocol is left to remove it with.
-function staysBehind(row: ResourceCleanupRow): boolean {
-  switch (row.kind) {
-    case 'mcp':
-    case 'rules':
-      return row.action !== 'preserved_shared' && harnessActionState(row.action) !== 'ready';
-    case 'hook':
-      return hookActionState(row.action) !== 'ready';
-    case 'guide':
-    case 'team_skills':
-    case 'go_work':
-      return row.action === 'foreign';
-    case 'workspace':
-      return false;
-  }
-}
+const LEFT_BEHIND = new Set<ResourceCleanupRow['action']>([
+  'foreign',
+  'invalid',
+  'conflict',
+  'unsupported',
+  'busy',
+]);
 
 function assertCleanup(name: string, rows: readonly ResourceCleanupRow[]): void {
-  if (rows.some(staysBehind))
+  if (rows.some((row) => LEFT_BEHIND.has(row.action)))
     throw new DevkitError(
       'conflict',
       'WORKSPACE_CLEANUP_BLOCKED',

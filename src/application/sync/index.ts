@@ -9,7 +9,7 @@ import {
 import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import { pooled } from '../pool.js';
-import { workspacePreparation } from '../preparation.js';
+import { workspacePreparation, type StageResult, type StageSummary } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
 import { Tally } from '../tally.js';
 import { prepareUpstream } from '../workspace/adopt.js';
@@ -17,22 +17,30 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 import { checkoutDir } from '../workspace/inspect.js';
 import { planRepositories } from '../workspace/plan.js';
 
+import { isResourceStage, resourceStageIds, runStage, type SyncStageDeps } from './stages.js';
 import {
   isAdvisoryStage,
-  type StageSummary,
+  type ResourceStage,
+  type StageDetails,
   type SyncInput,
   type SyncItem,
   type SyncOutput,
 } from './types.js';
 
+// StageDetails while the stages that fill it are still running.
+type StageRecords = { -readonly [Stage in keyof StageDetails]: StageDetails[Stage] };
+
 export class Sync {
-  constructor(private readonly deps: WorkspaceDeps) {}
+  constructor(
+    private readonly deps: WorkspaceDeps,
+    private readonly resources: SyncStageDeps,
+  ) {}
 
   async execute(input: SyncInput): Promise<SyncOutput> {
     requireUsableManifest(this.deps.ctx.manifest);
     const wanted = selectedStages(input);
     const stages: Record<string, StageSummary | 'not_implemented'> = {};
-    const details: Record<string, Readonly<Record<string, unknown>>> = {};
+    const details: StageRecords = {};
     const checks: PreparationCheck[] = [];
     let items: readonly SyncItem[] = [];
     const output = (): SyncOutput => ({
@@ -48,23 +56,20 @@ export class Sync {
       stages,
       stage_details: details,
     });
-    const ordered = wanted;
-    for (const [index, stage] of ordered.entries()) {
+    for (const [index, stage] of wanted.entries()) {
+      if (stage !== 'repos' && !isResourceStage(stage)) {
+        stages[stage] = 'not_implemented';
+        checks.push(preparationCheck(stage, 'unknown', `The ${stage} stage is unavailable`));
+        continue;
+      }
       try {
         if (stage === 'repos') {
           items = await this.repos(input);
           checks.push(...repositoryChecks(items));
           continue;
         }
-        const run = input.stages?.[stage];
-        if (!run) {
-          stages[stage] = 'not_implemented';
-          checks.push(preparationCheck(stage, 'unknown', `The ${stage} stage is unavailable`));
-          continue;
-        }
-        const result = await run();
+        const result = await this.resource(stage, input, details);
         stages[stage] = result.summary;
-        if (result.details) details[stage] = result.details;
         checks.push(...result.checks);
         if (input.only !== undefined) checks.push(...(result.operationChecks ?? []));
       } catch (error) {
@@ -80,11 +85,27 @@ export class Sync {
           }),
         );
         if (input.only === undefined && isAdvisoryStage(stage)) continue;
-        markPending(ordered.slice(index + 1), stage, stages, checks);
+        markPending(wanted.slice(index + 1), stage, stages, checks);
         throw withPartialResult(error, output());
       }
     }
     return output();
+  }
+
+  // What a resource stage reports is filed under the id it ran by.
+  private async resource<Stage extends ResourceStage>(
+    stage: Stage,
+    input: SyncInput,
+    details: StageRecords,
+  ): Promise<StageResult> {
+    const result = await runStage(stage, {
+      ...this.resources,
+      deps: this.deps,
+      dryRun: input.dryRun,
+      initialize: input.initializing ?? false,
+    });
+    if (result.details) details[stage] = result.details;
+    return result;
   }
 
   private async repos(input: SyncInput): Promise<readonly SyncItem[]> {
@@ -230,12 +251,13 @@ function needsRepositoryWrite(item: PlanItem): boolean {
 }
 
 function selectedStages(input: SyncInput): string[] {
-  let requested = input.only ?? ['repos', ...Object.keys(input.stages ?? {})];
+  const resourceStages = resourceStageIds();
+  let requested = input.only ?? ['repos', ...resourceStages];
   if (typeof requested === 'string') requested = [requested];
   const wanted = new Set(requested);
-  return [
-    ...new Set(['services', 'setup', 'repos', ...Object.keys(input.stages ?? {}), ...requested]),
-  ].filter((stage) => wanted.has(stage));
+  return [...new Set(['services', 'setup', 'repos', ...resourceStages, ...requested])].filter(
+    (stage) => wanted.has(stage),
+  );
 }
 
 function syncRecovery(

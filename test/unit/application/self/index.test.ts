@@ -36,12 +36,12 @@ describe('SelfUpdate', () => {
     const process = new FakeProcess().always({ code: 0, stdout: '', stderr: '' });
     process.binaries.add('npm');
     const prompter = new FakePrompter();
-    const out = await new SelfUpdate(
+    const out = await new SelfUpdate({
       process,
       prompter,
-      new NpmInstaller(process),
-      updateCheck().check,
-    ).execute(base);
+      installer: new NpmInstaller(process),
+      check: updateCheck().check,
+    }).execute(base);
     expect(out).toEqual({
       vector: [
         'npm',
@@ -61,12 +61,12 @@ describe('SelfUpdate', () => {
   it('returns a handoff instead of invoking a missing installer', async () => {
     const process = new FakeProcess();
     await expect(
-      new SelfUpdate(
+      new SelfUpdate({
         process,
-        new FakePrompter(),
-        new NpmInstaller(process),
-        updateCheck().check,
-      ).execute({
+        prompter: new FakePrompter(),
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+      }).execute({
         ...base,
         yes: true,
       }),
@@ -80,12 +80,12 @@ describe('SelfUpdate', () => {
     const prompter = new FakePrompter();
     expect(
       (
-        await new SelfUpdate(
+        await new SelfUpdate({
           process,
           prompter,
-          new NpmInstaller(process),
-          updateCheck().check,
-        ).execute({
+          installer: new NpmInstaller(process),
+          check: updateCheck().check,
+        }).execute({
           ...base,
           dryRun: true,
         })
@@ -93,25 +93,35 @@ describe('SelfUpdate', () => {
     ).toBe(false);
     prompter.confirmWith = false;
     expect(
-      await new SelfUpdate(
+      await new SelfUpdate({
         process,
         prompter,
-        new NpmInstaller(process),
-        updateCheck().check,
-      ).execute(base),
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+      }).execute(base),
     ).toMatchObject({
       ran: false,
       reason: 'declined',
     });
     expect(process.calls).toEqual([]);
     await expect(
-      new SelfUpdate(process, prompter, new NpmInstaller(process), updateCheck().check).execute({
+      new SelfUpdate({
+        process,
+        prompter,
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+      }).execute({
         ...base,
         posture: { readOnly: true, source: 'env' },
       }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
     await expect(
-      new SelfUpdate(process, prompter, new NpmInstaller(process), updateCheck().check).execute({
+      new SelfUpdate({
+        process,
+        prompter,
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+      }).execute({
         ...base,
         registry: null,
       }),
@@ -124,12 +134,12 @@ describe('SelfUpdate', () => {
     const s = updateCheck();
     await s.check.execute(base);
     s.clock.advance(FX_UPDATE_TTL_MS - 1000);
-    const out = await new SelfUpdate(
+    const out = await new SelfUpdate({
       process,
-      new FakePrompter(),
-      new NpmInstaller(process),
-      s.check,
-    ).execute({ ...base, yes: true });
+      prompter: new FakePrompter(),
+      installer: new NpmInstaller(process),
+      check: s.check,
+    }).execute({ ...base, yes: true });
     expect(isUpdated(out)).toBe(true);
     s.clock.advance(2000);
     expect(await s.check.execute({ ...base, current: '0.2.0' })).toMatchObject({
@@ -142,12 +152,12 @@ describe('SelfUpdate', () => {
     const failing = new FakeProcess().always({ code: 17, stdout: '', stderr: 'boom' });
     failing.binaries.add('npm');
     const f = updateCheck();
-    const failed = await new SelfUpdate(
-      failing,
-      new FakePrompter(),
-      new NpmInstaller(failing),
-      f.check,
-    ).execute({ ...base, yes: true });
+    const failed = await new SelfUpdate({
+      process: failing,
+      prompter: new FakePrompter(),
+      installer: new NpmInstaller(failing),
+      check: f.check,
+    }).execute({ ...base, yes: true });
     expect(isUpdated(failed)).toBe(false);
     expect(f.registry.calls).toBe(0);
     expect(f.cache.entries.size).toBe(0);

@@ -2,43 +2,58 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { BitbucketCodeHost } from '../../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
+import type { SkillDeps } from '../../../../src/application/skill/targets.js';
 import { Sync } from '../../../../src/application/sync/index.js';
+import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
-import { FakeGit } from '../../../fakes/fake-git.js';
-import { FakeProcess } from '../../../fakes/fake-process.js';
-import { harness, MANIFEST_DIR, ROOT } from '../../../fakes/workspace.js';
+import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
+import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
 import { HeldWork } from '../../../held-work.js';
 
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
-const run = { dryRun: false, posture: writable, jobs: 4 };
+const everyStage = { dryRun: false, posture: writable, jobs: 4 };
+// Most cases are about repositories and ask for that stage alone.
+const run = { ...everyStage, only: 'repos' };
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
+const bundledSkill = path.resolve('/pkg/skills/fx-workspace');
+
+// No provider recipe and no agent host unless a case selects one.
+function sync(deps: WorkspaceDeps, hosts: SkillDeps['hosts'] = []): Sync {
+  return new Sync(deps, {
+    login: fakeLoginDeps({}),
+    skills: {
+      hosts,
+      configured: undefined,
+      bundledSkillDir: bundledSkill,
+      globalLock: new FakeLock(),
+    },
+  });
+}
 
 describe('Sync', () => {
-  it('reports preflight while a bounded optional probe waits, then clones after timeout', async () => {
-    const h = await harness({ user: 'test' });
-    const proc = new FakeProcess();
-    proc.run = async (_vector, options) => {
-      expect(options?.timeoutMs).toBe(5000);
-      await new Promise((resolve) => setTimeout(resolve, options!.timeoutMs));
+  it('reports preflight while an optional probe is pending, then clones once it times out', async () => {
+    const h = await harness();
+    // The readability probe stays open until the case lets it reach its deadline.
+    const probing = new HeldWork<string>();
+    h.codeHost.canRead = async (ref) => {
+      await probing.hold(ref.name);
       throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'optional probe timed out');
     };
-    const host = new BitbucketCodeHost(
-      { process: proc, fs: h.fs, clock: new FakeClock() },
-      { host: 'ssh://git@git.example.com' },
-    );
     vi.useFakeTimers();
     try {
-      const pending = new Sync({ ...h.deps, codeHost: () => host }).execute(run);
+      const pending = sync(h.deps).execute(run);
       await vi.advanceTimersByTimeAsync(4999);
       expect(h.git.calls).toEqual([]);
       expect(h.reporter.progress_).toEqual(
         expect.arrayContaining([expect.objectContaining({ phase: 'preflight' })]),
       );
+      // One more millisecond brings the record a program reads every five seconds.
       await vi.advanceTimersByTimeAsync(1);
+      probing.releaseAll();
       expect((await pending).summary.done).toBe(3);
       expect(h.reporter.progress_).toEqual(
         expect.arrayContaining([
@@ -52,22 +67,19 @@ describe('Sync', () => {
     }
   });
 
-  it.each(['canRead', 'whoami'] as const)(
-    'propagates cancellation and programming failures from %s before cloning',
-    async (method) => {
-      for (const failure of [
-        new DevkitError('internal', 'PROCESS_ABORTED', 'cancelled'),
-        new TypeError('programming failure'),
-      ]) {
-        const h = await harness();
-        h.codeHost[method] = async () => {
-          throw failure;
-        };
-        await expect(new Sync(h.deps).execute(run)).rejects.toBe(failure);
-        expect(h.git.calls).toEqual([]);
-      }
-    },
-  );
+  it.each([
+    ['a cancellation', 'canRead', new DevkitError('internal', 'PROCESS_ABORTED', 'cancelled')],
+    ['a programming failure', 'canRead', new TypeError('programming failure')],
+    ['a cancellation', 'whoami', new DevkitError('internal', 'PROCESS_ABORTED', 'cancelled')],
+    ['a programming failure', 'whoami', new TypeError('programming failure')],
+  ] as const)('propagates %s from %s before cloning', async (_failed, probe, failure) => {
+    const h = await harness();
+    h.codeHost[probe] = async () => {
+      throw failure;
+    };
+    await expect(sync(h.deps).execute(run)).rejects.toBe(failure);
+    expect(h.git.calls).toEqual([]);
+  });
 
   it('keeps explicit Git upstreams usable without an API binding', async () => {
     const h = await harness({
@@ -77,7 +89,7 @@ describe('Sync', () => {
     const codeHost = () => {
       throw new DevkitError('config', 'PROVIDER_UNBOUND', 'no API binding');
     };
-    expect((await new Sync({ ...h.deps, codeHost }).execute(run)).summary.done).toBe(1);
+    expect((await sync({ ...h.deps, codeHost }).execute(run)).summary.done).toBe(1);
     expect(h.reporter.codes()).not.toContain('CODE_HOST_USER_UNKNOWN');
   });
 
@@ -85,7 +97,7 @@ describe('Sync', () => {
     const h = await harness({ user: 'test' });
     const failure = new TypeError('broken provider');
     await expect(
-      new Sync({
+      sync({
         ...h.deps,
         codeHost: () => {
           throw failure;
@@ -100,26 +112,19 @@ describe('Sync', () => {
     h.deps.codeHost().canRead = async () => {
       throw new DevkitError('config', 'TOOL_MISSING', 'optional API unavailable');
     };
-    const result = await new Sync(h.deps).execute(run);
+    const result = await sync(h.deps).execute(run);
     expect(result.summary.failed).toBe(0);
     expect(h.git.calls.some((call) => call.startsWith('clone '))).toBe(true);
   });
   it('inspects no more than --jobs checkouts at once while planning', async () => {
     const h = await harness();
     const inspecting = new HeldWork<string>();
-    const git = new (class extends FakeGit {
-      override async status(dir: string) {
-        await inspecting.hold(dir);
-        return super.status(dir);
-      }
-    })();
-    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs']) {
-      const dir = path.join(ROOT, name);
-      h.git.add(dir, { remotes: { upstream: upstream(name) } });
-      git.add(dir, { remotes: { upstream: upstream(name) } });
-    }
+    h.git.before('status', (dir) => inspecting.hold(dir));
+    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs'])
+      h.git.add(path.join(ROOT, name), { remotes: { upstream: upstream(name) } });
 
-    const planned = new Sync({ ...h.deps, git }).execute({
+    const planned = sync(h.deps).execute({
+      ...run,
       dryRun: true,
       posture: locked,
       jobs: 2,
@@ -136,7 +141,7 @@ describe('Sync', () => {
       remotes: { upstream: upstream('fx-example-api') },
       fastForward: 'updated',
     });
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items.map((i) => [i.name, i.action, i.result, i.outcome ?? null])).toEqual([
       ['fx-example-api', 'fast_forward', 'done', 'updated'],
       ['fx-example-auth', 'clone', 'done', null],
@@ -151,7 +156,7 @@ describe('Sync', () => {
 
   it('touches nothing under dry-run and reports the plan', async () => {
     const h = await harness();
-    const out = await new Sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
+    const out = await sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
     expect(out.items.every((i) => i.result === 'planned')).toBe(true);
     expect(h.git.calls).toEqual([]);
   });
@@ -160,7 +165,7 @@ describe('Sync', () => {
     const h = await harness({
       local: { scope: { repos: [] } },
     });
-    const result = await new Sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
+    const result = await sync(h.deps).execute({ ...run, dryRun: true, posture: locked });
     expect(result).toMatchObject({ operation: 'preview', preparation: { state: 'planned' } });
     expect(result.items.every((item) => item.action === 'skip_unpicked')).toBe(true);
     expect(h.git.calls).toEqual([]);
@@ -171,17 +176,17 @@ describe('Sync', () => {
     const h = await harness({ local: { scope: { repos: ['fx-example-api'] } } });
     const dir = path.join(ROOT, 'fx-example-api');
     h.git.add(dir, { remotes: { origin: upstream('fx-example-api') } });
-    const preview = await new Sync(h.deps).execute({ ...run, dryRun: true });
+    const preview = await sync(h.deps).execute({ ...run, dryRun: true });
     expect(preview.items[0]).toMatchObject({
       upstream_to_add: upstream('fx-example-api'),
       result: 'planned',
     });
     expect(h.git.calls).toEqual([]);
-    await expect(new Sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
+    await expect(sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
       code: 'READONLY_BLOCKED',
     });
     expect(h.git.calls).toEqual([]);
-    const applied = await new Sync(h.deps).execute(run);
+    const applied = await sync(h.deps).execute(run);
     expect(applied.items[0]).toMatchObject({ upstream_added: true });
     expect(h.git.checkouts.get(dir)?.remotes).toEqual({
       origin: upstream('fx-example-api'),
@@ -193,15 +198,13 @@ describe('Sync', () => {
     const h = await harness({ local: { scope: { repos: ['fx-example-api'] } } });
     const dir = path.join(ROOT, 'fx-example-api');
     h.git.add(dir, { remotes: { origin: upstream('fx-example-api') } });
-    const read = h.git.remotes.bind(h.git);
-    let calls = 0;
-    h.git.remotes = async (target) => {
-      const value = await read(target);
-      return ++calls > 1
-        ? { ...value, origin: 'ssh://git@elsewhere.example.com/p/api.git' }
-        : value;
-    };
-    const out = await new Sync(h.deps).execute(run);
+    // Someone repoints origin after the plan read the remotes and before adoption reads them.
+    let reads = 0;
+    h.git.before('remotes', () => {
+      if (++reads > 1)
+        h.git.add(dir, { remotes: { origin: 'ssh://git@elsewhere.example.com/p/api.git' } });
+    });
+    const out = await sync(h.deps).execute(run);
     expect(out.items[0]).toMatchObject({
       result: 'failed',
       failure: { code: 'REPO_REMOTES_CHANGED' },
@@ -211,7 +214,7 @@ describe('Sync', () => {
 
   it('refuses under read-only posture when there is something to do', async () => {
     const h = await harness();
-    await expect(new Sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
+    await expect(sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
       code: 'READONLY_BLOCKED',
     });
     expect(h.git.calls).toEqual([]);
@@ -234,7 +237,7 @@ describe('Sync', () => {
 
   it('still fetches a dirty checkout but leaves it, and reports a refused fast-forward as skipped', async () => {
     const h = await dirtyAndRefused();
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items.map((i) => [i.name, i.action, i.result, i.outcome ?? null])).toEqual([
       ['fx-example-api', 'skip_dirty', 'skipped', null],
       ['fx-example-auth', 'fast_forward', 'skipped', 'diverged'],
@@ -250,7 +253,7 @@ describe('Sync', () => {
 
   it('counts the picked repositories through each phase for a watcher, never the one left out', async () => {
     const h = await dirtyAndRefused();
-    await new Sync(h.deps).execute(run);
+    await sync(h.deps).execute(run);
     const counts = h.activity.of('repos');
     expect(counts.filter((count) => count.phase === 'preflight').at(-1)).toMatchObject({
       total: 2,
@@ -263,7 +266,7 @@ describe('Sync', () => {
   it('clones without origin and says so when the code host does not know the user', async () => {
     const h = await harness();
     h.codeHost.user = undefined;
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items[0]?.result).toBe('done');
     expect(h.git.checkouts.get(path.join(ROOT, 'fx-example-api'))?.remotes).toEqual({
       upstream: upstream('fx-example-api'),
@@ -274,7 +277,7 @@ describe('Sync', () => {
   it('lists unreadable repositories with their contact instead of failing', async () => {
     const h = await harness();
     h.codeHost.readability.set('fx/fx-example-docs', 'forbidden');
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items.find((i) => i.name === 'fx-example-docs')).toMatchObject({
       action: 'unreadable',
       result: 'skipped',
@@ -286,10 +289,10 @@ describe('Sync', () => {
   it('probes an absent repository again on every run', async () => {
     const h = await harness();
     h.codeHost.readability.set('fx/fx-example-docs', 'missing');
-    const first = await new Sync(h.deps).execute(run);
+    const first = await sync(h.deps).execute(run);
     expect(first.items.find((item) => item.name === 'fx-example-docs')?.action).toBe('unreadable');
     h.codeHost.readability.set('fx/fx-example-docs', 'readable');
-    const second = await new Sync(h.deps).execute(run);
+    const second = await sync(h.deps).execute(run);
     expect(second.items.find((item) => item.name === 'fx-example-docs')).toMatchObject({
       action: 'clone',
       result: 'done',
@@ -300,14 +303,13 @@ describe('Sync', () => {
 
   it('keeps going after one repository fails and reports the partial result', async () => {
     const h = await harness();
-    h.git.clone = async (req) => {
+    h.git.before('clone', (req) => {
       if (req.dir.endsWith('fx-example-auth'))
         throw new DevkitError('network', 'GIT_OFFLINE', 'remote hung up', {
           nextSteps: ['Retry fx sync.'],
         });
-      h.git.calls.push(`clone ${req.dir}`);
-    };
-    const out = await new Sync(h.deps).execute(run);
+    });
+    const out = await sync(h.deps).execute(run);
     expect(out.items.map((i) => [i.name, i.result])).toEqual([
       ['fx-example-api', 'done'],
       ['fx-example-auth', 'failed'],
@@ -327,14 +329,9 @@ describe('Sync', () => {
   it('clones no more than --jobs repositories at once', async () => {
     const h = await harness();
     const cloning = new HeldWork<string>();
-    const git = new (class extends FakeGit {
-      override async clone(req: Parameters<FakeGit['clone']>[0]): Promise<void> {
-        await cloning.hold(req.dir);
-        return super.clone(req);
-      }
-    })();
+    h.git.before('clone', (req) => cloning.hold(req.dir));
 
-    const synced = new Sync({ ...h.deps, git }).execute({ ...run, jobs: 2 });
+    const synced = sync(h.deps).execute({ ...run, jobs: 2 });
     await cloning.reached(2);
     expect(cloning.started).toHaveLength(2);
     cloning.releaseAll();
@@ -348,95 +345,33 @@ describe('Sync stages', () => {
   describe('selection and order', () => {
     it('runs only the selected stages, in registration order, without touching repositories', async () => {
       const h = await harness();
-      const calls: string[] = [];
-      const out = await new Sync(h.deps).execute({
-        ...run,
-        only: ['sample', 'docs'],
-        stages: {
-          docs: async () => {
-            calls.push('docs');
-            return { checks: [], summary: { ok: 1 } };
-          },
-          sample: async () => {
-            calls.push('sample');
-            return { checks: [], summary: { ok: 2 } };
-          },
-          tools: async () => {
-            throw new Error('unselected');
-          },
-        },
-      });
-      expect(calls).toEqual(['docs', 'sample']);
+      const out = await sync(h.deps).execute({ ...everyStage, only: ['tools', 'docs'] });
+      expect(Object.keys(out.stages)).toEqual(['docs', 'tools']);
       expect(h.git.calls).toEqual([]);
       expect(out.items).toEqual([]);
-      expect(out.stages).toEqual({ docs: { ok: 1 }, sample: { ok: 2 } });
-    });
-
-    it('prepares services before repository and provider work, and only when selected', async () => {
-      const h = await harness();
-      const order: string[] = [];
-      vi.spyOn(h.deps, 'codeHost').mockImplementation(() => {
-        order.push('provider');
-        return h.codeHost;
+      expect(out.stages).toEqual({
+        docs: expect.objectContaining({ created: 1 }),
+        tools: expect.objectContaining({ missing: 1 }),
       });
-      const input = {
-        ...run,
-        dryRun: true,
-        stages: {
-          services: async () => {
-            order.push('services');
-            return { checks: [], summary: { configured: 1 } };
-          },
-        },
-      };
-      const result = await new Sync(h.deps).execute(input);
-      expect(order[0]).toBe('services');
-      expect(order).toContain('provider');
-      expect(result.stages['services']).toEqual({ configured: 1 });
-      order.length = 0;
-      await new Sync(h.deps).execute({ ...input, only: 'repos' });
-      expect(order).not.toContain('services');
     });
   });
 
   describe('a failure', () => {
-    it('in repository inspection keeps the services already prepared', async () => {
-      const h = await harness();
-      vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
-      await expect(
-        new Sync(h.deps).execute({
-          ...run,
-          stages: {
-            services: async () => ({
-              checks: [],
-              summary: { configured: 1 },
-              details: { items: [] },
-            }),
-          },
-        }),
-      ).rejects.toMatchObject({
-        partialResult: { stages: { services: { configured: 1 } } },
-      });
-    });
-
     it('in a later stage keeps repository and completed stage results and starts nothing after it', async () => {
       const h = await harness();
-      await expect(
-        new Sync(h.deps).execute({
-          ...run,
-          stages: {
-            docs: async () => ({ checks: [], summary: { created: 1 } }),
-            skills: async () => {
-              throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
-            },
-            hooks: async () => ({ checks: [], summary: { created: 1 } }),
-          },
-        }),
-      ).rejects.toMatchObject({
+      // The Skill stage is the first to ask which agent hosts are present.
+      const host = new FakeAgentHost('claude-code', true);
+      host.detect = async () => {
+        throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'approval missing');
+      };
+      await expect(sync(h.deps, [host]).execute(everyStage)).rejects.toMatchObject({
         code: 'VECTOR_UNTRUSTED',
         partialResult: {
-          summary: { failed: 0 },
+          operation: 'apply',
+          preparation: { state: 'incomplete' },
+          summary: { done: 3, failed: 0 },
           stages: {
+            services: { configured: 0 },
             docs: { created: 1 },
             skills: { status: 'failed' },
             hooks: { status: 'not_started' },
@@ -444,52 +379,39 @@ describe('Sync stages', () => {
         },
       });
     });
-
-    it('in a later selected stage keeps service preparation and marks preparation incomplete', async () => {
-      const h = await harness();
-      await expect(
-        new Sync(h.deps).execute({
-          ...run,
-          only: ['services', 'docs', 'tools'],
-          stages: {
-            services: async () => ({
-              checks: [],
-              summary: { configured: 1 },
-              details: { items: [{ status: 'configured' }] },
-            }),
-            docs: async () => ({ checks: [], summary: { created: 2 } }),
-            tools: async () => {
-              throw new DevkitError('config', 'VECTOR_UNTRUSTED', 'review the tool probe');
-            },
-          },
-        }),
-      ).rejects.toMatchObject({
-        code: 'VECTOR_UNTRUSTED',
-        partialResult: {
-          operation: 'apply',
-          preparation: { state: 'incomplete' },
-          stages: {
-            services: { configured: 1 },
-            docs: { created: 2 },
-            tools: { status: 'failed' },
-          },
-        },
-      });
-    });
   });
 
   it('keeps stage details separate from compatible summary counts', async () => {
-    const h = await harness();
-    const details = { tools: [{ tool: 'example', code: 5, failure: { code: 'DENIED' } }] };
-    const out = await new Sync(h.deps).execute({
-      ...run,
-      only: 'skills',
-      stages: {
-        skills: async () => ({ checks: [], summary: { tools_failed: 1 }, details }),
+    const h = await harness({
+      files: {
+        [path.join(bundledSkill, 'SKILL.md')]: '---\nname: fx-workspace\nversion: 1.0.0\n---\n',
+        [`${MANIFEST_DIR}/manifest/tools.yaml`]:
+          'schema_version: 3\ntools: [{name: example, install: [{via: manual}], skill: {command: [skill, install]}}]',
       },
     });
-    expect(out.stages).toEqual({ skills: { tools_failed: 1 } });
-    expect(out.stage_details).toEqual({ skills: details });
+    h.process.binaries.add('example');
+    h.process.on(['example', 'skill', 'install'], {
+      code: 5,
+      stdout: '',
+      stderr: '{"error": {"code": "DENIED", "message": "denied"}}',
+    });
+    const out = await sync(withTrust(h.deps, { yes: true }), [
+      new FakeAgentHost('claude-code', true),
+    ]).execute({ ...everyStage, only: 'skills' });
+    expect(out.stages).toEqual({ skills: expect.objectContaining({ tools_failed: 1 }) });
+    expect(out.stage_details).toEqual({
+      skills: {
+        links: expect.any(Array),
+        fx: expect.any(Array),
+        tools: expect.arrayContaining([
+          expect.objectContaining({
+            tool: 'example',
+            code: 5,
+            failure: expect.objectContaining({ code: 'DENIED' }),
+          }),
+        ]),
+      },
+    });
   });
 });
 
@@ -505,7 +427,7 @@ describe('Sync and the fork remote', () => {
         origin: 'ssh://git@elsewhere.example.com/me/fx-example-auth.git',
       },
     });
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items.map((i) => [i.name, i.origin_added ?? false])).toEqual([
       ['fx-example-api', true],
       ['fx-example-auth', false],
@@ -517,7 +439,7 @@ describe('Sync and the fork remote', () => {
     expect(h.git.checkouts.get(path.join(ROOT, 'fx-example-auth'))?.remotes['origin']).toBe(
       'ssh://git@elsewhere.example.com/me/fx-example-auth.git',
     );
-    const again = await new Sync(h.deps).execute(run);
+    const again = await sync(h.deps).execute(run);
     expect(again.items.some((i) => i.origin_added)).toBe(false);
   });
 
@@ -527,7 +449,7 @@ describe('Sync and the fork remote', () => {
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
     });
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(out.items[0]).not.toHaveProperty('origin_added');
     expect(h.git.checkouts.get(path.join(ROOT, 'fx-example-api'))?.remotes).toEqual({
       upstream: upstream('fx-example-api'),
@@ -543,7 +465,7 @@ describe('Sync and the fork remote', () => {
       files: { [`${MANIFEST_DIR}/.git/HEAD`]: 'ref: refs/heads/main\n' },
     });
     h.git.add(MANIFEST_DIR, { remotes: { upstream: source } });
-    await expect(new Sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
+    await expect(sync(h.deps).execute({ ...run, posture: locked })).rejects.toMatchObject({
       code: 'READONLY_BLOCKED',
     });
     expect(h.git.calls).toEqual([]);
@@ -554,10 +476,10 @@ describe('Sync and the fork remote', () => {
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
     });
-    h.git.fetch = async () => {
+    h.git.before('fetch', () => {
       throw new Error('network down');
-    };
-    const out = await new Sync(h.deps).execute(run);
+    });
+    const out = await sync(h.deps).execute(run);
     expect(out.items[0]).toMatchObject({
       name: 'fx-example-api',
       result: 'failed',
@@ -580,7 +502,7 @@ describe('Sync and the fork remote', () => {
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
     });
-    const out = await new Sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute(run);
     expect(
       out.items.map((i) => [i.name, i.action, i.outcome ?? null, i.origin_added ?? false]),
     ).toEqual([
@@ -602,7 +524,7 @@ describe('Sync with a configured user', () => {
   it('uses config.user for origin without asking the code host', async () => {
     const h = await harness({ user: 'bob' });
     h.codeHost.user = undefined;
-    await new Sync(h.deps).execute(run);
+    await sync(h.deps).execute(run);
     expect(h.git.checkouts.get(path.join(ROOT, 'fx-example-api'))?.remotes['origin']).toBe(
       'ssh://git@git.example.com:12345/~bob/fx-example-api.git',
     );

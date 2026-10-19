@@ -38,7 +38,10 @@ export class ProvidersManifest {
   ) {}
 
   async execute(input: ProvidersManifestInput): Promise<BindingRow[]> {
-    const bundle = await new LoadManifest(this.fs, this.bundledTools).execute(input);
+    const bundle = await new LoadManifest({
+      fs: this.fs,
+      bundledTools: this.bundledTools,
+    }).execute(input);
     return [
       ...bindProviders(bundle.workspace.result.doc, input.providers).map((b) => ({
         scope: 'workspace' as const,

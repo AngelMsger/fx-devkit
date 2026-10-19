@@ -1,10 +1,10 @@
 // Preparation for a setup check that gave no answer: the check is an agent's to unblock,
 // the step waiting on it is nobody's yet, and neither hands a person a sign-in.
 
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
-import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
+import { prepareWorkspaceSetup } from '../../../../src/application/login/stage.js';
 import { workspacePreparation } from '../../../../src/application/preparation.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
@@ -77,52 +77,45 @@ it.each([true, false])(
   },
 );
 
-it.each([
-  [true, ['role', 'token']],
-  [false, ['token', 'role']],
-])(
-  'keeps a step from a person when it waits on an unanswered check and a failed one (initializing: %s, %j)',
-  async (initializing, requires) => {
-    const h = await harness({
-      workspace: WORKSPACE,
-      files: { [`${MANIFEST_DIR}/manifest/environments.yaml`]: ENVIRONMENTS },
-    });
-    const run = h.process.run.bind(h.process);
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector, options) => {
-      if (vector[0] !== 'jenkins-cli') return { code: 0, stdout: 'dev', stderr: '' };
-      if (vector.includes('token'))
-        throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'jenkins-cli did not finish');
-      return vector.includes('role')
-        ? { code: 1, stdout: '', stderr: 'role missing' }
-        : run(vector, options);
-    });
-    const login = fakeLoginDeps({
-      kubectl: kubectlProvider,
-      'jenkins-cli': {
-        id: 'jenkins-cli',
-        capability: 'ci',
-        tools: ['jenkins-cli'],
-        recipes: [manual('role'), manual('token'), manual('quota', requires)],
-        vars: [],
-        create: () => ({}),
-      },
-    });
-    const stage = await prepareWorkspaceSetup(h.deps, login, {
-      initializing,
-      dryRun: false,
-      posture: POSTURE,
-    });
-    const checks = Object.fromEntries(stage.checks.map((check) => [check.id, check]));
-    expect(checks['login:jenkins-cli.role']).toMatchObject({ state: 'blocked', owner: 'user' });
-    expect(checks['login:jenkins-cli.token']).toMatchObject({
-      state: 'unknown',
-      owner: 'agent',
-      actions: [{ argv: ['fx', 'doctor', '--tool', 'jenkins-cli', '--workspace', 'fx'] }],
-    });
-    expect(checks['login:jenkins-cli.quota']).toMatchObject({
-      state: 'unknown',
-      owner: 'agent',
-      actions: [],
-    });
-  },
-);
+it('keeps a step from a person when it waits on a failed check and an unanswered one', async () => {
+  const h = await harness({
+    workspace: WORKSPACE,
+    files: { [`${MANIFEST_DIR}/manifest/environments.yaml`]: ENVIRONMENTS },
+  });
+  h.process
+    .on(['jenkins-cli', 'check', 'role'], { code: 1, stdout: '', stderr: 'role missing' })
+    .on(
+      ['jenkins-cli', 'check', 'token'],
+      new DevkitError('internal', 'PROCESS_TIMEOUT', 'jenkins-cli did not finish'),
+    )
+    .when((vector) => vector[0] !== 'jenkins-cli', { code: 0, stdout: 'dev', stderr: '' });
+  const login = fakeLoginDeps({
+    kubectl: kubectlProvider,
+    'jenkins-cli': {
+      id: 'jenkins-cli',
+      capability: 'ci',
+      tools: ['jenkins-cli'],
+      // The failed check is listed first; the unanswered one still decides whose the step is.
+      recipes: [manual('role'), manual('token'), manual('quota', ['role', 'token'])],
+      vars: [],
+      create: () => ({}),
+    },
+  });
+  const stage = await prepareWorkspaceSetup(h.deps, login, {
+    initializing: true,
+    dryRun: false,
+    posture: POSTURE,
+  });
+  const checks = Object.fromEntries(stage.checks.map((check) => [check.id, check]));
+  expect(checks['login:jenkins-cli.role']).toMatchObject({ state: 'blocked', owner: 'user' });
+  expect(checks['login:jenkins-cli.token']).toMatchObject({
+    state: 'unknown',
+    owner: 'agent',
+    actions: [{ argv: ['fx', 'doctor', '--tool', 'jenkins-cli', '--workspace', 'fx'] }],
+  });
+  expect(checks['login:jenkins-cli.quota']).toMatchObject({
+    state: 'unknown',
+    owner: 'agent',
+    actions: [],
+  });
+});

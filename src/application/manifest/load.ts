@@ -49,17 +49,19 @@ export interface LoadManifestInput extends LoadOptions {
   readonly dir: string;
 }
 
+export interface LoadManifestDeps {
+  readonly fs: Pick<FileReader, 'readText'>;
+  readonly bundledTools: () => string;
+  readonly diagnostics?: DiagnosticReporter | undefined;
+}
+
 export class LoadManifest {
-  constructor(
-    private readonly fs: Pick<FileReader, 'readText'>,
-    private readonly bundledTools: () => string,
-    private readonly diagnostics?: DiagnosticReporter,
-  ) {}
+  constructor(private readonly deps: LoadManifestDeps) {}
 
   async execute(input: LoadManifestInput): Promise<ManifestBundle> {
     const { dir, ...opts } = input;
     const read = (file: string): Promise<string | undefined> =>
-      this.fs.readText(path.join(dir, file));
+      this.deps.fs.readText(path.join(dir, file));
 
     const workspaceText = (await read(MANIFEST_FILES.workspace)) ?? '';
     const workspace = {
@@ -79,7 +81,7 @@ export class LoadManifest {
       path: patchText === undefined ? undefined : MANIFEST_FILES.tools,
       patchText,
       result: this.load(dir, MANIFEST_FILES.tools, () =>
-        loadTools(this.bundledTools(), patchText, opts),
+        loadTools(this.deps.bundledTools(), patchText, opts),
       ),
     };
 
@@ -94,7 +96,7 @@ export class LoadManifest {
     file: string,
     load: (text: string) => LoadResult<T>,
   ): Promise<LoadedDocument<T> | undefined> {
-    const text = await this.fs.readText(path.join(dir, file));
+    const text = await this.deps.fs.readText(path.join(dir, file));
     if (text === undefined) return undefined;
     return { path: file, result: this.load(dir, file, () => load(text)) };
   }
@@ -105,7 +107,7 @@ export class LoadManifest {
     } catch (err) {
       if (err instanceof DevkitError) {
         for (const event of err.diagnostics)
-          this.diagnostics?.emit({ ...event, file: path.join(dir, file) });
+          this.deps.diagnostics?.emit({ ...event, file: path.join(dir, file) });
       }
       throw err;
     }

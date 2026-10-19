@@ -5,7 +5,6 @@ import { withPartialResult } from '../../domain/errors.js';
 import { isUnfinished } from '../../domain/outcome.js';
 import { countBy } from '../../domain/values.js';
 import { assertWritable } from '../safety/posture.js';
-import type { StageSummary } from '../sync/types.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { applyCopies, planCopies } from './fx-copies.js';
@@ -16,6 +15,7 @@ import { awaitsApproval, planTools, runTools, trustAll, trustedTools } from './t
 import type {
   FxSkillItem,
   ItemOutcome,
+  ObservedSkills,
   SkillLinkItem,
   SkillStageInput,
   SkillStageOutput,
@@ -72,7 +72,7 @@ export class SkillStage {
   private async observed(
     links: readonly SkillLinkItem[],
     fx: readonly FxSkillItem[],
-  ): Promise<object> {
+  ): Promise<ObservedSkills> {
     const read = async <T>(observe: () => Promise<T>): Promise<T | { kind: 'unknown' }> => {
       try {
         return await observe();
@@ -108,7 +108,7 @@ function summarize(
   links: readonly SkillLinkItem[],
   fx: readonly FxSkillItem[],
   tools: readonly ToolSkillItem[],
-): StageSummary {
+): SkillStageOutput['summary'] {
   const finished = (item: ItemOutcome): boolean => !isUnfinished(item.status);
   const keys = [
     ...links.filter(finished).map((item) => item.action),

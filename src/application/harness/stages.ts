@@ -8,13 +8,12 @@ import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { Lease } from '../../ports/lock.js';
-import type { DoctorExtension } from '../doctor/types.js';
-import type { StageResult } from '../sync/types.js';
+import type { DoctorExtension, StageResult } from '../preparation.js';
 
 import { McpReadinessBatch } from './mcp-readiness-batch.js';
 import { ReconcileHarness } from './reconcile.js';
 import { loadHarnessCommand, type HarnessSession } from './session.js';
-import type { HarnessInput, HarnessOutput } from './types.js';
+import type { HarnessInput, HarnessOutput, HarnessStageDetails } from './types.js';
 
 export interface ManageHarness extends HarnessSession {
   readonly action: HarnessInput['action'];
@@ -50,7 +49,9 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
     only: command.only,
   });
 }
-export function harnessStage(command: ManageHarness): () => Promise<StageResult> {
+export function harnessStage(
+  command: ManageHarness,
+): () => Promise<StageResult<HarnessStageDetails>> {
   return async () => {
     const result = await manageHarness(command);
     const summary = countBy(result.items, (row) => row.action);

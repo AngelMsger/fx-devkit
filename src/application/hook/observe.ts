@@ -2,7 +2,6 @@
 // A phase answers with dated codes rather than with its use case's result,
 // because the hook stores evidence a later command reads, not a report.
 
-import { harnessActionState } from '../../domain/harness/actions.js';
 import type { HookObservation } from '../../domain/harness/state.js';
 import { strayDigest } from '../../domain/workspace/root-entries.js';
 import type { Clock } from '../../ports/clock.js';
@@ -12,9 +11,9 @@ import type { Reporter } from '../../ports/reporter.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
 import { DeriveDocs } from '../docs/derive.js';
-import { checkLogin } from '../doctor/login.js';
 import type { HarnessSession } from '../harness/session.js';
 import { manageHarness } from '../harness/stages.js';
+import { checkLogin } from '../login/check.js';
 import type { LoginDeps } from '../login/deps.js';
 import { RefreshManifest } from '../manifest/refresh.js';
 import { BACKGROUND_POSTURE } from '../safety/posture.js';
@@ -43,7 +42,7 @@ export interface BackgroundDeps {
   readonly skills: (agents: readonly string[] | undefined) => SkillDeps;
   readonly manifest: {
     readonly dir: string;
-    readonly source: () => Promise<ManifestSource | undefined>;
+    readonly sourceFor: (spec: string) => Promise<ManifestSource>;
     readonly update: ManifestUpdateCheck;
   };
   readonly self: {
@@ -73,8 +72,9 @@ export function backgroundPhases(deps: BackgroundDeps): BackgroundPhases {
 async function refreshManifest(deps: BackgroundDeps): Promise<readonly HookObservation[]> {
   const observed = observer(deps, 'manifest');
   if (!(await updatesEnabled(deps))) return [observed('UPDATE_CHECK_DISABLED')];
-  const source = await deps.manifest.source();
-  if (source === undefined) return [observed('MANIFEST_REFRESH_UNAVAILABLE', 'fx sync')];
+  const spec = (await deps.config.read()).workspaces?.[deps.workspace]?.source;
+  if (spec === undefined) return [observed('MANIFEST_REFRESH_UNAVAILABLE', 'fx sync')];
+  const source = await deps.manifest.sourceFor(spec);
   if (source.kind !== 'repo') return [observed('MANIFEST_STATIC')];
   const { dir, update } = deps.manifest;
   const verdict = await update.execute({ workspace: deps.workspace, sourceDir: dir });
@@ -107,7 +107,9 @@ async function deriveDocs(deps: BackgroundDeps, lease: Lease): Promise<readonly 
     only: 'rules',
     workspaceLease: { workspace: deps.workspace, root: deps.root, lease },
   });
-  const foreignRules = harness.items.some((item) => harnessActionState(item.action) === 'blocked');
+  const foreignRules = harness.items.some(
+    (item) => item.action === 'foreign' || item.action === 'conflict',
+  );
   return [
     ...(foreignRules ? [observed('RULES_FOREIGN', 'fx sync --only docs')] : []),
     observed(

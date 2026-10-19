@@ -68,6 +68,18 @@ describe('FamilyCli', () => {
     });
   });
 
+  it.each([
+    { state: 'is missing', preview: { code: 0, stdout: '{"changed":true}', stderr: '' } },
+    { state: 'conflicts', preview: { code: 11, stdout: '', stderr: '{}' } },
+  ])('withholds authenticated queries when the target preset $state', async ({ preview }) => {
+    const proc = new FakeProcess().on(['tool-cli', 'config'], preview);
+    const client = new FamilyCli('tool-cli', proc, 'team', {
+      base_url: 'https://git.example.com',
+    });
+    await expect(client.call(['whoami'])).rejects.toMatchObject({ code: 'LOGIN_REQUIRED' });
+    expect(proc.calls.some((call) => call.vector.includes('whoami'))).toBe(false);
+  });
+
   it('classifies a failed query by the family exit code', () => {
     const call = (code: number) => ({ code, stdout: '', data: undefined, error: undefined });
     expect(queryFailed('t', call(4), 'x')).toMatchObject({

@@ -2,17 +2,16 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { FamilyCli } from '../../../../src/adapters/family/cli.js';
-import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
-import { prepareWorkspaceSetup } from '../../../../src/application/init/setup.js';
 import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login } from '../../../../src/application/login/run.js';
+import { prepareWorkspaceSetup } from '../../../../src/application/login/stage.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
+import { Sync } from '../../../../src/application/sync/index.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
-import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
 
 const workspace = `schema_version: 2
@@ -24,6 +23,17 @@ providers:
     vars: {host: 'ssh://git@git.example.com'}
     service: {base_url: 'https://git.example.com/deploy', context: team, flavor: datacenter, auth_scheme: pat}
 `;
+
+// What a companion answers a configuration command that would change nothing, or something.
+const UNCHANGED = { code: 0, stdout: '{"changed":false}', stderr: '' };
+const CHANGED = { code: 0, stdout: '{"changed":true}', stderr: '' };
+
+const skills = {
+  hosts: [],
+  configured: undefined,
+  bundledSkillDir: '/skills',
+  globalLock: new FakeLock(),
+};
 
 // The opt-in CLIs a case binds; a workspace has to name one before fx checks it.
 function vendorTools(names: readonly string[]): string {
@@ -61,11 +71,10 @@ async function fixture(
   const { prompter, trusted: trust } = h;
   prompter.unavailable = false;
   const login: LoginDeps = {
-    serviceProtocol: new FamilyServiceProtocol(),
+    ...fakeLoginDeps({}),
     describeProvider,
     home: '/home/example',
     prompter,
-    clock: new FakeClock(),
   };
   h.process.binaries.add('bitbucket-cli');
   h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.24.0', stderr: '' });
@@ -74,45 +83,6 @@ async function fixture(
 }
 
 describe('public service declarations', () => {
-  it.each(['token', 'nickname'])(
-    'rejects the undeclared service field %s even without strict validation',
-    (field) => {
-      const text = workspace.replace(
-        'auth_scheme: pat}',
-        `auth_scheme: pat, ${field}: PERSONAL_VALUE_NEVER_SHARE}`,
-      );
-      expect(() => loadWorkspace(text, { cliVersion: '1.0.0' })).toThrow(
-        expect.objectContaining({
-          code: 'MANIFEST_INVALID',
-          message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
-        }),
-      );
-      expect(loadWorkspace(text, { cliVersion: '1.0.0', allowInvalid: true }).problems).toEqual([
-        {
-          path: `providers.code-host.service.${field}`,
-          message: expect.stringContaining('public service settings'),
-          line: expect.any(Number),
-        },
-      ]);
-    },
-  );
-
-  it.each([
-    'https://user:PERSONAL_VALUE_NEVER_SHARE@git.example.com',
-    'https://git.example.com/?token=PERSONAL_VALUE_NEVER_SHARE',
-  ])('rejects credentials embedded in URL without echoing them', (url) => {
-    const text = workspace.replace('https://git.example.com/deploy', url);
-    expect(() => loadWorkspace(text, { cliVersion: '1.0.0' })).toThrow(
-      expect.objectContaining({
-        code: 'MANIFEST_INVALID',
-        message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
-      }),
-    );
-    expect(
-      loadWorkspace(text, { cliVersion: '1.0.0', allowInvalid: true }).problems.map((p) => p.path),
-    ).toEqual(['providers.code-host.service.base_url']);
-  });
-
   it('preserves the SSH clone prefix and scopes individual login', async () => {
     const { h, plan } = await fixture();
     expect(h.ctx.bindings[0]?.vars['host']).toBe('ssh://git@git.example.com');
@@ -196,19 +166,6 @@ describe('native preparation', () => {
     ).toBe(true);
   });
 
-  it.each([
-    { state: 'is missing', preview: { code: 0, stdout: '{"changed":true}', stderr: '' } },
-    { state: 'conflicts', preview: { code: 11, stdout: '', stderr: '{}' } },
-  ])('withholds authenticated queries when the target preset $state', async ({ preview }) => {
-    const { h } = await fixture();
-    h.process.on(['bitbucket-cli', 'config'], preview);
-    const client = new FamilyCli('bitbucket-cli', h.process, 'team', {
-      base_url: 'https://git.example.com',
-    });
-    await expect(client.call(['whoami'])).rejects.toMatchObject({ code: 'LOGIN_REQUIRED' });
-    expect(h.process.calls.some((call) => call.vector.includes('whoami'))).toBe(false);
-  });
-
   it('redacts credential-bearing legacy URLs from public conflict output', async () => {
     const { h, operation, plan } = await fixture();
     h.process.on(['bitbucket-cli', 'config'], {
@@ -260,21 +217,21 @@ describe('native preparation', () => {
   it('prepares and verifies only public settings, without activating, overwriting or logging in', async () => {
     const { h, operation, plan } = await fixture();
     let configured = false;
-    const calls: readonly string[][] = [];
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      (calls as string[][]).push([...vector]);
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+    h.process.always((vector) => {
       if (!vector.includes('--dry-run')) configured = true;
       return { code: 0, stdout: JSON.stringify({ changed: !configured }), stderr: '' };
     });
     expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('configured');
     expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('unchanged');
-    expect(calls.filter((v) => !v.includes('--version') && !v.includes('--dry-run'))).toHaveLength(
-      1,
-    );
-    expect(calls.flat()).not.toContain('login');
-    expect(calls.flat()).not.toContain('--overwrite');
-    expect(calls.flat()).not.toContain('--activate');
+    const words = h.process.calls.flatMap((call) => call.vector);
+    expect(
+      h.process.calls.filter(
+        (call) => !call.vector.includes('--version') && !call.vector.includes('--dry-run'),
+      ),
+    ).toHaveLength(1);
+    expect(words).not.toContain('login');
+    expect(words).not.toContain('--overwrite');
+    expect(words).not.toContain('--activate');
   });
 
   it('returns native conflict details and a preview without overwriting', async () => {
@@ -324,16 +281,14 @@ describe('native preparation', () => {
 
   it('accepts a context that serves the declared service whatever it signs in with', async () => {
     const { h, operation, plan } = await fixture();
-    const calls: string[][] = [];
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      calls.push([...vector]);
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      // The companion reports a change only when asked to switch how the context signs in.
-      const changed = vector.includes('--auth-scheme');
-      return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
-    });
+    // The companion reports a change only when asked to switch how the context signs in.
+    h.process.always((vector) => ({
+      code: 0,
+      stdout: JSON.stringify({ changed: vector.includes('--auth-scheme') }),
+      stderr: '',
+    }));
     expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('unchanged');
-    expect(calls.filter((vector) => vector.includes('set-context'))).toEqual([
+    expect(h.process.vectors().filter((vector) => vector.includes('set-context'))).toEqual([
       [
         'bitbucket-cli',
         'config',
@@ -353,42 +308,38 @@ describe('native preparation', () => {
   it('creates a missing context the way the declaration proposes to sign in', async () => {
     const { h, operation, plan } = await fixture();
     let created = false;
-    const applied: string[][] = [];
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      if (!vector.includes('--dry-run')) {
-        applied.push([...vector]);
-        created = true;
-      }
+    h.process.always((vector) => {
+      if (!vector.includes('--dry-run')) created = true;
       // A companion proposes a scheme only for a context that has none yet.
       const changes = { server: { before: '', after: 'x' }, 'auth.scheme': { before: '' } };
       return { code: 0, stdout: JSON.stringify({ changed: !created, changes }), stderr: '' };
     });
     expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('configured');
-    expect(applied).toHaveLength(1);
-    expect(applied[0]).toEqual(expect.arrayContaining(['--auth-scheme', 'pat']));
+    const applied = h.process
+      .vectors()
+      .filter((vector) => !vector.includes('--version') && !vector.includes('--dry-run'));
+    expect(applied).toEqual([expect.arrayContaining(['--auth-scheme', 'pat'])]);
   });
 
   it('fills a missing service field without touching how an existing context signs in', async () => {
     const { h, operation, plan } = await fixture();
     let filled = false;
-    const calls: string[][] = [];
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      calls.push([...vector]);
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
+    h.process
       // The context signs in another way: naming the declared scheme would conflict.
-      if (vector.includes('--auth-scheme')) return { code: 11, stdout: '', stderr: '{}' };
-      if (!vector.includes('--dry-run')) filled = true;
-      const changes = { flavor: { before: '', after: 'datacenter' } };
-      return { code: 0, stdout: JSON.stringify({ changed: !filled, changes }), stderr: '' };
-    });
+      .when((vector) => vector.includes('--auth-scheme'), { code: 11, stdout: '', stderr: '{}' })
+      .always((vector) => {
+        if (!vector.includes('--dry-run')) filled = true;
+        const changes = { flavor: { before: '', after: 'datacenter' } };
+        return { code: 0, stdout: JSON.stringify({ changed: !filled, changes }), stderr: '' };
+      });
     expect(await operation.execute(plan.steps[0]!, { dryRun: false })).toMatchObject({
       status: 'configured',
       changes: { flavor: { before: '', after: 'datacenter' } },
     });
-    expect(calls.some((vector) => vector.includes('--auth-scheme'))).toBe(false);
+    const vectors = h.process.vectors();
+    expect(vectors.some((vector) => vector.includes('--auth-scheme'))).toBe(false);
     expect(
-      calls.filter((vector) => vector.includes('set-context') && !vector.includes('--dry-run')),
+      vectors.filter((vector) => vector.includes('set-context') && !vector.includes('--dry-run')),
     ).toHaveLength(1);
   });
 
@@ -469,6 +420,55 @@ envs:
     expect(plan.steps.filter((step) => step.preparation).map((step) => step.env)).toEqual(['prod']);
   });
 
+  it('preserves completed service results if subsequent repository inspection fails', async () => {
+    const { h, login } = await fixture();
+    // The companion reports the settings as changed until it has been asked to write them.
+    let written = false;
+    h.process.when(
+      (vector) => vector.includes('config'),
+      (vector) => {
+        written ||= !vector.includes('--dry-run');
+        return written ? UNCHANGED : CHANGED;
+      },
+    );
+    vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
+    const promise = new Sync(h.deps, { login, skills }).execute({
+      dryRun: false,
+      posture: { readOnly: false, source: 'default' },
+      jobs: 1,
+    });
+    await expect(promise).rejects.toMatchObject({
+      partialResult: { stages: { services: { configured: 1 } } },
+    });
+  });
+
+  it('runs service setup before repo/provider work and only when selected', async () => {
+    const { h, login } = await fixture();
+    const order: string[] = [];
+    vi.spyOn(h.deps, 'codeHost').mockImplementation(() => {
+      order.push('provider');
+      return h.codeHost;
+    });
+    h.process.when(
+      (vector) => vector.includes('config'),
+      () => {
+        order.push('services');
+        return CHANGED;
+      },
+    );
+    const input = {
+      dryRun: true,
+      posture: { readOnly: false, source: 'default' as const },
+      jobs: 1,
+    };
+    const result = await new Sync(h.deps, { login, skills }).execute(input);
+    expect(order[0]).toBe('services');
+    expect(result.stages['services']).toMatchObject({ planned: 1 });
+    order.length = 0;
+    await new Sync(h.deps, { login, skills }).execute({ ...input, only: 'repos' });
+    expect(order).not.toContain('services');
+  });
+
   it('uses selected per-environment contexts and browser login', async () => {
     const { h, login } = await fixture({ environments, tools: ['openobserve-cli'] });
     const plan = buildPlan(h.deps, login, {
@@ -516,27 +516,49 @@ envs:
     expect(plan.steps.some((step) => step.tool === 'openobserve-cli')).toBe(false);
   });
 
-  it('creates only public Sentry defaults and preserves foreign files and symlinks', async () => {
-    const env = `schema_version: 2
+  describe('the Sentry defaults file', () => {
+    const target = path.join(ROOT, '.sentryclirc');
+    async function sentry() {
+      const env = `schema_version: 2
 platforms:
   errors: {provider: sentry, capability: error-tracker, service: {base_url: 'https://sentry.example.com', org: team}}
 envs: {dev: {platforms: {errors: {}}}}
 `;
-    const { h, operation, plan, login } = await fixture({ environments: env, tools: ['sentry'] });
-    const step = plan.steps.find((item) => item.tool === 'sentry' && item.preparation)!;
-    const target = path.join(ROOT, '.sentryclirc');
-    expect((await operation.execute(step, { dryRun: true })).status).toBe('planned');
-    expect(await h.fs.exists(target)).toBe(false);
-    expect((await operation.execute(step, { dryRun: false })).status).toBe('configured');
-    expect(await h.fs.readText(target)).not.toContain('[auth]');
-    expect((await new Verifier(h.deps, login).verify(step)).ok).toBe(true);
-    await h.fs.writeText(target, '[auth]\ntoken=PERSONAL_VALUE_NEVER_SHARE');
-    const result = await operation.execute(step, { dryRun: false });
-    expect(result.status).toBe('blocked');
-    expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
-    await h.fs.remove(target);
-    await h.fs.link('/elsewhere/private', target);
-    expect((await operation.execute(step, { dryRun: false })).status).toBe('blocked');
+      const { h, operation, plan, login } = await fixture({ environments: env, tools: ['sentry'] });
+      const step = plan.steps.find((item) => item.tool === 'sentry' && item.preparation)!;
+      return { h, operation, login, step };
+    }
+
+    it('is planned under dry-run without being created', async () => {
+      const { h, operation, step } = await sentry();
+      expect((await operation.execute(step, { dryRun: true })).status).toBe('planned');
+      expect(await h.fs.exists(target)).toBe(false);
+    });
+
+    it('is created with public defaults only, which then verify', async () => {
+      const { h, operation, login, step } = await sentry();
+      expect((await operation.execute(step, { dryRun: false })).status).toBe('configured');
+      expect(await h.fs.readText(target)).not.toContain('[auth]');
+      expect((await new Verifier(h.deps, login).verify(step)).ok).toBe(true);
+    });
+
+    it('is left alone when it carries a credential, which is not echoed', async () => {
+      const { h, operation, step } = await sentry();
+      const personal = '[auth]\ntoken=PERSONAL_VALUE_NEVER_SHARE';
+      await h.fs.writeText(target, personal);
+      const result = await operation.execute(step, { dryRun: false });
+      expect(result.status).toBe('blocked');
+      expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
+      expect(await h.fs.readText(target)).toBe(personal);
+    });
+
+    it('is not written through a symbolic link', async () => {
+      const { h, operation, step } = await sentry();
+      await h.fs.link('/elsewhere/private', target);
+      expect((await operation.execute(step, { dryRun: false })).status).toBe('blocked');
+      expect(await h.fs.readLink(target)).toBe('/elsewhere/private');
+      expect(await h.fs.exists('/elsewhere/private')).toBe(false);
+    });
   });
 });
 
@@ -596,19 +618,21 @@ describe('existing login reuse on every sync', () => {
   it('associates a login the person already has and never signs in for them', async () => {
     const { h, login } = await fixture();
     let associated = false;
-    const run = vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      if (vector.includes('set-context'))
-        return { code: 0, stdout: '{"changed":false}', stderr: '' };
-      if (vector.includes('reuse')) {
-        const changed = !associated;
-        if (!vector.includes('--dry-run')) associated = true;
-        return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
-      }
-      if (vector.includes('status'))
-        return { code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' };
-      throw new Error('A sync must never invoke personal login');
-    });
+    h.process
+      .when((vector) => vector.includes('set-context'), UNCHANGED)
+      .when(
+        (vector) => vector.includes('reuse'),
+        (vector) => {
+          const changed = !associated;
+          if (!vector.includes('--dry-run')) associated = true;
+          return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+        },
+      )
+      .when(
+        (vector) => vector.includes('status'),
+        () => ({ code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' }),
+      )
+      .always(new Error('A sync must never invoke personal login'));
     const stage = await prepareWorkspaceSetup(h.deps, login, {
       initializing: false,
       dryRun: false,
@@ -620,22 +644,23 @@ describe('existing login reuse on every sync', () => {
       ['bitbucket-cli.credential', 'ready'],
     ]);
     expect(
-      run.mock.calls.filter(
-        ([vector]) => vector.includes('reuse') && !vector.includes('--dry-run'),
-      ),
+      h.process
+        .vectors()
+        .filter((vector) => vector.includes('reuse') && !vector.includes('--dry-run')),
     ).toHaveLength(1);
   });
 
   it('hands sign-in to the person and an unfinished preparation to doctor, not to init', async () => {
     const { h, login } = await fixture();
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      if (vector.includes('set-context'))
-        return { code: 0, stdout: '{"changed":false}', stderr: '' };
-      if (vector.includes('reuse')) return { code: 0, stdout: '{"changed":false}', stderr: '' };
-      if (vector.includes('status')) return { code: 0, stdout: '{"configured":false}', stderr: '' };
-      throw new Error('A sync must never invoke personal login');
-    });
+    h.process
+      .when((vector) => vector.includes('set-context'), UNCHANGED)
+      .when((vector) => vector.includes('reuse'), UNCHANGED)
+      .when((vector) => vector.includes('status'), {
+        code: 0,
+        stdout: '{"configured":false}',
+        stderr: '',
+      })
+      .always(new Error('A sync must never invoke personal login'));
     const stage = await prepareWorkspaceSetup(h.deps, login, {
       initializing: false,
       dryRun: false,
@@ -656,19 +681,21 @@ describe('existing login reuse during initialization', () => {
     async (candidate) => {
       const { h, login } = await fixture();
       let associated = false;
-      const run = vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-        if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-        if (vector.includes('set-context'))
-          return { code: 0, stdout: '{"changed":false}', stderr: '' };
-        if (vector.includes('reuse')) {
-          const changed = candidate && !associated;
-          if (!vector.includes('--dry-run') && changed) associated = true;
-          return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
-        }
-        if (vector.includes('status'))
-          return { code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' };
-        throw new Error('Initialization must never invoke personal login');
-      });
+      h.process
+        .when((vector) => vector.includes('set-context'), UNCHANGED)
+        .when(
+          (vector) => vector.includes('reuse'),
+          (vector) => {
+            const changed = candidate && !associated;
+            if (!vector.includes('--dry-run') && changed) associated = true;
+            return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+          },
+        )
+        .when(
+          (vector) => vector.includes('status'),
+          () => ({ code: 0, stdout: JSON.stringify({ configured: associated }), stderr: '' }),
+        )
+        .always(new Error('Initialization must never invoke personal login'));
       const first = await new Login(h.deps, login).execute({
         mode: 'prepare',
         dryRun: false,
@@ -683,9 +710,9 @@ describe('existing login reuse during initialization', () => {
         candidate ? 'verified' : 'handoff',
       );
       const writes = () =>
-        run.mock.calls.filter(
-          ([vector]) => vector.includes('reuse') && !vector.includes('--dry-run'),
-        );
+        h.process
+          .vectors()
+          .filter((vector) => vector.includes('reuse') && !vector.includes('--dry-run'));
       expect(writes()).toHaveLength(candidate ? 1 : 0);
       await new Login(h.deps, login).execute({
         mode: 'prepare',
@@ -695,34 +722,29 @@ describe('existing login reuse during initialization', () => {
         posture: h.deps.trust.posture,
       });
       expect(writes()).toHaveLength(candidate ? 1 : 0);
-      expect(run.mock.calls.some(([vector]) => vector.includes('login'))).toBe(false);
+      expect(h.process.vectors().some((vector) => vector.includes('login'))).toBe(false);
     },
   );
 
   it('retains native reuse failure and blocks dependent login instead of requesting a new credential', async () => {
     const { h, login } = await fixture();
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      if (vector.includes('set-context'))
-        return { code: 0, stdout: '{"changed":false}', stderr: '' };
-      if (vector.includes('reuse') && vector.includes('--dry-run'))
-        return { code: 0, stdout: '{"changed":true}', stderr: '' };
-      if (vector.includes('reuse'))
-        return {
-          code: 3,
-          stdout: '',
-          stderr: JSON.stringify({
-            error: {
-              category: 'config',
-              code: 'CREDENTIAL_STORE_INACCESSIBLE',
-              message: 'Host keychain is unavailable',
-              hint: 'Retry on the host',
-              next_steps: ['Retry with host keychain access'],
-            },
-          }),
-        };
-      throw new Error('A failed reuse must not trigger a login');
-    });
+    h.process
+      .when((vector) => vector.includes('set-context'), UNCHANGED)
+      .when((vector) => vector.includes('reuse') && vector.includes('--dry-run'), CHANGED)
+      .when((vector) => vector.includes('reuse'), {
+        code: 3,
+        stdout: '',
+        stderr: JSON.stringify({
+          error: {
+            category: 'config',
+            code: 'CREDENTIAL_STORE_INACCESSIBLE',
+            message: 'Host keychain is unavailable',
+            hint: 'Retry on the host',
+            next_steps: ['Retry with host keychain access'],
+          },
+        }),
+      })
+      .always(new Error('A failed reuse must not trigger a login'));
     const result = await new Login(h.deps, login).execute({
       mode: 'prepare',
       dryRun: false,
@@ -743,14 +765,10 @@ describe('existing login reuse during initialization', () => {
 
   it('does not associate an identity in dry-run', async () => {
     const { h, login, operation, plan } = await fixture();
-    vi.spyOn(h.process, 'run').mockImplementation(async (vector) => {
-      if (vector.includes('--version')) return { code: 0, stdout: '0.24.0', stderr: '' };
-      if (vector.includes('set-context'))
-        return { code: 0, stdout: '{"changed":false}', stderr: '' };
-      if (vector.includes('reuse') && vector.includes('--dry-run'))
-        return { code: 0, stdout: '{"changed":true}', stderr: '' };
-      throw new Error('Preview performed an unexpected mutation');
-    });
+    h.process
+      .when((vector) => vector.includes('set-context'), UNCHANGED)
+      .when((vector) => vector.includes('reuse') && vector.includes('--dry-run'), CHANGED)
+      .always(new Error('Preview performed an unexpected mutation'));
     await operation.execute(plan.steps[0]!, { dryRun: false });
     await new Verifier(h.deps, login).verify(
       plan.steps.find((step) => step.id.endsWith('.reuse'))!,

@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 import { mergeEnvironment } from '../../src/adapters/process/executable.js';
-import { bundledToolsText } from '../../src/composition/bundled.js';
 import { manifestSourceDir } from '../../src/infra/workspace-home.js';
+import { bundledTools } from '../bundled-tools.js';
 import { runtimeTools, systemPath } from '../platform.js';
 import { tempDir } from '../temp.js';
 
@@ -100,7 +100,7 @@ export function manifestDirOf(home: string, name: string): string {
 // A tools.yaml that switches every bundled tool off, so a case meets only the tools it
 // appends as further entries of the list.
 export function disabledBundledTools(): string {
-  const baseline = parse(bundledToolsText()) as { tools: { name: string }[] };
+  const baseline = parse(bundledTools()) as { tools: { name: string }[] };
   const entries = baseline.tools.map(({ name }) => `  - {name: ${name}, enabled: false}\n`);
   return `schema_version: 3\ntools:\n${entries.join('')}`;
 }

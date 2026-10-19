@@ -8,12 +8,11 @@ import { agentHookCleanup } from './hooks.js';
 
 export function agentResourceCleanup(command: HarnessCommandInput): AgentCleanup {
   const hooks = agentHookCleanup(command.container, command.env, command.posture);
-  const harness = new CleanupAgentHarness(
-    harnessDeps(command),
-    command.container.config,
-    command.container.fs,
-    command.container.manifestDirFor,
-  );
+  const harness = new CleanupAgentHarness(harnessDeps(command), {
+    config: command.container.config,
+    fs: command.container.fs,
+    manifestDirFor: command.container.manifestDirFor,
+  });
   const run = async (ids: readonly string[], dryRun: boolean) => [
     ...(await (dryRun ? hooks.plan(ids) : hooks.apply(ids))),
     ...(await harness.execute({ ids, dryRun, posture: command.posture, env: command.env })),

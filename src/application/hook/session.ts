@@ -6,13 +6,12 @@ import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { readSettings } from '../config/settings.js';
-import type { DoctorExtension } from '../doctor/types.js';
+import type { DoctorExtension, StageResult } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { StageResult } from '../sync/types.js';
 import { resolveWorkspace, type ResolveInput } from '../workspace/resolve.js';
 
 import { ReconcileHooks } from './reconcile.js';
-import type { HookDeps, HookOutput, ReconcileInput } from './types.js';
+import type { HookDeps, HookOutput, HookStageDetails, ReconcileInput } from './types.js';
 
 export interface HookSession {
   readonly deps: HookDeps;
@@ -43,7 +42,7 @@ export async function manageHooks(input: ManageHooksInput): Promise<HookOutput> 
 
 export function hookStage(
   input: HookSession & { readonly dryRun: boolean },
-): () => Promise<StageResult> {
+): () => Promise<StageResult<HookStageDetails>> {
   return async () => {
     const out = await manageHooks({ ...input, action: 'sync' });
     const summary = countBy(out.items, (item) => item.action);

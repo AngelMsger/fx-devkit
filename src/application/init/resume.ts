@@ -27,9 +27,15 @@ export class ResumeInit {
   constructor(private readonly deps: ResumeInitDeps) {}
 
   async execute(input: ResumeInitInput): Promise<InitOutput> {
-    const { config, fs, manifestDirFor, inspectManaged } = this.deps;
+    const { config, fs, manifestDirFor, inspectManaged, commandShell } = this.deps;
     const registry = (await config.read()).workspaces ?? {};
-    const { name, entry } = await explicitWorkspace(input.workspace, input.cwd, registry, fs);
+    const { name, entry } = await explicitWorkspace(
+      input.workspace,
+      input.cwd,
+      registry,
+      fs,
+      commandShell,
+    );
     return new Init(this.deps).execute({
       dir: entry.root,
       name,

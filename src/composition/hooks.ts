@@ -58,12 +58,11 @@ export function agentHookCleanup(
   env: NodeJS.ProcessEnv,
   posture: WritePosture,
 ): AgentCleanup {
-  const usecase = new CleanupAgentHooks(
-    hookDeps(container),
-    container.config,
-    container.fs,
-    container.manifestDirFor,
-  );
+  const usecase = new CleanupAgentHooks(hookDeps(container), {
+    config: container.config,
+    fs: container.fs,
+    manifestDirFor: container.manifestDirFor,
+  });
   return {
     plan: (ids) => usecase.execute({ ids, env, posture, dryRun: true }),
     apply: (ids) => usecase.execute({ ids, env, posture, dryRun: false }),

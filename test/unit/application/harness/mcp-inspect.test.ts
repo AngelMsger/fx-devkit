@@ -8,6 +8,7 @@ import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/regis
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeHarnessState } from '../../../fakes/fake-harness.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -43,7 +44,7 @@ function fixture() {
       hosts: createAgentHosts({ fs: FakeFs.from({}), process, home: path.resolve('/home') }),
       state,
       files,
-      lock: { acquire: async () => ({ release: async () => {} }) },
+      lock: new FakeLock(),
       env: { TOKEN: 'opaque-sensitive-value' },
       codec: mcpCodecFor,
       trust: new TrustGate(trustStore, new FakePrompter()),

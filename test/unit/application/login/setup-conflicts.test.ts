@@ -3,7 +3,7 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
-import { checkLogin } from '../../../../src/application/doctor/login.js';
+import { checkLogin } from '../../../../src/application/login/check.js';
 import { Login } from '../../../../src/application/login/run.js';
 import { Readiness } from '../../../../src/application/readiness/index.js';
 import { Tally } from '../../../../src/application/tally.js';

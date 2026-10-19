@@ -36,7 +36,11 @@ export interface ManifestLoadInput {
 }
 
 export async function loadManifestContext(input: ManifestLoadInput): Promise<ManifestContext> {
-  const bundle = await new LoadManifest(input.fs, input.bundledTools, input.diagnostics).execute({
+  const bundle = await new LoadManifest({
+    fs: input.fs,
+    bundledTools: input.bundledTools,
+    diagnostics: input.diagnostics,
+  }).execute({
     dir: input.dir,
     cliVersion: input.cliVersion,
     providers: input.providers,

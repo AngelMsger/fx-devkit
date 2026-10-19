@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 
 import { cleanupAgentWorkspaces } from '../../../../src/application/agent/workspace-cleanup.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
-import type { Lock } from '../../../../src/ports/lock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 
 const input = {
   ids: ['codex'],
@@ -27,19 +27,8 @@ describe('agent cleanup across workspaces', () => {
     const fs = FakeFs.from({ '/state/pending/workspace-operation.json': '{}' });
     fs.mkdir('/failed');
     fs.mkdir('/ready');
-    const held = new Set<string>();
     const visited: string[] = [];
-    const lock: Lock = {
-      async acquire({ key }) {
-        if (key.endsWith(':busy')) return null;
-        held.add(key);
-        return {
-          release: async () => {
-            held.delete(key);
-          },
-        };
-      },
-    };
+    const lock = new FakeLock().busy('workspace-operation:busy');
     const rows = await cleanupAgentWorkspaces(
       { config, fs, lock, manifestDirFor },
       {
@@ -47,7 +36,7 @@ describe('agent cleanup across workspaces', () => {
         kind: 'harness',
         workspaces: names,
         async reconcile(workspace) {
-          expect(held.has(`workspace-operation:${workspace}`)).toBe(true);
+          expect(lock.unreleased()).toContain(`workspace-operation:${workspace}`);
           visited.push(workspace);
           if (workspace === 'failed')
             throw new DevkitError('conflict', 'PROJECTION_CHANGED', 'Changed');
@@ -66,7 +55,7 @@ describe('agent cleanup across workspaces', () => {
     expect(
       rows.filter((row) => row.action !== 'removed').every((row) => row.kind === 'harness'),
     ).toBe(true);
-    expect(held.size).toBe(0);
+    expect(lock.unreleased()).toEqual([]);
     expect(fs.writes).toEqual([]);
   });
 
@@ -77,12 +66,9 @@ describe('agent cleanup across workspaces', () => {
     const fs = new FakeFs();
     fs.mkdir('/new');
     const visited: string[] = [];
-    const lock: Lock = {
-      async acquire() {
-        await config.write({ workspaces: { moved: { root: '/new' } } });
-        return { release: async () => undefined };
-      },
-    };
+    const lock = new FakeLock().onAcquire(async () => {
+      await config.write({ workspaces: { moved: { root: '/new' } } });
+    });
     await cleanupAgentWorkspaces(
       { config, fs, lock, manifestDirFor },
       {
@@ -100,11 +86,7 @@ describe('agent cleanup across workspaces', () => {
   it('previews without acquiring a lease and still reports pending identity operations', async () => {
     const config = new FakeConfigStore({ workspaces: { pending: { root: '/pending' } } });
     const fs = FakeFs.from({ '/state/pending/workspace-operation.json': '{}' });
-    const lock: Lock = {
-      acquire: async () => {
-        throw new Error('Preview acquired a lease');
-      },
-    };
+    const lock = new FakeLock();
     const rows = await cleanupAgentWorkspaces(
       { config, fs, lock, manifestDirFor },
       {
@@ -119,6 +101,7 @@ describe('agent cleanup across workspaces', () => {
     expect(rows).toEqual([
       { workspace: 'pending', agent: 'codex', action: 'WORKSPACE_OPERATION_PENDING' },
     ]);
+    expect(lock.requests).toEqual([]);
     expect(config.writes).toBe(0);
     expect(fs.writes).toEqual([]);
   });

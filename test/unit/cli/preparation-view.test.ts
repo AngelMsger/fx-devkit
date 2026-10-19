@@ -1,8 +1,17 @@
 // A person must be able to tell what is unfinished, sign in and resume from terminal output alone.
 import { expect, it } from 'vitest';
 
+import type {
+  InitOutput,
+  InitResources,
+  PlannedSetupStep,
+} from '../../../src/application/init/types.js';
+import type { StepRow } from '../../../src/application/login/run.js';
+import type { StageDetails } from '../../../src/application/sync/types.js';
+import type { ToolInstallOutput } from '../../../src/application/tool/install.js';
 import { preparationText } from '../../../src/cli/preparation-view.js';
 import { displayOf, PLAIN, type Display } from '../../../src/cli/render/display.js';
+import { DevkitError, toEnvelope } from '../../../src/domain/errors.js';
 import {
   preparation,
   preparationCheck,
@@ -143,4 +152,181 @@ it('marks the verdict, each blocker and what to type, wrapping a reason under it
   expect(tagged(view([], undefined, displayOf(new FakeTerminal(), {}, 'darwin')))).toMatch(
     /^<ok>✓<\/> <strong>Required preparation verified: work<\/>\n/,
   );
+});
+
+const install = (vector: readonly string[] | null): ToolInstallOutput => ({
+  name: 'logs-cli',
+  via: 'npm',
+  vector,
+  docs: null,
+  ran: false,
+  code: null,
+  version_after: null,
+});
+
+const step = (
+  phase: PlannedSetupStep['phase'],
+  command: readonly string[] | null,
+  verify: PlannedSetupStep['verify'],
+): PlannedSetupStep => ({
+  id: `logs-cli.${phase}`,
+  tool: 'logs-cli',
+  phase,
+  title: phase,
+  action: phase === 'prepare' ? 'prepare_if_needed' : 'verify_only',
+  command,
+  cwd: '/work',
+  verify,
+  requires: [],
+});
+
+const standing = {
+  manifest: '/fx/source',
+  registration: '/fx/config.yaml',
+  personal_selection: null,
+  workspace_guides: '/work',
+  agent_resources: 'Skills and rules',
+  services: 'Public settings',
+  global_tools: 'Opted-in tools',
+};
+
+function initialization(
+  resources: InitResources,
+  inspected: boolean,
+): Pick<InitOutput, 'root' | 'manifest_dir' | 'plan'> {
+  return {
+    root: '/work',
+    manifest_dir: '/fx/source',
+    plan: {
+      source_inspected: inspected,
+      inspected_source: inspected ? '/fx/source' : null,
+      manifest_action: 'materialize',
+      registration: 'register',
+      default_workspace: 'set',
+      selection: { mode: 'all', repos: null, validated: inspected },
+      repositories: inspected
+        ? [
+            { name: 'api', path: 'api', branch: 'main', action: 'clone', fetch: false },
+            { name: 'web', path: 'web', branch: 'main', action: 'clone', fetch: false },
+            { name: 'docs', path: 'docs', branch: 'main', action: 'skip_unpicked', fetch: false },
+          ]
+        : null,
+      resources,
+      unchecked: [],
+    },
+  };
+}
+
+const planned = preparation({ scope: preparationScope('work'), checks: [], preview: true });
+
+it('previews what an initialization installs, replaces and runs, naming each command once', () => {
+  const status = { command: ['logs-cli', 'auth', 'status'] };
+  const text = preparationText(
+    {
+      preparation: planned,
+      ...initialization(
+        {
+          ...standing,
+          guide_conflicts: [
+            { path: '/work/AGENTS.md', action: 'requires_replacement_approval', backup: 'kept' },
+          ],
+          tools: [{ name: 'logs-cli', action: 'install_if_missing', scope: 'global', methods: [] }],
+          tool_checks: [{ name: 'logs-cli', command: ['logs-cli', '--version'] }],
+          setup: [
+            step('prepare', ['logs-cli', 'config', 'init'], status),
+            step('authenticate', ['logs-cli', 'auth', 'login'], status),
+            step('manual', null, { file: '~/.kube/dev' }),
+          ],
+          preparation: {
+            root: '/work',
+            source: '/fx/source',
+            note: 'No trust is granted.',
+            tool_install: [install(['npm', 'install', '-g', 'logs-cli']), install(null)],
+            skills: {
+              links: [],
+              fx: [],
+              tools: [
+                {
+                  tool: 'logs-cli',
+                  vector: ['logs-cli', 'skill', 'install'],
+                  code: null,
+                  origin: 'base',
+                },
+              ],
+              summary: {},
+            },
+            services: { checks: [], summary: {} },
+          },
+        },
+        true,
+      ),
+    },
+    { shell: 'posix', display: PLAIN },
+  );
+  expect(text.split('\n')).toEqual([
+    'Preparation preview; no changes made: /work',
+    'Repositories: 2 selected (2 clone)',
+    'Install if missing: logs-cli',
+    'Prepare the workspace guides and selected Agent Skills.',
+    'Replacement approval: /work/AGENTS.md; preserve a backup.',
+    'Review command: npm install -g logs-cli',
+    'Review command: logs-cli skill install',
+    'Review command: logs-cli --version',
+    'Review command: logs-cli config init',
+    'Review command: logs-cli auth status',
+    '',
+  ]);
+});
+
+it('says so when the source of a previewed initialization has not been read', () => {
+  const text = preparationText(
+    { preparation: planned, ...initialization(standing, false) },
+    { shell: 'posix', display: PLAIN },
+  );
+  expect(text.split('\n')).toEqual([
+    'Preparation preview; no changes made: /work',
+    'Repositories: 0 selected',
+    'Prepare the workspace guides and selected Agent Skills.',
+    'The source has not been inspected; its requirements will be validated before preparation.',
+    '',
+  ]);
+});
+
+it('names the setup steps of a first sync whose check passes, and none of a setup that failed', () => {
+  const row = (title: string, result: StepRow['result']): StepRow => ({
+    id: title,
+    tool: 'logs-cli',
+    env: null,
+    kind: 'run',
+    title,
+    result,
+    detail: null,
+  });
+  const ready = preparation({ scope: preparationScope('work'), checks: [] });
+  const after = (setup: NonNullable<StageDetails['setup']>): string =>
+    preparationText(
+      {
+        preparation: ready,
+        root: '/work',
+        manifest_dir: '/fx/source',
+        sync: {
+          operation: 'apply',
+          items: [],
+          summary: { done: 0, skipped: 0, failed: 0, unreadable: 0 },
+          stages: {},
+          stage_details: { setup },
+        },
+      },
+      { shell: 'posix', display: PLAIN },
+    );
+  const items = [
+    row('Prepare local files', 'done'),
+    row('Log in', 'verified'),
+    row('Add a token', 'handoff'),
+  ];
+  expect(after({ items, problems: [] })).toBe(
+    'Ready to work: /work\nSetup already verified: Prepare local files, Log in\n',
+  );
+  const failure = toEnvelope(new DevkitError('config', 'SETUP_PLAN_INVALID', 'Invalid plan')).error;
+  expect(after({ failure })).toBe('Ready to work: /work\n');
 });

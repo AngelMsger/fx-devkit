@@ -14,6 +14,7 @@ import { report } from '../../../../src/domain/report.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeHarnessState } from '../../../fakes/fake-harness.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR, ROOT, manifestDirFor } from '../../../fakes/workspace.js';
@@ -33,7 +34,7 @@ async function fixture() {
       trust: new TrustGate(new FakeTrustStore(), new FakePrompter()),
       env: {},
       codec: mcpCodecFor,
-      lock: { acquire: async () => ({ release: async () => {} }) },
+      lock: new FakeLock(),
     },
     config,
     process: h.process,
@@ -62,9 +63,9 @@ describe('harness workspace workflow', () => {
     const result = report(['mcp'], await extension.check());
     expect(result).toMatchObject({ ok: true, complete: false });
     expect(result.findings[0]?.coverage).toBe('incomplete');
-    await expect(
-      extension.fix!({ fix: true, dryRun: false, noInput: true, posture: f.input.posture }),
-    ).rejects.toMatchObject({ code: 'HARNESS_SOURCE_FOREIGN' });
+    await expect(extension.fix!({ dryRun: false, posture: f.input.posture })).rejects.toMatchObject(
+      { code: 'HARNESS_SOURCE_FOREIGN' },
+    );
     expect(f.files.writes).toBe(0);
   });
 });

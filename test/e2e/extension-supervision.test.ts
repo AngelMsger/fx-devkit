@@ -13,6 +13,7 @@ import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ExtensionHookProtocol } from '../../src/adapters/agent-host/extension-hooks.js';
+import { until } from '../waiting.js';
 
 import { tempDir } from './harness.js';
 
@@ -82,7 +83,7 @@ async function loadBridge(
 }
 
 async function waitForHeartbeat(file: string): Promise<void> {
-  for (let i = 0; i < 100 && !existsSync(file); i++) await delay(20);
+  await until(() => existsSync(file));
   expect(existsSync(file)).toBe(true);
 }
 

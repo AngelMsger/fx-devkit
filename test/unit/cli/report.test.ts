@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createRenderer, type RenderOptions } from '../../../src/cli/render/index.js';
 import { DevkitError, toEnvelope } from '../../../src/domain/errors.js';
-import {
-  HARNESS_ACTIONS,
-  HOOK_ACTIONS,
-  harnessActionState,
-  hookActionState,
-} from '../../../src/domain/harness/actions.js';
+import { HARNESS_ACTIONS, HOOK_ACTIONS } from '../../../src/domain/harness/actions.js';
 import { CaptureStream } from '../../fakes/capture-stream.js';
 
 function render(options: RenderOptions = {}, format: 'json' | 'ndjson' = 'json') {
@@ -175,7 +170,7 @@ describe('workflow JSON summaries', () => {
 });
 
 describe('projection rows in a workflow summary', () => {
-  it('keeps exactly the rows whose action left the entry unfinished', () => {
+  it('keeps the rows of entries fx could not manage and drops every other one', () => {
     const t = render({ report: 'sync' });
     t.renderer.record({
       operation: 'apply',
@@ -208,13 +203,11 @@ describe('projection rows in a workflow summary', () => {
     const out = JSON.parse(t.out());
     const kept = (stage: 'mcp' | 'hooks'): unknown[] =>
       out.stage_details[stage].items.map((row: { action: unknown }) => row.action);
-    const blockedHarness = HARNESS_ACTIONS.filter((a) => harnessActionState(a) === 'blocked');
-    const blockedHooks = HOOK_ACTIONS.filter((a) => hookActionState(a) === 'blocked');
-    expect(kept('mcp')).toEqual(blockedHarness);
-    expect(kept('hooks')).toEqual(blockedHooks);
+    expect(kept('mcp')).toEqual(['untrusted', 'foreign', 'missing_variables', 'conflict']);
+    expect(kept('hooks')).toEqual(['foreign', 'invalid', 'busy', 'conflict']);
     expect(out.omitted).toEqual({
-      'stage_details.mcp.items': HARNESS_ACTIONS.length - blockedHarness.length,
-      'stage_details.hooks.items': HOOK_ACTIONS.length - blockedHooks.length,
+      'stage_details.mcp.items': 5,
+      'stage_details.hooks.items': 6,
     });
   });
 });

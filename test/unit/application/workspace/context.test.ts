@@ -5,15 +5,16 @@ import { describe, expect, it } from 'vitest';
 
 import { WorkspaceContext } from '../../../../src/application/workspace/context.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { harness, ROOT } from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
-const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
 const manifestDirFor = (name: string): string =>
   path.normalize(`/home/.fx/workspaces/${name}/source`);
 
@@ -52,7 +53,7 @@ function locate(overrides: {
     fs: overrides.fs ?? fs(),
     git: overrides.git ?? new FakeGit(),
     localStore: overrides.localStore ?? new FakeLocalStore(),
-    bundledTools: bundled,
+    bundledTools,
     providers: providerCatalog(),
     cliVersion: '1.0.0',
     reporter,
@@ -209,8 +210,6 @@ describe('the manifest repository as a repository of the workspace', () => {
 
 describe('path aliases across the local layer', () => {
   it('refuses two entries that resolve to one checkout, however they are spelled', async () => {
-    const { harness, ROOT } = await import('../../../fakes/workspace.js');
-    const path = await import('node:path');
     await expect(
       harness({
         local: {
@@ -224,7 +223,6 @@ describe('path aliases across the local layer', () => {
   });
 
   it('refuses native aliases that consume the root or overlap another checkout', async () => {
-    const { harness, ROOT } = await import('../../../fakes/workspace.js');
     await expect(
       harness({ local: { overrides: { 'fx-example-api': { path: ROOT } } } }),
     ).rejects.toMatchObject({ code: 'LOCAL_INVALID' });
@@ -236,7 +234,6 @@ describe('path aliases across the local layer', () => {
   });
 
   it('keeps a disjoint external checkout addressable by reference', async () => {
-    const { harness } = await import('../../../fakes/workspace.js');
     const h = await harness({
       local: {
         repos: [{ name: 'external', path: path.resolve('/elsewhere/external'), upstream: 'x' }],

@@ -10,8 +10,10 @@ import { fingerprint } from '../../../../src/domain/toolchain/trust.js';
 import type { ConfigFile } from '../../../../src/ports/stores.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 
 describe('registered lifecycle behavior', () => {
@@ -28,8 +30,8 @@ describe('registered lifecycle behavior', () => {
       hosts: createAgentHosts({ fs, process: new FakeProcess(), home: path.resolve('/home/test') }),
       local: new FakeLocalStore(),
       state: { read: async () => null, write: async () => {} },
-      lock: { acquire: async () => null },
-      files: { read: async () => ({ kind: 'absent', text: null }), write: async () => 'unchanged' },
+      lock: new FakeLock().busy(),
+      files: new FakeFileProjection(fs),
       protocol: hookProtocolFor,
       executable: ['fx'],
       home: path.resolve('/home/fx'),

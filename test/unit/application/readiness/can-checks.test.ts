@@ -2,7 +2,7 @@
 // what the check answered, a step waiting on another says so, and a check that could
 // not finish is unknown rather than something a person is asked to fix.
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { kubectlProvider } from '../../../../src/adapters/cluster/kubectl/provider.js';
 import { Can } from '../../../../src/application/readiness/can.js';
@@ -53,6 +53,7 @@ const DESCRIPTORS: Record<string, ProviderDescriptor<unknown>> = {
 };
 
 const PASSED: ProcessResult = { code: 0, stdout: '', stderr: '' };
+// What the process port raises for a check that outlives its deadline.
 const timedOut = (binary: string): DevkitError =>
   new DevkitError('internal', 'PROCESS_TIMEOUT', `${binary} did not finish within 30000ms`);
 
@@ -73,15 +74,6 @@ function cluster(h: Harness, answers: { kubeconfig?: ProcessResult; access: Proc
   h.process
     .when((v) => v[0] === 'kubectl' && v.includes('get-contexts'), answers.kubeconfig ?? PASSED)
     .when((v) => v[0] === 'kubectl' && v.includes('can-i'), answers.access);
-}
-
-// Lets one check outlive its deadline, the way the process port reports it.
-function hang(h: Harness, matches: (vector: readonly string[]) => boolean, error: DevkitError) {
-  const run = h.process.run.bind(h.process);
-  vi.spyOn(h.process, 'run').mockImplementation(async (vector, options) => {
-    if (matches(vector)) throw error;
-    return run(vector, options);
-  });
 }
 
 const can = (h: Harness, target: string) =>
@@ -154,7 +146,7 @@ describe('a check that does not pass', () => {
   it('is unknown when the check could not finish, and hands nobody a step', async () => {
     const h = await stage();
     cluster(h, { access: PASSED });
-    hang(h, (vector) => vector.includes('can-i'), timedOut('kubectl'));
+    h.process.override((vector) => vector.includes('can-i'), timedOut('kubectl'));
     expect(await can(h, 'cluster')).toMatchObject({
       status: 'unknown',
       unfinished: [
@@ -196,7 +188,7 @@ describe('a check that does not pass', () => {
     h.process
       .on(['jenkins-cli', 'check', 'role'], { code: 1, stdout: '', stderr: 'role missing' })
       .on(['jenkins-cli', 'check', 'quota'], PASSED);
-    hang(h, (vector) => vector.includes('token'), timedOut('jenkins-cli'));
+    h.process.override((vector) => vector.includes('token'), timedOut('jenkins-cli'));
     const result = await can(h, 'ci');
     expect(result).toMatchObject({
       status: 'unconfigured',
@@ -215,7 +207,7 @@ describe('a check that does not pass', () => {
         stdout: '',
         stderr: 'role missing',
       });
-      hang(h, (vector) => vector.includes('token'), timedOut('jenkins-cli'));
+      h.process.override((vector) => vector.includes('token'), timedOut('jenkins-cli'));
       const jenkins = DESCRIPTORS['jenkins-cli']!;
       const descriptors = {
         ...DESCRIPTORS,
@@ -236,8 +228,7 @@ describe('a check that does not pass', () => {
   it('still fails when fx itself was interrupted', async () => {
     const h = await stage();
     cluster(h, { access: PASSED });
-    hang(
-      h,
+    h.process.override(
       (vector) => vector.includes('can-i'),
       new DevkitError('internal', 'PROCESS_ABORTED', 'kubectl was given up on'),
     );
@@ -248,7 +239,7 @@ describe('a check that does not pass', () => {
     const h = await stage();
     cluster(h, { access: PASSED });
     for (const id of ['role', 'token', 'quota']) h.process.on(['jenkins-cli', 'check', id], PASSED);
-    hang(h, (vector) => vector.includes('can-i'), timedOut('kubectl'));
+    h.process.override((vector) => vector.includes('can-i'), timedOut('kubectl'));
     const rows = await new Where(h.deps, fakeLoginDeps(DESCRIPTORS)).execute({
       repo: 'fx-example-api',
       env: 'dev',

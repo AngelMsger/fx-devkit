@@ -24,10 +24,10 @@ export function updateChecks(container: Container): UpdateChecks {
 }
 
 export function selfUpdate(container: Container, noInput: boolean): SelfUpdate {
-  return new SelfUpdate(
-    container.process,
-    container.prompter(noInput),
-    new NpmInstaller(container.process),
-    updateChecks(container).fx,
-  );
+  return new SelfUpdate({
+    process: container.process,
+    prompter: container.prompter(noInput),
+    installer: new NpmInstaller(container.process),
+    check: updateChecks(container).fx,
+  });
 }

@@ -32,13 +32,15 @@ export function isUpdated(output: SelfUpdateOutput): boolean {
   return output.ran && output.code === 0;
 }
 
+export interface SelfUpdateDeps {
+  readonly process: Pick<Process, 'run'>;
+  readonly prompter: Prompter;
+  readonly installer: Installer;
+  readonly check: Pick<FxUpdateCheck, 'execute' | 'markCurrent'>;
+}
+
 export class SelfUpdate {
-  constructor(
-    private readonly process: Pick<Process, 'run'>,
-    private readonly prompter: Prompter,
-    private readonly installer: Installer,
-    private readonly check: Pick<FxUpdateCheck, 'execute' | 'markCurrent'>,
-  ) {}
+  constructor(private readonly deps: SelfUpdateDeps) {}
 
   async execute(input: SelfUpdateInput): Promise<SelfUpdateOutput> {
     if (input.registry === null) {
@@ -53,7 +55,7 @@ export class SelfUpdate {
         },
       );
     }
-    const vector = this.installer.vector(input.packageName, {
+    const vector = this.deps.installer.vector(input.packageName, {
       registry: input.registry,
       update: true,
       registryScope: 'package',
@@ -64,7 +66,7 @@ export class SelfUpdate {
       });
     if (input.dryRun) return { vector, ran: false, code: null, reason: 'dry run' };
     assertWritable(input.posture, 'self update');
-    if (!(await this.installer.available()))
+    if (!(await this.deps.installer.available()))
       throw new DevkitError('config', 'TOOL_MISSING', 'The self-update installer is unavailable', {
         nextSteps: ['Install npm or add it to PATH, then retry.'],
         handoff: {
@@ -76,10 +78,12 @@ export class SelfUpdate {
         },
       });
     if (!input.yes) {
-      const go = await this.prompter.confirm(`Run \`${vector.join(' ')}\`?`, { defaultYes: true });
+      const go = await this.deps.prompter.confirm(`Run \`${vector.join(' ')}\`?`, {
+        defaultYes: true,
+      });
       if (!go) return { vector, ran: false, code: null, reason: 'declined' };
     }
-    const result = await this.process.run(vector, { interactive: false });
+    const result = await this.deps.process.run(vector, { interactive: false });
     const output: SelfUpdateOutput = {
       vector,
       ran: true,
@@ -91,7 +95,7 @@ export class SelfUpdate {
   }
 
   private async settleCheck(input: SelfUpdateInput): Promise<void> {
-    const { latest } = await this.check.execute(input);
-    if (latest !== null) await this.check.markCurrent(input, latest);
+    const { latest } = await this.deps.check.execute(input);
+    if (latest !== null) await this.deps.check.markCurrent(input, latest);
   }
 }

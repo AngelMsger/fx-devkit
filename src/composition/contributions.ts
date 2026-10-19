@@ -33,12 +33,14 @@ export function sourcePushDeps(input: SourceCommand): PushRegisteredSourceDeps {
     providers: container.providers,
     codeHost: (binding) => resolveProvider<ContributionHost>(binding, adapters),
     validatorAt: (dir) =>
-      new ValidateContribution(
-        { open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }) },
-        container.bundledTools,
-        container.providers,
-        container.describeProvider,
-      ),
+      new ValidateContribution({
+        views: {
+          open: (files) => ({ root: dir, reader: new SnapshotReader({ root: dir, files }) }),
+        },
+        bundledTools: container.bundledTools,
+        providers: container.providers,
+        describeProvider: container.describeProvider,
+      }),
     push: {
       user: input.user,
       prompter: container.prompter(input.noInput),

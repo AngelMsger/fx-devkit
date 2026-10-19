@@ -46,13 +46,13 @@ export async function inspectRebindSource(
     }
     if (!inspection) return 'pending_apply';
     const reader = inspection;
-    await new LoadManifest(
-      {
+    await new LoadManifest({
+      fs: {
         readText: (file) =>
           reader.readText(path.relative(reader.root, file).split(path.sep).join('/')),
       },
-      input.bundledTools,
-    ).execute({ dir: reader.root, cliVersion: input.cliVersion, providers: input.providers });
+      bundledTools: input.bundledTools,
+    }).execute({ dir: reader.root, cliVersion: input.cliVersion, providers: input.providers });
     return 'validated';
   } catch (error) {
     throw rebindSourceError(error, source, input, inspection);
@@ -68,7 +68,7 @@ export async function materializeRebindSource(
   try {
     await source.materialize(dir);
     materialized = true;
-    await new LoadManifest(input.fs, input.bundledTools).execute({
+    await new LoadManifest({ fs: input.fs, bundledTools: input.bundledTools }).execute({
       dir,
       cliVersion: input.cliVersion,
       providers: input.providers,

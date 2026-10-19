@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { recordRunFailure } from '../../../../src/application/hook/supervisor-report.js';
 import type { HookState } from '../../../../src/domain/harness/state.js';
-import type { LockRequest } from '../../../../src/ports/lock.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 
 const root = path.resolve('/workspace');
 
@@ -24,10 +24,6 @@ function store(initial: HookState | null) {
   };
 }
 
-const granted = {
-  acquire: async (): Promise<{ release: () => Promise<void> }> => ({ release: async () => {} }),
-};
-
 describe('how a supervised background run ended', () => {
   it('keeps the reason beside the phases the worker did not reach', async () => {
     const unreported = {
@@ -40,7 +36,7 @@ describe('how a supervised background run ended', () => {
       stateOf([unreported, { ...unreported, phase: 'run', code: 'HOOK_TIMEOUT' }]),
     );
     await recordRunFailure(
-      { clock: new FakeClock(), state, lock: granted },
+      { clock: new FakeClock(), state, lock: new FakeLock() },
       { workspace: 'test', root, reason: 'HOOK_ABORTED' },
     );
     expect(state.written()?.observations).toEqual([
@@ -57,14 +53,14 @@ describe('how a supervised background run ended', () => {
   it('writes nothing for an unregistered workspace or another root', async () => {
     const absent = store(null);
     await recordRunFailure(
-      { clock: new FakeClock(), state: absent, lock: granted },
+      { clock: new FakeClock(), state: absent, lock: new FakeLock() },
       { workspace: 'test', root, reason: 'HOOK_TIMEOUT' },
     );
     expect(absent.written()).toBeNull();
 
     const elsewhere = store(stateOf());
     await recordRunFailure(
-      { clock: new FakeClock(), state: elsewhere, lock: granted },
+      { clock: new FakeClock(), state: elsewhere, lock: new FakeLock() },
       { workspace: 'test', root: path.resolve('/other'), reason: 'HOOK_TIMEOUT' },
     );
     expect(elsewhere.written()?.observations).toEqual([]);
@@ -72,21 +68,12 @@ describe('how a supervised background run ended', () => {
 
   it('skips a state lease another writer holds instead of waiting for it', async () => {
     const state = store(stateOf());
-    const requests: LockRequest[] = [];
+    const lock = new FakeLock().busy();
     await recordRunFailure(
-      {
-        clock: new FakeClock(),
-        state,
-        lock: {
-          acquire: async (request) => {
-            requests.push(request);
-            return null;
-          },
-        },
-      },
+      { clock: new FakeClock(), state, lock },
       { workspace: 'test', root, reason: 'HOOK_TIMEOUT' },
     );
-    expect(requests).toEqual([{ key: 'hooks:test', waitMs: 0 }]);
+    expect(lock.requests).toEqual([{ key: 'hooks:test', waitMs: 0 }]);
     expect(state.written()?.observations).toEqual([]);
   });
 });

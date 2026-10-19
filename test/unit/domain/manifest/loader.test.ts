@@ -3,7 +3,6 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerCatalog } from '../../../../src/composition/registry.js';
 import {
   loadEnvironments,
   loadLocal,
@@ -12,7 +11,9 @@ import {
   loadToolsDocument,
   loadWorkspace,
 } from '../../../../src/domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.js';
 import { commandOrigin, resolveTools } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
 
 const text = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
@@ -157,6 +158,57 @@ describe('loadWorkspace', () => {
   });
 });
 
+describe('a shared service declaration', () => {
+  const declared = `schema_version: 2
+defaults: {host: 'ssh://git@git.example.com', branch: main}
+repos: [{name: app}]
+providers:
+  code-host:
+    provider: bitbucket-cli
+    vars: {host: 'ssh://git@git.example.com'}
+    service: {base_url: 'https://git.example.com/deploy', context: team, flavor: datacenter, auth_scheme: pat}
+`;
+
+  it.each(['token', 'nickname'])(
+    'rejects the undeclared service field %s even without strict validation',
+    (field) => {
+      const doc = declared.replace(
+        'auth_scheme: pat}',
+        `auth_scheme: pat, ${field}: PERSONAL_VALUE_NEVER_SHARE}`,
+      );
+      expect(() => loadWorkspace(doc, cli)).toThrow(
+        expect.objectContaining({
+          code: 'MANIFEST_INVALID',
+          message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
+        }),
+      );
+      expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems).toEqual([
+        {
+          path: `providers.code-host.service.${field}`,
+          message: expect.stringContaining('public service settings'),
+          line: expect.any(Number),
+        },
+      ]);
+    },
+  );
+
+  it.each([
+    'https://user:PERSONAL_VALUE_NEVER_SHARE@git.example.com',
+    'https://git.example.com/?token=PERSONAL_VALUE_NEVER_SHARE',
+  ])('rejects credentials embedded in URL without echoing them', (url) => {
+    const doc = declared.replace('https://git.example.com/deploy', url);
+    expect(() => loadWorkspace(doc, cli)).toThrow(
+      expect.objectContaining({
+        code: 'MANIFEST_INVALID',
+        message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
+      }),
+    );
+    expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems.map((p) => p.path)).toEqual([
+      'providers.code-host.service.base_url',
+    ]);
+  });
+});
+
 describe('loadEnvironments', () => {
   it('loads the real-world shape and does not quarantine', () => {
     const result = loadEnvironments(text('v1-real-shape/environments.yaml'), cli);
@@ -220,10 +272,16 @@ describe('loadEnvironments', () => {
   it('checks a service block only against a catalog it was given', () => {
     const doc =
       'schema_version: 2\nproviders:\n  code-host: {provider: bitbucket-cli, vars: {host: "ssh://git@git.example.com"}, service: {base_url: "https://git.example.com", auth_scheme: token}}\nrepos: [{name: a, branch: main}]\n';
+    const providers: ProviderCatalog = [
+      {
+        id: 'bitbucket-cli',
+        capability: 'code-host',
+        tools: [],
+        settings: { fields: ['base_url', 'context', 'auth_scheme'], authSchemes: ['pat'] },
+      },
+    ];
     expect(
-      loadWorkspace(doc, { ...cli, providers: providerCatalog(), allowInvalid: true }).problems.map(
-        (p) => p.path,
-      ),
+      loadWorkspace(doc, { ...cli, providers, allowInvalid: true }).problems.map((p) => p.path),
     ).toEqual(['providers.code-host.service.context', 'providers.code-host.service.auth_scheme']);
     expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems).toEqual([]);
   });
@@ -318,11 +376,9 @@ describe('loadLocal', () => {
 });
 
 describe('loadTools', () => {
-  const bundled = (): string => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8');
-
   it('keeps every catalog entry, whatever the workspace names', () => {
     const result = loadTools(
-      bundled(),
+      bundledTools(),
       'schema_version: 3\ntools: [{ name: bitbucket-cli }]\n',
       cli,
     );
@@ -332,7 +388,11 @@ describe('loadTools', () => {
   });
 
   it('vouches for a catalog tool a workspace only names', () => {
-    const result = loadTools(bundled(), 'schema_version: 3\ntools: [{ name: jenkins-cli }]\n', cli);
+    const result = loadTools(
+      bundledTools(),
+      'schema_version: 3\ntools: [{ name: jenkins-cli }]\n',
+      cli,
+    );
     if (!result.valid) throw new Error('patch rejected');
     const [tool] = resolveTools(result.doc, result.provenance, result.declared).filter(
       (item) => item.name === 'jenkins-cli',
@@ -345,7 +405,7 @@ describe('loadTools', () => {
 
   it('lets the defaults block decide installation at init, and an entry opt out', () => {
     const result = loadTools(
-      bundled(),
+      bundledTools(),
       'schema_version: 3\ndefaults: { install_on_init: true }\ntools: [{ name: kubectl, install_on_init: false }]\n',
       cli,
     );

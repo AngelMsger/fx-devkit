@@ -40,9 +40,3 @@ export interface DoctorInput {
   readonly noInput: boolean;
   readonly posture: WritePosture;
 }
-
-export interface DoctorExtension {
-  readonly group: string;
-  readonly check: () => Promise<readonly Finding[]>;
-  readonly fix?: (input: DoctorInput) => Promise<void>;
-}

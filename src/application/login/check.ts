@@ -2,19 +2,19 @@
 // check does, and the finding says both.
 
 import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
+import { finding, type Finding } from '../../domain/report.js';
 import { SetupProgress, type HeldBack } from '../../domain/setup/progress.js';
 import type { SetupStep } from '../../domain/setup/types.js';
-import { buildPlan } from '../login/collect.js';
-import type { LoginDeps } from '../login/deps.js';
-import { handoffStep, loginCommand } from '../login/handoff.js';
-import { Verifier } from '../login/verify.js';
 import { noAnswerAction, verifyAction } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import type { Tally } from '../tally.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
-import { finding, type Finding } from './types.js';
+import { buildPlan } from './collect.js';
+import type { LoginDeps } from './deps.js';
+import { handoffStep, loginCommand } from './handoff.js';
+import { Verifier } from './verify.js';
 
 export interface LoginCheckOptions {
   readonly tools?: readonly string[] | undefined;

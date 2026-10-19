@@ -11,10 +11,10 @@ import { ContributionGitTransport } from '../../../src/adapters/git/contribution
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { PushSource } from '../../../src/application/contribution/push.js';
 import { ValidateContribution } from '../../../src/application/contribution/validate.js';
-import { bundledToolsText } from '../../../src/composition/bundled.js';
 import { providerCatalog } from '../../../src/composition/registry.js';
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileLock } from '../../../src/infra/lock.js';
+import { bundledTools } from '../../bundled-tools.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../fakes/fake-config-store.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
@@ -85,16 +85,16 @@ describe('native contribution workflow with a durable journal', () => {
         expect(files['manifest/workspace.yaml']).toBe(workspace);
         return host;
       },
-      validator: new ValidateContribution(
-        {
+      validator: new ValidateContribution({
+        views: {
           open: (files) => ({
             root: '/candidate',
             reader: new SnapshotReader({ root: '/candidate', files }),
           }),
         },
-        bundledToolsText,
-        providerCatalog(),
-      ),
+        bundledTools,
+        providers: providerCatalog(),
+      }),
       clock: new SystemClock(),
       lock,
       prompter: new FakePrompter(),

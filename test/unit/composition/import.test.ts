@@ -1,16 +1,13 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createContainer } from '../../../src/composition/container.js';
 import { importDeps } from '../../../src/composition/import.js';
 import { FakeReporter } from '../../fakes/fake-reporter.js';
+import { tempDir } from '../../temp.js';
 
-const home = mkdtempSync(path.join(tmpdir(), 'fx-import-'));
-
-afterAll(() => rmSync(home, { recursive: true, force: true }));
+const home = tempDir('fx-import-');
 
 describe('import dependencies', () => {
   it('reads a local host through the provider for repositories kept under its directory', () => {

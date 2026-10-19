@@ -4,15 +4,18 @@
 
 import { asDevkitError, withPartialResult } from '../../domain/errors.js';
 import type { HarnessKind } from '../../domain/harness/ownership.js';
+import { installsOnInit } from '../../domain/toolchain/resolve.js';
 import { countBy } from '../../domain/values.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
 import type { HarnessSession } from '../harness/session.js';
 import { harnessStage } from '../harness/stages.js';
+import type { HarnessStageDetails } from '../harness/types.js';
 import { hookStage, type HookSession } from '../hook/session.js';
-import { prepareWorkspaceSetup } from '../init/setup.js';
+import type { HookStageDetails } from '../hook/types.js';
 import type { LoginDeps } from '../login/deps.js';
-import { findingCheck } from '../preparation.js';
+import { prepareWorkspaceSetup } from '../login/stage.js';
+import { findingCheck, type StageResult } from '../preparation.js';
 import { prepareServices } from '../services/stage.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
@@ -22,25 +25,41 @@ import { workspaceToolScope } from '../tool/scope.js';
 import { toolchainOf } from '../tool/toolchain.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { syncGoWork } from '../workspace/go-work.js';
+import type { ResolveInput } from '../workspace/resolve.js';
 
 import { documentChecks, goWorkChecks, skillChecks, toolChecks } from './checks.js';
-import type { StageResult, SyncStages } from './types.js';
+import type {
+  DocsStageDetails,
+  GoStageDetails,
+  ResourceStage,
+  ResourceStageDetails,
+  SkillStageDetails,
+  ToolStageDetails,
+} from './types.js';
 
-export interface SyncStageInput {
-  readonly initialize?: boolean;
+// What the resource stages need beyond the workspace bundle.
+export interface SyncStageDeps {
   readonly inventory?: ToolInstalled;
-  // The lifecycle sessions as ports: which resource each stage reconciles, and that
-  // reconciling it is a sync, is this module's decision.
+  // The lifecycle sessions as ports: which resource each stage reconciles, in which
+  // workspace, and that reconciling it is a sync, is this module's decision.
   readonly harness?: HarnessSession;
   readonly hooks?: HookSession;
   readonly replace?: ReplaceFiles;
-  readonly deps: WorkspaceDeps;
   readonly login: LoginDeps;
   readonly skills: SkillDeps;
+}
+
+export interface SyncStageInput extends SyncStageDeps {
+  readonly deps: WorkspaceDeps;
+  readonly initialize?: boolean;
   readonly dryRun: boolean;
 }
 
-const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageResult>>> = {
+const STAGES: {
+  readonly [Stage in ResourceStage]: (
+    input: SyncStageInput,
+  ) => Promise<StageResult<ResourceStageDetails[Stage]>>;
+} = {
   services: (input) => prepareServices(input.deps, input.login, { dryRun: input.dryRun }),
   setup: (input) =>
     prepareWorkspaceSetup(input.deps, input.login, {
@@ -57,29 +76,50 @@ const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageRe
   tools: toolsStage,
 };
 
-export function syncStageIds(): string[] {
-  return ['repos', ...Object.keys(STAGES)];
+// In the order a full sync runs them.
+export function resourceStageIds(): string[] {
+  return Object.keys(STAGES);
 }
 
-export function syncStages(input: SyncStageInput): SyncStages {
-  return Object.fromEntries(Object.entries(STAGES).map(([id, run]) => [id, () => run(input)]));
+export function syncStageIds(): string[] {
+  return ['repos', ...resourceStageIds()];
+}
+
+export function isResourceStage(stage: string): stage is ResourceStage {
+  return Object.hasOwn(STAGES, stage);
+}
+
+export function runStage<Stage extends ResourceStage>(
+  stage: Stage,
+  input: SyncStageInput,
+): Promise<StageResult<ResourceStageDetails[Stage]>> {
+  return STAGES[stage](input);
+}
+
+// A session reconciles the workspace this sync holds, however the invocation named one.
+function ofWorkspace<Session extends { readonly resolve: ResolveInput }>(
+  session: Session,
+  deps: WorkspaceDeps,
+): Session {
+  return { ...session, resolve: { ...session.resolve, name: deps.ctx.name } };
 }
 
 function harnessResource(
   input: SyncStageInput,
   only: HarnessKind,
-): Promise<StageResult> | undefined {
+): Promise<StageResult<HarnessStageDetails>> | undefined {
   if (input.harness === undefined) return undefined;
-  return harnessStage({ ...input.harness, action: 'sync', only, dryRun: input.dryRun })();
+  const session = ofWorkspace(input.harness, input.deps);
+  return harnessStage({ ...session, action: 'sync', only, dryRun: input.dryRun })();
 }
 
-function hooksStage(input: SyncStageInput): Promise<StageResult> | undefined {
+function hooksStage(input: SyncStageInput): Promise<StageResult<HookStageDetails>> | undefined {
   return input.hooks === undefined
     ? undefined
-    : hookStage({ ...input.hooks, dryRun: input.dryRun })();
+    : hookStage({ ...ofWorkspace(input.hooks, input.deps), dryRun: input.dryRun })();
 }
 
-async function skillsStage(input: SyncStageInput): Promise<StageResult> {
+async function skillsStage(input: SyncStageInput): Promise<StageResult<SkillStageDetails>> {
   const { summary, ...details } = await new SkillStage(input.deps, input.skills).execute({
     ...(input.replace === undefined ? {} : { replace: input.replace }),
     toolchain: toolchainOf(input.deps.ctx).tools,
@@ -93,7 +133,7 @@ async function skillsStage(input: SyncStageInput): Promise<StageResult> {
   };
 }
 
-async function docsStage(input: SyncStageInput): Promise<StageResult> {
+async function docsStage(input: SyncStageInput): Promise<StageResult<DocsStageDetails>> {
   const out = await new DeriveDocs(input.deps, input.login).execute({
     ...(input.replace === undefined ? {} : { replace: input.replace }),
     check: false,
@@ -128,7 +168,7 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
   };
 }
 
-async function goStage(input: SyncStageInput): Promise<StageResult> {
+async function goStage(input: SyncStageInput): Promise<StageResult<GoStageDetails>> {
   const out = await syncGoWork(input.deps, {
     dryRun: input.dryRun,
     posture: input.deps.trust.posture,
@@ -140,13 +180,12 @@ async function goStage(input: SyncStageInput): Promise<StageResult> {
   };
 }
 
-async function toolsStage(input: SyncStageInput): Promise<StageResult> {
+async function toolsStage(input: SyncStageInput): Promise<StageResult<ToolStageDetails>> {
   const scope = workspaceToolScope(input.deps.ctx, {}, input.deps.commandShell);
   const tools = scope.covered;
   const problems = scope.problems;
   const requiresPreparation = (name: string): boolean =>
-    scope.required.has(name) ||
-    tools.some((tool) => tool.name === name && tool.enabled && tool.installOnInit);
+    scope.required.has(name) || tools.some((tool) => tool.name === name && installsOnInit(tool));
   const rows = (
     await new ToolCheck(input.deps.process).execute({
       continueOnError: true,

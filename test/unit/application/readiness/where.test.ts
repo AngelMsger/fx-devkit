@@ -9,7 +9,6 @@ import { describeProvider } from '../../../../src/composition/registry.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import { shellLine } from '../../../../src/domain/shell.js';
 import type { Platform } from '../../../../src/ports/platform.js';
-import type { Process } from '../../../../src/ports/process.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
@@ -79,9 +78,24 @@ describe('Where', () => {
     expect(h.process.calls).toEqual([]);
   });
 
-  it.each([false, true])(
-    'expands provider home paths without a shell and preserves manifest shell templates: %s',
-    async (customTemplate) => {
+  const manifestCommand = 'kubectl --kubeconfig ~/.kube/config.dev get pods';
+  const home = path.resolve('/home/Example User');
+  const vector = ['kubectl', '--kubeconfig', path.join(home, '.kube/config.dev'), 'get', 'pods'];
+  const expanded = shellLine(vector);
+  it.each([
+    {
+      printing: 'the provider vector with its home path expanded',
+      declared: [],
+      command: expanded,
+    },
+    {
+      printing: 'a manifest shell template as written',
+      declared: [`    command: ${manifestCommand}`],
+      command: manifestCommand,
+    },
+  ])(
+    'probes the expanded home path without a shell and prints $printing',
+    async ({ declared, command }) => {
       const kube = new TemplatePlatform({
         id: 'kubectl',
         capability: 'cluster',
@@ -92,7 +106,6 @@ describe('Where', () => {
           command: ['kubectl', '--kubeconfig', '{kubeconfig}', 'get', 'pods'],
         },
       });
-      const manifestCommand = 'kubectl --kubeconfig ~/.kube/config.dev get pods';
       const h = await harness({
         workspace:
           'schema_version: 2\ndefaults: { branch: dev }\nrepos: [{ name: fx-example-api, upstream: "https://git.example.com/fx/fx-example-api.git" }]\n',
@@ -103,7 +116,7 @@ describe('Where', () => {
             '  kube:',
             '    provider: kubectl',
             '    capability: cluster',
-            ...(customTemplate ? [`    command: ${manifestCommand}`] : []),
+            ...declared,
             'envs:',
             '  dev:',
             '    platforms:',
@@ -112,14 +125,6 @@ describe('Where', () => {
         },
         platforms: { kubectl: kube },
       });
-      const home = path.resolve('/home/Example User');
-      const vector = [
-        'kubectl',
-        '--kubeconfig',
-        path.join(home, '.kube/config.dev'),
-        'get',
-        'pods',
-      ];
       h.process.on(vector, { code: 0, stdout: '{}', stderr: '' });
       const where = new Where(h.deps, { ...fakeLoginDeps({}), home });
       const [row] = await where.execute({
@@ -130,12 +135,7 @@ describe('Where', () => {
         probe: true,
       });
       expect(h.process.calls.map((call) => call.vector)).toEqual([vector]);
-      const expanded = shellLine(vector);
-      expect(row).toMatchObject({
-        command: customTemplate ? manifestCommand : expanded,
-        probed: expanded,
-        outcome: 'reachable',
-      });
+      expect(row).toMatchObject({ command, probed: expanded, outcome: 'reachable' });
     },
   );
 
@@ -351,17 +351,12 @@ describe('Where', () => {
       platforms: { 'jenkins-cli': jenkins },
     });
     const probing = new HeldWork<string>();
-    const process: Process = {
-      run: async (vector, options) => {
-        await probing.hold(vector.join(' '));
-        return h.process.run(vector, options);
-      },
-      which: (binary) => h.process.which(binary),
-    };
-    const deps = { ...h.deps, process };
-    h.process.always({ code: 0, stdout: '{}', stderr: '' });
+    h.process.always(async (vector) => {
+      await probing.hold(vector.join(' '));
+      return { code: 0, stdout: '{}', stderr: '' };
+    });
 
-    const rows = new Where(deps, fakeLoginDeps(DESCRIPTORS)).execute({
+    const rows = new Where(h.deps, fakeLoginDeps(DESCRIPTORS)).execute({
       repo: 'fx-example-api',
       env: 'dev',
       check: false,

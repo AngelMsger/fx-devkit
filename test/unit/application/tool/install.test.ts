@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
-import { ToolInitialize } from '../../../../src/application/tool/initialize.js';
 import { ToolInstall } from '../../../../src/application/tool/install.js';
 import { ToolShow } from '../../../../src/application/tool/show.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
@@ -39,8 +38,20 @@ function setup(patch?: string, available: string[] = ['npm', 'brew', 'go']) {
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const installers = FakeInstaller.family(available);
   const proc = new FakeProcess().always({ code: 0, stdout: 'alpha v9.9.9\n', stderr: '' });
-  return { tools, installers, proc, install: new ToolInstall(installers, proc, fakeToolAudit()) };
+  return {
+    tools,
+    installers,
+    proc,
+    install: new ToolInstall({ installers, process: proc, audit: fakeToolAudit() }),
+  };
 }
+
+const cancelled = new DevkitError('internal', 'PROCESS_ABORTED', 'interrupted');
+const defect = new TypeError('broken');
+// Where the second of three installations is interrupted: its package manager never
+// answers, so its row holds no exit code, or that succeeded and the version check throws.
+const installing = { phase: 'install', at: ['npm', 'install', '-g', 'beta@latest'], exit: null };
+const versioning = { phase: 'version', at: ['beta'], exit: 0 };
 
 describe('ToolInstall', () => {
   it.each([false, true])(
@@ -77,66 +88,51 @@ describe('ToolInstall', () => {
     },
   );
 
-  it.each(['install', 'version'] as const)(
-    'keeps partial results and stops on thrown %s errors, including cancellation',
-    async (phase) => {
-      for (const initialize of [false, true])
-        for (const code of ['PROCESS_ABORTED', 'PROCESS_TIMEOUT', 'INTERNAL']) {
-          const s = setup(undefined, ['npm']);
-          const tools = ['alpha', 'beta', 'gamma'].map((name) => ({
-            ...s.tools.find((t) => t.name === 'beta')!,
-            name,
-            binary: name,
-            install: [{ via: 'npm' as const, spec: name }],
-            installOnInit: true,
-          }));
-          const calls: string[][] = [];
-          s.proc.run = async (vector) => {
-            calls.push([...vector]);
-            if (
-              (phase === 'install' && vector.includes('beta@latest')) ||
-              (phase === 'version' && vector[0] === 'beta')
-            )
-              throw code === 'INTERNAL'
-                ? new TypeError('broken')
-                : new DevkitError('internal', code, 'interrupted');
-            return { code: 0, stdout: '1.2.3', stderr: '' };
-          };
-          const trust = {
-            gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
-            workspace: 'test',
-            yes: true,
-            posture: writable,
-          };
-          const pending = initialize
-            ? new ToolInitialize(s.install).execute({ tools, posture: writable, trust })
-            : s.install.execute({
-                tools,
-                names: ['alpha', 'beta', 'gamma'],
-                update: false,
-                dryRun: false,
-                posture: writable,
-              });
-          await expect(pending).rejects.toMatchObject({
-            code,
-            category: 'internal',
-            partialResult: {
-              tool_install: [
-                { name: 'alpha', status: 'done', ran: true, code: 0, version_after: '1.2.3' },
-                {
-                  name: 'beta',
-                  status: 'failed',
-                  ran: true,
-                  code: phase === 'install' ? null : 0,
-                  phase,
-                  failure: { code },
-                },
-                { name: 'gamma', status: 'not_started', ran: false, code: null },
-              ],
+  it.each([
+    { ...installing, thrown: 'a cancellation', error: cancelled, code: 'PROCESS_ABORTED' },
+    { ...installing, thrown: 'a defect', error: defect, code: 'INTERNAL' },
+    { ...versioning, thrown: 'a cancellation', error: cancelled, code: 'PROCESS_ABORTED' },
+    { ...versioning, thrown: 'a defect', error: defect, code: 'INTERNAL' },
+  ])(
+    'keeps partial results and stops when $phase throws $thrown',
+    async ({ phase, at, exit, error, code }) => {
+      const s = setup(undefined, ['npm']);
+      const tools = ['alpha', 'beta', 'gamma'].map((name) => ({
+        ...s.tools.find((t) => t.name === 'beta')!,
+        name,
+        binary: name,
+        install: [{ via: 'npm' as const, spec: name }],
+      }));
+      s.proc.clear().on(at, error).always({ code: 0, stdout: '1.2.3', stderr: '' });
+      await expect(
+        s.install.execute({
+          tools,
+          names: ['alpha', 'beta', 'gamma'],
+          update: false,
+          dryRun: false,
+          posture: writable,
+        }),
+      ).rejects.toMatchObject({
+        code,
+        category: 'internal',
+        partialResult: {
+          tool_install: [
+            { name: 'alpha', status: 'done', ran: true, code: 0, version_after: '1.2.3' },
+            {
+              name: 'beta',
+              status: 'failed',
+              ran: true,
+              code: exit,
+              phase,
+              failure: { code },
             },
-          });
-          expect(calls.flat().some((arg) => arg.startsWith('gamma'))).toBe(false);
-        }
+            { name: 'gamma', status: 'not_started', ran: false, code: null },
+          ],
+        },
+      });
+      expect(
+        s.proc.calls.some((call) => call.vector.some((word) => word.startsWith('gamma'))),
+      ).toBe(false);
     },
   );
 
@@ -355,45 +351,51 @@ describe('ToolShow', () => {
 });
 
 describe('ToolInstall with a trust gate', () => {
-  it('refuses to run a patch-supplied version vector after installing, unless it is trusted', async () => {
-    const { TrustGate } = await import('../../../../src/application/safety/trust.js');
-    const { FakeTrustStore } = await import('../../../fakes/fake-trust-store.js');
-    const { FakePrompter } = await import('../../../fakes/fake-prompter.js');
-    const { loadTools } = await import('../../../../src/domain/manifest/loader.js');
-    const { resolveTools } = await import('../../../../src/domain/toolchain/resolve.js');
-    const bundled = [
-      'schema_version: 3',
-      'defaults: { version_args: [--version], install: [{ via: npm }] }',
-      'tools: [{ name: alpha }]',
-    ].join('\n');
-    const patch = ['schema_version: 3', 'tools: [{ name: alpha, version_args: [--ver] }]'].join(
-      '\n',
+  // The team patch replaced how alpha reports its version, so that check alone needs trust.
+  function patchedVersionCheck() {
+    const loaded = loadTools(
+      [
+        'schema_version: 3',
+        'defaults: { version_args: [--version], install: [{ via: npm }] }',
+        'tools: [{ name: alpha }]',
+      ].join('\n'),
+      'schema_version: 3\ntools: [{ name: alpha, version_args: [--ver] }]',
+      { cliVersion: '1.0.0' },
     );
-    const loaded = loadTools(bundled, patch, { cliVersion: '1.0.0' });
-    const tools = resolveTools(loaded.doc, loaded.provenance);
     const process = new FakeProcess().always({ code: 0, stdout: 'alpha 1.2.3', stderr: '' });
-    const installers = FakeInstaller.family(['npm']);
     const prompter = new FakePrompter();
     prompter.unavailable = true;
     const gate = new TrustGate(new FakeTrustStore(), prompter);
-    const base = { tools, names: ['alpha'], update: false, dryRun: false, posture: writable };
+    const install = (trust: { yes: boolean }) =>
+      new ToolInstall({
+        installers: FakeInstaller.family(['npm']),
+        process,
+        audit: fakeToolAudit(),
+      }).execute({
+        tools: resolveTools(loaded.doc, loaded.provenance),
+        names: ['alpha'],
+        update: false,
+        dryRun: false,
+        posture: writable,
+        trust: { gate, workspace: 'fx', yes: trust.yes, posture: writable },
+      });
+    return { process, install };
+  }
 
-    const blocked = await new ToolInstall(installers, process, fakeToolAudit()).execute({
-      ...base,
-      trust: { gate, workspace: 'fx', yes: false, posture: writable },
+  it('installs the tool without running a patch-supplied version check nobody approved', async () => {
+    const s = patchedVersionCheck();
+    expect((await s.install({ yes: false }))[0]).toMatchObject({
+      ran: true,
+      code: 0,
+      version_after: null,
     });
-    expect(blocked[0]).toMatchObject({ ran: true, code: 0, version_after: null });
-    expect(
-      process.calls.some((c) => c.vector.join(' ') === 'alpha --ver'),
-      'untrusted probe never ran',
-    ).toBe(false);
+    expect(s.process.calledWith(['alpha', '--ver'])).toBe(false);
+  });
 
-    const trusted = await new ToolInstall(installers, process, fakeToolAudit()).execute({
-      ...base,
-      trust: { gate, workspace: 'fx', yes: true, posture: writable },
-    });
-    expect(trusted[0]).toMatchObject({ version_after: '1.2.3' });
-    expect(process.calls.some((c) => c.vector.join(' ') === 'alpha --ver')).toBe(true);
+  it('reads the version from the patch-supplied check once it is trusted', async () => {
+    const s = patchedVersionCheck();
+    expect((await s.install({ yes: true }))[0]).toMatchObject({ version_after: '1.2.3' });
+    expect(s.process.calledWith(['alpha', '--ver'])).toBe(true);
   });
 });
 

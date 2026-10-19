@@ -3,20 +3,21 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerCatalog } from '../../../../src/composition/registry.js';
 import { lintManifest } from '../../../../src/domain/manifest/lint.js';
 import {
   loadEnvironments,
   loadToolsDocument,
   loadWorkspace,
 } from '../../../../src/domain/manifest/loader.js';
+import type { ProviderCatalog } from '../../../../src/domain/manifest/providers.js';
 import type { Workspace } from '../../../../src/domain/manifest/types.js';
 
 const text = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest', name), 'utf8');
 const cli = { cliVersion: '1.0.0' };
 const codes = (findings: readonly { code: string }[]): string[] => findings.map((f) => f.code);
-const providers = providerCatalog();
+// Every platform in these documents names its provider and capability, so no rule reads a catalog.
+const providers: ProviderCatalog = [];
 
 describe('lintManifest', () => {
   it('reports uncovered shared repositories only when ownership data was read', () => {

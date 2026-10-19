@@ -1,6 +1,7 @@
 // Exercise the real lint policy with representative forbidden imports so a
 // configuration edit cannot silently remove a layer boundary, the inner layers'
-// IO boundary or the rule that keeps tests from selecting calls by position.
+// IO boundary, the constructor shape of application classes or the rule that
+// keeps tests from selecting calls by position.
 
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
@@ -101,6 +102,32 @@ describe('layer dependencies', () => {
     expect(
       await restrictions('src/cli/main.ts', "import value from '../composition/container.js';"),
     ).toEqual([]);
+  });
+});
+
+describe('application constructors', () => {
+  const classTaking = (parameters: string): string =>
+    `export class Sample { constructor(${parameters}) {} }`;
+  const positional = 'private readonly fs: Fs, private readonly git: Git, readonly lock: Lock';
+
+  it('rejects a third constructor parameter', async () => {
+    expect(await restrictions('src/application/sample.ts', classTaking(positional))).toEqual([
+      'no-restricted-syntax',
+    ]);
+  });
+
+  it('permits two dependency bundles', async () => {
+    expect(
+      await restrictions(
+        'src/application/sample.ts',
+        classTaking('private readonly deps: Deps, private readonly login: LoginDeps'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('leaves the other layers their own constructor shapes', async () => {
+    for (const file of ['src/domain/sample.ts', 'src/adapters/sample.ts', 'src/infra/sample.ts'])
+      expect(await restrictions(file, classTaking(positional))).toEqual([]);
   });
 });
 

@@ -3,7 +3,7 @@
 import { DevkitError, toEnvelope, withPartialResult } from '../../domain/errors.js';
 import { atLeast } from '../../domain/semver.js';
 import type { ResolvedShell } from '../../domain/shell.js';
-import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import { installsOnInit, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import type { TrustContext } from '../safety/trust.js';
 import { recoveryCommand } from '../workspace/guidance.js';
@@ -21,7 +21,7 @@ export class ToolInitialize {
   constructor(private readonly install: ToolInstall) {}
 
   async execute(input: InitializeToolsInput): Promise<readonly ToolInstallOutput[]> {
-    const tools = input.tools.filter((tool) => tool.enabled && tool.installOnInit);
+    const tools = input.tools.filter(installsOnInit);
     const request = { ...input, tools, all: true, update: false };
     const plans = await this.install.execute({ ...request, dryRun: true });
     if (plans.length === 0) return [];

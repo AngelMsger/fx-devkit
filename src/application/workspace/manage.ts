@@ -7,7 +7,7 @@ import { asDevkitError, busyError, DevkitError, withPartialResult } from '../../
 import { withLease, workspaceLeaseKey } from '../../domain/lease.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { samePath } from '../../domain/path.js';
-import { shellLine, type ResolvedShell } from '../../domain/shell.js';
+import type { ResolvedShell } from '../../domain/shell.js';
 import {
   hasReached,
   matchesRegistry,
@@ -26,6 +26,7 @@ import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { ConfigStore, WorkspaceEntry } from '../../ports/stores.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
+import { recoveryCommand } from './guidance.js';
 import { withWorkspaceOperation } from './operation.js';
 import { assertDistinctWorkspaceRoot } from './registry.js';
 import type { ResourceCleanupRow, WorkspaceResources } from './resources.js';
@@ -71,7 +72,7 @@ export class ManageWorkspace {
   constructor(private readonly deps: ManageWorkspaceDeps) {}
 
   private command(...args: readonly string[]): string {
-    return shellLine(['fx', ...args], this.deps.commandShell);
+    return recoveryCommand({ commandShell: this.deps.commandShell }, ...args);
   }
 
   async execute(input: ManageWorkspaceInput): Promise<ManageWorkspaceOutput> {

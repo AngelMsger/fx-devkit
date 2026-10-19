@@ -55,6 +55,7 @@ export interface HarnessOutput {
   readonly items: readonly HarnessRow[];
   readonly written: boolean;
 }
+export type HarnessStageDetails = Pick<HarnessOutput, 'items'>;
 export interface HarnessChange {
   readonly key: string;
   readonly relative: string;

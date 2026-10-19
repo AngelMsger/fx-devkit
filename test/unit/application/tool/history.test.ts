@@ -32,7 +32,7 @@ function fixture() {
   process.binaries.add('sample');
   const loaded = loadTools(baseline, undefined, { cliVersion: '1.0.0' });
   const tools = resolveTools(loaded.doc, loaded.provenance);
-  const install = new ToolInstall(FakeInstaller.family(['npm']), process, audit);
+  const install = new ToolInstall({ installers: FakeInstaller.family(['npm']), process, audit });
   const config = new FakeConfigStore({ workspaces: { first: { root: '/first' } } });
   const fs = FakeFs.from({
     '/first/manifest/workspace.yaml': workspace,
@@ -82,10 +82,10 @@ async function disable(f: ReturnType<typeof fixture>) {
 describe('installation audit', () => {
   it('checkpoints before execution, keeps updates and never journals dry runs or read-only refusals', async () => {
     const f = fixture();
-    f.process.run = async (vector) => {
-      if (vector[0] === 'npm') expect(f.history.entries.at(-1)?.event).toBe('started');
+    f.process.override(['npm'], () => {
+      expect(f.history.entries.at(-1)?.event).toBe('started');
       return { code: 0, stdout: '1.2.3', stderr: '' };
-    };
+    });
     await f.install.execute({ ...request, tools: f.tools, dryRun: true });
     await expect(
       f.install.execute({ ...request, tools: f.tools, posture: { readOnly: true, source: 'env' } }),
@@ -106,11 +106,10 @@ describe('installation audit', () => {
 
   it('keeps installer success when the probe throws and retains only stable failure metadata', async () => {
     const f = fixture();
-    f.process.run = async (vector) => {
-      if (vector[0] === 'sample')
-        throw new DevkitError('internal', 'PROCESS_ABORTED', 'token=secret');
-      return { code: 0, stdout: 'secret output', stderr: '' };
-    };
+    f.process
+      .clear()
+      .on(['sample'], new DevkitError('internal', 'PROCESS_ABORTED', 'token=secret'))
+      .always({ code: 0, stdout: 'secret output', stderr: '' });
     await expect(f.install.execute({ ...request, tools: f.tools })).rejects.toMatchObject({
       code: 'PROCESS_ABORTED',
     });
@@ -248,9 +247,9 @@ tools:
     await disable(f);
     f.process.binaries.delete('sample');
     expect(await f.inventory.execute()).toMatchObject([{ state: 'not_on_path' }]);
-    f.process.which = async () => '/different/sample';
+    f.process.locate('sample', '/different/sample');
     expect(await f.inventory.execute()).toMatchObject([{ state: 'changed' }]);
-    f.process.which = async () => entry.binary_path ?? '/fake/bin/sample';
+    f.process.locate('sample', entry.binary_path ?? '/fake/bin/sample');
     await recorded(f, null);
     expect(await f.inventory.execute()).toMatchObject([{ state: 'unscoped' }]);
     f.history.entries.splice(0);
@@ -276,10 +275,10 @@ describe('installation provenance', () => {
   it('retains fx origin across later updates after a successful fresh install', async () => {
     const f = fixture();
     f.process.binaries.delete('sample');
-    f.process.run = async () => {
+    f.process.clear().always(() => {
       f.process.binaries.add('sample');
       return { code: 0, stdout: '1.2.3', stderr: '' };
-    };
+    });
     await f.install.execute({ ...request, tools: f.tools });
     await f.install.execute({ ...request, tools: f.tools, update: true });
     expect(f.history.entries.every((event) => event.installation_origin === 'fx')).toBe(true);
@@ -299,7 +298,7 @@ describe('installation provenance', () => {
     ]);
     await f.install.execute({ ...request, tools: f.tools, update: true });
     expect(f.history.entries.at(-1)?.installation_origin).toBe('unknown');
-    f.process.which = async () => '/different/sample';
+    f.process.locate('sample', '/different/sample');
     expect(await f.inventory.execute()).toMatchObject([
       { installation_origin: 'unknown', uninstall_hint: null },
     ]);

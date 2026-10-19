@@ -1,13 +1,11 @@
 // fx assumes no tool: what a workspace has follows from what it binds and what it declares.
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { resolveToolchain, toolchainOf } from '../../../../src/application/tool/toolchain.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { commandOrigin } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
 import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
 
@@ -145,7 +143,7 @@ describe('resolveToolchain', () => {
       reporter,
       source: {
         workspace: () => Promise.reject(failure),
-        bundledTools: () => readFileSync(path.resolve('defaults/tools.yaml'), 'utf8'),
+        bundledTools,
         cliVersion: '1.0.0',
         reporter,
       },
