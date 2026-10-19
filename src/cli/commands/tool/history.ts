@@ -1,3 +1,4 @@
+import { ToolHistory } from '../../../application/tool/history.js';
 import { FxCommand } from '../../base.js';
 import { argument } from '../../flags.js';
 
@@ -15,9 +16,8 @@ export default class ToolHistoryCommand extends FxCommand {
 
   async run(): Promise<void> {
     const { args } = await this.parse(ToolHistoryCommand);
-    const history = await this.container.toolHistory.read();
     this.renderer.list(
-      history.filter((entry) => args.tool === undefined || entry.name === args.tool),
+      await new ToolHistory(this.container.toolHistory).execute({ name: args.tool }),
       {
         columns: [
           'at',

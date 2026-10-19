@@ -20,6 +20,7 @@ import { tempDir } from '../temp.js';
 
 const write = { dryRun: false, posture: { readOnly: false, source: 'default' as const } };
 const root = path.resolve('/workspaces/sample');
+const exported = path.resolve('/transfer/profile.json');
 
 // Never the default, so a setting that was dropped cannot read back as its own value.
 function sample(key: Key): string {
@@ -52,6 +53,7 @@ describe('config contract', () => {
         clock: new FakeClock(),
       }).execute();
       const carried = new FileConfigStore(tempDir('fx-config-carried-'), new FakeLock());
+      await machine.fs.writeText(exported, profile.text);
       await new ConfigImport({
         ...machine,
         config: carried,
@@ -59,7 +61,7 @@ describe('config contract', () => {
         lock: new FakeLock(),
         cliVersion: '1.0.0',
         providers: providerCatalog(),
-      }).execute({ text: profile.text, ...write });
+      }).execute({ file: exported, ...write });
       expect((await carried.read())[key.name]).toEqual(stored);
     },
   );

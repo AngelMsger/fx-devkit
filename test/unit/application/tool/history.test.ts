@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { checkInstallations } from '../../../../src/application/doctor/installations.js';
+import { ToolHistory } from '../../../../src/application/tool/history.js';
 import { ToolInstall } from '../../../../src/application/tool/install.js';
 import { ToolInstalled } from '../../../../src/application/tool/installed.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
@@ -301,6 +302,31 @@ describe('installation provenance', () => {
     f.process.which = async () => '/different/sample';
     expect(await f.inventory.execute()).toMatchObject([
       { installation_origin: 'unknown', uninstall_hint: null },
+    ]);
+  });
+});
+
+describe('recorded history', () => {
+  it('lists every checkpoint in recorded order, or only those of the named tool', async () => {
+    const f = fixture();
+    await recorded(f);
+    await f.audit.start({
+      operation: 'install',
+      workspace: null,
+      name: 'retired',
+      binary: 'retired',
+      via: 'npm',
+      spec: '@example/retired',
+      vector: ['npm', 'install', '-g', '@example/retired@latest'],
+    });
+    const history = new ToolHistory(f.history);
+    expect((await history.execute({})).map((entry) => [entry.name, entry.event])).toEqual([
+      ['sample', 'started'],
+      ['sample', 'finished'],
+      ['retired', 'started'],
+    ]);
+    expect((await history.execute({ name: 'retired' })).map((entry) => entry.name)).toEqual([
+      'retired',
     ]);
   });
 });

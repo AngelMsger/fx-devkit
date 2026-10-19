@@ -1,5 +1,6 @@
 // Report readiness and recovery for a resolved capability or tool; without a
-// target, list what there is to ask about.
+// target, list what there is to ask about. An `mcp:<name>` target is a resource
+// of the workspace harness and is answered there.
 
 import {
   CAPABILITY_INFO,
@@ -16,6 +17,8 @@ import {
   type PlatformBinding,
 } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
+import type { McpVerdict } from '../harness/mcp-readiness.js';
+import { canMcp, type HarnessSession } from '../harness/session.js';
 import type { LoginDeps } from '../login/deps.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -141,4 +144,26 @@ export class Can {
       url: coordinate.url ?? null,
     };
   }
+}
+
+// Each side is built only for a target it answers: an MCP resource is read from the
+// harness alone, without the workspace manifest a capability or tool needs.
+interface CanRoutes {
+  readonly workspace: () => Promise<Can>;
+  readonly harness: () => HarnessSession;
+}
+
+const MCP_TARGET = 'mcp:';
+
+export async function canTarget(
+  input: CanInput,
+  routes: CanRoutes,
+): Promise<CanResult | McpVerdict> {
+  if (!input.target.startsWith(MCP_TARGET)) return (await routes.workspace()).execute(input);
+  return canMcp({
+    ...routes.harness(),
+    name: input.target.slice(MCP_TARGET.length),
+    agent: input.agent,
+    envName: input.env,
+  });
 }

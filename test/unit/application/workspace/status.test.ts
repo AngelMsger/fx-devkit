@@ -3,8 +3,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
-import { Status } from '../../../../src/application/workspace/status.js';
+import type { RootInventory } from '../../../../src/application/workspace/root-entries.js';
+import { Status, WorkspaceStatus } from '../../../../src/application/workspace/status.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
+import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness, ROOT } from '../../../fakes/workspace.js';
 import { HeldWork } from '../../../held-work.js';
 
@@ -141,6 +143,50 @@ describe('Status', () => {
     expect(rows[0]).toMatchObject({
       remotes_ok: false,
       note: expect.stringContaining('elsewhere'),
+    });
+  });
+});
+
+describe('WorkspaceStatus', () => {
+  const inventory: RootInventory = { hosts: [], login: fakeLoginDeps({}) };
+  const listing = { fetch: false, dirtyOnly: false } as const;
+
+  it('sets the rows beside the workspace they describe and the root entries nothing accounts for', async () => {
+    const h = await harness({ files: { [path.join(ROOT, 'demo.html')]: '<html>' } });
+    const out = await new WorkspaceStatus(h.deps, inventory).execute(listing);
+    expect(out.items.map((row) => row.name)).toEqual([
+      'fx-example-api',
+      'fx-example-auth',
+      'fx-example-docs',
+    ]);
+    expect(out).toMatchObject({
+      workspace: 'fx',
+      root: ROOT,
+      selection: 'cwd',
+      selected_repositories: 3,
+      stray_entries: ['demo.html'],
+    });
+    expect(out).not.toHaveProperty('empty_reason');
+    expect(out).not.toHaveProperty('next_steps');
+  });
+
+  it('says why nothing is listed, and offers the selection commands only when nothing is selected', async () => {
+    const unselected = await harness({ local: { scope: { repos: [] } } });
+    expect(await new WorkspaceStatus(unselected.deps, inventory).execute(listing)).toMatchObject({
+      items: [],
+      selected_repositories: 0,
+      empty_reason: 'no_repositories_selected',
+      next_steps: ['fx repo list --workspace fx', 'fx repo select --all --workspace fx'],
+    });
+
+    const clean = await harness();
+    expect(
+      await new WorkspaceStatus(clean.deps, inventory).execute({ fetch: false, dirtyOnly: true }),
+    ).toMatchObject({
+      items: [],
+      selected_repositories: 3,
+      empty_reason: 'no_uncommitted_changes',
+      next_steps: [],
     });
   });
 });

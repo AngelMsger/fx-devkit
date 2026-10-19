@@ -1,5 +1,8 @@
-// The two update checks, over the personal cache and the system git.
+// The two update checks, over the personal cache and the system git, and the
+// self-update that settles one of them, over the npm installer fx ships through.
 
+import { NpmInstaller } from '../adapters/installer/npm.js';
+import { SelfUpdate } from '../application/self/update.js';
 import { CachedProbe } from '../application/update/check.js';
 import { FxUpdateCheck } from '../application/update/fx.js';
 import { ManifestUpdateCheck } from '../application/update/manifest.js';
@@ -18,4 +21,13 @@ export function updateChecks(container: Container): UpdateChecks {
     fx: new FxUpdateCheck(probe, (url) => container.registryAt(url, PROBE_TIMEOUT_MS)),
     manifest: new ManifestUpdateCheck(probe, container.git),
   };
+}
+
+export function selfUpdate(container: Container, noInput: boolean): SelfUpdate {
+  return new SelfUpdate(
+    container.process,
+    container.prompter(noInput),
+    new NpmInstaller(container.process),
+    updateChecks(container).fx,
+  );
 }

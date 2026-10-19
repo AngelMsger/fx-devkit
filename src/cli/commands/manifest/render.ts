@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import { RenderRegions } from '../../../application/docs/render-regions.js';
 import { FxCommand } from '../../base.js';
 import { dryRunFlag, writeIntent } from '../../flags.js';
+import type { WriteScopeDeclaration } from '../../workspace-write-policy.js';
 
 export default class ManifestRenderCommand extends FxCommand {
   static override description =
@@ -24,6 +25,7 @@ export default class ManifestRenderCommand extends FxCommand {
     }),
     'dry-run': dryRunFlag,
   };
+  static override writeScope: WriteScopeDeclaration = (flags) => (flags['check'] ? null : 'source');
 
   async run(): Promise<void> {
     const { flags } = await this.parse(ManifestRenderCommand);

@@ -1,5 +1,6 @@
 import { editRepoScope } from '../../../application/repo/scope.js';
 import { dryRunFlag, requiredArgument } from '../../flags.js';
+import type { WriteScopeDeclaration } from '../../workspace-write-policy.js';
 import { SelectionCommand } from '../selection.js';
 
 export default class RepoUnpickCommand extends SelectionCommand {
@@ -11,6 +12,7 @@ export default class RepoUnpickCommand extends SelectionCommand {
     name: requiredArgument('repository name(s)'),
   };
   static override flags = { 'dry-run': dryRunFlag };
+  static override writeScope: WriteScopeDeclaration = 'workspace';
 
   async run(): Promise<void> {
     const { argv, flags } = await this.parse(RepoUnpickCommand);

@@ -1,5 +1,6 @@
 // Update fx through its distribution registry after confirmation and the write gate.
-// Capture installer output so machine-readable results remain valid on stdout.
+// Capture installer output so machine-readable results remain valid on stdout. A
+// completed install settles the update-check window on the version it installed.
 
 import { DevkitError } from '../../domain/errors.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
@@ -7,12 +8,14 @@ import type { Installer } from '../../ports/installer.js';
 import type { Process } from '../../ports/process.js';
 import type { Prompter } from '../../ports/prompter.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
+import type { FxUpdateCheck, FxUpdateInput } from '../update/fx.js';
 
 import { REGISTRY_HANDOFF } from './registry.js';
 
-export interface SelfUpdateInput {
-  readonly packageName: string;
-  readonly registry: string | null;
+export interface SelfUpdateInput extends Pick<
+  FxUpdateInput,
+  'current' | 'packageName' | 'registry'
+> {
   readonly dryRun: boolean;
   readonly yes: boolean;
   readonly posture: WritePosture;
@@ -25,11 +28,16 @@ export interface SelfUpdateOutput {
   readonly reason: string | null;
 }
 
+export function isUpdated(output: SelfUpdateOutput): boolean {
+  return output.ran && output.code === 0;
+}
+
 export class SelfUpdate {
   constructor(
     private readonly process: Pick<Process, 'run'>,
     private readonly prompter: Prompter,
     private readonly installer: Installer,
+    private readonly check: Pick<FxUpdateCheck, 'execute' | 'markCurrent'>,
   ) {}
 
   async execute(input: SelfUpdateInput): Promise<SelfUpdateOutput> {
@@ -72,11 +80,18 @@ export class SelfUpdate {
       if (!go) return { vector, ran: false, code: null, reason: 'declined' };
     }
     const result = await this.process.run(vector, { interactive: false });
-    return {
+    const output: SelfUpdateOutput = {
       vector,
       ran: true,
       code: result.code,
       reason: result.code === 0 ? null : stderrReason(result.stderr, result.code),
     };
+    if (isUpdated(output)) await this.settleCheck(input);
+    return output;
+  }
+
+  private async settleCheck(input: SelfUpdateInput): Promise<void> {
+    const { latest } = await this.check.execute(input);
+    if (latest !== null) await this.check.markCurrent(input, latest);
   }
 }

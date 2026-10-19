@@ -15,7 +15,7 @@ import { resolvePosture, type WritePosture } from '../application/safety/posture
 import type { TrustGate } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync/types.js';
-import { toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
+import type { Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { beginWorkspaceCommand } from '../application/workspace/command-operation.js';
 import type { WorkspaceContext } from '../application/workspace/context.js';
@@ -49,10 +49,11 @@ import { reportCommand } from './render/report.js';
 import { SinkReporter } from './reporter.js';
 import { invocation } from './trace.js';
 import { shouldCheckUpdates, updateNotices } from './update-notices.js';
-import { workspaceWriteMode } from './workspace-write-policy.js';
+import { writeScopeOf, type WriteScopeDeclaration } from './workspace-write-policy.js';
 
 export abstract class FxCommand extends Command {
   static baseFlags = globalFlags;
+  declare static writeScope?: WriteScopeDeclaration;
   protected readonly container: Container = createContainer(process.env);
   protected renderer: Renderer = createRenderer(UNDECIDED_FORMAT, processIo());
   private reportSink: SinkReporter | undefined;
@@ -129,12 +130,12 @@ export abstract class FxCommand extends Command {
     this.yes = flags.yes;
     this.workspaceName = flags.workspace;
     this.posture = resolvePosture({ allowWrites: flags['allow-writes'], env: process.env, file });
-    const mode = workspaceWriteMode(this.id, flags);
-    if (mode !== null && !this.posture.readOnly) {
+    const scope = writeScopeOf(spec, flags);
+    if (scope !== null && !this.posture.readOnly) {
       const operation = await beginWorkspaceCommand(
         this.resolveInput(),
         this.container.lock,
-        mode === 'source',
+        scope === 'source',
       );
       if (operation) {
         this.operationLease = operation.lease;
@@ -296,19 +297,8 @@ export abstract class FxCommand extends Command {
     return this.wiring().trustGate();
   }
 
-  // Tool commands work outside a workspace too, on the bundled baseline.
-  protected async toolchain(): Promise<Toolchain> {
-    try {
-      return toolchainOf(await this.workspace());
-    } catch (err) {
-      if (!(err instanceof DevkitError) || err.code !== 'WORKSPACE_NOT_FOUND') throw err;
-      this.renderer.notice({
-        code: 'TOOLCHAIN_BUNDLED',
-        message: 'not inside a workspace; using the bundled toolchain baseline',
-        nextSteps: ['fx init <dir> --from <source>'],
-      });
-      return this.wiring().bundledToolchain();
-    }
+  protected toolchain(): Promise<Toolchain> {
+    return this.wiring().toolchain(() => this.workspace());
   }
 
   protected async workspace(): Promise<WorkspaceContext> {

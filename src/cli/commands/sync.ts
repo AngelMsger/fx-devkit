@@ -6,6 +6,7 @@ import { refreshManifestBeforeSync } from '../../composition/refresh.js';
 import { selectSyncStages } from '../../domain/sync-selection.js';
 import { FxCommand } from '../base.js';
 import { dryRunFlag, jobsFlag, listFlag, writeIntent } from '../flags.js';
+import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class SyncCommand extends FxCommand {
   static override description =
@@ -24,6 +25,7 @@ export default class SyncCommand extends FxCommand {
       description: 'pull the manifest repository first; --no-refresh-manifest skips it',
     }),
   };
+  static override writeScope: WriteScopeDeclaration = 'workspace';
 
   async run(): Promise<void> {
     const { flags } = await this.parse(SyncCommand);

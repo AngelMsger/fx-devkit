@@ -3,7 +3,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ConfigExport } from '../../../../src/application/config/export.js';
-import { ConfigImport } from '../../../../src/application/config/import.js';
+import {
+  ConfigImport,
+  type ConfigImportDeps,
+  type ConfigImportInput,
+  type ConfigImportOutput,
+} from '../../../../src/application/config/import.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import { shellLine } from '../../../../src/domain/shell.js';
 import type { Lock } from '../../../../src/ports/lock.js';
@@ -54,6 +59,18 @@ function stage() {
     cliVersion,
     providers: providerCatalog(),
   };
+}
+
+const PROFILE = path.resolve('/exchange/profile.yaml');
+
+// Places the profile where the import is told to read it.
+async function importProfile(
+  deps: ConfigImportDeps,
+  text: string,
+  intent: Omit<ConfigImportInput, 'file'> = write,
+): Promise<ConfigImportOutput> {
+  await deps.fs.writeText(PROFILE, text);
+  return new ConfigImport(deps).execute({ ...intent, file: PROFILE });
 }
 
 describe('profile export / import', () => {
@@ -119,7 +136,7 @@ describe('profile export / import', () => {
       cliVersion,
       providers: providerCatalog(),
     };
-    const dry = await new ConfigImport(target).execute({ ...write, text, dryRun: true });
+    const dry = await importProfile(target, text, { ...write, dryRun: true });
     expect(dry).toMatchObject({
       config: 'changed',
       // lab's layer is empty, and an empty layer over no file is nothing to write.
@@ -137,7 +154,7 @@ describe('profile export / import', () => {
       shellLine(['fx', 'init', path.resolve('/ws/lab'), '--name', 'lab', '--from', '<source>']),
     ]);
     expect(target.localStore.writes).toEqual([]);
-    const done = await new ConfigImport(target).execute({ ...write, text });
+    const done = await importProfile(target, text);
     expect(done.written).toBe(true);
     expect(await target.config.read()).toMatchObject({
       format: 'json',
@@ -145,7 +162,7 @@ describe('profile export / import', () => {
       default_workspace: 'fx',
     });
     expect((await target.localStore.read('fx')).scope?.envs).toEqual(['test']);
-    const again = await new ConfigImport(target).execute({ ...write, text });
+    const again = await importProfile(target, text);
     expect(again).toMatchObject({
       config: 'unchanged',
       workspaces: [
@@ -154,11 +171,7 @@ describe('profile export / import', () => {
       ],
     });
     await expect(
-      new ConfigImport(target).execute({
-        ...write,
-        text,
-        posture: { readOnly: true, source: 'env' },
-      }),
+      importProfile(target, text, { ...write, posture: { readOnly: true, source: 'env' } }),
     ).resolves.toMatchObject({ written: false });
     const fresh = {
       config: new FakeConfigStore({}),
@@ -170,28 +183,19 @@ describe('profile export / import', () => {
       providers: providerCatalog(),
     };
     await expect(
-      new ConfigImport(fresh).execute({
-        ...write,
-        text,
-        posture: { readOnly: true, source: 'env' },
-      }),
+      importProfile(fresh, text, { ...write, posture: { readOnly: true, source: 'env' } }),
     ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
+    await expect(importProfile(target, 'fx_profile: 2\nconfig: {}\n')).rejects.toMatchObject({
+      code: 'CONFIG_IMPORT_INVALID',
+    });
     await expect(
-      new ConfigImport(target).execute({ ...write, text: 'fx_profile: 2\nconfig: {}\n' }),
+      importProfile(target, 'fx_profile: 1\nconfig: { format: bogus }\n'),
     ).rejects.toMatchObject({ code: 'CONFIG_IMPORT_INVALID' });
-    await expect(
-      new ConfigImport(target).execute({
-        ...write,
-        text: 'fx_profile: 1\nconfig: { format: bogus }\n',
-      }),
-    ).rejects.toMatchObject({ code: 'CONFIG_IMPORT_INVALID' });
-    await expect(
-      new ConfigImport(target).execute({ ...write, text: ': not yaml: [' }),
-    ).rejects.toMatchObject({ code: 'CONFIG_IMPORT_INVALID' });
+    await expect(importProfile(target, ': not yaml: [')).rejects.toMatchObject({
+      code: 'CONFIG_IMPORT_INVALID',
+    });
     const traversal = 'fx_profile: 1\nconfig: {}\nworkspaces: { "../../tmp/owned": {} }\n';
-    await expect(
-      new ConfigImport(target).execute({ ...write, text: traversal }),
-    ).rejects.toMatchObject({
+    await expect(importProfile(target, traversal)).rejects.toMatchObject({
       code: 'WORKSPACE_NAME_INVALID',
     });
   });
@@ -202,14 +206,14 @@ describe('profile export / import', () => {
       fx_profile: 1,
       config: { workspaces: { new: { root: '/ws/new', source: '/sources/new' } } },
     });
-    const preview = await new ConfigImport(s).execute({ ...write, text, dryRun: true });
+    const preview = await importProfile(s, text, { ...write, dryRun: true });
     expect(preview.registrations).toEqual([
       expect.objectContaining({ name: 'fx', action: 'retained', preparation: 'manifest_missing' }),
       expect.objectContaining({ name: 'lab', action: 'retained', preparation: 'manifest_missing' }),
       expect.objectContaining({ name: 'new', action: 'created', preparation: 'manifest_missing' }),
     ]);
     expect(s.config.writes).toBe(0);
-    await new ConfigImport(s).execute({ ...write, text });
+    await importProfile(s, text);
     expect(Object.keys((await s.config.read()).workspaces ?? {})).toEqual(['fx', 'lab', 'new']);
   });
 
@@ -228,7 +232,7 @@ describe('profile export / import', () => {
     for (const [config, workspaces, code] of cases) {
       const s = stage();
       const text = JSON.stringify({ fx_profile: 1, config, workspaces });
-      await expect(new ConfigImport(s).execute({ ...write, text })).rejects.toMatchObject({ code });
+      await expect(importProfile(s, text)).rejects.toMatchObject({ code });
       expect(s.config.writes).toBe(0);
       expect(s.localStore.writes).toEqual([]);
     }
@@ -242,7 +246,7 @@ describe('profile export / import', () => {
         'schema_version: 2\ndefaults: { branch: main }\nrepos:\n  - { name: fx-example-api, upstream: https://git.example.com/team/api.git }\n',
       );
     const { text } = await new ConfigExport(s).execute();
-    const result = await new ConfigImport(s).execute({ ...write, text });
+    const result = await importProfile(s, text);
     expect(result.written).toBe(false);
     expect(result.next_steps).toEqual([]);
     expect(result.registrations.every((r) => r.preparation === 'unchanged')).toBe(true);
@@ -259,7 +263,7 @@ describe('profile export / import', () => {
       fx_profile: 1,
       config: { workspaces: { portable: { root: 'portable workspace' } } },
     });
-    const result = await new ConfigImport(s).execute({ ...write, text });
+    const result = await importProfile(s, text);
     expect(result.config).toBe('unchanged');
     expect((await s.config.read()).workspaces?.['portable']).toEqual({
       root,
@@ -269,7 +273,7 @@ describe('profile export / import', () => {
       fx_profile: 1,
       config: { workspaces: { fresh: { root: 'new workspace' } } },
     });
-    await new ConfigImport(s).execute({ ...write, text: fresh });
+    await importProfile(s, fresh);
     expect((await s.config.read()).workspaces?.['fresh']?.root).toBe(path.resolve('new workspace'));
   });
 
@@ -299,7 +303,7 @@ describe('profile export / import', () => {
         workspaces: { fx: { scope: { repos: [] } } },
       });
       await expect(
-        new ConfigImport({ ...s, lock: racing, commandShell: 'cmd' }).execute({ ...write, text }),
+        importProfile({ ...s, lock: racing, commandShell: 'cmd' }, text),
       ).rejects.toMatchObject({
         code: 'CONFIG_IMPORT_CHANGED',
         nextSteps: ['fx ^"workspace^" ^"show^" ^"fx^"'],
@@ -323,11 +327,11 @@ describe('profile export / import', () => {
       config: {},
       workspaces: { fx: { scope: { repos: [] } } },
     });
-    await new ConfigImport({ ...s, lock: busy }).execute({ ...write, text, dryRun: true });
+    await importProfile({ ...s, lock: busy }, text, { ...write, dryRun: true });
     expect(acquired).toBe(0);
-    await expect(
-      new ConfigImport({ ...s, lock: busy }).execute({ ...write, text }),
-    ).rejects.toMatchObject({ code: 'LOCK_BUSY' });
+    await expect(importProfile({ ...s, lock: busy }, text)).rejects.toMatchObject({
+      code: 'LOCK_BUSY',
+    });
     expect(s.config.writes).toBe(0);
     expect(s.localStore.writes).toEqual([]);
   });
@@ -343,10 +347,22 @@ describe('profile export / import', () => {
       config: {},
       workspaces: { lab: { repos: [{ name: 'local-shadow', path: 'api' }] } },
     });
-    await expect(new ConfigImport(s).execute({ ...write, text })).rejects.toMatchObject({
+    await expect(importProfile(s, text)).rejects.toMatchObject({
       code: 'LOCAL_INVALID',
     });
     expect(s.localStore.writes).toEqual([]);
     expect(s.config.writes).toBe(0);
+  });
+
+  it('refuses a profile file that does not exist and writes nothing', async () => {
+    const s = stage();
+    await expect(
+      new ConfigImport(s).execute({ ...write, file: path.resolve('/exchange/absent.yaml') }),
+    ).rejects.toMatchObject({
+      code: 'CONFIG_IMPORT_NOT_FOUND',
+      nextSteps: ['fx config export -o profile.yaml'],
+    });
+    expect(s.config.writes).toBe(0);
+    expect(s.localStore.writes).toEqual([]);
   });
 });

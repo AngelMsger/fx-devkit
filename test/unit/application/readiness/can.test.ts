@@ -6,14 +6,24 @@ import { describe, expect, it } from 'vitest';
 import { BITBUCKET_RECIPES } from '../../../../src/adapters/code-host/bitbucket-cli/recipes.js';
 import { localGitProvider } from '../../../../src/adapters/code-host/local-git/provider.js';
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
-import { Can } from '../../../../src/application/readiness/can.js';
+import type { HarnessSession } from '../../../../src/application/harness/session.js';
+import { Can, canTarget } from '../../../../src/application/readiness/can.js';
 import { Readiness } from '../../../../src/application/readiness/index.js';
 import { Gates } from '../../../../src/application/release/gates.js';
+import { TrustGate } from '../../../../src/application/safety/trust.js';
+import { mcpCodecFor } from '../../../../src/composition/registry.js';
+import { MANIFEST_FILES } from '../../../../src/domain/manifest/files.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
+import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
+import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
+import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
-import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
+import { FakePrompter } from '../../../fakes/fake-prompter.js';
+import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
+import { MANIFEST_DIR, ROOT, harness, manifestDirFor } from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');
@@ -507,5 +517,60 @@ describe('Can', () => {
     });
     s.h.process.on(['standalone', 'auth', 'status'], { code: 0, stdout: '', stderr: '' });
     expect(await s.can.execute({ target: 'standalone' })).toMatchObject({ status: 'ready' });
+  });
+});
+
+describe('canTarget', () => {
+  async function harnessWith(document: string): Promise<HarnessSession> {
+    const h = await harness();
+    const files = new FakeProjectionStore();
+    files.files.set(MANIFEST_FILES.harness, document);
+    const config = new FakeConfigStore({ workspaces: { fx: { root: ROOT } } });
+    return {
+      deps: {
+        files,
+        hosts: [],
+        state: new FakeHarnessState(),
+        trust: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+        env: {},
+        codec: mcpCodecFor,
+        lock: new FakeLock(),
+      },
+      config,
+      process: h.process,
+      resolve: { cwd: ROOT, config, fs: h.fs, reporter: h.reporter, manifestDirFor },
+      env: {},
+      cliVersion: '1.0.0',
+      yes: false,
+      posture: { readOnly: false, source: 'default' },
+    };
+  }
+
+  it('answers an mcp: target from the harness by its bare name, without loading the workspace', async () => {
+    const session = await harnessWith(
+      'schema_version: 2\nmcp:\n  - { name: knowledge, transport: stdio, command: [server] }\n',
+    );
+    const verdict = await canTarget(
+      { target: 'mcp:knowledge' },
+      {
+        workspace: () => Promise.reject(new Error('the workspace was loaded')),
+        harness: () => session,
+      },
+    );
+    expect(verdict).toMatchObject({ capability: 'mcp', resource: 'knowledge' });
+  });
+
+  it('answers every other target from the workspace, without building the harness', async () => {
+    const s = await stage();
+    const result = await canTarget(
+      { target: 'ci', env: 'dev' },
+      {
+        workspace: async () => s.can,
+        harness: () => {
+          throw new Error('the harness was built');
+        },
+      },
+    );
+    expect(result).toMatchObject({ capability: 'ci', provider: 'jenkins-cli', env: 'dev' });
   });
 });

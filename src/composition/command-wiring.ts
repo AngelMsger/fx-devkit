@@ -20,7 +20,7 @@ import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
 import type { SyncStages } from '../application/sync/types.js';
 import { ToolInitialize } from '../application/tool/initialize.js';
 import { workspaceToolScope } from '../application/tool/scope.js';
-import { bundledToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
+import { resolveToolchain, toolchainOf, type Toolchain } from '../application/tool/toolchain.js';
 import type { FxUpdateInput } from '../application/update/fx.js';
 import { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
@@ -108,8 +108,15 @@ export class CommandWiring {
     return skillDeps(this.input.container, this.input.agents);
   }
 
-  bundledToolchain(): Toolchain {
-    return bundledToolchain(this.input.container.bundledTools(), this.input.cliVersion);
+  // Tool commands work outside a workspace too, on the bundled baseline.
+  toolchain(workspace: () => Promise<WorkspaceContext>): Promise<Toolchain> {
+    const { container, cliVersion, reporter } = this.input;
+    return resolveToolchain({
+      workspace,
+      bundledTools: container.bundledTools,
+      cliVersion,
+      reporter,
+    });
   }
 
   manifestContext(dir: string): Promise<ManifestContext> {
