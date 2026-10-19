@@ -43,6 +43,10 @@ describe('stderrReason', () => {
     expect(stderrReason(rancher, 1)).toBe(
       'Error from server (Forbidden): User "system:unauthenticated" cannot get clusters',
     );
+    expect(
+      stderrReason('Warning: {"message":"Starting"}\nError: credentials expired\n', 1),
+      'a warning that carries an object is still set aside',
+    ).toBe('Error: credentials expired');
   });
 
   it('shortens a reason that would not fit a report row', () => {

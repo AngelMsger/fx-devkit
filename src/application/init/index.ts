@@ -14,7 +14,7 @@ import type { ManifestSource } from '../../ports/manifest-source.js';
 import type { ConfigFile } from '../../ports/stores.js';
 import { LoadManifest, type ManifestBundle } from '../manifest/load.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
-import { RefreshManifest } from '../manifest/refresh.js';
+import { RefreshManifest, type RefreshManifestOutput } from '../manifest/refresh.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { Sync } from '../sync/index.js';
 import type { SyncOutput } from '../sync/types.js';
@@ -170,11 +170,13 @@ export class Init {
     let materialized = false;
     let prepared: InitializationPreview | null = null;
     let toolInstall: readonly ToolInstallOutput[] | null = null;
+    let refresh: RefreshManifestOutput | undefined;
     try {
       phase = 'validation';
       output = await this.inspectSource(output, input, { materialized: false });
       phase = 'manifest';
-      if (input.source.kind !== 'kept') await this.materialize(output, input.source, input.posture);
+      if (input.source.kind !== 'kept')
+        refresh = await this.materialize(output, input.source, input.posture);
       materialized = true;
       phase = 'validation';
       const bundle = await this.loadSourceManifest(output, input);
@@ -201,6 +203,7 @@ export class Init {
         dryRun: false,
         posture: input.posture,
         jobs: input.jobs,
+        manifest: refresh,
       });
       const done = completedInitialization(output, {
         sync,
@@ -273,22 +276,24 @@ export class Init {
       });
   }
 
+  // What a refresh of an existing source did, which the sync that follows reports; a fresh
+  // checkout has no refresh to report.
   private async materialize(
     output: InitOutput,
     source: ManifestSource,
     posture: WritePosture,
-  ): Promise<void> {
+  ): Promise<RefreshManifestOutput | undefined> {
     if (output.manifest === 'refreshed') {
-      await new RefreshManifest(this.deps.reporter).execute({
+      return new RefreshManifest(this.deps.reporter).execute({
         manifestDir: output.manifest_dir,
         source,
         dryRun: false,
         posture,
         settle: () => this.deps.settleManifest(output.name, output.manifest_dir),
       });
-    } else {
-      await source.materialize(output.manifest_dir);
     }
+    await source.materialize(output.manifest_dir);
+    return undefined;
   }
 
   private async register(output: InitOutput, source: InitSource): Promise<void> {

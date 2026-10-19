@@ -31,10 +31,11 @@ function statedMessage(objects: readonly Record<string, unknown>[]): string | un
   return undefined;
 }
 
+// A log record or warning that carries a JSON object is set aside as in plain text.
 function prefixedMessage(text: string): string | undefined {
   for (const line of text.split('\n')) {
     const at = line.indexOf('{');
-    if (at <= 0) continue;
+    if (at <= 0 || ASIDE.test(line.trim())) continue;
     const object = parseObject(line.slice(at));
     const message = object === undefined ? undefined : messageOf(object);
     if (message !== undefined) return `${line.slice(0, at).trim()} ${message}`;

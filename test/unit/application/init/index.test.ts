@@ -323,7 +323,13 @@ describe('Init', () => {
     expect(out).toMatchObject({ manifest: 'materialized', adopted: false, registered: true });
     expect(file.source.materialized).toEqual([manifestDirFor('new')]);
 
-    const repo = setup(files, registered);
+    const repo = setup(
+      { ...files, [`${manifestDirFor('new')}/.git/HEAD`]: 'ref: refs/heads/main\n' },
+      registered,
+    );
+    repo.git.add(manifestDirFor('new'), {
+      state: { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 },
+    });
     const refreshed: string[] = [];
     const repoSource: ManifestSource = {
       ...repo.source,
@@ -337,6 +343,9 @@ describe('Init', () => {
     const again = await new Init(repo.deps).execute(initInput({ source: repoSource }));
     expect(again).toMatchObject({ manifest: 'refreshed', registered: true });
     expect(refreshed).toEqual([manifestDirFor('new')]);
+    expect(again.sync?.items.find((item) => item.action === 'skip_manifest')?.reason).toBe(
+      'refreshed from upstream before the workspace loaded',
+    );
     expect(repo.source.materialized).toEqual([]);
   });
 
