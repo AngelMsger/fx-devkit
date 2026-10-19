@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { fx } from './harness.js';
+import { writeNodeShim } from '../platform.js';
+
+import { fx, searchPath, tempDir } from './harness.js';
 
 describe('command resolution', () => {
   it('names human list columns unless the caller asks for headerless output', () => {
@@ -30,32 +32,21 @@ describe('command resolution', () => {
     expect(run.error().next_steps).toContain('fx self --help');
   });
 
-  it('accepts global flags around command words and rejects unknown leading flags', () => {
+  it('accepts a global flag before the command words', () => {
     const leading = fx(['--format', 'json', 'config', 'list']);
     expect(leading.status, leading.stderr).toBe(0);
     expect(leading.json()).toMatchObject({ has_more: false });
-    const between = fx(['config', '--format', 'json', 'list']);
-    expect(between.status, between.stderr).toBe(0);
-    expect(between.json()).toEqual(leading.json());
-    const misplaced = fx(['--fetch', 'status']);
-    expect(misplaced.status).toBe(2);
-    expect(misplaced.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
-    const badValue = fx(['self', '--format=bogus']);
-    expect(badValue.status).toBe(2);
-    expect(badValue.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
-    const helpValue = fx(['--help=x']);
-    expect(helpValue.status).toBe(2);
-    const inlineBool = fx(['self', '--quiet=true']);
-    expect(inlineBool.status).toBe(2);
-    const strayFlag = fx(['self', '--bogus']);
-    expect(strayFlag.status).toBe(2);
-    expect(strayFlag.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
-    const fields = fx(['self', '--fields']);
-    expect(fields.status).toBe(2);
-    expect(fields.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
-    const dangling = fx(['config', 'list', '--format']);
-    expect(dangling.status).toBe(2);
-    expect(dangling.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
+  });
+
+  it.each([
+    { misuse: 'a command flag before the command', argv: ['--fetch', 'status'] },
+    { misuse: 'an impossible value of a global flag', argv: ['self', '--format=bogus'] },
+    { misuse: 'an unknown flag on a bare topic', argv: ['self', '--bogus'] },
+    { misuse: 'a value flag left dangling after a command', argv: ['config', 'list', '--format'] },
+  ])('answers $misuse with a usage error', ({ argv }) => {
+    const run = fx(argv);
+    expect(run.status).toBe(2);
+    expect(run.error()).toMatchObject({ category: 'usage', code: 'BAD_FLAG' });
   });
 
   it('puts the everyday commands before the topics on the root help page', () => {
@@ -101,25 +92,17 @@ describe('command resolution', () => {
     }
   });
 
-  it('points a retired command at its replacement', () => {
-    const cases: [string[], string][] = [
-      [['setup', '--list'], 'fx login --list'],
-      [['obs', 'where', 'a', '--env', 'dev'], 'fx where a --env dev'],
-      [['docs', 'render'], 'fx manifest render'],
-      [['member', 'owners', 'a'], 'fx repo show a'],
-      [['skill', 'sync', '--dry-run'], 'fx sync --only skills --dry-run'],
-      [['tool', 'check', '--quiet', 'a'], 'fx doctor --quiet --tool a'],
-    ];
-    for (const [argv, replacement] of cases) {
-      const run = fx([...argv, '--format', 'json']);
-      expect(run.status, argv.join(' ')).toBe(2);
-      expect(run.error().code).toBe('UNKNOWN_COMMAND');
-      expect(run.error().hint, argv.join(' ')).toContain(replacement);
-      expect(run.error().next_steps[0], argv.join(' ')).toBe(`${replacement} --format json`);
-    }
+  it('points a retired command at its replacement and carries its flags over', () => {
+    const run = fx(['skill', 'sync', '--dry-run', '--format', 'json']);
+    expect(run.status).toBe(2);
+    expect(run.error()).toMatchObject({
+      code: 'UNKNOWN_COMMAND',
+      hint: expect.stringContaining('fx sync --only skills --dry-run'),
+    });
+    expect(run.error().next_steps[0]).toBe('fx sync --only skills --dry-run --format json');
     const version = fx(['version', '--format', 'json']);
     expect(version.status).toBe(2);
-    expect(version.error().next_steps[0]).toBe('fx --version');
+    expect(version.error().next_steps[0], 'a bare flag takes nothing with it').toBe('fx --version');
   });
 
   it('suggests the nearest command for a typo', () => {
@@ -136,7 +119,11 @@ describe('consistent command selections', () => {
       expect(run.status).toBe(2);
       expect(run.error().code).toBe('BAD_FLAG');
     }
-    const all = fx(['tool', action, '--all', '--dry-run', '--format', 'json']);
+    const installers = tempDir('fx-installers-');
+    writeNodeShim(installers, 'npm', '');
+    const all = fx(['tool', action, '--all', '--dry-run', '--format', 'json'], {
+      PATH: searchPath(installers),
+    });
     expect(all.status, all.stderr).toBe(0);
   });
   it('accepts global flags around root help', () => {

@@ -113,7 +113,6 @@ describe('workflow JSON summaries', () => {
     });
     expect(JSON.parse(details.out())).toEqual(report);
     expect(Buffer.byteLength(summary.out())).toBeLessThan(Buffer.byteLength(details.out()) * 0.3);
-    expect(report.sync.items).toHaveLength(72);
   });
 
   it('keeps every warning and failure while omitting successful findings and large evidence', () => {

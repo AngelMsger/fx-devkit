@@ -65,7 +65,7 @@ describe('MCP can command', () => {
   });
   it('projects MCP through sync and reports the managed result in doctor', () => {
     const f = fixture();
-    const env = { ...f.env, FX_MCP_TEST_TOKEN: 'synthetic-sensitive-value', FX_READ_ONLY: '0' };
+    const env = { ...f.env, FX_MCP_TEST_TOKEN: 'synthetic-sensitive-value' };
     const preview = fx(['sync', '--only', 'mcp', '--dry-run', '--format', 'json'], env, f.root);
     expect(preview.status, preview.stderr).toBe(0);
     const synced = fx(['sync', '--only', 'mcp', '--yes', '--format', 'json'], env, f.root);

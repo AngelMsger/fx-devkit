@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { tempDir } from './harness.js';
+import { childEnvironment, tempDir } from './harness.js';
 
 const bin = path.resolve('bin/fx.js');
 const bundled = path.resolve('skills/fx-workspace');
@@ -26,16 +26,10 @@ function stage() {
       cwd: root,
       encoding: 'utf8',
       timeout: 5000,
-      env: {
-        ...process.env,
-        HOME: home,
-        USERPROFILE: home,
-        FX_HOME: path.join(root, 'fx'),
-        FX_UPDATE_CHECK: '1',
-        FX_SKILL_LOADED: '',
-        FX_READ_ONLY: '0',
-        ...extra,
-      },
+      env: childEnvironment(
+        { FX_HOME: path.join(root, 'fx'), FX_UPDATE_CHECK: '1', ...extra },
+        home,
+      ),
     });
     return {
       ...result,

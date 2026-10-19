@@ -1,22 +1,16 @@
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { assertContributionIdentity } from '../../../../src/application/contribution/identity.js';
 import { FileConfigStore } from '../../../../src/infra/config-store.js';
 import { FileLock } from '../../../../src/infra/lock.js';
-
-const roots: string[] = [];
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
-});
+import { tempDir } from '../../../temp.js';
 
 async function fixture() {
-  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'fx-source-identity-')));
-  roots.push(base);
+  const base = await fs.realpath(tempDir('fx-source-identity-'));
   const oldHome = path.join(base, 'old-state');
   const newHome = path.join(base, 'new-state');
   const home = path.join(base, 'fx-state');

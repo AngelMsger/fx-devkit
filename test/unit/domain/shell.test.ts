@@ -7,7 +7,9 @@ describe('shellLine', () => {
     expect(resolveCommandShell('auto', true)).toBe('powershell');
     expect(resolveCommandShell('auto', false)).toBe('posix');
     expect(resolveCommandShell('cmd', false)).toBe('cmd');
-    expect(() => resolveCommandShell('unknown', true)).toThrow();
+    expect(() => resolveCommandShell('unknown', true)).toThrow(
+      expect.objectContaining({ code: 'CONFIG_INVALID' }),
+    );
     expect(shellLine(['tool', "it's $value; `command`"], 'powershell')).toBe(
       "& 'tool' 'it''s $value; `command`'",
     );

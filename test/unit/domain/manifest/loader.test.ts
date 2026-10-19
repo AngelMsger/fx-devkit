@@ -43,7 +43,7 @@ describe('loadWorkspace', () => {
     expect(result.problems[1]?.line).toBe(7);
   });
 
-  it('fails when every entry was dropped but not when the list was empty on purpose', () => {
+  it('fails with its own code when every entry was dropped, and rejects an empty list as invalid', () => {
     expect(() => loadWorkspace(text('broken/all-entries-bad.yaml'), cli)).toThrow(
       expect.objectContaining({ category: 'config', code: 'MANIFEST_UNUSABLE' }),
     );
@@ -101,7 +101,10 @@ describe('loadWorkspace', () => {
 
   it('rejects a YAML syntax error as a document problem with a line', () => {
     expect(() => loadWorkspace('schema_version: 1\nrepos:\n  - name: [unclosed\n', cli)).toThrow(
-      expect.objectContaining({ code: 'MANIFEST_INVALID' }),
+      expect.objectContaining({
+        code: 'MANIFEST_INVALID',
+        diagnostics: [expect.objectContaining({ field: '(root)', line: expect.any(Number) })],
+      }),
     );
   });
 
@@ -112,6 +115,21 @@ describe('loadWorkspace', () => {
     );
     const result = loadWorkspace(noHost, { ...cli, allowInvalid: true });
     expect(result.problems.map((p) => p.path)).toContain('defaults.host');
+    const explicit = noHost.replace(
+      /^  - name: (\S+)$/gm,
+      '  - name: $1\n    upstream: ssh://git@git.example.com/fx/$1.git',
+    );
+    expect(loadWorkspace(explicit, { ...cli, allowInvalid: true }).problems).toEqual([]);
+  });
+
+  it('reports a confidence outside the vocabulary at its path', () => {
+    const doc = text('v1-minimal/workspace.yaml').replace(
+      'confidence: unverified',
+      'confidence: maybe',
+    );
+    expect(loadWorkspace(doc, { ...cli, allowInvalid: true }).problems.map((p) => p.path)).toEqual([
+      'repos[1].obs.overrides.jenkins.test.confidence',
+    ]);
   });
 
   it('requires every checkout to be a distinct, non-overlapping child of the workspace root', () => {
@@ -262,6 +280,13 @@ describe('loadToolsDocument', () => {
       'tools[0].name',
       'tools[1].auth.command[1]',
     ]);
+  });
+
+  it('reports an installer fx does not know at its path', () => {
+    const doc = 'schema_version: 3\ntools:\n  - name: sample\n    install: [{ via: curl }]\n';
+    expect(
+      loadToolsDocument(doc, { ...cli, allowInvalid: true }).problems.map((p) => p.path),
+    ).toEqual(['tools[0].install[0].via']);
   });
 
   it('quarantines a tool without any install method', () => {

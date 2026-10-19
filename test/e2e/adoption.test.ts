@@ -21,7 +21,7 @@ function stage(project = 'team', repositoryName = 'api', fileUrl = false) {
   git(['clone', '-q', transport, checkout], base);
   const source = path.join(base, 'source');
   const file = path.join(source, 'manifest/workspace.yaml');
-  const env = { FX_HOME: freshHome(), FX_AGENTS: '' };
+  const env = { FX_HOME: freshHome() };
   const run = (args: string[]) => fx([...args, '--format', 'json'], env, root);
   return { base, host, remote, root, checkout, source, file, env, run };
 }
@@ -55,11 +55,7 @@ describe('ordinary clone import and adoption', () => {
   it('completes local import and adoption with the untouched bundled tool catalog', () => {
     const s = stage();
     importSource(s, false);
-    const result = fx(
-      [...initialArgs(s), '--format', 'json'],
-      { ...s.env, PATH: process.platform === 'win32' ? process.env.PATH : '/usr/bin:/bin' },
-      s.root,
-    );
+    const result = fx([...initialArgs(s), '--format', 'json'], s.env, s.root);
     expect(result.status, result.stderr).toBe(0);
     expect(result.json()).toMatchObject({
       preparation: { state: 'ready' },

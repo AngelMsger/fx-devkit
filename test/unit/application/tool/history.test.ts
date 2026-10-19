@@ -8,7 +8,7 @@ import { ToolInstall } from '../../../../src/application/tool/install.js';
 import { ToolInstalled } from '../../../../src/application/tool/installed.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
-import { loadTools, loadWorkspace } from '../../../../src/domain/manifest/loader.js';
+import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
@@ -25,7 +25,6 @@ projects: {team: {label: Team, contact: fixture}}
 repos: [{name: sample, desc: Fixture}]`;
 const posture = { readOnly: false, source: 'default' } as const;
 function fixture() {
-  loadWorkspace(workspace, { cliVersion: '1.0.0' });
   const history = new FakeToolHistory();
   const audit = fakeToolAudit(history);
   const process = new FakeProcess().always({ code: 0, stdout: '1.2.3', stderr: '' });

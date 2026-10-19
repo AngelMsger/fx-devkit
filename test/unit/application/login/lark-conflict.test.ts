@@ -8,8 +8,6 @@ import { planSetup } from '../../../../src/domain/setup/planner.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness } from '../../../fakes/workspace.js';
 
-// lark-cli serves both `im` and `knowledge-base`. A step's identity is its tool and id, so
-// two providers sharing one CLI would withhold each other's steps if they named them alike.
 it('plans one lark-cli setup per capability without colliding on a step identity', async () => {
   const h = await harness({
     workspace:

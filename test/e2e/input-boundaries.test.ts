@@ -1,4 +1,5 @@
-// Parser regressions run through the executable with inherited stdin data.
+// A command reads stdin only where it names it as a source; a missing argument is never
+// taken from data that happens to be waiting there.
 import { describe, expect, it } from 'vitest';
 
 import { fx, freshHome } from './harness.js';
@@ -13,15 +14,6 @@ describe('explicit input boundaries', () => {
     expect(result.status).toBe(2);
     expect(result.error().code).toBe('BAD_FLAG');
     expect(result.stderr).not.toContain('unexpected-input');
-  });
-  it('leaves optional login selection empty despite inherited stdin', () => {
-    const result = fx(
-      ['login', '--list', '--format', 'json'],
-      {},
-      undefined,
-      'definitely-not-a-tool',
-    );
-    expect(result.stderr).not.toContain('definitely-not-a-tool');
   });
   it('classifies a quoted command as usage and continues to accept explicit stdin sources', () => {
     const invalid = fx(['manifest lint', '--format', 'json']);

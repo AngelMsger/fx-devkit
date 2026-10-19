@@ -79,9 +79,6 @@ describe('serviceRules', () => {
     ).toEqual([`${path}: provider does not support shared service configuration`]);
   });
 
-  // The degraded path: a load that was given no catalog cannot say what a provider
-  // accepts, so it must skip those checks instead of reporting the provider as one
-  // that refuses settings, while the provider-independent conflict still holds.
   it('skips the provider-specific checks, and only those, when no catalog was supplied', () => {
     const service = { base_url: 'https://sentry.example.com', auth_scheme: 'token' } as const;
     expect(

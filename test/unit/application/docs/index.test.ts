@@ -108,7 +108,9 @@ describe('RenderRegions, inside a checkout of the manifest repository', () => {
     expect(isDerived(text ?? '')).toBe(false);
     const again = await s.regions.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
-    expect(await s.regions.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.regions.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'unchanged' }],
+    });
   });
 
   it('only touches regions of an existing document, reports the missing ones, and never inserts', async () => {
@@ -181,7 +183,9 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(ORIGIN)).toBe(prose);
     const again = await s.derive.execute(write);
     expect(again.files.map((f) => f.action)).toEqual(['unchanged']);
-    expect(await s.derive.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.derive.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'unchanged' }],
+    });
   });
 
   it('removes the pointer an earlier version derived beside the guide', async () => {
@@ -233,7 +237,9 @@ describe('DeriveDocs, in the workspace root', () => {
     expect(await s.h.fs.readText(AGENTS)).toBe('# Mine\n');
     expect(await s.h.fs.readText(CLAUDE)).toBe('keep');
     expect(s.h.reporter.codes()).toContain('DOCS_FOREIGN');
-    expect(await s.derive.execute({ ...write, check: true })).toBeDefined();
+    await expect(s.derive.execute({ ...write, check: true })).resolves.toMatchObject({
+      files: [{ action: 'foreign' }],
+    });
   });
 
   it('objects under --check when a derived file is stale; --dry-run writes nothing and --out leaves the root alone', async () => {

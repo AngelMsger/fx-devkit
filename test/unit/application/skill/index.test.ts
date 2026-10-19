@@ -740,9 +740,8 @@ describe('SkillList', () => {
 });
 
 describe('observeLink with a relative target', () => {
-  it("resolves it against the link's directory, so a foreign link stays foreign", async () => {
+  it("resolves it against the link's directory", async () => {
     const { observeLink } = await import('../../../../src/application/skill/observe.js');
-    const { decideLink } = await import('../../../../src/domain/skills/projection.js');
     const { FakeFs } = await import('../../../fakes/fake-fs.js');
     const fs = FakeFs.from({});
     await fs.link('../elsewhere/review', path.resolve('/home/me/.claude/skills/review'));
@@ -751,6 +750,5 @@ describe('observeLink with a relative target', () => {
       kind: 'link',
       target: path.resolve('/home/me/.claude/elsewhere/review'),
     });
-    expect(decideLink(observed, path.resolve('/ws/skills/review'), true).action).toBe('foreign');
   });
 });

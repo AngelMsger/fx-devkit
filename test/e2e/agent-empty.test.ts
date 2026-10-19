@@ -12,7 +12,6 @@ describe('explicit empty agent selection through the CLI', () => {
       FX_HOME: freshHome(),
       FX_AGENTS: '',
       FX_SKILL_LOADED: '1',
-      FX_SKILL_VERSION: undefined,
     };
     const info = fx(['self', 'info', '--format', 'json'], env).json() as {
       bundled_skill_version: string;
@@ -49,7 +48,7 @@ describe('explicit empty agent selection through the CLI', () => {
   });
   it('preserves the file value and empty env override; unset restores automatic detection', () => {
     const home = freshHome();
-    const env = { FX_HOME: home, FX_AGENTS: undefined };
+    const env = { FX_HOME: home };
     writeFileSync(path.join(home, 'config.yaml'), 'agents: []\n');
     const query = () =>
       fx(['agent', 'list', '--format', 'json'], env).json() as {

@@ -10,6 +10,7 @@ import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { harness, MANIFEST_DIR, ROOT } from '../../../fakes/workspace.js';
+import { HeldWork } from '../../../held-work.js';
 
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
@@ -103,41 +104,30 @@ describe('Sync', () => {
     expect(result.summary.failed).toBe(0);
     expect(h.git.calls.some((call) => call.startsWith('clone '))).toBe(true);
   });
-  it('plans sixty checkouts concurrently up to --jobs without reordering them', async () => {
-    const names = Array.from({ length: 60 }, (_, index) => `repo-${index}`);
-    const workspace = [
-      'schema_version: 2',
-      'providers: { code-host: { provider: local-git, vars: { host: /host } } }',
-      'defaults: { upstream_project: fx, branch: main }',
-      'repos:',
-      ...names.map((name) => `  - { name: ${name} }`),
-    ].join('\n');
-    const h = await harness({ workspace });
-    let inFlight = 0;
-    let peak = 0;
+  it('inspects no more than --jobs checkouts at once while planning', async () => {
+    const h = await harness();
+    const inspecting = new HeldWork<string>();
     const git = new (class extends FakeGit {
       override async status(dir: string) {
-        inFlight += 1;
-        peak = Math.max(peak, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 2));
-        inFlight -= 1;
+        await inspecting.hold(dir);
         return super.status(dir);
       }
     })();
-    for (const name of names) {
+    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs']) {
       const dir = path.join(ROOT, name);
-      h.git.add(dir, { remotes: { upstream: upstream(name), origin: `/fork/${name}` } });
-      git.add(dir, { remotes: { upstream: upstream(name), origin: `/fork/${name}` } });
+      h.git.add(dir, { remotes: { upstream: upstream(name) } });
+      git.add(dir, { remotes: { upstream: upstream(name) } });
     }
 
-    const out = await new Sync({ ...h.deps, git }).execute({
+    const planned = new Sync({ ...h.deps, git }).execute({
       dryRun: true,
       posture: locked,
-      jobs: 6,
+      jobs: 2,
     });
-
-    expect(peak).toBe(6);
-    expect(out.items.map((item) => item.name)).toEqual(names);
+    await inspecting.reached(2);
+    expect(inspecting.started).toHaveLength(2);
+    inspecting.releaseAll();
+    expect((await planned).items).toHaveLength(3);
   });
 
   it('clones what is missing with both remotes and fast-forwards what is there', async () => {
@@ -227,7 +217,8 @@ describe('Sync', () => {
     expect(h.git.calls).toEqual([]);
   });
 
-  it('still fetches a dirty checkout but leaves it, and reports a refused fast-forward as skipped', async () => {
+  // One dirty checkout, one whose fast-forward git refuses, and one repository left unpicked.
+  async function dirtyAndRefused() {
     const h = await harness({ local: { scope: { repos: ['fx-example-api', 'fx-example-auth'] } } });
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
@@ -238,20 +229,28 @@ describe('Sync', () => {
       state: { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 },
       fastForward: 'diverged',
     });
+    return h;
+  }
+
+  it('still fetches a dirty checkout but leaves it, and reports a refused fast-forward as skipped', async () => {
+    const h = await dirtyAndRefused();
     const out = await new Sync(h.deps).execute(run);
     expect(out.items.map((i) => [i.name, i.action, i.result, i.outcome ?? null])).toEqual([
       ['fx-example-api', 'skip_dirty', 'skipped', null],
       ['fx-example-auth', 'fast_forward', 'skipped', 'diverged'],
       ['fx-example-docs', 'skip_unpicked', 'skipped', null],
     ]);
-    expect(h.git.calls).toEqual([
-      `remote add ${path.join(ROOT, 'fx-example-api')} origin ssh://git@git.example.com:12345/~alice/fx-example-api.git`,
-      `remote add ${path.join(ROOT, 'fx-example-auth')} origin ssh://git@git.example.com:12345/~alice/fx-example-auth.git`,
-      `fetch ${path.join(ROOT, 'fx-example-api')} upstream`,
-      `fetch ${path.join(ROOT, 'fx-example-auth')} upstream`,
+    const dirty = path.join(ROOT, 'fx-example-api');
+    expect(h.git.calls).toContain(`fetch ${dirty} upstream`);
+    expect(h.git.calls.filter((call) => call.startsWith(`fast-forward ${dirty} `))).toEqual([]);
+    expect(h.git.calls).toContain(
       `fast-forward ${path.join(ROOT, 'fx-example-auth')} upstream/main`,
-    ]);
-    // A watcher counts the picked repositories through each phase, never the one left out.
+    );
+  });
+
+  it('counts the picked repositories through each phase for a watcher, never the one left out', async () => {
+    const h = await dirtyAndRefused();
+    await new Sync(h.deps).execute(run);
     const counts = h.activity.of('repos');
     expect(counts.filter((count) => count.phase === 'preflight').at(-1)).toMatchObject({
       total: 2,
@@ -284,27 +283,20 @@ describe('Sync', () => {
     expect(out.summary.unreadable).toBe(1);
   });
 
-  it.each(['missing', 'forbidden', 'readable'] as const)(
-    'ignores legacy cached %s and probes each absent repository once per retry',
-    async (cached) => {
-      const h = await harness();
-      await h.cache.set('readability/fx/fx/fx-example-docs', cached);
-      h.codeHost.readability.set('fx/fx-example-docs', 'missing');
-      const first = await new Sync(h.deps).execute(run);
-      expect(first.items.find((item) => item.name === 'fx-example-docs')?.action).toBe(
-        'unreadable',
-      );
-      h.codeHost.readability.set('fx/fx-example-docs', 'readable');
-      const second = await new Sync(h.deps).execute(run);
-      expect(second.items.find((item) => item.name === 'fx-example-docs')).toMatchObject({
-        action: 'clone',
-        result: 'done',
-      });
-      expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-docs')).toHaveLength(2);
-      expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-api')).toHaveLength(1);
-      expect(await h.cache.get('readability/fx/fx/fx-example-docs')).toBe(cached);
-    },
-  );
+  it('probes an absent repository again on every run', async () => {
+    const h = await harness();
+    h.codeHost.readability.set('fx/fx-example-docs', 'missing');
+    const first = await new Sync(h.deps).execute(run);
+    expect(first.items.find((item) => item.name === 'fx-example-docs')?.action).toBe('unreadable');
+    h.codeHost.readability.set('fx/fx-example-docs', 'readable');
+    const second = await new Sync(h.deps).execute(run);
+    expect(second.items.find((item) => item.name === 'fx-example-docs')).toMatchObject({
+      action: 'clone',
+      result: 'done',
+    });
+    expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-docs')).toHaveLength(2);
+    expect(h.codeHost.probes.filter((repo) => repo === 'fx/fx-example-api')).toHaveLength(1);
+  });
 
   it('keeps going after one repository fails and reports the partial result', async () => {
     const h = await harness();
@@ -332,21 +324,21 @@ describe('Sync', () => {
     expect(h.reporter.codes()).toContain('SYNC_PARTIAL');
   });
 
-  it('never runs more than --jobs operations at once', async () => {
+  it('clones no more than --jobs repositories at once', async () => {
     const h = await harness();
-    let inFlight = 0;
-    let peak = 0;
+    const cloning = new HeldWork<string>();
     const git = new (class extends FakeGit {
       override async clone(req: Parameters<FakeGit['clone']>[0]): Promise<void> {
-        inFlight += 1;
-        peak = Math.max(peak, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        inFlight -= 1;
+        await cloning.hold(req.dir);
         return super.clone(req);
       }
     })();
-    await new Sync({ ...h.deps, git }).execute({ ...run, jobs: 2 });
-    expect(peak).toBe(2);
+
+    const synced = new Sync({ ...h.deps, git }).execute({ ...run, jobs: 2 });
+    await cloning.reached(2);
+    expect(cloning.started).toHaveLength(2);
+    cloning.releaseAll();
+    expect((await synced).summary.done).toBe(3);
   });
 });
 

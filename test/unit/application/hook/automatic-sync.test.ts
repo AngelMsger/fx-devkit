@@ -1,13 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -17,28 +8,25 @@ import { createContainer } from '../../../../src/composition/container.js';
 import { automaticSyncWiring } from '../../../../src/composition/hook-wiring.js';
 import type { HookObservation, HookState } from '../../../../src/domain/harness/state.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
+import { tempDir } from '../../../temp.js';
 
 describe('automatic workspace synchronization', () => {
   it('does not describe an unconfigured manifest source as a static or current source', async () => {
-    const home = mkdtempSync(path.join(tmpdir(), 'fx-source-observation-'));
-    try {
-      const wiring = await automaticSyncWiring({
-        container: createContainer({ FX_HOME: home }),
-        request: {
-          event: 'session-start',
-          workspace: 'test',
-          root: path.resolve('/workspace'),
-          home,
-          agent: 'codex',
-          owner: 'fx:test',
-        },
-        env: {},
-        canWrite: async () => true,
-      });
-      expect((await wiring.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
-    } finally {
-      rmSync(home, { recursive: true, force: true });
-    }
+    const home = tempDir('fx-source-observation-');
+    const wiring = await automaticSyncWiring({
+      container: createContainer({ FX_HOME: home }),
+      request: {
+        event: 'session-start',
+        workspace: 'test',
+        root: path.resolve('/workspace'),
+        home,
+        agent: 'codex',
+        owner: 'fx:test',
+      },
+      env: {},
+      canWrite: async () => true,
+    });
+    expect((await wiring.refresh())[0]?.code).toBe('MANIFEST_REFRESH_UNAVAILABLE');
   });
   it('throttles failed refreshes while retrying local projections independently', async () => {
     let state: HookState | null = null;
@@ -122,7 +110,7 @@ describe('automatic workspace synchronization', () => {
     ]);
   });
   it('observes what sits at the root outside the workbench, by name and without a lease', async () => {
-    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-background-root-')));
+    const home = realpathSync.native(tempDir('fx-background-root-'));
     const root = path.join(home, 'workspace');
     mkdirSync(path.join(root, '.workbench/tmp'), { recursive: true });
     mkdirSync(path.join(root, 'example'));
@@ -135,38 +123,34 @@ describe('automatic workspace synchronization', () => {
       'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /tmp/example-hosts}}}\ndefaults: {branch: main}\nrepos: [{name: example, desc: Example}]\n',
     );
     await container.config.write({ workspaces: { test: { root } }, agents: ['gemini'] });
-    try {
-      const wiring = await automaticSyncWiring({
-        container,
-        request: {
-          event: 'session-start',
-          workspace: 'test',
-          root,
-          home,
-          agent: 'gemini',
-          owner: 'fx:test',
-        },
-        env: { FX_UPDATE_CHECK: '0' },
-        canWrite: async () => true,
-      });
-      expect(await wiring.root()).toMatchObject([
-        {
-          phase: 'root',
-          code: 'ROOT_STRAY',
-          command: 'fx doctor',
-          detail: '1 outside .workbench: demo.html',
-        },
-      ]);
-      rmSync(path.join(root, 'demo.html'));
-      expect((await wiring.root()).map((o) => [o.code, o.command])).toEqual([
-        ['ROOT_ACCOUNTED', null],
-      ]);
-    } finally {
-      rmSync(home, { recursive: true, force: true });
-    }
+    const wiring = await automaticSyncWiring({
+      container,
+      request: {
+        event: 'session-start',
+        workspace: 'test',
+        root,
+        home,
+        agent: 'gemini',
+        owner: 'fx:test',
+      },
+      env: { FX_UPDATE_CHECK: '0' },
+      canWrite: async () => true,
+    });
+    expect(await wiring.root()).toMatchObject([
+      {
+        phase: 'root',
+        code: 'ROOT_STRAY',
+        command: 'fx doctor',
+        detail: '1 outside .workbench: demo.html',
+      },
+    ]);
+    rmSync(path.join(root, 'demo.html'));
+    expect((await wiring.root()).map((o) => [o.code, o.command])).toEqual([
+      ['ROOT_ACCOUNTED', null],
+    ]);
   });
   it('derives rules under the existing workspace lease without starting MCP or trusting vectors', async () => {
-    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'fx-background-rules-')));
+    const home = realpathSync.native(tempDir('fx-background-rules-'));
     const root = path.join(home, 'workspace');
     mkdirSync(root);
     const container = createContainer({ FX_HOME: home });
@@ -204,7 +188,6 @@ describe('automatic workspace synchronization', () => {
       expect(existsSync(path.join(home, 'trust.yaml'))).toBe(false);
     } finally {
       await lease?.release();
-      rmSync(home, { recursive: true, force: true });
     }
   });
 });

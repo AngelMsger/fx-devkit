@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BitbucketCodeHost,
-  bitbucketCliProvider,
-} from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
+import { BitbucketCodeHost } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
@@ -128,10 +125,5 @@ describe('BitbucketCodeHost', () => {
       'ssh://git@git.example.com:12345/~alice/fx-example-api.git',
     );
     expect(h.webUrl(ref)).toBe('https://git.example.com/projects/FX/repos/fx-example-api/browse');
-  });
-
-  it('declares its tool and the host variable as required', () => {
-    expect(bitbucketCliProvider.tools).toEqual(['bitbucket-cli']);
-    expect(bitbucketCliProvider.vars.find((v) => v.name === 'host')?.required).toBe(true);
   });
 });

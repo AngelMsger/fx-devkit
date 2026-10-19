@@ -27,9 +27,8 @@ describe('the format an invocation asks for', () => {
   });
 
   it('is undecided, and so an envelope, for a value that names no format', () => {
-    expect(UNDECIDED_FORMAT).toBe('json');
-    expect(invocationFormat(['status'], { FX_FORMAT: 'yaml' }, file())).toBe(UNDECIDED_FORMAT);
-    expect(invocationFormat(['status', '--format', 'yaml'], {}, file())).toBe(UNDECIDED_FORMAT);
+    expect(invocationFormat(['status'], { FX_FORMAT: 'yaml' }, file())).toBe('json');
+    expect(invocationFormat(['status', '--format', 'yaml'], {}, file())).toBe('json');
   });
 
   it('is undecided when the configuration cannot be read', async () => {

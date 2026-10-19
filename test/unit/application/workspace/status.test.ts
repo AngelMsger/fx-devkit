@@ -6,47 +6,37 @@ import type { WritePosture } from '../../../../src/application/safety/posture.js
 import { Status } from '../../../../src/application/workspace/status.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { harness, ROOT } from '../../../fakes/workspace.js';
+import { HeldWork } from '../../../held-work.js';
 
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
 
 describe('Status', () => {
-  it('inspects sixty repositories concurrently up to --jobs and preserves manifest order', async () => {
-    const names = Array.from({ length: 60 }, (_, index) => `repo-${index}`);
-    const workspace = [
-      'schema_version: 2',
-      'providers: { code-host: { provider: local-git, vars: { host: /host } } }',
-      'defaults: { upstream_project: fx, branch: main }',
-      'repos:',
-      ...names.map((name) => `  - { name: ${name} }`),
-    ].join('\n');
-    const h = await harness({ workspace });
-    let inFlight = 0;
-    let peak = 0;
+  it('inspects no more than --jobs repositories at once', async () => {
+    const h = await harness();
+    const inspecting = new HeldWork<string>();
     const git = new (class extends FakeGit {
       override async status(dir: string) {
-        inFlight += 1;
-        peak = Math.max(peak, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 2));
-        inFlight -= 1;
+        await inspecting.hold(dir);
         return super.status(dir);
       }
     })();
-    for (const name of names) {
+    for (const name of ['fx-example-api', 'fx-example-auth', 'fx-example-docs']) {
       const dir = path.join(ROOT, name);
       h.git.add(dir, { remotes: { upstream: upstream(name) } });
       git.add(dir, { remotes: { upstream: upstream(name) } });
     }
 
-    const rows = await new Status({ ...h.deps, git }).execute({
+    const rows = new Status({ ...h.deps, git }).execute({
       fetch: false,
       dirtyOnly: false,
-      jobs: 5,
+      jobs: 2,
     });
-
-    expect(peak).toBe(5);
-    expect(rows.map((row) => row.name)).toEqual(names);
+    await inspecting.reached(2);
+    expect(inspecting.started).toHaveLength(2);
+    inspecting.releaseAll();
+    expect(await rows).toHaveLength(3);
   });
 
   it('reports every tracked repository without fetching by default', async () => {

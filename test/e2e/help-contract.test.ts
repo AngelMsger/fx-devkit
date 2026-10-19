@@ -54,16 +54,8 @@ it('separates compatibility names from primary topic help and explains alias hel
   expect(typo.stderr).not.toContain('Did you mean `fx hook inject`');
 });
 
-it('allows leading global flags on a bare topic and still rejects invalid values', () => {
+it('shows topic help behind leading global flags', () => {
   const result = fx(['--quiet', '--format', 'json', 'self']);
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toContain('self info');
-  for (const argv of [
-    ['--format', 'bogus', 'self'],
-    ['--format', 'json', 'self', '--bogus'],
-  ]) {
-    const invalid = fx(argv);
-    expect(invalid.status).toBe(2);
-    expect(invalid.error().code).toBe('BAD_FLAG');
-  }
 });

@@ -8,9 +8,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { writeNodeShim, runtimeTools, systemPath } from '../platform.js';
+import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, tempDir } from './harness.js';
+import { freshHome, fx, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -158,14 +158,8 @@ else if(a.includes('issue list ')) console.log(JSON.stringify({data:a.includes('
 else process.exit(2);
 `,
   );
-  const tools = path.join(base, 'tools');
-  mkdirSync(tools);
-  runtimeTools(tools);
   const ws = path.join(base, 'ws');
-  const env = {
-    FX_HOME: freshHome(),
-    PATH: [shims, tools, ...systemPath()].join(path.delimiter),
-  };
+  const env = { FX_HOME: freshHome(), PATH: searchPath(shims) };
   const boot = fx(
     ['init', '--details', ws, '--from', path.dirname(manifestDir), '--format', 'json'],
     env,

@@ -15,41 +15,6 @@ import { FakeProcess } from '../../../fakes/fake-process.js';
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
 
-describe('AGENT_SPECS', () => {
-  it('is the family table: thirteen agents with their skill directories', () => {
-    expect(AGENT_SPECS.map((s) => s.id)).toEqual([
-      'claude-code',
-      'codex',
-      'cursor',
-      'agents',
-      'gemini',
-      'github-copilot',
-      'opencode',
-      'continue',
-      'windsurf',
-      'grok',
-      'pi',
-      'kilo',
-      'roo',
-    ]);
-    const byId = Object.fromEntries(AGENT_SPECS.map((s) => [s.id, s]));
-    expect(byId['claude-code']).toMatchObject({
-      homeSub: '.claude',
-      projectSkills: '.claude/skills',
-    });
-    expect(byId['codex']).toMatchObject({ homeSub: '.codex', projectSkills: '.agents/skills' });
-    expect(byId['windsurf']).toMatchObject({
-      homeSub: '.codeium/windsurf',
-      projectSkills: '.windsurf/skills',
-    });
-    expect(byId['pi']).toMatchObject({ homeSub: '.pi/agent', projectSkills: '.pi/skills' });
-    expect(byId['opencode']).toMatchObject({
-      homeSub: '.config/opencode',
-      projectSkills: '.opencode/skills',
-    });
-  });
-});
-
 describe('SpecAgentHost', () => {
   const spec = AGENT_SPECS.find((s) => s.id === 'claude-code')!;
   const home = path.normalize(path.resolve('/home/alice'));

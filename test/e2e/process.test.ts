@@ -8,6 +8,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { alive, until } from '../waiting.js';
+
 import { tempDir } from './harness.js';
 
 const adapter = path.resolve('dist/adapters/process/node-process.js');
@@ -36,22 +38,13 @@ const script = (dir: string, listener: Listener): string =>
     "process.stdin.on('data', () => { start(2); setTimeout(() => process.stdout.write('ready 2\\n'), 300); });",
   ].join('\n');
 
-const alive = (pid: number): boolean => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const pid = (file: string): number => {
   const value = Number(readFileSync(file, 'utf8').trim());
   expect(value).toBeGreaterThan(1);
   return value;
 };
 
-const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const gone = (...pids: readonly number[]): Promise<void> => until(() => !pids.some(alive));
 
 function parent(
   dir: string,
@@ -90,7 +83,7 @@ describe.skipIf(process.platform === 'win32')(
       p.child.kill('SIGINT');
       const signal = await new Promise((resolve) => p.child.on('close', (_, s) => resolve(s)));
       expect(signal).toBe('SIGINT');
-      await wait(200);
+      await gone(shell, helper);
       expect([alive(shell), alive(helper)]).toEqual([false, false]);
     }, 15000);
 
@@ -101,7 +94,7 @@ describe.skipIf(process.platform === 'win32')(
       const first = [pid(path.join(dir, 'shell1')), pid(path.join(dir, 'helper1'))];
       p.child.kill('SIGINT');
       await p.saw('hit 1');
-      await wait(200);
+      await gone(...first);
       expect(first.map(alive)).toEqual([false, false]);
       expect(p.child.exitCode).toBeNull();
       p.child.stdin?.write('go\n');
@@ -109,7 +102,7 @@ describe.skipIf(process.platform === 'win32')(
       const second = [pid(path.join(dir, 'shell2')), pid(path.join(dir, 'helper2'))];
       p.child.kill('SIGINT');
       await p.saw('hit 2');
-      await wait(200);
+      await gone(...second);
       expect(second.map(alive)).toEqual([false, false]);
       await p.saw('run 2 PROCESS_ABORTED');
       p.child.kill('SIGKILL');
@@ -123,7 +116,7 @@ describe.skipIf(process.platform === 'win32')(
       e.child.kill('SIGINT');
       const code = await new Promise((resolve) => e.child.on('close', (c) => resolve(c)));
       expect(code).toBe(0);
-      await wait(200);
+      await gone(...pair);
       expect(pair.map(alive)).toEqual([false, false]);
 
       const owned = tempDir('fx-proc-');
@@ -132,7 +125,7 @@ describe.skipIf(process.platform === 'win32')(
       const owner = [pid(path.join(owned, 'shell1')), pid(path.join(owned, 'helper1'))];
       o.child.kill('SIGINT');
       await o.saw('hit 1');
-      await wait(200);
+      await gone(...owner);
       expect(owner.map(alive)).toEqual([false, false]);
       expect(o.child.exitCode).toBeNull();
       o.child.kill('SIGKILL');
@@ -150,7 +143,7 @@ describe.skipIf(process.platform === 'win32')(
       expect(second.map(alive)).toEqual([true, true]);
       p.child.kill('SIGINT');
       await p.saw('run 2 PROCESS_ABORTED');
-      await wait(200);
+      await gone(...second);
       expect(second.map(alive)).toEqual([false, false]);
       expect(p.child.exitCode).toBeNull();
       p.child.kill('SIGKILL');

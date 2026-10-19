@@ -9,9 +9,9 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { writeNodeShim, runtimeTools, systemPath } from '../platform.js';
+import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, tempDir } from './harness.js';
+import { freshHome, fx, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -110,14 +110,7 @@ function stage(): Stage {
     ].join('\n'),
   );
   const ws = path.join(base, 'ws');
-  // Only the shims, node and git: whatever the machine has installed must not leak in.
-  const tools = path.join(base, 'tools');
-  mkdirSync(tools);
-  runtimeTools(tools);
-  const env = {
-    FX_HOME: freshHome(),
-    PATH: [shims, tools, ...systemPath()].join(path.delimiter),
-  };
+  const env = { FX_HOME: freshHome(), PATH: searchPath(shims) };
   const boot = fx(['init', ws, '--from', path.dirname(manifestDir), '--format', 'json'], env);
   expect(boot.status, boot.stderr).toBe(12);
   expect(boot.json()).toMatchObject({ preparation: { state: 'incomplete' }, registered: true });

@@ -32,4 +32,19 @@ describe('contribution input collection', () => {
       new CollectContributionInput(prompter).execute({ ...input, yes: true }),
     ).rejects.toMatchObject({ code: 'SOURCE_SELECTION_INVALID' });
   });
+
+  it('reports a missing input as INPUT_REQUIRED when there is no person to ask', async () => {
+    const prompter = new FakePrompter();
+    prompter.unavailable = true;
+    await expect(
+      new CollectContributionInput(prompter).execute({ ...input, paths: ['notes.md'] }),
+    ).rejects.toMatchObject({ category: 'config', code: 'INPUT_REQUIRED' });
+  });
+
+  it('needs nobody when every input was supplied', async () => {
+    const prompter = new FakePrompter();
+    prompter.unavailable = true;
+    const supplied = { ...input, paths: ['notes.md'], issue: 'g-1', title: 'Change' };
+    expect(await new CollectContributionInput(prompter).execute(supplied)).toMatchObject(supplied);
+  });
 });

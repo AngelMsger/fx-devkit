@@ -341,7 +341,9 @@ describe('TerminalPrompter', () => {
     expect(await asked).toBe(true);
     expect(activity.handed).toBe(0);
     // Nobody is handed a terminal that no question reaches.
-    await expect(new TerminalPrompter(true, activity).ask('Name?')).rejects.toThrow();
+    await expect(new TerminalPrompter(true, activity).ask('Name?')).rejects.toMatchObject({
+      code: 'INPUT_REQUIRED',
+    });
     expect(activity.handovers).toBe(1);
   });
 });

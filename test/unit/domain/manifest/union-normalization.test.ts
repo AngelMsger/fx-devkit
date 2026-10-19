@@ -187,7 +187,9 @@ describe('structural union normalization', () => {
     expect(schema.safeParse(stripped.value).success).toBe(true);
     const mixed = stripUnknown(schema, { kind: 'first', value: { first: 'one', second: 2 } });
     expect(mixed.unknown).toEqual([]);
-    expect(schema.safeParse(mixed.value).success).toBe(false);
+    expect(schema.safeParse(mixed.value).error?.issues).toMatchObject([
+      { path: ['value'], keys: ['second'] },
+    ]);
   });
 
   it('normalizes unions of array and map alternatives without selecting a branch', () => {

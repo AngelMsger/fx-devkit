@@ -14,7 +14,7 @@ const resource = {
 };
 
 describe('MCP host capabilities', () => {
-  it('adds a host through its descriptor without adding an application branch', () => {
+  it('supports a renamed environment reference on a host whose descriptor interpolates', () => {
     const [host] = createAgentHosts(deps, [
       {
         id: 'fixture',

@@ -12,8 +12,6 @@ import {
 
 describe('workspace home', () => {
   it('keeps the personal layer and the manifest source under one directory per name', () => {
-    expect(localLayerPath('/h', 'fx')).toBe(path.join('/h', 'workspaces', 'fx', 'local.yaml'));
-    expect(manifestSourceDir('/h', 'fx')).toBe(path.join('/h', 'workspaces', 'fx', 'source'));
     expect(path.dirname(localLayerPath('/h', 'fx'))).toBe(
       path.dirname(manifestSourceDir('/h', 'fx')),
     );

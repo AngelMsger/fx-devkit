@@ -15,6 +15,7 @@ import {
   git,
   manifestDirOf,
   repository,
+  searchPath,
   tempDir,
   type Repository,
 } from './harness.js';
@@ -147,7 +148,8 @@ describe('update notices', () => {
     const home = freshHome();
     writeFileSync(path.join(home, 'config.yaml'), 'user: [not: a string\n');
     const run = fx(['self', 'info', '--format', 'json'], { FX_HOME: home, FX_UPDATE_CHECK: '1' });
-    expect(run.status).not.toBe(0);
+    expect(run.status).toBe(3);
+    expect(run.error().code).toBe('CONFIG_INVALID');
     expect(codes(run.stderr)).toEqual([]);
     expect(existsSync(path.join(home, 'cache'))).toBe(false);
   });
@@ -164,7 +166,7 @@ it('self update keeps installer output out of its JSON result', () => {
   const result = fx(['self', 'update', '--yes', '--no-input', '--format', 'json'], {
     FX_HOME: freshHome(),
     FX_REGISTRY: 'https://npm.example.com',
-    PATH: `${shims}${path.delimiter}${process.env.PATH ?? ''}`,
+    PATH: searchPath(shims),
   });
   expect(result.json()).toMatchObject({ ran: true, code: 17 });
   expect(result.stdout).not.toContain('installer progress');

@@ -24,6 +24,8 @@ describe('runtime registry coordinates', () => {
     );
     const env = {
       FX_REGISTRY: undefined,
+      // The answer comes from the real npm, so this case searches the machine's own PATH.
+      PATH: process.env['PATH'],
       npm_config_userconfig: userconfig,
       npm_config_globalconfig: globalconfig,
     };

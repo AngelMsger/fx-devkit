@@ -14,8 +14,6 @@ import type { ConfigFile, ConfigStore } from '../ports/stores.js';
 
 import { writeAtomicFile } from './atomic-file.js';
 
-export const CONFIG_FILE_KEYS = Object.keys(configFileSchema.shape).sort();
-
 export class FileConfigStore implements ConfigStore {
   constructor(
     private readonly home: string,

@@ -447,36 +447,32 @@ describe('Login', () => {
     const s = await stage({ unavailable: true, yes: true });
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'operator configuration');
     const original = s.h.process.run.bind(s.h.process);
-    const probe = vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
+    vi.spyOn(s.h.process, 'run').mockImplementation(async (vector, options) => {
       if (vector[0] === 'kubectl')
         throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'Permission probe timed out');
       return original(vector, options);
     });
-    try {
-      const failure: unknown = await s.setup
-        .execute({
-          ...run,
-          noInput: true,
-          envs: ['test'],
-          tools: ['bitbucket-cli', 'kubectl', 'worklog'],
-        })
-        .catch((error: unknown) => error);
-      expect(s.loggedIn).toBe(true);
-      expect(failure).toMatchObject({
-        code: 'PROCESS_TIMEOUT',
-        partialResult: {
-          items: [
-            { id: 'bitbucket-cli.login', result: 'done' },
-            { id: 'kubectl.kubeconfig@test', result: 'verified' },
-            { id: 'kubectl.access@test', result: 'failed', failure: { code: 'PROCESS_TIMEOUT' } },
-            { id: 'worklog.token', result: 'not_started' },
-          ],
-          summary: { done: 1, verified: 1, failed: 1, not_started: 1 },
-        },
-      });
-    } finally {
-      probe.mockRestore();
-    }
+    const failure: unknown = await s.setup
+      .execute({
+        ...run,
+        noInput: true,
+        envs: ['test'],
+        tools: ['bitbucket-cli', 'kubectl', 'worklog'],
+      })
+      .catch((error: unknown) => error);
+    expect(s.loggedIn).toBe(true);
+    expect(failure).toMatchObject({
+      code: 'PROCESS_TIMEOUT',
+      partialResult: {
+        items: [
+          { id: 'bitbucket-cli.login', result: 'done' },
+          { id: 'kubectl.kubeconfig@test', result: 'verified' },
+          { id: 'kubectl.access@test', result: 'failed', failure: { code: 'PROCESS_TIMEOUT' } },
+          { id: 'worklog.token', result: 'not_started' },
+        ],
+        summary: { done: 1, verified: 1, failed: 1, not_started: 1 },
+      },
+    });
   });
 
   it('resumes after human completion without rerunning already-valid setup', async () => {
@@ -498,24 +494,22 @@ describe('Login', () => {
     expect(s.h.localStore.writes).toEqual([]);
   });
 
-  it.each(['network unreachable', 'configuration missing', 'forbidden: missing scope'])(
-    'preserves the failed verification cause for focused diagnosis: %s',
-    async (reason) => {
-      const s = await stage();
-      s.h.process.clear().on(['bitbucket-cli', 'auth', 'status'], {
-        code: 1,
-        stdout: '',
-        stderr: reason,
-      });
-      const plan = await s.setup.plan({ tools: ['bitbucket-cli'] });
-      expect(await new Verifier(s.h.deps, s.deps).verify(plan.steps[0]!)).toEqual({
-        ok: false,
-        detail: reason,
-      });
-      expect(s.h.process.calls).toHaveLength(1);
-      expect(s.h.localStore.writes).toEqual([]);
-    },
-  );
+  it('preserves the failed verification cause for focused diagnosis', async () => {
+    const s = await stage();
+    const reason = 'network unreachable';
+    s.h.process.clear().on(['bitbucket-cli', 'auth', 'status'], {
+      code: 1,
+      stdout: '',
+      stderr: reason,
+    });
+    const plan = await s.setup.plan({ tools: ['bitbucket-cli'] });
+    expect(await new Verifier(s.h.deps, s.deps).verify(plan.steps[0]!)).toEqual({
+      ok: false,
+      detail: reason,
+    });
+    expect(s.h.process.calls).toHaveLength(1);
+    expect(s.h.localStore.writes).toEqual([]);
+  });
 
   it('never asks which environments: an unset selection covers all and says how to narrow it', async () => {
     const s = await stage({ local: {} });

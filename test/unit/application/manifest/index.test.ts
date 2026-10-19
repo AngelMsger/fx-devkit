@@ -320,29 +320,19 @@ describe('ProvidersManifest', () => {
 });
 
 describe('SetRepoField', () => {
-  it('previews and writes an alias array through the existing write gate', async () => {
+  it('reads an alias list from its flow spelling and writes it as a sequence', async () => {
     const fs = workspace('v2-full');
-    const input = {
+    const result = await editor(fs).execute({
       dir: path.resolve('/w'),
       cliVersion: cli,
       providers: providerCatalog(),
       repo: 'fx-example-auth',
       field: 'aka',
       value: '[platform, accounts]',
-    };
-    const useCase = editor(fs);
-    expect(await useCase.execute({ ...input, dryRun: true, posture: locked })).toMatchObject({
-      before: null,
-      after: '["platform","accounts"]',
-      written: false,
+      dryRun: false,
+      posture: writable,
     });
-    expect(fs.writes).toEqual([]);
-    await expect(
-      useCase.execute({ ...input, dryRun: false, posture: locked }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
-    expect(await useCase.execute({ ...input, dryRun: false, posture: writable })).toMatchObject({
-      written: true,
-    });
+    expect(result).toMatchObject({ before: null, after: '["platform","accounts"]', written: true });
     expect(await fs.readText(path.resolve('/w/manifest/workspace.yaml'))).toContain(
       'aka: ["platform","accounts"]',
     );

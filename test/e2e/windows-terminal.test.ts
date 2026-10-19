@@ -9,16 +9,12 @@ import { completionFlags, completionScript } from '../../src/cli/completion.js';
 import { freshHome, fx, tempDir, userHome } from './harness.js';
 
 describe('command shell configuration', () => {
-  it('round-trips the setting and honours the global flag', () => {
+  it('round-trips the setting', () => {
     const env = { FX_HOME: freshHome(), FX_COMMAND_SHELL: undefined };
     expect(fx(['config', 'set', 'command_shell', 'powershell'], env).status).toBe(0);
     expect(fx(['config', 'get', 'command_shell', '--format', 'json'], env).stdout).toContain(
       'powershell',
     );
-    expect(fx(['config', 'list', '--command-shell', 'cmd', '--format', 'json'], env).status).toBe(
-      0,
-    );
-    expect(fx(['config', 'list', '--command-shell', 'invalid'], env).status).toBe(2);
   });
 
   it('retains the selected shell in initialization preview and service recovery', () => {

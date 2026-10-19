@@ -21,14 +21,13 @@ describe('FX_TRACE', () => {
     const env = { FX_TRACE: file };
     expect(fx(['config', 'list', '--format', 'json'], env).status).toBe(0);
     expect(fx(['self', 'bogus'], env).status).toBe(2);
-    expect(fx(['repo', 'show', 'nope', '--format', 'json'], env).status).not.toBe(0);
+    expect(fx(['repo', 'show', 'nope', '--format', 'json'], env).status).toBe(6);
     const records = lines(file);
     expect(records).toHaveLength(3);
     expect(records[0]).toMatchObject({ argv: ['config', 'list', '--format', 'json'], exit: 0 });
     expect(records[0]).not.toHaveProperty('code');
     expect(records[1]).toMatchObject({ argv: ['self', 'bogus'], exit: 2, code: 'UNKNOWN_COMMAND' });
-    expect(records[2]).toMatchObject({ code: expect.any(String), exit: expect.any(Number) });
-    expect(records[2]!['exit']).not.toBe(0);
+    expect(records[2]).toMatchObject({ code: 'WORKSPACE_NOT_FOUND', exit: 6 });
     for (const r of records)
       expect(r).toMatchObject({ ms: expect.any(Number), cwd: expect.any(String) });
   });
