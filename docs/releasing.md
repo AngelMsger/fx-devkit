@@ -3,14 +3,19 @@
 The project is always **fx-devkit** and the executable is always **fx**. One codebase
 and version serve two distributions:
 
-| Channel  | Code host         | npm package      | Package delivery                   | Website         |
-| -------- | ----------------- | ---------------- | ---------------------------------- | --------------- |
-| Internal | Private code host | `@fx/devkit`     | Jenkins → private Registry         | Private Dokploy |
-| Public   | GitHub            | `@angelmsger/fx` | GitHub Actions → npmjs (+ Release) | GitHub Pages    |
+| Channel  | Builds from              | npm package      | Package delivery                   | Website         |
+| -------- | ------------------------ | ---------------- | ---------------------------------- | --------------- |
+| Internal | Private mirror of GitHub | `@fx/devkit`     | Jenkins → private Registry         | Private Dokploy |
+| Public   | GitHub                   | `@angelmsger/fx` | GitHub Actions → npmjs (+ Release) | GitHub Pages    |
 
-Both code hosts carry the same history. No private address, credential or
-deployment coordinate is committed: the internal channel reads them from Jenkins
-and platform configuration, the public channel needs none.
+GitHub `AngelMsger/fx-devkit` is the canonical repository: every change merges into
+its `main` through a pull request, and every release starts with a `v<version>` tag
+pushed there. A scheduled job mirrors GitHub, `main` and tags included, into the
+internal shared repository. The public channel therefore releases first, and the
+internal channel releases the same revision once the next mirror run delivers the
+tag. No private address, credential or deployment coordinate is committed: the
+internal channel reads them from Jenkins and platform configuration, the public
+channel needs none.
 
 The maintained checkout defaults to internal metadata. `scripts/select-distribution.mjs`
 selects the package name, access and public metadata in a disposable CI checkout;
@@ -19,14 +24,12 @@ credentials are never written by this script. The license remains Apache-2.0.
 
 ## Internal delivery
 
-Use the internal shared repository as `upstream`, your personal fork as `origin`,
-and the public GitHub repository as `github`. Push to `origin` and merge through a
-PR; then push the reviewed `main` and its release tags to `github` so both hosts
-carry the same history.
-An empty shared repository needs an explicitly authorized initial seed. Never
-import predecessor history; actual URLs stay in Git/platform configuration.
+The internal shared repository only receives what the mirror copies from GitHub;
+it has no review or merge step of its own. Never push to it or merge there: the
+change would diverge from GitHub. Never import predecessor history; actual URLs
+stay in Git/platform configuration.
 
-Jenkins reads `Jenkinsfile` from the reviewed internal source. Use a multibranch
+Jenkins reads `Jenkinsfile` from the mirrored repository. Use a multibranch
 job with main and version-tag discovery. The Docker-capable default agent runs
 pinned Node and Bun versions with `--init`, so terminated subprocess trees are
 reaped instead of remaining as zombies in the build container.
