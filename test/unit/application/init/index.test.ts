@@ -7,18 +7,21 @@ import { FileSource } from '../../../../src/adapters/manifest-source/file.js';
 import { Init } from '../../../../src/application/init/index.js';
 import type { InitDeps } from '../../../../src/application/init/types.js';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
+import { TrustGate } from '../../../../src/application/safety/trust.js';
 import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { ManifestSource } from '../../../../src/ports/manifest-source.js';
 import { FakeActivity } from '../../../fakes/fake-activity.js';
-import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
+import { FakeProcess } from '../../../fakes/fake-process.js';
+import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 
 const manifest = readFileSync(
   path.resolve('test/fixtures/manifest/v1-minimal/workspace.yaml'),
@@ -76,13 +79,17 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
       fs,
       projections: new FakeFileProjection(fs),
       localStore: new FakeLocalStore(),
-      cache: new FakeCache(),
       reporter,
       activity: new FakeActivity(),
       cliVersion: '1.0.0',
       user: undefined,
-      processRun: async () => ({ code: 0, stdout: '', stderr: '' }),
-      processWhich: async () => undefined,
+      process: new FakeProcess().always({ code: 0, stdout: '', stderr: '' }),
+      trust: {
+        gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
+        workspace: ctx.name,
+        yes: false,
+        posture: writable,
+      },
       codeHost: () => codeHost,
       platform: () => undefined,
       reference: () => ({ label: 'Reference', command: [] }),
@@ -521,11 +528,10 @@ describe('Init', () => {
 });
 
 describe('initialization inspection', () => {
-  it('plans from local content without commands, cache writes, registration or personal writes', async () => {
+  it('plans from local content without commands, registration or personal writes', async () => {
     const s = setup({ [path.resolve('/preview/manifest/workspace.yaml')]: manifest });
     const original = s.deps.workspaceDepsFor;
     const queried = vi.fn();
-    const cached = vi.fn();
     const deps: InitDeps = {
       ...s.deps,
       workspaceDepsFor: (ctx) => {
@@ -533,7 +539,7 @@ describe('initialization inspection', () => {
         const host = workspace.codeHost();
         vi.spyOn(host, 'whoami').mockImplementation(queried);
         vi.spyOn(host, 'canRead').mockImplementation(queried);
-        return { ...workspace, cache: { get: async () => undefined, set: cached } };
+        return workspace;
       },
     };
     const out = await new Init(deps).execute({
@@ -555,7 +561,6 @@ describe('initialization inspection', () => {
       ],
     });
     expect(queried).not.toHaveBeenCalled();
-    expect(cached).not.toHaveBeenCalled();
     expect(s.fs.writes).toEqual([]);
     expect(s.config.writes).toBe(0);
     expect(await s.deps.localStore.read('new')).toEqual({});

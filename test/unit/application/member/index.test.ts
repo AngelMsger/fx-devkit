@@ -37,7 +37,6 @@ describe('member who / list / owners', () => {
         via: null,
       },
     ]);
-    expect(h.cache.entries.size).toBe(0);
     expect(h.reporter.notices).toEqual([]);
     expect(() => new MemberShow(h.deps).execute('carol')).toThrow(
       expect.objectContaining({ code: 'PERSON_NOT_FOUND' }),

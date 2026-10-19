@@ -13,14 +13,14 @@ import { SERVICE_STATUSES, type ServiceResult } from './types.js';
 export async function prepareServices(
   deps: WorkspaceDeps,
   login: LoginDeps,
-  dryRun: boolean,
+  options: { readonly dryRun: boolean },
 ): Promise<StageResult> {
   const plan = buildPlan(deps, login, { scopeEnvs: deps.ctx.local.scope?.envs });
   const problems = problemsOfRecipe(plan.problems, SERVICE_RECIPE_ID);
   const operation = new ServiceOperation(deps, login);
   const items: ServiceResult[] = [];
   for (const step of plan.steps.filter((step) => step.preparation))
-    items.push(await operation.execute(step, dryRun));
+    items.push(await operation.execute(step, options));
   const summary = Object.fromEntries(
     SERVICE_STATUSES.map((status) => [
       status,

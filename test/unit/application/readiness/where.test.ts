@@ -9,6 +9,7 @@ import { describeProvider } from '../../../../src/composition/registry.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import { shellLine } from '../../../../src/domain/shell.js';
 import type { Platform } from '../../../../src/ports/platform.js';
+import type { Process } from '../../../../src/ports/process.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { MANIFEST_DIR, harness } from '../../../fakes/workspace.js';
@@ -350,13 +351,14 @@ describe('Where', () => {
       platforms: { 'jenkins-cli': jenkins },
     });
     const probing = new HeldWork<string>();
-    const deps = {
-      ...h.deps,
-      processRun: async (vector: readonly string[], options = {}) => {
+    const process: Process = {
+      run: async (vector, options) => {
         await probing.hold(vector.join(' '));
         return h.process.run(vector, options);
       },
+      which: (binary) => h.process.which(binary),
     };
+    const deps = { ...h.deps, process };
     h.process.always({ code: 0, stdout: '{}', stderr: '' });
 
     const rows = new Where(deps, fakeLoginDeps(DESCRIPTORS)).execute({

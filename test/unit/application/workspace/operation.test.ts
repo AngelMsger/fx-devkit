@@ -33,13 +33,13 @@ describe('workspace operation leases', () => {
           manifestDirFor: () => '/personal/alpha/source',
         },
         lock,
-        false,
+        'workspace',
       ),
     ).rejects.toMatchObject({ code: 'WORKSPACE_PLAN_CHANGED' });
     expect(released).toBe(true);
   });
 
-  it('never acquires write leases for previews and uses the shared operation namespace for apply', async () => {
+  it('uses the shared operation namespace', async () => {
     const keys: string[] = [];
     const lock = {
       acquire: async (input: { key: string }) => {
@@ -47,11 +47,7 @@ describe('workspace operation leases', () => {
         return { release: async () => undefined };
       },
     };
-    expect(await withWorkspaceOperation(lock, 'alpha', true, async () => 'preview')).toBe(
-      'preview',
-    );
-    expect(keys).toEqual([]);
-    await withWorkspaceOperation(lock, 'alpha', false, async () => undefined);
+    await withWorkspaceOperation(lock, 'alpha', async () => undefined);
     expect(keys).toEqual(['workspace-operation:alpha']);
   });
 });

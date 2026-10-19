@@ -19,7 +19,7 @@ import { FileLock } from '../../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../../src/infra/projection-store.js';
 import type { ProjectionStore } from '../../../../src/ports/projection.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
-import { harness } from '../../../fakes/workspace.js';
+import { harness, withTrust } from '../../../fakes/workspace.js';
 import { tempDir } from '../../../temp.js';
 
 const input = {
@@ -41,7 +41,8 @@ async function fixture() {
   const projections = new FileProjectionStore(lock);
   const context = { ...h.ctx.context, dir: source };
   const ctx = await WorkspaceContext.preview(root, 'docs', context, {}, fs);
-  return { root, source, projections, deps: { ...h.deps, fs, ctx, projections } };
+  const deps = withTrust({ ...h.deps, fs, ctx, projections }, { workspace: ctx.name });
+  return { root, source, projections, deps };
 }
 
 it('refuses an outdated render, then preserves the new prose on retry', async () => {
@@ -153,14 +154,10 @@ it('retains completed documents when the following rules source cannot be projec
   await container.config.write({ workspaces: { docs: { root: s.root } }, agents: [] });
   const blocked = path.join(s.source, 'manifest/harness.yaml');
   await mkdir(blocked, { recursive: true });
-  const login = fakeLoginDeps({});
   const stages = syncStages({
     deps: s.deps,
-    login,
-    process: container.process,
-    trust: { ...login.trust, workspace: s.deps.ctx.name },
+    login: fakeLoginDeps({}),
     dryRun: false,
-    posture: input.posture,
     skills: { hosts: [], configured: [], bundledSkillDir: s.source, globalLock: container.lock },
     harness: harnessSession({
       container,

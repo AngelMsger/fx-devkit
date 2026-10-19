@@ -79,7 +79,7 @@ export class ManageWorkspace {
     if (await this.isNoop(preview)) return this.unchanged(preview);
     if (input.dryRun) return this.run(input);
     assertWritable(input.posture, `workspace ${input.action}`);
-    return withWorkspaceOperation(this.deps.lock, input.name, false, () => this.run(input));
+    return withWorkspaceOperation(this.deps.lock, input.name, () => this.run(input));
   }
 
   private async run(input: ManageWorkspaceInput): Promise<ManageWorkspaceOutput> {

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { ReconcileHarness } from '../../../../src/application/harness/reconcile.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/registry.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
@@ -47,7 +46,7 @@ function fixture() {
     }),
     state,
     files,
-    trust: new TrustGate(trustStore, prompter, new FakeClock()),
+    trust: new TrustGate(trustStore, prompter),
     env: { TOKEN: 'synthetic-sensitive-value' },
     codec: mcpCodecFor,
     lock: { acquire: async () => ({ release: async () => {} }) },

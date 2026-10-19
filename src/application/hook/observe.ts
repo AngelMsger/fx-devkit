@@ -17,6 +17,7 @@ import type { HarnessSession } from '../harness/session.js';
 import { manageHarness } from '../harness/stages.js';
 import type { LoginDeps } from '../login/deps.js';
 import { RefreshManifest } from '../manifest/refresh.js';
+import { BACKGROUND_POSTURE } from '../safety/posture.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
 import { wasHeldBack } from '../skill/tool-skills.js';
@@ -84,7 +85,7 @@ async function refreshManifest(deps: BackgroundDeps): Promise<readonly HookObser
     manifestDir: dir,
     source,
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
     settle: () => update.markCurrent(deps.workspace, dir),
   });
   return [observed(`MANIFEST_${result.result.toUpperCase()}`, 'fx sync')];
@@ -97,7 +98,7 @@ async function deriveDocs(deps: BackgroundDeps, lease: Lease): Promise<readonly 
   const result = await new DeriveDocs(await deps.context(), deps.login).execute({
     check: false,
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
   });
   const harness = await manageHarness({
     ...deps.harness,
@@ -122,9 +123,8 @@ async function projectSkills(deps: BackgroundDeps): Promise<readonly HookObserva
   const settings = readSettings({ env: deps.env, file: await deps.config.read() });
   const result = await new SkillStage(workspace, deps.skills(settings.agents)).execute({
     dryRun: false,
-    posture: deps.login.trust.posture,
+    posture: BACKGROUND_POSTURE,
     toolchain: toolchainOf(workspace.ctx).tools,
-    trust: { ...deps.login.trust, workspace: deps.workspace },
     background: true,
   });
   const observations: HookObservation[] = [];

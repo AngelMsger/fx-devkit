@@ -217,10 +217,9 @@ export class Login {
   ): Promise<StepOutcome> {
     if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
     if (step.preparation) {
-      const prepared = await new ServiceOperation(this.deps, this.setup).execute(
-        step,
-        input.dryRun,
-      );
+      const prepared = await new ServiceOperation(this.deps, this.setup).execute(step, {
+        dryRun: input.dryRun,
+      });
       const results = {
         unchanged: 'verified',
         configured: 'done',
@@ -258,7 +257,7 @@ export class Login {
     const { policy } = input;
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    const confirms = policy.confirmsCommands && !this.setup.trust.yes;
+    const confirms = policy.confirmsCommands && !this.deps.trust.yes;
     if (confirms && input.noInput)
       return {
         result: 'handoff',
@@ -266,8 +265,8 @@ export class Login {
         handoff: before.handoff,
       };
     assertWritable(input.posture, `setup ${step.id}`);
-    await this.setup.trust.gate.ensure(
-      stepTrust(this.deps, this.setup, step, { vector, label: step.id, posture: input.posture }),
+    await this.deps.trust.gate.ensure(
+      stepTrust(this.deps.trust, step, { vector, label: step.id, posture: input.posture }),
     );
     if (confirms) {
       const go = await this.setup.prompter.confirm(
@@ -279,7 +278,7 @@ export class Login {
       if (!go) return { result: 'skipped', detail: 'declined' };
     }
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
-    const run = await this.deps.processRun(expandHomeIn(vector, this.setup.home), {
+    const run = await this.deps.process.run(expandHomeIn(vector, this.setup.home), {
       interactive: policy.lendsTerminal && !input.noInput,
       ...(policy.commandTimeoutMs === undefined ? {} : { timeoutMs: policy.commandTimeoutMs }),
       cwd: this.deps.ctx.root,

@@ -9,14 +9,11 @@ import { buildPlan } from '../../../../src/application/login/collect.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
-import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { ServiceOperation } from '../../../../src/application/services/operation.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
 import { loadWorkspace } from '../../../../src/domain/manifest/loader.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
-import { FakePrompter } from '../../../fakes/fake-prompter.js';
-import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { harness, MANIFEST_DIR, ROOT } from '../../../fakes/workspace.js';
+import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
 
 const workspace = `schema_version: 2
 defaults: {host: 'ssh://git@git.example.com', branch: main}
@@ -45,7 +42,7 @@ async function fixture(
   const tools =
     options.patch ??
     (options.environments && options.tools ? vendorTools(options.tools) : undefined);
-  const h = await harness({
+  const base = await harness({
     workspace,
     files: {
       ...(options.environments
@@ -54,20 +51,21 @@ async function fixture(
       ...(tools === undefined ? {} : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: tools }),
     },
   });
-  const trust = new FakeTrustStore();
-  const clock = new FakeClock();
-  const prompter = new FakePrompter();
+  const h = {
+    ...base,
+    deps: withTrust(base.deps, {
+      yes: options.yes ?? true,
+      posture: { readOnly: options.readOnly ?? false, source: 'default' },
+    }),
+  };
+  const { prompter, trusted: trust } = h;
+  prompter.unavailable = false;
   const login: LoginDeps = {
     serviceProtocol: new FamilyServiceProtocol(),
     describeProvider,
     home: '/home/example',
     prompter,
-    clock,
-    trust: {
-      gate: new TrustGate(trust, prompter, clock),
-      yes: options.yes ?? true,
-      posture: { readOnly: options.readOnly ?? false, source: 'default' as const },
-    },
+    clock: new FakeClock(),
   };
   h.process.binaries.add('bitbucket-cli');
   h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.24.0', stderr: '' });
@@ -142,7 +140,7 @@ describe('native preparation', () => {
       stdout: '{"changed":"false"}',
       stderr: '',
     });
-    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+    expect(await operation.execute(plan.steps[0]!, { dryRun: false })).toMatchObject({
       status: 'failed',
       detail: 'Companion did not return a service configuration plan',
     });
@@ -160,7 +158,7 @@ describe('native preparation', () => {
       stdout: '{"changed":true}',
       stderr: '',
     });
-    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+    expect(await operation.execute(plan.steps[0]!, { dryRun: false })).toMatchObject({
       status: 'failed',
       detail: 'Service settings were not verified after preparation',
     });
@@ -183,7 +181,7 @@ describe('native preparation', () => {
       dryRun: false,
       noInput: true,
       skipManual: true,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     expect(output.items[0]).toMatchObject({
       result: 'blocked',
@@ -228,7 +226,7 @@ describe('native preparation', () => {
         },
       }),
     });
-    const result = await operation.execute(plan.steps[0]!, false);
+    const result = await operation.execute(plan.steps[0]!, { dryRun: false });
     expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
     expect(result.changes?.['server']).toEqual({
       before: '[redacted non-public URL]',
@@ -253,7 +251,7 @@ describe('native preparation', () => {
       patch: 'schema_version: 3\ntools:\n  - {name: bitbucket-cli, binary: team-wrapper}\n',
     });
     h.process.binaries.add('team-wrapper');
-    const result = await operation.execute(plan.steps[0]!, true);
+    const result = await operation.execute(plan.steps[0]!, { dryRun: true });
     expect(result.status).toBe('blocked');
     expect(trust.entries).toHaveLength(0);
     expect(h.process.calls.filter((call) => call.vector[0] === 'team-wrapper')).toEqual([]);
@@ -269,8 +267,8 @@ describe('native preparation', () => {
       if (!vector.includes('--dry-run')) configured = true;
       return { code: 0, stdout: JSON.stringify({ changed: !configured }), stderr: '' };
     });
-    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('configured');
-    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('unchanged');
+    expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('configured');
+    expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('unchanged');
     expect(calls.filter((v) => !v.includes('--version') && !v.includes('--dry-run'))).toHaveLength(
       1,
     );
@@ -294,7 +292,7 @@ describe('native preparation', () => {
         },
       }),
     });
-    const result = await operation.execute(plan.steps[0]!, false);
+    const result = await operation.execute(plan.steps[0]!, { dryRun: false });
     expect(result.status).toBe('blocked');
     expect(result.changes?.['server']).toEqual({
       before: 'https://old.example.com',
@@ -308,7 +306,7 @@ describe('native preparation', () => {
   it('does not call an old CLI with an unsupported preset command', async () => {
     const { h, operation, plan, login } = await fixture();
     h.process.clear().always({ code: 0, stdout: '0.19.1', stderr: '' });
-    const blocked = await operation.execute(plan.steps[0]!, false);
+    const blocked = await operation.execute(plan.steps[0]!, { dryRun: false });
     expect(blocked.detail).toContain('outdated');
     expect(blocked.actions?.[0]?.argv).toContain('update');
     for (const initializing of [false, true]) {
@@ -334,7 +332,7 @@ describe('native preparation', () => {
       const changed = vector.includes('--auth-scheme');
       return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
     });
-    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('unchanged');
+    expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('unchanged');
     expect(calls.filter((vector) => vector.includes('set-context'))).toEqual([
       [
         'bitbucket-cli',
@@ -366,7 +364,7 @@ describe('native preparation', () => {
       const changes = { server: { before: '', after: 'x' }, 'auth.scheme': { before: '' } };
       return { code: 0, stdout: JSON.stringify({ changed: !created, changes }), stderr: '' };
     });
-    expect((await operation.execute(plan.steps[0]!, false)).status).toBe('configured');
+    expect((await operation.execute(plan.steps[0]!, { dryRun: false })).status).toBe('configured');
     expect(applied).toHaveLength(1);
     expect(applied[0]).toEqual(expect.arrayContaining(['--auth-scheme', 'pat']));
   });
@@ -384,7 +382,7 @@ describe('native preparation', () => {
       const changes = { flavor: { before: '', after: 'datacenter' } };
       return { code: 0, stdout: JSON.stringify({ changed: !filled, changes }), stderr: '' };
     });
-    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+    expect(await operation.execute(plan.steps[0]!, { dryRun: false })).toMatchObject({
       status: 'configured',
       changes: { flavor: { before: '', after: 'datacenter' } },
     });
@@ -401,7 +399,7 @@ describe('native preparation', () => {
       stdout: JSON.stringify({ changed: true }),
       stderr: '',
     });
-    expect(await operation.execute(plan.steps[0]!, false)).toMatchObject({
+    expect(await operation.execute(plan.steps[0]!, { dryRun: false })).toMatchObject({
       status: 'blocked',
       failure: { code: 'READONLY_BLOCKED' },
     });
@@ -423,7 +421,7 @@ describe('native preparation', () => {
       skipManual: false,
       dryRun: false,
       noInput: true,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     expect(result.items.every((row) => row.result === 'blocked')).toBe(true);
     expect(h.process.calls.some((call) => call.vector.includes('auth'))).toBe(false);
@@ -527,17 +525,17 @@ envs: {dev: {platforms: {errors: {}}}}
     const { h, operation, plan, login } = await fixture({ environments: env, tools: ['sentry'] });
     const step = plan.steps.find((item) => item.tool === 'sentry' && item.preparation)!;
     const target = path.join(ROOT, '.sentryclirc');
-    expect((await operation.execute(step, true)).status).toBe('planned');
+    expect((await operation.execute(step, { dryRun: true })).status).toBe('planned');
     expect(await h.fs.exists(target)).toBe(false);
-    expect((await operation.execute(step, false)).status).toBe('configured');
+    expect((await operation.execute(step, { dryRun: false })).status).toBe('configured');
     expect(await h.fs.readText(target)).not.toContain('[auth]');
     expect((await new Verifier(h.deps, login).verify(step)).ok).toBe(true);
     await h.fs.writeText(target, '[auth]\ntoken=PERSONAL_VALUE_NEVER_SHARE');
-    const result = await operation.execute(step, false);
+    const result = await operation.execute(step, { dryRun: false });
     expect(result.status).toBe('blocked');
     expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
     await h.fs.link('/elsewhere/private', target);
-    expect((await operation.execute(step, false)).status).toBe('blocked');
+    expect((await operation.execute(step, { dryRun: false })).status).toBe('blocked');
   });
 });
 
@@ -613,7 +611,7 @@ describe('existing login reuse on every sync', () => {
     const stage = await prepareWorkspaceSetup(h.deps, login, {
       initializing: false,
       dryRun: false,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     expect(stage.checks.map((check) => [check.resource, check.state])).toEqual([
       ['bitbucket-cli.service', 'ready'],
@@ -640,7 +638,7 @@ describe('existing login reuse on every sync', () => {
     const stage = await prepareWorkspaceSetup(h.deps, login, {
       initializing: false,
       dryRun: false,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     const credential = stage.checks.find((check) => check.resource === 'bitbucket-cli.credential');
     expect(credential).toMatchObject({ state: 'blocked', owner: 'user' });
@@ -675,7 +673,7 @@ describe('existing login reuse during initialization', () => {
         dryRun: false,
         noInput: true,
         skipManual: false,
-        posture: login.trust.posture,
+        posture: h.deps.trust.posture,
       });
       expect(first.items.find((item) => item.id === 'bitbucket-cli.reuse')?.result).toBe(
         candidate ? 'done' : 'verified',
@@ -693,7 +691,7 @@ describe('existing login reuse during initialization', () => {
         dryRun: false,
         noInput: true,
         skipManual: false,
-        posture: login.trust.posture,
+        posture: h.deps.trust.posture,
       });
       expect(writes()).toHaveLength(candidate ? 1 : 0);
       expect(run.mock.calls.some(([vector]) => vector.includes('login'))).toBe(false);
@@ -729,7 +727,7 @@ describe('existing login reuse during initialization', () => {
       dryRun: false,
       noInput: true,
       skipManual: false,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     expect(result.items.find((item) => item.id === 'bitbucket-cli.reuse')).toMatchObject({
       result: 'failed',
@@ -752,7 +750,7 @@ describe('existing login reuse during initialization', () => {
         return { code: 0, stdout: '{"changed":true}', stderr: '' };
       throw new Error('Preview performed an unexpected mutation');
     });
-    await operation.execute(plan.steps[0]!, false);
+    await operation.execute(plan.steps[0]!, { dryRun: false });
     await new Verifier(h.deps, login).verify(
       plan.steps.find((step) => step.id.endsWith('.reuse'))!,
     );
@@ -761,7 +759,7 @@ describe('existing login reuse during initialization', () => {
       dryRun: true,
       noInput: true,
       skipManual: false,
-      posture: login.trust.posture,
+      posture: h.deps.trust.posture,
     });
     expect(result.items.find((item) => item.id === 'bitbucket-cli.reuse')?.result).toBe(
       'would_run',

@@ -5,7 +5,6 @@
 import { asDevkitError, withPartialResult } from '../../domain/errors.js';
 import type { HarnessKind } from '../../domain/harness/ownership.js';
 import { countBy } from '../../domain/values.js';
-import type { Process } from '../../ports/process.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
 import type { HarnessSession } from '../harness/session.js';
@@ -14,8 +13,6 @@ import { hookStage, type HookSession } from '../hook/session.js';
 import { prepareWorkspaceSetup } from '../init/setup.js';
 import type { LoginDeps } from '../login/deps.js';
 import { findingCheck } from '../preparation.js';
-import type { WritePosture } from '../safety/posture.js';
-import type { TrustContext } from '../safety/trust.js';
 import { prepareServices } from '../services/stage.js';
 import { SkillStage } from '../skill/stage.js';
 import type { SkillDeps } from '../skill/targets.js';
@@ -40,19 +37,16 @@ export interface SyncStageInput {
   readonly deps: WorkspaceDeps;
   readonly login: LoginDeps;
   readonly skills: SkillDeps;
-  readonly process: Process;
-  readonly trust: TrustContext;
   readonly dryRun: boolean;
-  readonly posture: WritePosture;
 }
 
 const STAGES: Readonly<Record<string, (input: SyncStageInput) => Promise<StageResult>>> = {
-  services: (input) => prepareServices(input.deps, input.login, input.dryRun),
+  services: (input) => prepareServices(input.deps, input.login, { dryRun: input.dryRun }),
   setup: (input) =>
     prepareWorkspaceSetup(input.deps, input.login, {
       initializing: input.initialize ?? false,
       dryRun: input.dryRun,
-      posture: input.posture,
+      posture: input.deps.trust.posture,
     }),
   docs: docsStage,
   go: goStage,
@@ -89,9 +83,8 @@ async function skillsStage(input: SyncStageInput): Promise<StageResult> {
   const { summary, ...details } = await new SkillStage(input.deps, input.skills).execute({
     ...(input.replace === undefined ? {} : { replace: input.replace }),
     toolchain: toolchainOf(input.deps.ctx).tools,
-    trust: input.trust,
     dryRun: input.dryRun,
-    posture: input.posture,
+    posture: input.deps.trust.posture,
   });
   return {
     summary,
@@ -105,7 +98,7 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
     ...(input.replace === undefined ? {} : { replace: input.replace }),
     check: false,
     dryRun: input.dryRun,
-    posture: input.posture,
+    posture: input.deps.trust.posture,
   });
   const summary: Record<string, number> = {
     created: 0,
@@ -136,7 +129,10 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
 }
 
 async function goStage(input: SyncStageInput): Promise<StageResult> {
-  const out = await syncGoWork(input.deps, { dryRun: input.dryRun, posture: input.posture });
+  const out = await syncGoWork(input.deps, {
+    dryRun: input.dryRun,
+    posture: input.deps.trust.posture,
+  });
   return {
     summary: { modules: out.modules.length, go_work: out.file?.action ?? 'none' },
     checks: goWorkChecks(out),
@@ -152,15 +148,10 @@ async function toolsStage(input: SyncStageInput): Promise<StageResult> {
     scope.required.has(name) ||
     tools.some((tool) => tool.name === name && tool.enabled && tool.installOnInit);
   const rows = (
-    await new ToolCheck(input.process).execute({
+    await new ToolCheck(input.deps.process).execute({
       continueOnError: true,
       tools: tools.map((tool) => ({ ...tool, required: scope.required.has(tool.name) })),
-      trust: {
-        ...input.trust,
-        dryRun: input.dryRun,
-        workspace: input.deps.ctx.name,
-        commandShell: input.deps.commandShell,
-      },
+      trust: { ...input.deps.trust, dryRun: input.dryRun },
     })
   ).map((row) => ({ ...row, preparation_required: requiresPreparation(row.name) }));
   const summary = Object.fromEntries(

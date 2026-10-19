@@ -72,18 +72,11 @@ export function toolRecovery(
   return [inspectToolAction(deps, tool.name, toolRecoveryCommand(tool.state))];
 }
 
-// A setup step's action prints `actor` ahead of `description`, and JSON output keeps that order.
-function actorFirst({ id, actor, ...rest }: PreparationAction): PreparationAction {
-  return { id, actor, ...rest };
-}
-
 export function verifyAction(deps: Workspace, tool: string): PreparationAction {
-  return actorFirst(
-    approveCheckAction(deps, tool, {
-      id: `approve-check:${tool}`,
-      description: `Review ${tool}'s exact verification commands, then approve the read-only check`,
-    }),
-  );
+  return approveCheckAction(deps, tool, {
+    id: `approve-check:${tool}`,
+    description: `Review ${tool}'s exact verification commands, then approve the read-only check`,
+  });
 }
 
 // What an agent does about a check that gave no answer: preview installing the tool that
@@ -93,10 +86,9 @@ export function noAnswerAction(
   step: Pick<SetupStep, 'id' | 'tool' | 'env'>,
   code: string,
 ): PreparationAction {
-  if (code === 'TOOL_MISSING') return actorFirst(inspectToolAction(deps, step.tool, 'install'));
+  if (code === 'TOOL_MISSING') return inspectToolAction(deps, step.tool, 'install');
   return {
     id: `recheck:${step.id}`,
-    actor: 'agent',
     description: `Check ${step.tool} again; its check did not finish`,
     argv: [
       'fx',
@@ -108,6 +100,7 @@ export function noAnswerAction(
       deps.ctx.name,
     ],
     cwd: deps.ctx.root,
+    actor: 'agent',
     requires_approval: false,
   };
 }
@@ -115,10 +108,10 @@ export function noAnswerAction(
 export function repairAction(deps: Workspace): PreparationAction {
   return {
     id: 'repair-managed-resources',
-    actor: 'agent',
     description: "Repair the workspace's managed guides and Skills",
     argv: ['fx', 'doctor', '--fix', '--workspace', deps.ctx.name],
     cwd: deps.ctx.root,
+    actor: 'agent',
     requires_approval: true,
   };
 }
@@ -141,14 +134,21 @@ export function resumeAction(input: {
   };
 }
 
+interface WorkspacePreparationInput {
+  readonly stages: readonly string[];
+  readonly checks: readonly PreparationCheck[];
+  readonly preview?: boolean;
+  // What the command narrowed its tools or environments to, when it did.
+  readonly selection?: Partial<Pick<PreparationScope, 'tools' | 'environments'>>;
+  // The command to run again once the blockers change; resuming initialization otherwise.
+  readonly resume?: PreparationAction | undefined;
+}
+
 export function workspacePreparation(
   deps: Workspace,
-  stages: readonly string[],
-  checks: readonly PreparationCheck[],
-  preview = false,
-  selection: Partial<Pick<PreparationScope, 'tools' | 'environments'>> = {},
-  resume: PreparationAction = resumeAction({ workspace: deps.ctx.name, cwd: deps.ctx.root }),
+  input: WorkspacePreparationInput,
 ): Preparation {
+  const { stages, checks, selection = {} } = input;
   return preparation({
     scope: {
       workspace: deps.ctx.name,
@@ -167,8 +167,8 @@ export function workspacePreparation(
         Object.keys(deps.ctx.manifest.environments?.result.doc.envs ?? {}),
     },
     checks,
-    preview,
-    resume,
+    preview: input.preview ?? false,
+    resume: input.resume ?? resumeAction({ workspace: deps.ctx.name, cwd: deps.ctx.root }),
   });
 }
 

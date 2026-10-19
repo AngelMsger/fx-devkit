@@ -8,7 +8,6 @@ import { ToolShow } from '../../../../src/application/tool/show.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -60,7 +59,7 @@ describe('ToolInstall', () => {
         s.install.execute({
           ...base,
           trust: {
-            gate: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+            gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
             workspace: 'selected',
             yes: false,
             posture: writable,
@@ -104,7 +103,7 @@ describe('ToolInstall', () => {
             return { code: 0, stdout: '1.2.3', stderr: '' };
           };
           const trust = {
-            gate: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+            gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
             workspace: 'test',
             yes: true,
             posture: writable,
@@ -360,7 +359,6 @@ describe('ToolInstall with a trust gate', () => {
     const { TrustGate } = await import('../../../../src/application/safety/trust.js');
     const { FakeTrustStore } = await import('../../../fakes/fake-trust-store.js');
     const { FakePrompter } = await import('../../../fakes/fake-prompter.js');
-    const { FakeClock } = await import('../../../fakes/fake-clock.js');
     const { loadTools } = await import('../../../../src/domain/manifest/loader.js');
     const { resolveTools } = await import('../../../../src/domain/toolchain/resolve.js');
     const bundled = [
@@ -377,7 +375,7 @@ describe('ToolInstall with a trust gate', () => {
     const installers = FakeInstaller.family(['npm']);
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const gate = new TrustGate(new FakeTrustStore(), prompter, new FakeClock());
+    const gate = new TrustGate(new FakeTrustStore(), prompter);
     const base = { tools, names: ['alpha'], update: false, dryRun: false, posture: writable };
 
     const blocked = await new ToolInstall(installers, process, fakeToolAudit()).execute({

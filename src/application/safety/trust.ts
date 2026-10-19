@@ -14,7 +14,6 @@ import {
   renderVector,
   type TrustExecution,
 } from '../../domain/toolchain/trust.js';
-import type { Clock } from '../../ports/clock.js';
 import type { Prompter } from '../../ports/prompter.js';
 import type { TrustStore } from '../../ports/stores.js';
 import { recoveryCommand } from '../workspace/guidance.js';
@@ -33,13 +32,13 @@ export interface TrustInput {
   readonly posture: WritePosture;
 }
 
-// What a use case carries when patch-supplied vectors may run on its path.
-// Under a dry run nothing is recorded: an untrusted vector is reported, not
-// asked about.
 export interface TrustBatch extends Omit<TrustInput, 'vector'> {
   readonly vectors: readonly (readonly string[])[];
 }
 
+// What a use case carries when patch-supplied vectors may run on its path.
+// Under a dry run nothing is recorded: an untrusted vector is reported, not
+// asked about.
 export interface TrustContext {
   readonly commandShell?: ResolvedShell | undefined;
   readonly gate: TrustGate;
@@ -53,7 +52,6 @@ export class TrustGate {
   constructor(
     private readonly store: TrustStore,
     private readonly prompter: Prompter,
-    private readonly _clock: Clock,
   ) {}
 
   async ensure(input: TrustInput): Promise<void> {
@@ -124,35 +122,30 @@ export class TrustGate {
   }
 }
 
-export function commandTrustHandoff(input: {
-  readonly tool: string;
-  readonly posture: WritePosture;
-  readonly workspace?: string | undefined;
-  readonly commandShell?: ResolvedShell | undefined;
-}): HandoffEnvelope {
+export function commandTrustHandoff(
+  trust: Pick<TrustContext, 'posture' | 'workspace' | 'commandShell'>,
+  tool: string,
+): HandoffEnvelope {
   const command = recoveryCommand(
-    input,
+    trust,
     'doctor',
     '--tool',
-    input.tool,
-    ...(input.posture.readOnly ? ['--allow-writes'] : []),
+    tool,
+    ...(trust.posture.readOnly ? ['--allow-writes'] : []),
   );
   return handoffEnvelope({
-    summary: `${input.tool} has manifest commands a person has not trusted`,
+    summary: `${tool} has manifest commands a person has not trusted`,
     userSteps: [
       {
-        id: `${input.tool}.trust`,
+        id: `${tool}.trust`,
         kind: 'manual',
-        title: `Review ${input.tool} manifest commands`,
+        title: `Review ${tool} manifest commands`,
         instructions:
           'Run the command in a terminal and confirm only the exact vectors you accept.',
       },
     ],
     command,
-    alternatives: [
-      recoveryCommand(input, 'tool', 'show', input.tool),
-      recoveryCommand(input, 'doctor'),
-    ],
+    alternatives: [recoveryCommand(trust, 'tool', 'show', tool), recoveryCommand(trust, 'doctor')],
   });
 }
 

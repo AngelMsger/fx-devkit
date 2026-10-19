@@ -62,7 +62,7 @@ export class Init {
       };
     }
     assertWritable(input.posture, `init ${preview.output.root}`);
-    return withWorkspaceOperation(this.deps.lock, preview.output.name, false, async () => {
+    return withWorkspaceOperation(this.deps.lock, preview.output.name, async () => {
       const plan = await this.plan({ ...input, name: preview.output.name });
       return this.apply(plan, input);
     });
@@ -159,14 +159,14 @@ export class Init {
     let toolInstall: readonly ToolInstallOutput[] | null = null;
     try {
       phase = 'validation';
-      output = await this.inspectSource(output, input, false);
+      output = await this.inspectSource(output, input, { materialized: false });
       phase = 'manifest';
       if (!input.resume) await this.materialize(output, input);
       materialized = true;
       phase = 'validation';
       const bundle = await this.loadSourceManifest(output, input);
       requireUsableManifest(bundle);
-      output = await this.inspectSource(output, input, true);
+      output = await this.inspectSource(output, input, { materialized: true });
       let local = await initialLocalLayer(this.deps, output.name, output.root, bundle, input.repos);
       if (output.manifest === 'materialized')
         await this.deps.settleManifest(output.name, output.manifest_dir);
@@ -213,9 +213,9 @@ export class Init {
   private async inspectSource(
     output: InitOutput,
     input: InitInput,
-    materialized: boolean,
+    source: { readonly materialized: boolean },
   ): Promise<InitOutput> {
-    const inspection = materialized
+    const inspection = source.materialized
       ? {
           root: output.manifest_dir,
           contents: 'worktree' as const,

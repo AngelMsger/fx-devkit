@@ -69,16 +69,3 @@ it('asks nothing of an agent for a tool that is usable or switched off and not r
     toolRecovery(deps, { ...tool, state: 'disabled', preparation_required: true }),
   ).toMatchObject([{ argv: ['fx', 'tool', 'show', 'sample', '--workspace', 'fx'] }]);
 });
-
-it('prints the actor of a setup step action ahead of its description', async () => {
-  const { deps } = await harness();
-  for (const action of [verifyAction(deps, 'sample'), noAnswerAction(deps, step, 'TOOL_MISSING')])
-    expect(Object.keys(action)).toEqual([
-      'id',
-      'actor',
-      'description',
-      'argv',
-      'cwd',
-      'requires_approval',
-    ]);
-});

@@ -10,12 +10,16 @@ import { assertNoWorkspaceOperation } from './health.js';
 import { acquireWorkspaceOperation } from './operation.js';
 import { resolveWorkspace, type Located, type ResolveInput } from './resolve.js';
 
+// What a command writes to: the workspace it selects, or the manifest source it runs in,
+// which stands for the workspace registered on that checkout.
+export type WriteScope = 'workspace' | 'source';
+
 export async function beginWorkspaceCommand(
   input: ResolveInput,
   lock: Lock,
-  source: boolean,
+  scope: WriteScope,
 ): Promise<{ lease: Lease; located: Located } | null> {
-  const selected = source ? await sourceIdentity(input) : await resolveWorkspace(input);
+  const selected = scope === 'source' ? await sourceIdentity(input) : await resolveWorkspace(input);
   if (!selected) return null;
   const before = (await input.config.read()).workspaces?.[selected.name];
   const lease = await acquireWorkspaceOperation(lock, selected.name);

@@ -70,7 +70,7 @@ it.each([true, false])(
       owner: 'agent',
       actions: [],
     });
-    const preparation = workspacePreparation(h.deps, ['setup'], stage.checks);
+    const preparation = workspacePreparation(h.deps, { stages: ['setup'], checks: stage.checks });
     expect(preparation.next.kind).toBe('act');
     expect(preparation.next_actions).toMatchObject([inspect]);
     expect(h.process.calls.some((call) => call.vector.includes('can-i'))).toBe(false);

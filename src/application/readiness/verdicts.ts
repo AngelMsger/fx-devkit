@@ -5,7 +5,6 @@
 import { handoffEnvelope } from '../../domain/errors.js';
 import { shellLine } from '../../domain/shell.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
-import type { LoginDeps } from '../login/deps.js';
 import { commandTrustHandoff } from '../safety/trust.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -34,13 +33,8 @@ export function versionUnknown(deps: WorkspaceDeps, tool: ResolvedTool): Verdict
   };
 }
 
-export function untrusted(deps: WorkspaceDeps, login: LoginDeps, tool: string): Verdict {
-  const handoff = commandTrustHandoff({
-    tool,
-    posture: login.trust.posture,
-    workspace: deps.ctx.name,
-    commandShell: deps.commandShell,
-  });
+export function untrusted(deps: WorkspaceDeps, tool: string): Verdict {
+  const handoff = commandTrustHandoff(deps.trust, tool);
   return {
     status: 'unknown',
     handoff,

@@ -74,7 +74,7 @@ export class WorkspaceResources {
     ];
     assertCleanup(input.name, rows);
     if (input.dryRun) return rows;
-    let state = await readHarnessState(harness, request, true);
+    let state = await readHarnessState(harness, request, { persist: true });
     for (const change of plan.changes)
       state = await applyHarnessChange(harness, request, state, change);
     await this.harness.state.write(input.name, {
@@ -161,7 +161,7 @@ export class WorkspaceResources {
       yes: false,
       posture: input.posture,
     };
-    const state = await readHarnessState(harness, request, false);
+    const state = await readHarnessState(harness, request, { persist: false });
     const shared = await this.sharedReceipts(input, state);
     const plan = await planHarness(harness, request, {
       ...state,

@@ -30,13 +30,11 @@ import { larkTaskProvider } from '../adapters/task/lark-task/provider.js';
 import { wecomTodoProvider } from '../adapters/task/wecom-todo/provider.js';
 import { jiraWorklogProvider } from '../adapters/worklog/jira-worklog/provider.js';
 import type { CapabilityName } from '../domain/capability.js';
-import { DevkitError } from '../domain/errors.js';
-import { nearest, suggestionHint } from '../domain/fuzzy.js';
-import type { HookSupport } from '../domain/harness/hooks.js';
+import { hookProtocolUnsupported, type HookSupport } from '../domain/harness/hooks.js';
 import { projectRulesPointer } from '../domain/harness/rules.js';
 import {
   platformOf,
-  servesCapability,
+  requireProvider,
   type Binding,
   type PlatformBinding,
   type ProviderCatalog,
@@ -77,16 +75,7 @@ export function hookProtocolFor(support: HookSupport, platform = process.platfor
   if (support.protocol === 'command-json' && platform === 'win32')
     return new JsonHookProtocol(support.windowsCommand);
   const create = hookProtocols[support.protocol];
-  if (create === undefined)
-    throw new DevkitError(
-      'config',
-      'HOOK_PROTOCOL_UNSUPPORTED',
-      'The lifecycle protocol is not available',
-      {
-        hint: 'This fx version does not implement the registered protocol.',
-        nextSteps: ['fx self update'],
-      },
-    );
+  if (create === undefined) throw hookProtocolUnsupported();
   return create();
 }
 
@@ -116,41 +105,8 @@ export function providerCatalog(): ProviderCatalog {
 }
 
 export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: AdapterDeps): P {
-  const capability = binding.capability;
-  if (binding.provider === null) {
-    throw new DevkitError('config', 'PROVIDER_UNBOUND', `No provider is bound for ${capability}`, {
-      hint: `Add \`providers.${capability}\` to manifest/workspace.yaml. Available: ${ids(capability)}.`,
-      nextSteps: ['fx manifest providers', `fx manifest explain providers`],
-    });
-  }
-  const descriptor = providers.get(binding.provider);
-  if (!servesCapability(descriptor, capability)) {
-    const suggestion = nearest(
-      binding.provider,
-      providersFor(capability).map((p) => p.id),
-    );
-    throw new DevkitError(
-      'config',
-      'PROVIDER_UNKNOWN',
-      `"${binding.provider}" is not a ${capability} provider this fx knows`,
-      {
-        hint: suggestionHint(suggestion, `Available: ${ids(capability)}.`),
-        nextSteps: ['fx manifest providers', 'fx --version'],
-      },
-    );
-  }
-  const missing = descriptor.vars.filter((v) => v.required && !binding.vars[v.name]?.trim());
-  if (missing.length > 0) {
-    throw new DevkitError(
-      'config',
-      'PROVIDER_VAR_MISSING',
-      `providers.${capability} (${descriptor.id}) is missing ${missing.map((v) => v.name).join(', ')}`,
-      {
-        hint: missing.map((v) => `${v.name}: ${v.desc}`).join('; '),
-        nextSteps: [`fx manifest explain providers`],
-      },
-    );
-  }
+  const descriptor = requireProvider(binding, [...providers.values()]);
+  const { capability } = binding;
   const scoped = processWithContext(deps.process, {
     phase: 'provider query',
     capability,
@@ -158,14 +114,6 @@ export function resolveProvider<P>(binding: Binding | PlatformBinding, deps: Ada
     binding: platformOf(binding) ?? capability,
   });
   return descriptor.create({ ...deps, process: scoped }, binding.vars) as P;
-}
-
-function ids(capability: CapabilityName): string {
-  return (
-    providersFor(capability)
-      .map((p) => p.id)
-      .join(', ') || '(none)'
-  );
 }
 
 // Registration is a load-time effect: importing this module is what makes the

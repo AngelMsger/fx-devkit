@@ -66,7 +66,7 @@ export class Readiness {
     if (target.tool === null) return this.verdict('ready');
 
     const state = await this.toolState(target.tool);
-    if (state === 'untrusted') return untrusted(this.deps, this.login, target.tool.name);
+    if (state === 'untrusted') return untrusted(this.deps, target.tool.name);
     if (state === 'unknown') return versionUnknown(this.deps, target.tool);
     if (state !== 'ok')
       return this.verdict(
@@ -98,7 +98,7 @@ export class Readiness {
   // A step whose check failed is handed over, and outranks a check that could not finish.
   private async setupVerdict(tool: string, env: string | null): Promise<Verdict> {
     const pending = await this.pendingSteps(tool, env);
-    if (pending === 'untrusted') return untrusted(this.deps, this.login, tool);
+    if (pending === 'untrusted') return untrusted(this.deps, tool);
     if ('problems' in pending)
       return this.verdict('unconfigured', {
         handoff: handoffEnvelope({
@@ -158,18 +158,9 @@ export class Readiness {
 
   private async inspectToolState(tool: ResolvedTool): Promise<ToolReadiness> {
     try {
-      const [status] = await new ToolCheck({
-        run: this.deps.processRun,
-        which: this.deps.processWhich,
-      }).execute({
+      const [status] = await new ToolCheck(this.deps.process).execute({
         tools: [tool],
-        trust: {
-          gate: this.login.trust.gate,
-          workspace: this.deps.ctx.name,
-          commandShell: this.deps.commandShell,
-          yes: this.login.trust.yes,
-          posture: this.login.trust.posture,
-        },
+        trust: this.deps.trust,
       });
       if (status === undefined) return 'unknown';
       return status.state;

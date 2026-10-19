@@ -6,7 +6,6 @@ import type { CopyAction, LinkAction } from '../../domain/skills/projection.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import type { WritePosture } from '../safety/posture.js';
-import type { TrustContext } from '../safety/trust.js';
 import type { StageSummary } from '../sync/types.js';
 
 export interface SkillStageInput {
@@ -14,7 +13,6 @@ export interface SkillStageInput {
   readonly replace?: ReplaceFiles;
   readonly agents?: readonly string[] | undefined;
   readonly toolchain?: readonly ResolvedTool[] | undefined;
-  readonly trust?: TrustContext | undefined;
   readonly dryRun: boolean;
   readonly posture: WritePosture;
 }

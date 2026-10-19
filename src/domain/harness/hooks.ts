@@ -1,6 +1,8 @@
 // Lifecycle definitions are host-neutral data. Hosts translate event names
 // and output, while the single dispatch vector keeps behavior in fx.
 
+import { DevkitError } from '../errors.js';
+
 export type HookEvent = 'session-start' | 'stop';
 
 export interface HookSpec {
@@ -19,6 +21,19 @@ export interface HookSupport {
   readonly context: 'native' | 'bridge' | 'none';
   readonly identityEnvironment: readonly string[];
   readonly sessionKey?: string;
+}
+
+// A host names a protocol this fx has no implementation of.
+export function hookProtocolUnsupported(): DevkitError {
+  return new DevkitError(
+    'config',
+    'HOOK_PROTOCOL_UNSUPPORTED',
+    'The lifecycle protocol is not available',
+    {
+      hint: 'This fx version does not implement the registered protocol.',
+      nextSteps: ['fx self update'],
+    },
+  );
 }
 
 export interface HookInvocation {

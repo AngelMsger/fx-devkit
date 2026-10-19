@@ -16,14 +16,19 @@ import { MANIFEST_FILES } from '../../../../src/domain/manifest/files.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { MANIFEST_DIR, ROOT, harness, manifestDirFor } from '../../../fakes/workspace.js';
+import {
+  MANIFEST_DIR,
+  ROOT,
+  harness,
+  manifestDirFor,
+  withTrust,
+} from '../../../fakes/workspace.js';
 
 const fixture = (name: string): string =>
   readFileSync(path.resolve('test/fixtures/manifest/v1-real-shape', name), 'utf8');
@@ -87,10 +92,7 @@ async function stage(options: { local?: LocalLayer; tools?: string; yes?: boolea
   h.process.when((v) => v[1] === '--version', { code: 0, stdout: 'jenkins-cli 9.0.0', stderr: '' });
   return {
     h,
-    can: new Can(
-      h.deps,
-      fakeLoginDeps(DESCRIPTORS, options.yes === undefined ? {} : { yes: options.yes }),
-    ),
+    can: new Can(withTrust(h.deps, { yes: options.yes ?? false }), fakeLoginDeps(DESCRIPTORS)),
   };
 }
 
@@ -531,7 +533,7 @@ describe('canTarget', () => {
         files,
         hosts: [],
         state: new FakeHarnessState(),
-        trust: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+        trust: new TrustGate(new FakeTrustStore(), new FakePrompter()),
         env: {},
         codec: mcpCodecFor,
         lock: new FakeLock(),

@@ -69,7 +69,7 @@ export async function checkLogin(
       if (!(err instanceof DevkitError)) throw err;
       const untrusted = isTrustRequired(err);
       progress.record(step, untrusted ? 'undone' : 'unanswered');
-      return untrusted ? trustFinding(step, login, err, deps) : unfinishedFinding(step, err, deps);
+      return untrusted ? trustFinding(step, err, deps) : unfinishedFinding(step, err, deps);
     }
   };
   checks.plan(plan.steps.length);
@@ -77,18 +77,8 @@ export async function checkLogin(
   return findings;
 }
 
-function trustFinding(
-  step: SetupStep,
-  login: LoginDeps,
-  error: DevkitError,
-  deps: WorkspaceDeps,
-): Finding {
-  const handoff = commandTrustHandoff({
-    tool: step.tool,
-    posture: login.trust.posture,
-    workspace: deps.ctx.name,
-    commandShell: deps.commandShell,
-  });
+function trustFinding(step: SetupStep, error: DevkitError, deps: WorkspaceDeps): Finding {
+  const handoff = commandTrustHandoff(deps.trust, step.tool);
   return finding('login', step.id, 'warn', error.message, {
     coverage: 'incomplete',
     fix: handoff.command,

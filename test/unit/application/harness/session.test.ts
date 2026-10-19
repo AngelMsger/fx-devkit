@@ -10,7 +10,6 @@ import { harnessDoctor } from '../../../../src/application/harness/stages.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/registry.js';
 import { report } from '../../../../src/domain/report.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -29,7 +28,7 @@ async function fixture() {
       files,
       hosts: createAgentHosts({ fs: h.fs, process: h.process, home: path.resolve('/home') }),
       state: new FakeHarnessState(),
-      trust: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
+      trust: new TrustGate(new FakeTrustStore(), new FakePrompter()),
       env: {},
       codec: mcpCodecFor,
       lock: { acquire: async () => ({ release: async () => {} }) },

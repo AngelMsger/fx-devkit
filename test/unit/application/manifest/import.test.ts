@@ -27,7 +27,7 @@ class AliasedFs extends FakeFs {
   }
 }
 
-function stage() {
+function stage(options: { commandShell?: 'cmd' } = {}) {
   const fs = AliasedFs.from({
     [`${ROOT}/.gitmodules`]:
       '[submodule "agent-runtime"]\n\tpath = agent-runtime\n\turl = x\n\tbranch = integration\n',
@@ -67,6 +67,7 @@ function stage() {
   codeHost.readability.set('ai/fx-example-scripts', 'readable');
   const reporter = new FakeReporter();
   const importer = new Import({
+    ...options,
     git,
     fs,
     reporter,
@@ -173,6 +174,17 @@ describe('Import', () => {
     ).rejects.toMatchObject({
       code: 'IMPORT_INSIDE_ROOT',
       nextSteps: [`fx manifest import '${dir}' -o <manifest repository>/manifest/workspace.yaml`],
+    });
+    await expect(
+      stage({ commandShell: 'cmd' }).importer.execute({
+        ...write,
+        dir,
+        out: path.join(dir, 'workspace.yaml'),
+      }),
+    ).rejects.toMatchObject({
+      nextSteps: [
+        `fx ^"manifest^" ^"import^" ^"${dir}^" -o <manifest repository>/manifest/workspace.yaml`,
+      ],
     });
   });
 

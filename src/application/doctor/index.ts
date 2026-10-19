@@ -85,7 +85,7 @@ export class Doctor {
         checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
       ),
       group('installations', () => checkInstallations(this.doctor.inventory, input.tools)),
-      checkTools(this.deps, { ...toolScope, trust: this.doctor.login.trust }, checks),
+      checkTools(this.deps, toolScope, checks),
       checkLogin(
         this.deps,
         this.doctor.login,
@@ -128,16 +128,15 @@ export class Doctor {
       findings: diagnostic.findings,
       summary: diagnostic.summary,
       coverage: diagnostic.complete ? 'complete' : 'incomplete',
-      preparation: workspacePreparation(
-        this.deps,
-        groupOrder,
+      preparation: workspacePreparation(this.deps, {
+        stages: groupOrder,
         checks,
-        input.dryRun,
-        {
+        preview: input.dryRun,
+        selection: {
           tools: toolScope.configuredNames,
           ...(input.envs ? { environments: input.envs } : {}),
         },
-        {
+        resume: {
           id: 'recheck-preparation',
           description:
             'Recheck the same workspace and selected tools after the prerequisites change',
@@ -154,7 +153,7 @@ export class Doctor {
           actor: 'agent',
           requires_approval: input.dryRun,
         },
-      ),
+      }),
       repairs,
     };
   }

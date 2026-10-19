@@ -36,8 +36,8 @@ export async function prepareCommand(
   const changes = plan.changes;
   if (dryRun)
     return { status: 'planned', detail: 'Public service settings would be prepared', changes };
-  assertWritable(login.trust.posture, step.id);
-  await login.trust.gate.ensure(trustOf(preset, vector, step.id));
+  assertWritable(deps.trust.posture, step.id);
+  await deps.trust.gate.ensure(trustOf(preset, vector, step.id));
   const applied = await runPreset(preset, vector, 'prepare');
   if (applied.code !== 0)
     return commandFailure(login.serviceProtocol.failure(applied.stderr), vector, deps);
@@ -54,13 +54,13 @@ async function consult(
 ): Promise<ServiceOutcome | Extract<ServicePlan, { kind: 'changes' }>> {
   const { deps, login } = preset;
   const preview = [...vector, '--dry-run'];
-  if (preset.dryRun && !(await login.trust.gate.isTrusted(trustOf(preset, preview))))
+  if (preset.dryRun && !(await deps.trust.gate.isTrusted(trustOf(preset, preview))))
     return {
       status: 'blocked',
       detail: 'Service preview command is not trusted',
       next_steps: [shellLine(preview, deps.commandShell)],
     };
-  await login.trust.gate.ensure(trustOf(preset, preview));
+  await deps.trust.gate.ensure(trustOf(preset, preview));
   const result = await runPreset(preset, preview, 'preview');
   if (result.code !== 0)
     return commandFailure(login.serviceProtocol.failure(result.stderr), vector, deps);
@@ -74,9 +74,7 @@ async function consult(
 
 function trustOf(preset: Preset, vector: readonly string[], label?: string) {
   return {
-    ...preset.login.trust,
-    workspace: preset.deps.ctx.name,
-    commandShell: preset.deps.commandShell,
+    ...preset.deps.trust,
     vector,
     origin: preset.step.origin,
     label: label ?? `${preset.step.id} preview`,
@@ -88,7 +86,7 @@ function runPreset(
   vector: readonly string[],
   phase: string,
 ): Promise<ProcessResult> {
-  return preset.deps.processRun(vector, {
+  return preset.deps.process.run(vector, {
     timeoutMs: 5000,
     cwd: preset.deps.ctx.root,
     diagnostic: { phase: `${preset.step.id} ${phase}` },

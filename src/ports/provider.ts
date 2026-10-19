@@ -3,7 +3,7 @@
 // manifest must supply, and the setup steps it brings. Every adapter directory exports one
 // descriptor; the registry collects them.
 
-import type { ProviderFacts } from '../domain/manifest/providers.js';
+import type { ProviderFacts, VarSpec } from '../domain/manifest/providers.js';
 import type { ServiceSettings } from '../domain/manifest/service.schema.js';
 import type { ServiceDefinition } from '../domain/setup/service.js';
 import type { SetupRecipe } from '../domain/setup/types.js';
@@ -12,12 +12,6 @@ import type { Vars } from '../domain/template.js';
 import type { Clock } from './clock.js';
 import type { FileSystem } from './fs.js';
 import type { Process } from './process.js';
-
-export interface VarSpec {
-  readonly name: string;
-  readonly desc: string;
-  readonly required: boolean;
-}
 
 export interface AdapterDeps {
   readonly process: Process;

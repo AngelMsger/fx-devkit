@@ -5,7 +5,6 @@
 import type { AutomaticSyncDeps } from '../application/hook/automatic-sync.js';
 import { backgroundPhases, type BackgroundDeps } from '../application/hook/observe.js';
 import { BACKGROUND_POSTURE } from '../application/safety/posture.js';
-import { TrustGate } from '../application/safety/trust.js';
 import { WorkspaceContext } from '../application/workspace/context.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
 import type { HookRequest } from '../domain/harness/request.js';
@@ -40,13 +39,7 @@ function phaseDeps(input: HookWiringInput): BackgroundDeps {
   const { container, request, env } = input;
   const reporter: Reporter = { notice: () => {}, progress: () => {} };
   const metadata = container.packageMetadata();
-  const login = loginDeps({
-    container,
-    gate: new TrustGate(container.trust, container.prompter(true), container.clock),
-    noInput: true,
-    yes: false,
-    posture: BACKGROUND_POSTURE,
-  });
+  const login = loginDeps({ container, noInput: true });
   const updates = updateChecks(container);
   return {
     clock: container.clock,
@@ -114,6 +107,9 @@ function workspaceContextFor(
       cliVersion,
       user: undefined,
       commandShell: undefined,
+      noInput: true,
+      yes: false,
+      posture: BACKGROUND_POSTURE,
     });
     return loaded;
   };

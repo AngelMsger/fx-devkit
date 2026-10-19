@@ -5,6 +5,7 @@ import { parse } from 'yaml';
 
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
 import { ProbeRecord } from '../../../../src/application/probe-record/index.js';
+import type { Process } from '../../../../src/ports/process.js';
 import type {
   ProjectionPath,
   ProjectionStore,
@@ -59,14 +60,18 @@ async function fixture(
       return 'written';
     },
   };
+  const process: Process = {
+    run: async (vector, runOptions) => {
+      await onProbe?.();
+      return h.process.run(vector, runOptions);
+    },
+    which: (binary) => h.process.which(binary),
+  };
   const deps = {
     workspace: {
       ...h.deps,
       ...(options.commandShell === undefined ? {} : { commandShell: options.commandShell }),
-      processRun: async (...args: Parameters<typeof h.deps.processRun>) => {
-        await onProbe?.();
-        return h.process.run(...args);
-      },
+      process,
     },
     login: fakeLoginDeps({}),
     files,

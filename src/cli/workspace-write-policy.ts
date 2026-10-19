@@ -2,7 +2,7 @@
 // writes as its static `writeScope`; the command base holds the matching operation
 // lease while the command runs.
 
-type WriteScope = 'workspace' | 'source';
+import type { WriteScope } from '../application/workspace/command-operation.js';
 
 type ParsedFlags = Readonly<Record<string, unknown>>;
 

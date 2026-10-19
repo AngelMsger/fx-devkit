@@ -17,7 +17,7 @@ const writable = { readOnly: false, source: 'default' } as const;
 function gate(overrides: { store?: FakeTrustStore; prompter?: FakePrompter } = {}) {
   const store = overrides.store ?? new FakeTrustStore();
   const prompter = overrides.prompter ?? new FakePrompter();
-  return { gate: new TrustGate(store, prompter, new FakeClock()), store, prompter };
+  return { gate: new TrustGate(store, prompter), store, prompter };
 }
 
 describe('fingerprint', () => {
