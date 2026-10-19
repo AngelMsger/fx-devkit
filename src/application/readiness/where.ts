@@ -183,8 +183,8 @@ export class Where {
         ...unknown('Probe planned but not executed.'),
         probe_template: vector.template ?? null,
       };
-    const result = await this.deps
-      .processRun(command, {
+    const result = await this.deps.process
+      .run(command, {
         timeoutMs: PROBE_TIMEOUT_MS,
         diagnostic: {
           phase: `${c.platform} coordinate probe`,

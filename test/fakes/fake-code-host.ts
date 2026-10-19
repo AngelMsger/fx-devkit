@@ -19,7 +19,7 @@ import type {
 // are recorded, not made. Every query is logged so a test can say what was
 // never asked.
 export class FakeCodeHost implements CodeHost {
-  supportsContributions = true;
+  readonly supportsContributions = true;
   readonly identities = new Map<string, RepositoryIdentity>();
   readonly pullRequests = new Map<string, ContributionPullRequest>();
   readonly createdPullRequests: CreatePullRequest[] = [];
@@ -28,7 +28,7 @@ export class FakeCodeHost implements CodeHost {
   readonly queries: string[] = [];
   user: string | undefined = 'alice';
   readability = new Map<string, Readability>();
-  existingForks = new Set<string>();
+  private readonly existingForks = new Set<string>();
   branchesOf = new Map<string, Branch[]>();
   // `<project>/<name> <from>..<to>` → the commits `to` has that `from` lacks.
   comparisons = new Map<string, Commit[]>();
@@ -37,7 +37,6 @@ export class FakeCodeHost implements CodeHost {
   files = new Map<string, string>();
   // The same keys as `files`, for a read that fails.
   fileFailures = new Map<string, Error>();
-  failure: Error | undefined;
 
   constructor(private readonly host = 'ssh://git@git.example.com:12345') {}
 
@@ -130,7 +129,6 @@ export class FakeCodeHost implements CodeHost {
 
   private ask(query: string): void {
     this.queries.push(query);
-    if (this.failure !== undefined) throw this.failure;
   }
 }
 

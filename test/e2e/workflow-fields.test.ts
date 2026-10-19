@@ -1,12 +1,11 @@
 // The projection rules belong to the renderer's unit suite. These cases show that a list
 // command and a report command hand their whole result to it.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
-import { parse } from 'yaml';
 
-import { freshHome, fx, repository } from './harness.js';
+import { disabledBundledTools, freshHome, fx, repository } from './harness.js';
 
 function fixture() {
   const base = freshHome();
@@ -20,13 +19,7 @@ function fixture() {
     path.join(source, 'manifest/workspace.yaml'),
     `schema_version: 2\ndefaults: {branch: main}\nrepos: [{name: api, upstream: '${repo.bare}'}, {name: docs, upstream: '${repo.bare}'}]\n`,
   );
-  const baseline = parse(readFileSync('defaults/tools.yaml', 'utf8')) as {
-    tools: { name: string }[];
-  };
-  writeFileSync(
-    path.join(source, 'manifest/tools.yaml'),
-    `schema_version: 3\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
-  );
+  writeFileSync(path.join(source, 'manifest/tools.yaml'), disabledBundledTools());
   const env = { FX_HOME: freshHome() };
   const init = ['init', root, '--from', source, '--repos', 'api'];
   return { root, env, init };

@@ -34,16 +34,7 @@ export abstract class ToolCommand extends FxCommand {
       all: flags.all,
       update: this.update,
       ...writeIntent(flags, this.posture),
-      trust:
-        workspace === undefined
-          ? undefined
-          : {
-              gate: this.trustGate(),
-              workspace,
-              commandShell: this.commandShell,
-              yes: this.yes,
-              posture: this.posture,
-            },
+      trust: workspace === undefined ? undefined : this.trustFor(workspace),
     });
     this.renderer.list(results, { columns: TOOL_INSTALL_COLUMNS });
   }

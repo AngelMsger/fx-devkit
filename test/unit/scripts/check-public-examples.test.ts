@@ -1,18 +1,14 @@
 // Public examples omit service-specific ports; custom-port fixtures remain synthetic.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-const roots: string[] = [];
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
+import { tempDir } from '../../temp.js';
+
 function check(file: string, text: string) {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-public-examples-'));
-  roots.push(root);
+  const root = tempDir('fx-public-examples-');
   const script = path.join(root, 'check.mjs');
   writeFileSync(script, readFileSync('scripts/check-public-examples.mjs'));
   const target = path.join(root, file);

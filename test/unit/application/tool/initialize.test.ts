@@ -8,7 +8,6 @@ import { ToolInitialize } from '../../../../src/application/tool/initialize.js';
 import { ToolInstall } from '../../../../src/application/tool/install.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -42,7 +41,7 @@ tools:
     tools: resolveTools(loaded.doc, loaded.provenance),
     posture,
     trust: {
-      gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
+      gate: new TrustGate(new FakeTrustStore(), prompter),
       workspace: 'test',
       yes: false,
       posture,
@@ -79,7 +78,7 @@ tools:
       tools: resolveTools(loaded.doc, loaded.provenance, loaded.declared),
       posture,
       trust: {
-        gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
+        gate: new TrustGate(new FakeTrustStore(), prompter),
         workspace: 'test',
         yes: false,
         posture,

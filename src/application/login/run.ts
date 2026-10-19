@@ -11,7 +11,8 @@ import {
   type HandoffStep,
 } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
-import type { SetupPlan, SetupStep } from '../../domain/setup/types.js';
+import { SetupProgress } from '../../domain/setup/progress.js';
+import { isLocalPreparation, type SetupPlan, type SetupStep } from '../../domain/setup/types.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { ServiceOperation } from '../services/operation.js';
 import { Tally } from '../tally.js';
@@ -23,7 +24,7 @@ import { setupCommandFailure } from './command-failure.js';
 import type { LoginDeps } from './deps.js';
 import { handoffStep, loginCommand } from './handoff.js';
 import { noteUnsetEnvScope } from './scope-envs.js';
-import { expandHomeIn, Verifier } from './verify.js';
+import { expandHomeIn, stepTrust, Verifier } from './verify.js';
 
 export interface LoginInput {
   readonly mode?: 'login' | 'prepare';
@@ -35,6 +36,43 @@ export interface LoginInput {
   readonly posture: WritePosture;
 }
 
+// What a run decides by whether it guides a person through setup or prepares a workspace
+// unattended.
+interface RunPolicy {
+  readonly notesUnsetEnvScope: boolean;
+  readonly continuesAfterFailure: boolean;
+  readonly raisesOnPending: boolean;
+  // Every other unmet step is handed over.
+  readonly runsOnlyLocalPreparation: boolean;
+  // Unless --yes was given; where nobody can answer, the command is handed over instead.
+  readonly confirmsCommands: boolean;
+  readonly lendsTerminal: boolean;
+  readonly commandTimeoutMs?: number;
+}
+
+const POLICIES: Readonly<Record<NonNullable<LoginInput['mode']>, RunPolicy>> = {
+  login: {
+    notesUnsetEnvScope: true,
+    continuesAfterFailure: false,
+    raisesOnPending: true,
+    runsOnlyLocalPreparation: false,
+    confirmsCommands: true,
+    lendsTerminal: true,
+  },
+  prepare: {
+    notesUnsetEnvScope: false,
+    continuesAfterFailure: true,
+    raisesOnPending: false,
+    runsOnlyLocalPreparation: true,
+    confirmsCommands: false,
+    lendsTerminal: false,
+    commandTimeoutMs: 120_000,
+  },
+};
+
+// The input a run works from: its mode is resolved once, and the steps read the policy.
+type RunInput = Omit<LoginInput, 'mode'> & { readonly policy: RunPolicy };
+
 export type StepResult =
   | 'verified'
   | 'done'
@@ -45,6 +83,11 @@ export type StepResult =
   | 'would_ask'
   | 'handoff'
   | 'not_started';
+
+// The step's check passes: it already did, or it does since the step was carried out.
+export function isSettled(result: StepResult): boolean {
+  return result === 'verified' || result === 'done';
+}
 
 export interface StepRow {
   readonly actions?: readonly PreparationAction[];
@@ -99,16 +142,18 @@ export class Login {
   async execute(input: LoginInput): Promise<LoginOutput> {
     const plan = await this.plan(input);
     this.validatePlan(plan);
-    if (input.mode !== 'prepare') noteUnsetEnvScope(this.deps, input.envs);
+    const { mode = 'login', ...asked } = input;
+    const policy = POLICIES[mode];
+    if (policy.notesUnsetEnvScope) noteUnsetEnvScope(this.deps, input.envs);
     return Tally.during(this.deps.activity, 'steps', (steps) =>
-      this.run(plan, input, steps.plan(plan.steps.length)),
+      this.run(plan, { ...asked, policy }, steps.plan(plan.steps.length)),
     );
   }
 
-  private async run(plan: SetupPlan, input: LoginInput, steps: Tally): Promise<LoginOutput> {
+  private async run(plan: SetupPlan, input: RunInput, steps: Tally): Promise<LoginOutput> {
     const rows: StepRow[] = [];
     const pending: PendingHandoff[] = [];
-    const undone = new Set<string>();
+    const progress = new SetupProgress();
     const output = (): LoginOutput => ({
       items: rows,
       has_more: false,
@@ -117,11 +162,12 @@ export class Login {
     });
     for (const [index, step] of plan.steps.entries()) {
       try {
-        const outcome = await steps.unit(step.id, () => this.attempt(step, input, undone));
+        const blocker = progress.undonePrerequisite(step);
+        const outcome = await steps.unit(step.id, () => this.attempt(step, input, blocker));
         rows.push(row(step, outcome));
         if (outcome.result === 'handoff')
           pending.push({ step, handoff: outcome.handoff ?? handoffStep(step) });
-        if (outcome.result !== 'verified' && outcome.result !== 'done') undone.add(step.id);
+        progress.record(step, isSettled(outcome.result) ? 'done' : 'undone');
       } catch (error) {
         const failure = toEnvelope(asDevkitError(error)).error;
         rows.push(
@@ -132,8 +178,8 @@ export class Login {
             next_steps: failure.next_steps,
           }),
         );
-        if (input.mode === 'prepare') {
-          undone.add(step.id);
+        if (input.policy.continuesAfterFailure) {
+          progress.record(step, 'undone');
           continue;
         }
         for (const remaining of plan.steps.slice(index + 1))
@@ -141,7 +187,7 @@ export class Login {
         throw withPartialResult(error, output());
       }
     }
-    if (pending.length > 0 && input.mode !== 'prepare')
+    if (pending.length > 0 && input.policy.raisesOnPending)
       throw withPartialResult(setupRequired(pending, input, this.deps), output());
     return output();
   }
@@ -166,16 +212,14 @@ export class Login {
 
   private async attempt(
     step: SetupStep,
-    input: LoginInput,
-    undone: ReadonlySet<string>,
+    input: RunInput,
+    blocker: string | undefined,
   ): Promise<StepOutcome> {
-    const blocker = step.requires.find((dep) => undone.has(dep));
     if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
     if (step.preparation) {
-      const prepared = await new ServiceOperation(this.deps, this.setup).execute(
-        step,
-        input.dryRun,
-      );
+      const prepared = await new ServiceOperation(this.deps, this.setup).execute(step, {
+        dryRun: input.dryRun,
+      });
       const results = {
         unchanged: 'verified',
         configured: 'done',
@@ -195,7 +239,8 @@ export class Login {
     if (before.ok) return { result: 'verified', detail: before.detail };
     // What the check just said travels with the step wherever it is handed over.
     const handoff = handoffStep(step, { failed: before });
-    if (input.mode === 'prepare' && (step.kind !== 'run' || step.phase !== 'prepare'))
+    const runsUnattended = step.kind === 'run' && isLocalPreparation(step);
+    if (input.policy.runsOnlyLocalPreparation && !runsUnattended)
       return { result: 'handoff', detail: before.detail, handoff };
     if (step.kind === 'run') return this.runStep(step, input, { why: before.detail, handoff });
     if (input.skipManual) return { result: 'skipped', detail: '--skip-manual' };
@@ -206,38 +251,24 @@ export class Login {
 
   private async runStep(
     step: SetupStep,
-    input: LoginInput,
+    input: RunInput,
     before: { readonly why: string; readonly handoff: HandoffStep },
   ): Promise<StepOutcome> {
+    const { policy } = input;
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    if (input.mode !== 'prepare' && input.noInput && !this.setup.trust.yes)
+    const confirms = policy.confirmsCommands && !this.deps.trust.yes;
+    if (confirms && input.noInput)
       return {
         result: 'handoff',
         detail: 'Human input or authorization required',
         handoff: before.handoff,
       };
     assertWritable(input.posture, `setup ${step.id}`);
-    await this.setup.trust.gate.ensure({
-      tool: step.tool,
-      workspace: this.deps.ctx.name,
-      commandShell: this.deps.commandShell,
-      vector,
-      label: step.id,
-      origin: step.origin,
-      yes: this.setup.trust.yes,
-      posture: input.posture,
-      ...(step.executionEnv
-        ? {
-            execution: {
-              purpose: 'service authentication',
-              resource: step.id,
-              bindings: step.executionEnv,
-            },
-          }
-        : {}),
-    });
-    if (!this.setup.trust.yes && input.mode !== 'prepare') {
+    await this.deps.trust.gate.ensure(
+      stepTrust(this.deps.trust, step, { vector, label: step.id, posture: input.posture }),
+    );
+    if (confirms) {
       const go = await this.setup.prompter.confirm(
         `${describe(before.handoff)}\nRun \`${vector.join(' ')}\`?`,
         {
@@ -247,9 +278,9 @@ export class Login {
       if (!go) return { result: 'skipped', detail: 'declined' };
     }
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
-    const run = await this.deps.processRun(expandHomeIn(vector, this.setup.home), {
-      interactive: input.mode !== 'prepare' && !input.noInput,
-      ...(input.mode === 'prepare' ? { timeoutMs: 120000 } : {}),
+    const run = await this.deps.process.run(expandHomeIn(vector, this.setup.home), {
+      interactive: policy.lendsTerminal && !input.noInput,
+      ...(policy.commandTimeoutMs === undefined ? {} : { timeoutMs: policy.commandTimeoutMs }),
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} setup` },
@@ -264,7 +295,7 @@ export class Login {
 
   private async manualStep(
     step: SetupStep,
-    input: LoginInput,
+    input: RunInput,
     handoff: HandoffStep,
   ): Promise<StepOutcome> {
     assertWritable(input.posture, `setup ${step.id}`);
@@ -311,7 +342,7 @@ export function describe(step: HandoffStep): string {
 
 function setupRequired(
   pending: readonly PendingHandoff[],
-  input: LoginInput,
+  input: Pick<LoginInput, 'noInput'>,
   context: WorkspaceGuidance,
 ): DevkitError {
   const command = loginCommand(

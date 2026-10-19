@@ -1,7 +1,10 @@
+// The supervisor as a separate process, and the generated extension bridge in
+// front of it: who reaps the worker when a deadline, a signal or a session
+// shutdown ends the run.
+
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
@@ -9,27 +12,30 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ExtensionHookProtocol } from '../../../src/adapters/agent-host/extension-hooks.js';
+import { ExtensionHookProtocol } from '../../src/adapters/agent-host/extension-hooks.js';
+
+import { tempDir } from './harness.js';
 
 type Callback = (event: unknown, context: { cwd: string }) => Promise<void>;
+const supervisor = pathToFileURL(path.resolve('dist/adapters/process/lifecycle-runner.js')).href;
 const roots: string[] = [];
 const controllers: ChildProcess[] = [];
 
+// A case that fails leaves its controller and its worker's process group running.
 afterEach(() => {
   for (const child of controllers.splice(0)) child.kill('SIGKILL');
   for (const root of roots.splice(0)) {
     const pidFile = path.join(root, 'worker.pid');
-    if (existsSync(pidFile)) {
-      try {
-        process.kill(-Number(readFileSync(pidFile, 'utf8')), 'SIGKILL');
-      } catch {
-        /* Already reaped. */
-      }
+    if (!existsSync(pidFile)) continue;
+    try {
+      process.kill(-Number(readFileSync(pidFile, 'utf8')), 'SIGKILL');
+    } catch {
+      /* Already reaped. */
     }
-    rmSync(root, { recursive: true, force: true });
   }
 });
 
+// The bridge is TypeScript the host compiles when it loads the extension.
 function compile(text: string): string {
   return ts.transpileModule(text, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
@@ -37,23 +43,14 @@ function compile(text: string): string {
 }
 
 function fixture(timeout: number): { root: string; controller: string; heartbeat: string } {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-extension-supervision-'));
+  const root = tempDir('fx-extension-supervision-');
   roots.push(root);
   const heartbeat = path.join(root, 'heartbeat');
   const worker = `const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(path.join(root, 'worker.pid'))},String(process.pid));setInterval(()=>fs.writeFileSync(${JSON.stringify(heartbeat)},String(Date.now())),20);`;
-  writeFileSync(
-    path.join(root, 'supervisor.mjs'),
-    compile(readFileSync('src/adapters/process/lifecycle-runner.ts', 'utf8')),
-  );
-  for (const module of ['executable', 'supervision', 'terminate'])
-    writeFileSync(
-      path.join(root, module + '.js'),
-      compile(readFileSync('src/adapters/process/' + module + '.ts', 'utf8')),
-    );
   const controller = path.join(root, 'controller.mjs');
   writeFileSync(
     controller,
-    `import {NodeLifecycleRunner} from './supervisor.mjs';
+    `import {NodeLifecycleRunner} from ${JSON.stringify(supervisor)};
     await new Promise(r=>setTimeout(r,200));
     const output=await new NodeLifecycleRunner().run({vector:[process.execPath,'-e',${JSON.stringify(worker)}],input:Promise.resolve('{}'),timeoutMs:${timeout},role:'foreground'});
     process.stdout.write(output);`,

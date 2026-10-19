@@ -18,6 +18,7 @@ import {
   type PlatformBinding,
 } from '../../domain/manifest/providers.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
+import { manifestProviderTool } from '../../domain/toolchain/select.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import type { LoginDeps } from '../login/deps.js';
 import { toolchainOf } from '../tool/toolchain.js';
@@ -84,9 +85,7 @@ type ServedTool =
   | { readonly kind: 'unserved'; readonly provider: string }
   | { readonly kind: 'undeclared'; readonly provider: string; readonly name: string };
 
-// A family provider is named after its tool; a registered descriptor may say otherwise. A
-// provider fx does not serve can still be one the manifest defines itself, but only where
-// the team declared the tool it is named after — otherwise the id names nothing.
+// A family provider is named after its tool; a registered descriptor may say otherwise.
 function toolOf(
   deps: WorkspaceDeps,
   login: LoginDeps,
@@ -97,7 +96,7 @@ function toolOf(
   const tools = toolchainOf(deps.ctx).tools;
   const descriptor = login.describeProvider(provider);
   if (!servesCapability(descriptor, binding.capability)) {
-    const own = tools.find((t) => t.name === provider && t.declared);
+    const own = manifestProviderTool(provider, tools);
     return own === undefined ? { kind: 'unserved', provider } : { kind: 'tool', tool: own };
   }
   if (descriptor.tools.length === 0) return { kind: 'toolless' };

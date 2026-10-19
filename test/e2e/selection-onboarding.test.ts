@@ -12,9 +12,16 @@ import {
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
-import { parse } from 'yaml';
 
-import { freshHome, fx, git, manifestDirOf, repository, tempDir } from './harness.js';
+import {
+  disabledBundledTools,
+  freshHome,
+  fx,
+  git,
+  manifestDirOf,
+  repository,
+  tempDir,
+} from './harness.js';
 
 function fixture() {
   const base = tempDir('fx-selection-');
@@ -32,13 +39,7 @@ function fixture() {
     path.join(source, 'manifest/environments.yaml'),
     'schema_version: 2\nplatforms: {docs: {command: "echo documentation"}}\nenvs: {dev: {}, prod: {}}\n',
   );
-  const baseline = parse(readFileSync('defaults/tools.yaml', 'utf8')) as {
-    tools: { name: string }[];
-  };
-  writeFileSync(
-    path.join(source, 'manifest/tools.yaml'),
-    `schema_version: 3\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
-  );
+  writeFileSync(path.join(source, 'manifest/tools.yaml'), disabledBundledTools());
   const env = { FX_HOME: home };
   const init = ['init', root, '--from', source, '--details', '--format', 'json'];
   const run = (args: string[]) =>

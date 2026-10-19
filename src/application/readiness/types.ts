@@ -27,8 +27,7 @@ export interface PendingStep {
   readonly pending: Pending;
 }
 
-// A check that gave no answer, with the error that says why: it says nothing about the
-// target either way.
+// A check that gave no answer (see gaveNoAnswer), with the error that says why.
 export interface UnfinishedCheck {
   readonly id: string;
   readonly code: string;

@@ -52,7 +52,7 @@ export class PushSource {
 async function withLeases<T>(deps: PushSourceDeps, work: () => Promise<T>): Promise<T> {
   const { lock, source } = deps;
   const busy = (): DevkitError => busyError('SOURCE_BUSY', 'The contribution source');
-  return withWorkspaceOperation(lock, source.workspace, false, async () => {
+  return withWorkspaceOperation(lock, source.workspace, async () => {
     await assertContributionIdentity(deps);
     return withLease(lock, { key: workspaceLeaseKey(source.workspace), waitMs: 2000 }, busy, () =>
       withLease(lock, { key: `source:${source.dir}`, waitMs: 2000 }, busy, async () => {

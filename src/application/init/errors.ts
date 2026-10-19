@@ -10,12 +10,13 @@ import {
   type PreparationAction,
 } from '../../domain/preparation.js';
 import { shellLine } from '../../domain/shell.js';
-import type { ManifestSource, ManifestSourceInspection } from '../../ports/manifest-source.js';
+import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { WorkspaceEntry } from '../../ports/stores.js';
 import { sourceValidationError } from '../manifest/source-error.js';
 import { resumeAction } from '../preparation.js';
 import type { ToolInstallOutput } from '../tool/install.js';
 
+import { sourceIdentity } from './source.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
 const PHASES = ['manifest', 'validation', 'registration', 'tools', 'sync'] as const;
@@ -47,19 +48,16 @@ export function sourceMismatch(
   deps: Guidance,
   name: string,
   recorded: string,
-  source: ManifestSource,
+  candidate: string,
 ): DevkitError {
   return new DevkitError(
     'conflict',
     'SOURCE_MISMATCH',
-    `Workspace "${name}" takes its manifest from ${recorded}, not ${source.description}`,
+    `Workspace "${name}" takes its manifest from ${recorded}, not ${candidate}`,
     {
       hint: 'Use workspace rebind to replace the source while preserving identity and local scope.',
       nextSteps: [
-        shellLine(
-          ['fx', 'workspace', 'rebind', name, '--from', source.description],
-          deps.commandShell,
-        ),
+        shellLine(['fx', 'workspace', 'rebind', name, '--from', candidate], deps.commandShell),
         shellLine(['fx', 'workspace', 'show', name], deps.commandShell),
       ],
     },
@@ -76,16 +74,17 @@ export function initializationSourceError(
   let selection: string[] = [];
   if (input.repos !== undefined)
     selection = input.repos.length === 0 ? ['--no-repos'] : ['--repos', input.repos.join(',')];
+  const source = sourceIdentity(input.source);
   return sourceValidationError(error, {
-    source: input.source,
+    source,
     inspected,
     commandShell: deps.commandShell,
     retry: [
       'fx',
       'init',
-      ...(input.resume
+      ...(input.source.kind === 'kept'
         ? ['--resume', '--workspace', output.name]
-        : [output.root, '--name', output.name, '--from', input.source.description, ...selection]),
+        : [output.root, '--name', output.name, '--from', source.description, ...selection]),
       '--dry-run',
     ],
   });

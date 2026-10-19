@@ -99,6 +99,12 @@ export interface SetupStep {
   readonly executionEnv?: Readonly<Record<string, string>>;
 }
 
+// The only setup fx carries out by itself; sign-in and operator-owned files stay with
+// the person.
+export function isLocalPreparation(step: Pick<SetupStep, 'phase'>): boolean {
+  return step.phase === 'prepare';
+}
+
 export type PlanProblemReason =
   'missing_vars' | 'tool_unknown' | 'requires_unknown' | 'requires_cycle' | 'step_conflict';
 

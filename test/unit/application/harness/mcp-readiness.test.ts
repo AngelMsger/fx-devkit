@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { McpReadiness } from '../../../../src/application/harness/mcp-readiness.js';
 import { mcpTrust, mcpCheckTrust } from '../../../../src/application/harness/plan.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -24,7 +23,7 @@ const input = {
 };
 async function fixture() {
   const process = new FakeProcess();
-  const trust = new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock());
+  const trust = new TrustGate(new FakeTrustStore(), new FakePrompter());
   const context = { ...input, yes: true };
   await trust.ensure(mcpTrust(context, resource));
   await trust.ensure(mcpCheckTrust(context, resource));
@@ -71,7 +70,7 @@ describe('MCP readiness', () => {
     const store = new FakeTrustStore();
     const result = await new McpReadiness({
       process,
-      trust: new TrustGate(store, new FakePrompter(), new FakeClock()),
+      trust: new TrustGate(store, new FakePrompter()),
       env: { TOKEN: 'synthetic' },
     }).execute(input);
     expect(result.status).toBe('unconfigured');

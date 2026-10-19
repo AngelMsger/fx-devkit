@@ -9,7 +9,6 @@ import { DeriveDocs } from '../../../../src/application/docs/derive.js';
 import { Doctor, type DoctorInput } from '../../../../src/application/doctor/index.js';
 import type { DoctorExtension } from '../../../../src/application/doctor/types.js';
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
-import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { CachedProbe } from '../../../../src/application/update/check.js';
 import { FxUpdateCheck } from '../../../../src/application/update/fx.js';
 import { ManifestUpdateCheck } from '../../../../src/application/update/manifest.js';
@@ -21,12 +20,12 @@ import { finding } from '../../../../src/domain/report.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
+import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
-import { FakePrompter } from '../../../fakes/fake-prompter.js';
+import type { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeRegistry } from '../../../fakes/fake-registry.js';
-import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { MANIFEST_DIR, ROOT, harness, type Harness } from '../../../fakes/workspace.js';
+import { MANIFEST_DIR, ROOT, harness, withTrust, type Harness } from '../../../fakes/workspace.js';
 
 const HOME = path.resolve('/home/me');
 const upstream = (name: string): string => `ssh://git@git.example.com:12345/fx/${name}.git`;
@@ -116,27 +115,23 @@ async function stage(
       [path.join(MANIFEST_DIR, 'skills', 'review', 'SKILL.md')]: '---\nname: review\n---\n',
     },
   });
-  const prompter = new FakePrompter();
+  const { prompter } = h;
+  prompter.unavailable = false;
   const setup: LoginDeps = {
     serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: options.describeProvider ?? ((id) => DESCRIPTORS[id]),
     prompter,
     clock: new FakeClock(),
     home: HOME,
-    trust: {
-      gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
-      yes: options.yes ?? false,
-      posture: { readOnly: false, source: 'default' },
-    },
   };
   const registry = new FakeRegistry('1.0.0');
-  const probe = new CachedProbe(h.cache, new FakeClock());
+  const probe = new CachedProbe(new FakeCache(), new FakeClock());
   const s: Stage = {
     h,
     prompter,
     registry,
     loggedIn: options.healthy ?? false,
-    doctor: new Doctor(h.deps, {
+    doctor: new Doctor(withTrust(h.deps, { yes: options.yes ?? false }), {
       extensions: options.extensions,
       login: setup,
       skills: {
@@ -534,7 +529,6 @@ describe('Doctor', () => {
     expect(finding).not.toHaveProperty('handoff');
     expect(run.mock.calls.some(([vector]) => vector.includes('can-i'))).toBe(false);
 
-    // The check is the agent's to unblock; the step behind it waits and is nobody's yet.
     const inspect = {
       actor: 'agent',
       argv: ['fx', 'tool', 'install', 'kubectl', '--workspace', 'fx', '--dry-run'],

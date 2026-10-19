@@ -3,7 +3,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-protocol.js';
-import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { syncStages } from '../../../../src/application/sync/stages.js';
 import type { StageResult } from '../../../../src/application/sync/types.js';
 import { describeProvider } from '../../../../src/composition/registry.js';
@@ -11,8 +10,6 @@ const blocked = (result: StageResult) =>
   result.checks.some((check) => check.required && ['blocked', 'unknown'].includes(check.state));
 import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
-import { FakePrompter } from '../../../fakes/fake-prompter.js';
-import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR } from '../../../fakes/workspace.js';
 
 interface StageOptions {
@@ -48,28 +45,16 @@ async function stage(options: StageOptions = {}) {
             [`${MANIFEST_DIR}/manifest/tools.yaml`]: `schema_version: 3\ntools: [{name: bitbucket-cli, ${options.patch}}]\n`,
           },
   });
-  const prompter = new FakePrompter();
-  const clock = new FakeClock();
-  const posture = { readOnly: false, source: 'default' as const };
-  const trust = {
-    gate: new TrustGate(new FakeTrustStore(), prompter, clock),
-    yes: false,
-    posture,
-    workspace: h.ctx.name,
-  };
+  h.prompter.unavailable = false;
   const stages = syncStages({
     deps: h.deps,
-    process: h.process,
-    posture,
-    trust,
     dryRun: false,
     login: {
       serviceProtocol: new FamilyServiceProtocol(),
       describeProvider: (id) => describeProvider(id),
-      prompter,
-      clock,
+      prompter: h.prompter,
+      clock: new FakeClock(),
       home: '/home',
-      trust,
     },
     skills: { hosts: [], configured: [], bundledSkillDir: '/skills', globalLock: new FakeLock() },
   });

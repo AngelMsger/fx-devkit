@@ -40,7 +40,7 @@ export class SkillStage {
       (item) => ({ ...item, status }),
     );
     let tools = input.background
-      ? await trustedTools(plannedTools, input.toolchain, input.trust)
+      ? await trustedTools(plannedTools, input.toolchain, this.deps.trust)
       : plannedTools;
     try {
       const writes =
@@ -49,7 +49,7 @@ export class SkillStage {
         tools.some((t) => t.vector !== null);
       if (!input.dryRun && writes) assertWritable(input.posture, 'sync');
       if (!input.dryRun) {
-        if (!input.background) tools = await trustAll(tools, input.toolchain, input.trust);
+        if (!input.background) tools = await trustAll(tools, input.toolchain, this.deps.trust);
         await replaceConflicts(this.deps, input, links);
         await applyLinks(this.deps, links);
         await applyCopies(this.deps, this.skills, fx, input);

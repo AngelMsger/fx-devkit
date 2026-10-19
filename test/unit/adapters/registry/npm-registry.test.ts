@@ -1,7 +1,6 @@
 // A real npm client must use its selected userconfig and expand scoped authentication.
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import os from 'node:os';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
@@ -9,9 +8,10 @@ import { expect, it } from 'vitest';
 import { NodeProcess } from '../../../../src/adapters/process/node-process.js';
 import { NpmRegistryLocator } from '../../../../src/adapters/registry/npm-config.js';
 import { NpmRegistry } from '../../../../src/adapters/registry/npm-registry.js';
+import { tempDir } from '../../../temp.js';
 
 it('reads private metadata using native npm userconfig and environment-backed authentication', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'fx-npm-metadata-'));
+  const root = tempDir('fx-npm-metadata-');
   const requests: { url: string | undefined; authorization: string | undefined }[] = [];
   let status = 200;
   const server = createServer((request, response) => {
@@ -82,6 +82,5 @@ it('reads private metadata using native npm userconfig and environment-backed au
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await rm(root, { recursive: true, force: true });
   }
 });

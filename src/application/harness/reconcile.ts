@@ -14,7 +14,7 @@ export class ReconcileHarness {
     const preview = await planHarness(
       this.deps,
       input,
-      await readHarnessState(this.deps, input, false),
+      await readHarnessState(this.deps, input, { persist: false }),
     );
     if (input.dryRun || input.action === 'inspect') return { items: preview.items, written: false };
     const pending = (await this.deps.state.read(input.workspace))?.pending;
@@ -35,7 +35,7 @@ export class ReconcileHarness {
       if (JSON.stringify(observed) !== JSON.stringify(input.source.before)) throw harnessConflict();
     }
     const recovered = Boolean((await this.deps.state.read(input.workspace))?.pending);
-    let state = await readHarnessState(this.deps, input, true);
+    let state = await readHarnessState(this.deps, input, { persist: true });
     const current = await planHarness(this.deps, input, state);
     if (JSON.stringify(current.changes) !== JSON.stringify(preview.changes))
       throw harnessConflict();

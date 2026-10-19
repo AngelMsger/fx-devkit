@@ -1,8 +1,7 @@
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { replacementFor } from '../../../src/application/safety/replace-files.js';
@@ -10,17 +9,10 @@ import { pathKey } from '../../../src/domain/path.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
 import { FakeReporter } from '../../fakes/fake-reporter.js';
-
-const directories: string[] = [];
-afterEach(async () => {
-  await Promise.all(
-    directories.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
-  );
-});
+import { tempDir } from '../../temp.js';
 
 async function fixture() {
-  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'fx-approved-')));
-  directories.push(root);
+  const root = await fs.realpath(tempDir('fx-approved-'));
   const store = new NodeFs(new FileLock(root));
   return {
     root,

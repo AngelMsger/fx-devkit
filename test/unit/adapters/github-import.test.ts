@@ -47,7 +47,9 @@ describe('GitHub remotes in manifest import', () => {
       git,
       fs,
       reporter: new FakeReporter(),
-      codeHost: async () => undefined,
+      localCodeHost: () => {
+        throw new Error('a GitHub host is not a local directory to ask');
+      },
       identifyProvider: async (upstream) => identifyGitHubRemote(upstream),
     }).execute({ dir: root, dryRun: false, posture: { readOnly: false, source: 'default' } });
     const doc = loadWorkspace(out.manifest, { cliVersion: '1.0.0' }).doc;

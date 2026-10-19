@@ -2,27 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { checkTools } from '../../../../src/application/doctor/tools.js';
 import type { Finding } from '../../../../src/application/doctor/types.js';
-import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { Tally } from '../../../../src/application/tally.js';
 import {
   workspaceToolScope,
   type WorkspaceToolScope,
 } from '../../../../src/application/tool/scope.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
-import { FakePrompter } from '../../../fakes/fake-prompter.js';
-import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 import { harness, MANIFEST_DIR, type Harness } from '../../../fakes/workspace.js';
 
 const workspace =
   'schema_version: 2\nproviders: {code-host: {provider: local-git, vars: {host: /host}}}\ndefaults: {branch: main, upstream_project: team}\nrepos: [{name: api}]\n';
-const trust = {
-  gate: new TrustGate(new FakeTrustStore(), new FakePrompter(), new FakeClock()),
-  yes: false,
-  posture: { readOnly: false, source: 'default' as const },
-};
-
 const toolFindings = (h: Harness, scope: WorkspaceToolScope): Promise<Finding[]> =>
-  Tally.during(h.activity, 'checks', (checks) => checkTools(h.deps, { ...scope, trust }, checks));
+  Tally.during(h.activity, 'checks', (checks) => checkTools(h.deps, scope, checks));
 
 describe('doctor tool scope', () => {
   it('does not probe unused baseline tools for a local-git workspace', async () => {

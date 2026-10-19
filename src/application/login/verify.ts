@@ -12,6 +12,8 @@ import type { CheckCause, FailureCase, SetupCheck, SetupStep } from '../../domai
 import { stderrReason } from '../../domain/toolchain/stderr.js';
 import { messageOf } from '../../domain/values.js';
 import type { ProcessResult } from '../../ports/process.js';
+import type { WritePosture } from '../safety/posture.js';
+import type { TrustContext, TrustInput } from '../safety/trust.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -45,7 +47,9 @@ export class Verifier {
 
   async verify(step: SetupStep, options: VerifyOptions = {}): Promise<CheckVerdict> {
     if (step.preparation) {
-      const result = await new ServiceOperation(this.deps, this.setup).execute(step, true);
+      const result = await new ServiceOperation(this.deps, this.setup).execute(step, {
+        dryRun: true,
+      });
       return {
         ok: result.status === 'unchanged',
         detail: result.detail,
@@ -67,30 +71,16 @@ export class Verifier {
         return { ok: false, detail: messageOf(err) };
       }
     }
-    const trust = {
-      tool: step.tool,
-      workspace: this.deps.ctx.name,
-      commandShell: this.deps.commandShell,
+    const { gate } = this.deps.trust;
+    const trust = stepTrust(this.deps.trust, step, {
       vector: verify.command,
       label: `${step.id} check`,
-      origin: step.origin,
-      yes: this.setup.trust.yes,
-      posture: this.setup.trust.posture,
-      ...(step.executionEnv
-        ? {
-            execution: {
-              purpose: 'service authentication',
-              resource: step.id,
-              bindings: step.executionEnv,
-            },
-          }
-        : {}),
-    };
-    if (options.dryRun && !(await this.setup.trust.gate.isTrusted(trust)))
+    });
+    if (options.dryRun && !(await gate.isTrusted(trust)))
       return { ok: false, detail: 'manifest command is not trusted', withheld: true };
-    await this.setup.trust.gate.ensure(trust);
+    await gate.ensure(trust);
     const vector = expandHomeIn(verify.command, this.setup.home);
-    const result = await this.deps.processRun(vector, {
+    const result = await this.deps.process.run(vector, {
       timeoutMs: CHECK_TIMEOUT_MS,
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
@@ -112,10 +102,31 @@ export class Verifier {
   }
 }
 
-// A check that gave no answer: its tool did not start, or it outlived its deadline.
-// Nothing about the step follows from it, so nobody is handed the step for it.
-export function gaveNoAnswer(code: string | undefined): boolean {
-  return code === 'TOOL_MISSING' || code === 'PROCESS_TIMEOUT';
+// What the trust gate is asked about one of a step's vectors, its check's or its command's.
+export function stepTrust(
+  trust: TrustContext,
+  step: SetupStep,
+  asked: Pick<TrustInput, 'vector' | 'label'> & { readonly posture?: WritePosture },
+): TrustInput {
+  return {
+    tool: step.tool,
+    workspace: trust.workspace,
+    commandShell: trust.commandShell,
+    vector: asked.vector,
+    label: asked.label,
+    origin: step.origin,
+    yes: trust.yes,
+    posture: asked.posture ?? trust.posture,
+    ...(step.executionEnv
+      ? {
+          execution: {
+            purpose: 'service authentication',
+            resource: step.id,
+            bindings: step.executionEnv,
+          },
+        }
+      : {}),
+  };
 }
 
 function commandVerdict(

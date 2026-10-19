@@ -176,9 +176,7 @@ export class ToolInstalled {
       ...bindProviders(workspace, opts.providers).map(keyedBinding),
       ...bindPlatforms(environments, opts.providers).map(keyedPlatform),
     ];
-    const needed = providerTools(bindings, opts.providers, (tool) =>
-      resolved.some((entry) => entry.name === tool && entry.declared),
-    );
+    const needed = providerTools(bindings, opts.providers, resolved);
     return selectToolchain(resolved, needed).tools;
   }
 

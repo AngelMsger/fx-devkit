@@ -2,7 +2,6 @@
 // status checks from environment variables, kubeconfigs live in a temporary
 // directory, and the personal layer sits in a temporary FX_HOME.
 
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -10,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, searchPath, tempDir } from './harness.js';
+import { freshHome, fx, repository, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -40,26 +39,7 @@ function stage(): Stage {
 
   const host = path.join(base, 'host', 'fx');
   mkdirSync(host, { recursive: true });
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', 'main', path.join(host, 'a.git')]);
-  const author = path.join(base, 'author');
-  const git = (...args: string[]): void => {
-    execFileSync('git', args, {
-      cwd: author,
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: 'T',
-        GIT_AUTHOR_EMAIL: 't@example.com',
-        GIT_COMMITTER_NAME: 'T',
-        GIT_COMMITTER_EMAIL: 't@example.com',
-      },
-    });
-  };
-  execFileSync('git', ['clone', '-q', path.join(host, 'a.git'), author]);
-  git('checkout', '-q', '-b', 'main');
-  writeFileSync(path.join(author, 'README'), 'a\n');
-  git('add', '.');
-  git('commit', '-q', '-m', 'one');
-  git('push', '-q', '-u', 'origin', 'main');
+  repository(host, 'a', { README: 'a\n' });
   const manifestDir = path.join(base, 'src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
   writeFileSync(
@@ -133,6 +113,9 @@ interface Report {
   readonly findings: readonly Finding[];
 }
 
+const ids = (run: ReturnType<typeof fx>): string[] =>
+  (run.json() as Items<{ id: string }>).items.map((i) => i.id);
+
 describe('login and doctor', () => {
   it('returns structured selector errors even when quiet mode suppresses notices', () => {
     const s = stage();
@@ -159,10 +142,8 @@ describe('login and doctor', () => {
     expect(piped.json()).toEqual(listed.json());
   });
 
-  it('plans from the manifest, hands off to a person, verifies, and narrows with env unpick', () => {
+  it('plans from the manifest, hands off to a person, and verifies once the person is done', () => {
     const s = stage();
-    const ids = (run: ReturnType<typeof fx>): string[] =>
-      (run.json() as Items<{ id: string }>).items.map((i) => i.id);
 
     const listed = fx(['login', '--list', '--format', 'json'], s.env, s.ws);
     expect(listed.status, listed.stderr).toBe(0);
@@ -228,14 +209,24 @@ describe('login and doctor', () => {
     ]);
     expect(report.findings.filter((f) => f.level === 'fail')).toEqual([]);
     expect(report.preparation.state).toBe('ready');
+  });
+
+  it('narrows the plan to the environments that are still selected', () => {
+    const s = stage();
 
     const unpick = fx(['env', 'unpick', 'selfhosted', '--format', 'json'], s.env, s.ws);
+
     expect(unpick.status, unpick.stderr).toBe(0);
     expect(ids(fx(['login', '--list', '--format', 'json'], s.env, s.ws))).toEqual([
       'openobserve-cli.context@test',
       'kubectl.kubeconfig@test',
       'kubectl.access@test',
     ]);
+  });
+
+  it('fails doctor on the login step of one environment and names the command that repairs it', () => {
+    const s = stage();
+    writeFileSync(path.join(s.kube, 'test.yaml'), 'k');
 
     const broken = fx(
       ['doctor', '--details', '--env', 'test', '--format', 'json'],

@@ -29,7 +29,7 @@ export async function planTools(
       continue;
     }
     if (
-      (await deps.processWhich(tool.binary)) === undefined &&
+      (await deps.process.which(tool.binary)) === undefined &&
       !(input.dryRun && tool.installOnInit)
     ) {
       items.push(missingToolSkill(tool, deps.commandShell));
@@ -93,14 +93,14 @@ const HELD_BACK = 'untrusted';
 export async function trustedTools(
   items: readonly ToolSkillItem[],
   toolchain: SkillStageInput['toolchain'],
-  trust?: TrustContext,
+  trust: TrustContext,
 ): Promise<ToolSkillItem[]> {
   const result: ToolSkillItem[] = [];
   for (const item of items) {
     if (
       !runnable(item) ||
       item.origin === 'base' ||
-      (trust && (await isApproved(trust, item, authoredCommand(toolchain, item))))
+      (await isApproved(trust, item, authoredCommand(toolchain, item)))
     )
       result.push(item);
     else result.push({ ...item, vector: null, note: HELD_BACK });
@@ -113,9 +113,8 @@ export async function trustedTools(
 export async function trustAll(
   items: readonly ToolSkillItem[],
   toolchain: SkillStageInput['toolchain'],
-  trust?: TrustContext,
+  trust: TrustContext,
 ): Promise<ToolSkillItem[]> {
-  if (trust === undefined) return [...items];
   const approved: ToolSkillItem[] = [];
   for (const item of items) {
     if (!runnable(item)) {
@@ -182,7 +181,7 @@ export async function runTools(deps: WorkspaceDeps, items: ToolSkillItem[]): Pro
       if (!started.has(item.tool))
         deps.reporter.progress({ id: item.tool, state: 'start', detail: 'Skill installation' });
       started.add(item.tool);
-      const result = await deps.processRun(item.vector!, {
+      const result = await deps.process.run(item.vector!, {
         diagnostic: { phase: `${item.tool} skill install` },
       });
       items[index] = { ...item, code: result.code };

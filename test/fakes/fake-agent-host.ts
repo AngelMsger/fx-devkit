@@ -12,7 +12,6 @@ export class FakeAgentHost implements AgentHost {
   constructor(
     readonly id: string,
     private readonly detected: boolean,
-    private readonly base = path.resolve('/fake/home'),
   ) {}
 
   get label(): string {
@@ -25,7 +24,7 @@ export class FakeAgentHost implements AgentHost {
 
   skillsDir(scope: 'global' | 'project', projectRoot?: string): string {
     return scope === 'global'
-      ? path.join(this.base, this.id, 'skills')
+      ? path.join(path.resolve('/fake/home'), this.id, 'skills')
       : path.join(projectRoot ?? path.resolve('/ws'), `.${this.id}`, 'skills');
   }
 

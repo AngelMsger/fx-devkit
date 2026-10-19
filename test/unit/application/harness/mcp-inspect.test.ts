@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { InspectMcp } from '../../../../src/application/harness/inspect.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/registry.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
-import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -32,7 +32,7 @@ const input = {
 function fixture() {
   const process = new FakeProcess();
   const state = new FakeHarnessState();
-  const files = new FakeProjectionStore();
+  const files = new FakeFileProjection(FakeFs.from({}));
   const trustStore = new FakeTrustStore();
   return {
     state,
@@ -46,7 +46,7 @@ function fixture() {
       lock: { acquire: async () => ({ release: async () => {} }) },
       env: { TOKEN: 'opaque-sensitive-value' },
       codec: mcpCodecFor,
-      trust: new TrustGate(trustStore, new FakePrompter(), new FakeClock()),
+      trust: new TrustGate(trustStore, new FakePrompter()),
     }),
   };
 }

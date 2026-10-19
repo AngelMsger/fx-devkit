@@ -1,7 +1,8 @@
 import { Args, Flags } from '@oclif/core';
 
 import { Init } from '../../application/init/index.js';
-import { manifestSourceFor, resumedInitialization } from '../../composition/manifest-sources.js';
+import { ResumeInit } from '../../application/init/resume.js';
+import { manifestSourceFor, resumeInitDeps } from '../../composition/manifest-sources.js';
 import { DevkitError } from '../../domain/errors.js';
 import { FxCommand } from '../base.js';
 import { dryRunFlag, jobsFlag, writeIntent } from '../flags.js';
@@ -62,21 +63,26 @@ export default class InitCommand extends FxCommand {
         'Choose a workspace directory and manifest source',
         { nextSteps: ['fx init <directory> --from <source>'] },
       );
-    const resumed = flags.resume
-      ? await resumedInitialization(flags.workspace!, this.container)
-      : undefined;
-    const source =
-      resumed?.source ??
-      (await manifestSourceFor(flags.from!, this.container, readStdin, this.replacement()));
+    const run = { ...writeIntent(flags, this.posture), jobs: flags.jobs };
+    if (flags.resume) {
+      const deps = resumeInitDeps(this.initDeps(), this.container);
+      const resumed = { workspace: flags.workspace!, cwd: process.cwd(), ...run };
+      await this.renderPreparation(await new ResumeInit(deps).execute(resumed));
+      return;
+    }
+    const source = await manifestSourceFor(
+      flags.from!,
+      this.container,
+      readStdin,
+      this.replacement(),
+    );
     const result = await new Init(this.initDeps()).execute({
-      dir: resumed?.dir ?? args.dir!,
+      dir: args.dir!,
       source,
-      name: resumed?.name ?? flags.name,
-      resume: flags.resume,
+      name: flags.name,
       repos: flags['no-repos'] ? [] : flags.repos?.split(',').map((name) => name.trim()),
       adopt: flags.adopt,
-      ...writeIntent(flags, this.posture),
-      jobs: flags.jobs,
+      ...run,
     });
     await this.renderPreparation(result);
   }

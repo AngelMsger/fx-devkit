@@ -23,7 +23,8 @@ export class ServiceOperation {
     private readonly login: LoginDeps,
   ) {}
 
-  async execute(step: SetupStep, dryRun: boolean): Promise<ServiceResult> {
+  async execute(step: SetupStep, options: { readonly dryRun: boolean }): Promise<ServiceResult> {
+    const { dryRun } = options;
     const base = { id: step.id, tool: step.tool, env: step.env ?? null };
     try {
       const preparation = step.preparation;
@@ -39,17 +40,9 @@ export class ServiceOperation {
               ? tool.minVersion
               : preparation.minVersion,
         }));
-      const [version] = await new ToolCheck({
-        run: this.deps.processRun,
-        which: this.deps.processWhich,
-      }).execute({
+      const [version] = await new ToolCheck(this.deps.process).execute({
         tools,
-        trust: {
-          ...this.login.trust,
-          workspace: this.deps.ctx.name,
-          commandShell: this.deps.commandShell,
-          dryRun,
-        },
+        trust: { ...this.deps.trust, dryRun },
       });
       if (version?.state !== 'ok')
         return {
@@ -111,11 +104,9 @@ export class ServiceOperation {
           ]),
         ),
       };
-    assertWritable(this.login.trust.posture, step.id);
-    await this.login.trust.gate.ensure({
-      ...this.login.trust,
-      workspace: this.deps.ctx.name,
-      commandShell: this.deps.commandShell,
+    assertWritable(this.deps.trust.posture, step.id);
+    await this.deps.trust.gate.ensure({
+      ...this.deps.trust,
       vector: ['fx', 'sync', '--only', 'services'],
       origin: step.origin,
       label: step.id,

@@ -1,15 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
+import { tempDir } from '../../temp.js';
 
 const script = path.resolve('scripts/check-distributable.mjs');
-const roots: string[] = [];
-afterAll(() => {
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
-});
 
 function check(...targets: string[]): { status: number; stderr: string } {
   const result = spawnSync(process.execPath, [script, ...targets], { encoding: 'utf8' });
@@ -17,8 +15,7 @@ function check(...targets: string[]): { status: number; stderr: string } {
 }
 
 function tree(files: Record<string, string>): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'dist-'));
-  roots.push(dir);
+  const dir = tempDir('dist-');
   for (const [name, content] of Object.entries(files)) writeFileSync(path.join(dir, name), content);
   return dir;
 }

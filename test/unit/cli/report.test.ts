@@ -1,5 +1,3 @@
-import { Writable } from 'node:stream';
-
 import { describe, expect, it } from 'vitest';
 
 import { createRenderer, type RenderOptions } from '../../../src/cli/render/index.js';
@@ -10,28 +8,15 @@ import {
   harnessActionState,
   hookActionState,
 } from '../../../src/domain/harness/actions.js';
+import { CaptureStream } from '../../fakes/capture-stream.js';
 
 function render(options: RenderOptions = {}, format: 'json' | 'ndjson' = 'json') {
-  let stdout = '';
-  let stderr = '';
-  const io = {
-    out: new Writable({
-      write(chunk, _encoding, callback) {
-        stdout += String(chunk);
-        callback();
-      },
-    }),
-    err: new Writable({
-      write(chunk, _encoding, callback) {
-        stderr += String(chunk);
-        callback();
-      },
-    }),
-  };
+  const out = new CaptureStream();
+  const err = new CaptureStream();
   return {
-    renderer: createRenderer(format, io, { report: 'init', ...options }),
-    out: () => stdout,
-    err: () => stderr,
+    renderer: createRenderer(format, { out, err }, { report: 'init', ...options }),
+    out: () => out.text(),
+    err: () => err.text(),
   };
 }
 

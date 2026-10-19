@@ -2,7 +2,6 @@
 // optional one only narrows what can be done.
 
 import { DevkitError } from '../../domain/errors.js';
-import type { LoginDeps } from '../login/deps.js';
 import { approveCheckAction, toolRecovery } from '../preparation.js';
 import { commandTrustHandoff, isTrustRequired } from '../safety/trust.js';
 import type { Tally } from '../tally.js';
@@ -13,26 +12,21 @@ import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.
 
 import { finding, type Finding } from './types.js';
 
-export interface ToolCheckOptions extends WorkspaceToolScope {
-  readonly trust: LoginDeps['trust'];
-}
-
 export async function checkTools(
   deps: WorkspaceDeps,
-  options: ToolCheckOptions,
+  options: WorkspaceToolScope,
   checks: Tally,
 ): Promise<Finding[]> {
-  const check = new ToolCheck({ run: deps.processRun, which: deps.processWhich });
+  const check = new ToolCheck(deps.process);
   const tools = options.covered;
   const findings: Finding[] = [];
-  const trust = { ...options.trust, workspace: deps.ctx.name, commandShell: deps.commandShell };
   checks.plan(tools.length);
   for (const tool of tools) {
     try {
       const [status] = await checks.unit(tool.name, () =>
         check.execute({
           tools: [{ ...tool, required: options.required.has(tool.name) }],
-          trust,
+          trust: deps.trust,
         }),
       );
       if (status !== undefined)
@@ -64,7 +58,7 @@ export async function checkTools(
 
 function toolCheckFailure(
   deps: WorkspaceDeps,
-  options: ToolCheckOptions,
+  options: WorkspaceToolScope,
   name: string,
   error: DevkitError,
 ): Finding {
@@ -75,12 +69,7 @@ function toolCheckFailure(
       required,
       fix: workspaceCommand(deps, 'tool', 'show', name),
     });
-  const handoff = commandTrustHandoff({
-    tool: name,
-    workspace: deps.ctx.name,
-    posture: options.trust.posture,
-    commandShell: deps.commandShell,
-  });
+  const handoff = commandTrustHandoff(deps.trust, name);
   return finding('tools', name, 'warn', error.message, {
     coverage: 'incomplete',
     required,

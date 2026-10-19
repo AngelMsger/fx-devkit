@@ -38,7 +38,7 @@ export async function applyHarnessChange(
 export async function readHarnessState(
   deps: HarnessDeps,
   input: HarnessInput,
-  persist: boolean,
+  options: { readonly persist: boolean },
 ): Promise<HarnessState> {
   const state = (await deps.state.read(input.workspace)) ?? {
     root: input.root,
@@ -50,7 +50,7 @@ export async function readHarnessState(
   const snapshot = await deps.files.read({ root: input.root, relative: state.pending.relative });
   const recovery = recoverHarnessState({ state, snapshot });
   if (recovery.action === 'conflict') throw harnessConflict();
-  if (persist) await deps.state.write(input.workspace, recovery.state);
+  if (options.persist) await deps.state.write(input.workspace, recovery.state);
   return recovery.state;
 }
 export function harnessConflict(): DevkitError {

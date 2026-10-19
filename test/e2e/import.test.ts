@@ -2,37 +2,15 @@
 // shape the design names, a .gitmodules recording one intent, and the
 // manifest that comes out feeding an init of its own.
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { freshHome, fx, tempDir } from './harness.js';
-
-const GIT_ENV = {
-  ...process.env,
-  GIT_AUTHOR_NAME: 'T',
-  GIT_AUTHOR_EMAIL: 't@example.com',
-  GIT_COMMITTER_NAME: 'T',
-  GIT_COMMITTER_EMAIL: 't@example.com',
-};
-const git = (cwd: string, ...args: string[]): string =>
-  execFileSync('git', args, { cwd, env: GIT_ENV, encoding: 'utf8' }).trim();
+import { freshHome, fx, git, repository, tempDir } from './harness.js';
 
 function bare(host: string, project: string, name: string, branch: string): string {
-  const dir = path.join(host, project, `${name}.git`);
-  mkdirSync(path.dirname(dir), { recursive: true });
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', branch, dir]);
-  const seed = tempDir('seed-');
-  git(seed, 'clone', '-q', dir, 'w');
-  const w = path.join(seed, 'w');
-  git(w, 'checkout', '-q', '-b', branch);
-  writeFileSync(path.join(w, 'README'), `${name}\n`);
-  git(w, 'add', '.');
-  git(w, 'commit', '-q', '-m', 'one');
-  git(w, 'push', '-q', '-u', 'origin', branch);
-  return dir;
+  return repository(path.join(host, project), name, { README: `${name}\n` }, { branch }).bare;
 }
 
 interface Stage {
@@ -47,12 +25,12 @@ function stage(): Stage {
   const root = path.join(base, 'ws');
   mkdirSync(root);
   const clone = (bareDir: string, into: string, remote: string): void => {
-    git(root, 'clone', '-q', '-o', remote, bareDir, into);
-    git(path.join(root, into), 'remote', 'set-head', remote, '--auto');
+    git(['clone', '-q', '-o', remote, bareDir, into], root);
+    git(['remote', 'set-head', remote, '--auto'], path.join(root, into));
   };
   // 1: upstream remote, on a task branch, with .gitmodules saying dev
   clone(bare(host, 'fx', 'fx-example-api', 'dev'), 'fx-example-api', 'upstream');
-  git(path.join(root, 'fx-example-api'), 'checkout', '-q', '-b', 'feature/x');
+  git(['checkout', '-q', '-b', 'feature/x'], path.join(root, 'fx-example-api'));
   // 2: origin only, in a project namespace: origin is the upstream
   clone(bare(host, 'fx', 'direct', 'main'), 'direct', 'origin');
   // 3: origin only, personal namespace; the search covers projects already seen, so ai needs one member
@@ -62,7 +40,7 @@ function stage(): Stage {
   // 4: no remote at all
   const local = path.join(root, 'scratch-repo');
   mkdirSync(local);
-  git(local, 'init', '-q', '-b', 'main');
+  git(['init', '-q', '-b', 'main'], local);
   // container with one repository inside, and a plain directory
   clone(bare(host, 'fx', 'runtime', 'dev'), path.join('runtimes', 'runtime'), 'upstream');
   mkdirSync(path.join(root, 'docs'));
@@ -111,7 +89,7 @@ describe('import', () => {
     expect(real.status, real.stderr).toBe(0);
     expect(readFileSync(manifest, 'utf8')).toBe(out.manifest);
     expect(
-      git(path.join(s.root, 'fx-example-api'), 'branch', '--show-current'),
+      git(['branch', '--show-current'], path.join(s.root, 'fx-example-api')),
       'checkouts untouched',
     ).toBe('feature/x');
 
@@ -123,6 +101,8 @@ describe('import', () => {
     const boot = fx(['init', target, '--from', src, '--format', 'json'], s.env);
     expect(boot.status, boot.stderr).toBe(0);
     expect((boot.json() as { sync: { summary: { done: number } } }).sync.summary.done).toBe(5);
-    expect(git(path.join(target, 'agent-runtime'), 'branch', '--show-current')).toBe('integration');
+    expect(git(['branch', '--show-current'], path.join(target, 'agent-runtime'))).toBe(
+      'integration',
+    );
   });
 });

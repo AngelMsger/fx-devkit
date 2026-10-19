@@ -5,20 +5,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { FileSource } from '../../../../src/adapters/manifest-source/file.js';
 import { Init } from '../../../../src/application/init/index.js';
+import { ResumeInit } from '../../../../src/application/init/resume.js';
 import type { InitDeps } from '../../../../src/application/init/types.js';
 import type { WritePosture } from '../../../../src/application/safety/posture.js';
+import { TrustGate } from '../../../../src/application/safety/trust.js';
 import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import type { ManifestSource } from '../../../../src/ports/manifest-source.js';
 import { FakeActivity } from '../../../fakes/fake-activity.js';
-import { FakeCache } from '../../../fakes/fake-cache.js';
 import { FakeCodeHost } from '../../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
 import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
 import { FakeGit } from '../../../fakes/fake-git.js';
 import { FakeLocalStore } from '../../../fakes/fake-local-store.js';
+import { FakeProcess } from '../../../fakes/fake-process.js';
+import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeReporter } from '../../../fakes/fake-reporter.js';
+import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
 
 const manifest = readFileSync(
   path.resolve('test/fixtures/manifest/v1-minimal/workspace.yaml'),
@@ -76,13 +80,17 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
       fs,
       projections: new FakeFileProjection(fs),
       localStore: new FakeLocalStore(),
-      cache: new FakeCache(),
       reporter,
       activity: new FakeActivity(),
       cliVersion: '1.0.0',
       user: undefined,
-      processRun: async () => ({ code: 0, stdout: '', stderr: '' }),
-      processWhich: async () => undefined,
+      process: new FakeProcess().always({ code: 0, stdout: '', stderr: '' }),
+      trust: {
+        gate: new TrustGate(new FakeTrustStore(), new FakePrompter()),
+        workspace: ctx.name,
+        yes: false,
+        posture: writable,
+      },
       codeHost: () => codeHost,
       platform: () => undefined,
       reference: () => ({ label: 'Reference', command: [] }),
@@ -521,11 +529,10 @@ describe('Init', () => {
 });
 
 describe('initialization inspection', () => {
-  it('plans from local content without commands, cache writes, registration or personal writes', async () => {
+  it('plans from local content without commands, registration or personal writes', async () => {
     const s = setup({ [path.resolve('/preview/manifest/workspace.yaml')]: manifest });
     const original = s.deps.workspaceDepsFor;
     const queried = vi.fn();
-    const cached = vi.fn();
     const deps: InitDeps = {
       ...s.deps,
       workspaceDepsFor: (ctx) => {
@@ -533,7 +540,7 @@ describe('initialization inspection', () => {
         const host = workspace.codeHost();
         vi.spyOn(host, 'whoami').mockImplementation(queried);
         vi.spyOn(host, 'canRead').mockImplementation(queried);
-        return { ...workspace, cache: { get: async () => undefined, set: cached } };
+        return workspace;
       },
     };
     const out = await new Init(deps).execute({
@@ -555,9 +562,82 @@ describe('initialization inspection', () => {
       ],
     });
     expect(queried).not.toHaveBeenCalled();
-    expect(cached).not.toHaveBeenCalled();
     expect(s.fs.writes).toEqual([]);
     expect(s.config.writes).toBe(0);
     expect(await s.deps.localStore.read('new')).toEqual({});
+  });
+});
+
+describe('resuming a registered workspace', () => {
+  const recorded = path.resolve('/src/manifest');
+  const managed = `${manifestDirFor('new')}/manifest/workspace.yaml`;
+  const run = { dryRun: false, posture: writable, jobs: 1 };
+
+  function registered(entry: { root: string; source?: string }, kept = manifest) {
+    const s = setup({ [managed]: kept }, { workspaces: { new: entry } });
+    const usecase = new ResumeInit({
+      ...s.deps,
+      inspectManaged: (dir) => new FileSource(dir, s.fs).inspect(),
+    });
+    return { ...s, usecase };
+  }
+
+  it('prepares from the managed directory and imports nothing into it', async () => {
+    const s = registered({ root: ROOT, source: recorded });
+    const out = await s.usecase.execute({ ...run, workspace: 'new', cwd: ROOT });
+    expect(out).toMatchObject({
+      name: 'new',
+      root: ROOT,
+      source: recorded,
+      manifest: 'kept',
+      written: true,
+      plan: { manifest_action: 'keep', inspected_source: manifestDirFor('new') },
+      preparation: { state: 'ready' },
+    });
+    expect(s.fs.writes.filter((file) => file.startsWith(manifestDirFor('new')))).toEqual([]);
+    expect(s.settled).toEqual([]);
+    expect((await s.config.read()).workspaces).toEqual({ new: { root: ROOT, source: recorded } });
+  });
+
+  it('leaves a registration that records no source without one', async () => {
+    const s = registered({ root: ROOT });
+    await s.usecase.execute({ ...run, workspace: 'new', cwd: ROOT });
+    expect((await s.config.read()).workspaces).toEqual({ new: { root: ROOT } });
+  });
+
+  it('finds the registration by its root, read against the caller directory', async () => {
+    const s = registered({ root: ROOT, source: recorded });
+    const out = await s.usecase.execute({ ...run, dryRun: true, workspace: '.', cwd: ROOT });
+    expect(out).toMatchObject({ name: 'new', root: ROOT, manifest: 'not_written' });
+  });
+
+  it('keeps the personal repository selection', async () => {
+    const s = registered({ root: ROOT, source: recorded });
+    await s.deps.localStore.write('new', { scope: { repos: ['fx-example-auth'] } });
+    const out = await s.usecase.execute({ ...run, workspace: 'new', cwd: ROOT });
+    expect(out.plan.selection).toEqual({
+      mode: 'explicit',
+      repos: ['fx-example-auth'],
+      validated: true,
+    });
+    expect(await s.deps.localStore.read('new')).toEqual({ scope: { repos: ['fx-example-auth'] } });
+  });
+
+  it('refuses a workspace that is not registered', async () => {
+    const s = registered({ root: ROOT, source: recorded });
+    await expect(
+      s.usecase.execute({ ...run, workspace: 'absent', cwd: ROOT }),
+    ).rejects.toMatchObject({ category: 'not_found', code: 'WORKSPACE_UNKNOWN' });
+    expect(s.config.writes).toBe(0);
+  });
+
+  it('names the recorded source and the resume command when the kept manifest is invalid', async () => {
+    const s = registered({ root: ROOT, source: recorded }, 'schema_version: 999\nrepos: []');
+    await expect(
+      s.usecase.execute({ ...run, dryRun: true, workspace: 'new', cwd: ROOT }),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining(`Candidate source: ${recorded}`),
+      nextSteps: ['fx init --resume --workspace new --dry-run'],
+    });
   });
 });

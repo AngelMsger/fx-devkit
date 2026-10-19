@@ -1,5 +1,3 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -8,38 +6,22 @@ import { LocalGitCodeHost } from '../../../src/adapters/code-host/local-git/prov
 import { NodeFs } from '../../../src/adapters/fs/node-fs.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
+import { git, repository } from '../../git.js';
 import { tempDir } from '../../temp.js';
 
 const ref = { project: 'fx', name: 'a' };
-const identity = {
-  ...process.env,
-  GIT_AUTHOR_NAME: 'Alice',
-  GIT_AUTHOR_EMAIL: 'alice@example.com',
-  GIT_COMMITTER_NAME: 'Alice',
-  GIT_COMMITTER_EMAIL: 'alice@example.com',
-};
-const git = (args: string[], cwd: string): string =>
-  execFileSync('git', args, { cwd, encoding: 'utf8', env: identity }).trim();
 
 // A bare repository whose `main` has one commit and whose `dev` has one more.
 function seed(): { sut: LocalGitCodeHost; devHead: string; mainHead: string } {
   const host = tempDir('fx-host-');
-  mkdirSync(path.join(host, 'fx'));
-  const bare = path.join(host, 'fx', 'a.git');
-  git(['init', '--quiet', '--bare', '-b', 'main', bare], host);
-  const work = path.join(host, 'work');
-  git(['clone', '-q', bare, work], host);
-  git(['checkout', '-q', '-b', 'main'], work);
-  writeFileSync(path.join(work, 'package.json'), '{"version":"1.0.0"}\n');
-  git(['add', '.'], work);
-  git(['commit', '-q', '-m', 'init'], work);
-  const mainHead = git(['rev-parse', 'HEAD'], work);
-  git(['checkout', '-q', '-b', 'dev'], work);
-  writeFileSync(path.join(work, 'VERSION'), '1.1.0\n');
-  git(['add', '.'], work);
-  git(['commit', '-q', '-m', 'feat: m-1 bump'], work);
-  const devHead = git(['rev-parse', 'HEAD'], work);
-  git(['push', '-q', 'origin', 'main', 'dev'], work);
+  const { bare } = repository(
+    path.join(host, 'fx'),
+    'a',
+    { 'package.json': '{"version":"1.0.0"}\n' },
+    { dev: { files: { VERSION: '1.1.0\n' }, message: 'feat: m-1 bump' } },
+  );
+  const mainHead = git(['rev-parse', 'main'], bare);
+  const devHead = git(['rev-parse', 'dev'], bare);
   const sut = new LocalGitCodeHost(
     { process: new NodeProcess(), fs: new NodeFs(), clock: new FakeClock() },
     { host },
@@ -68,7 +50,7 @@ describe('LocalGitCodeHost queries', () => {
     expect(ahead).toEqual([
       expect.objectContaining({
         sha: seeded.devHead,
-        author: 'Alice',
+        author: 'T',
         message: 'feat: m-1 bump',
         parents: [seeded.mainHead],
       }),
@@ -80,7 +62,7 @@ describe('LocalGitCodeHost queries', () => {
   it('reads one commit', async () => {
     expect(await seeded.sut.commit(ref, seeded.mainHead)).toMatchObject({
       sha: seeded.mainHead,
-      message: 'init',
+      message: 'one',
       parents: [],
     });
   });

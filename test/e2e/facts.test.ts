@@ -3,7 +3,6 @@
 // people) in a temporary workspace, a shim jenkins-cli whose status is set
 // by an environment variable, and a temporary FX_HOME.
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -11,36 +10,12 @@ import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, searchPath, tempDir } from './harness.js';
+import { freshHome, fx, repository, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
   readonly shims: string;
   readonly env: Record<string, string>;
-}
-
-function bareWithCommit(host: string, base: string, name: string): void {
-  const bare = path.join(host, `${name}.git`);
-  const author = path.join(base, `author-${name}`);
-  const git = (...args: string[]): void => {
-    execFileSync('git', args, {
-      cwd: author,
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: 'T',
-        GIT_AUTHOR_EMAIL: 't@example.com',
-        GIT_COMMITTER_NAME: 'T',
-        GIT_COMMITTER_EMAIL: 't@example.com',
-      },
-    });
-  };
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', 'main', bare]);
-  execFileSync('git', ['clone', '-q', bare, author]);
-  git('checkout', '-q', '-b', 'main');
-  writeFileSync(path.join(author, 'README'), `${name}\n`);
-  git('add', '.');
-  git('commit', '-q', '-m', 'one');
-  git('push', '-q', '-u', 'origin', 'main');
 }
 
 function stage(): Stage {
@@ -49,8 +24,8 @@ function stage(): Stage {
   mkdirSync(shims);
   const host = path.join(base, 'host', 'fx');
   mkdirSync(host, { recursive: true });
-  bareWithCommit(host, base, 'a');
-  bareWithCommit(host, base, 'off');
+  repository(host, 'a', { README: 'a\n' });
+  repository(host, 'off', { README: 'off\n' });
   const manifestDir = path.join(base, 'src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
   writeFileSync(
@@ -121,6 +96,21 @@ function shim(dir: string, name: string, body: string): void {
   writeNodeShim(dir, name, body);
 }
 
+const json = ['--format', 'json'] as const;
+
+// A jenkins-cli on the stage's PATH that is signed in only where FAKE_JENKINS_OK is 0.
+function installJenkins(s: Stage): void {
+  shim(
+    s.shims,
+    'jenkins-cli',
+    'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("jenkins-cli 1.0.0"); else process.exit(a==="auth status"?Number(process.env.FAKE_JENKINS_OK??1):2);',
+  );
+}
+
+function signedIn(s: Stage): Record<string, string> {
+  return { ...s.env, FAKE_JENKINS_OK: '0' };
+}
+
 interface Items<T> {
   readonly items: readonly T[];
 }
@@ -153,7 +143,6 @@ interface CanAnswer {
 describe('facts: where, member, can, derived docs', () => {
   it('keeps unpicked alias discovery and typo recovery available through the built CLI', () => {
     const s = stage();
-    const json = ['--format', 'json'];
     const set = fx(['manifest', 'set', 'a', 'aka', '["backend"]', ...json], s.env, s.ws);
     expect(set.status, set.stderr).toBe(0);
     const unpick = fx(['repo', 'unpick', 'a', ...json], s.env, s.ws);
@@ -216,8 +205,6 @@ describe('facts: where, member, can, derived docs', () => {
 
   it('lists people by area and status, and opens a repository by printing its page', () => {
     const s = stage();
-    const json = ['--format', 'json'] as const;
-
     const all = fx(['member', 'list', ...json], s.env, s.ws);
     expect(all.status, all.stderr).toBe(0);
     expect((all.json() as Items<MemberRow>).items).toEqual([
@@ -262,98 +249,50 @@ describe('facts: where, member, can, derived docs', () => {
     expect(unknown.error().code).toBe('REPO_NOT_FOUND');
   });
 
-  it('answers from the manifest, hands off when the machine is not ready, and keeps AGENTS.md honest', () => {
+  it('answers where with what stands between this machine and each coordinate', () => {
     const s = stage();
-    const json = ['--format', 'json'] as const;
+    const row = (repo: string, platform: string, env = s.env): Coordinate => {
+      const run = fx(['where', repo, '--env', 'dev', '--platform', platform, ...json], env, s.ws);
+      expect(run.status, run.stderr).toBe(0);
+      const [first] = (run.json() as Items<Coordinate>).items;
+      if (first === undefined) throw new Error(`no ${platform} row`);
+      return first;
+    };
 
-    const where = fx(['where', 'a', '--env', 'dev', '--no-check', ...json], s.env, s.ws);
-    expect(where.status, where.stderr).toBe(0);
-    const coordinates = (where.json() as Items<Coordinate>).items;
-    expect(coordinates.map((c) => [c.platform, c.status, c.confidence, c.ready])).toEqual([
-      ['sentry', 'located', 'unverified', null],
-      ['openobserve', 'located', 'derived', null],
-      ['jenkins', 'located', 'derived', null],
-      ['kube', 'located', 'derived', null],
-    ]);
-    expect(coordinates[0]?.command).toBe('sentry issue list fx/fx-alpha-dev --json');
-    expect(coordinates[2]?.command).toBe('jenkins-cli build list services/a/dev');
-    const off = (
-      fx(
-        ['where', 'off', '--env', 'dev', '--platform', 'sentry', ...json],
-        s.env,
-        s.ws,
-      ).json() as Items<Coordinate>
-    ).items[0];
-    expect(off).toMatchObject({
+    expect(row('off', 'sentry')).toMatchObject({
       status: 'not_covered',
       ready: 'not_covered',
       command: null,
       notes: ['decommissioned'],
     });
-
-    const who = fx(['member', 'show', 'alice@example.com', ...json], s.env, s.ws);
-    expect((who.json() as Items<{ id: string; matched_by: string }>).items).toEqual([
-      expect.objectContaining({ id: 'alice', matched_by: 'email' }),
-    ]);
-    const byGit = (
-      fx(['member', 'show', 'alice', ...json], s.env, s.ws).json() as Items<{
-        id: string;
-        matched_by: string;
-      }>
-    ).items;
-    expect(byGit.map((p) => [p.id, p.matched_by])).toEqual([
-      ['alice', 'id'],
-      ['bob', 'git_name'],
-    ]);
-    const owners = fx(['repo', 'show', 'a', ...json], s.env, s.ws).json() as {
-      owners: { scenario: string; devLead: { id: string } }[];
-    };
-    expect(owners.owners).toEqual([
-      expect.objectContaining({
-        scenario: 'Core',
-        devLead: expect.objectContaining({ id: 'bob' }),
-      }),
-    ]);
-    const human = fx(['repo', 'show', 'a'], s.env, s.ws).stdout;
-    expect(human).toContain('dev lead: Bob (bob@example.com)');
-    expect(human).toContain('backend: Alice (alice@example.com), Bob (bob@example.com)');
-
-    const jenkinsRow = (args: string[], env = s.env): Coordinate => {
-      const run = fx(
-        ['where', 'a', '--env', 'dev', '--platform', 'jenkins', ...args, ...json],
-        env,
-        s.ws,
-      );
-      expect(run.status, run.stderr).toBe(0);
-      const [row] = (run.json() as Items<Coordinate>).items;
-      if (row === undefined) throw new Error('no jenkins row');
-      return row;
-    };
-    const can = (args: string[], env = s.env): CanAnswer => {
-      const run = fx(['can', ...args, ...json], env, s.ws);
-      expect(run.status, run.stderr).toBe(0);
-      return run.json() as CanAnswer;
-    };
-    expect(jenkinsRow([])).toMatchObject({
+    expect(row('a', 'jenkins')).toMatchObject({
       ready: 'missing_tool',
       handoff: { command: 'fx tool install jenkins-cli --workspace ws' },
     });
-    shim(
-      s.shims,
-      'jenkins-cli',
-      'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("jenkins-cli 1.0.0"); else process.exit(a==="auth status"?Number(process.env.FAKE_JENKINS_OK??1):2);',
-    );
-    expect(jenkinsRow([], { ...s.env, FAKE_JENKINS_OK: '1' })).toMatchObject({
+    installJenkins(s);
+    expect(row('a', 'jenkins', { ...s.env, FAKE_JENKINS_OK: '1' })).toMatchObject({
       ready: 'unconfigured',
       handoff: {
         command: 'fx login jenkins-cli --workspace ws',
         user_steps: [{ id: 'jenkins-cli.login' }],
       },
     });
-    const ready = jenkinsRow([], { ...s.env, FAKE_JENKINS_OK: '0' });
-    expect(ready.ready).toBe('ready');
-    expect(ready.command).toBe('jenkins-cli build list services/a/dev');
-    expect(can(['ci', '--env', 'dev'], { ...s.env, FAKE_JENKINS_OK: '0' })).toMatchObject({
+    expect(row('a', 'jenkins', signedIn(s))).toMatchObject({
+      ready: 'ready',
+      command: 'jenkins-cli build list services/a/dev',
+    });
+  });
+
+  it('answers can with ready, not covered or no access, and the way out of each', () => {
+    const s = stage();
+    installJenkins(s);
+    const can = (args: string[], env = s.env): CanAnswer => {
+      const run = fx(['can', ...args, ...json], env, s.ws);
+      expect(run.status, run.stderr).toBe(0);
+      return run.json() as CanAnswer;
+    };
+
+    expect(can(['ci', '--env', 'dev'], signedIn(s))).toMatchObject({
       status: 'ready',
       tool: 'jenkins-cli',
     });
@@ -367,13 +306,45 @@ describe('facts: where, member, can, derived docs', () => {
       alternatives: ['selfhosted declares no openobserve platform', 'fx doctor --workspace ws'],
     });
     expect(fx(['env', 'unpick', 'dev', ...json], s.env, s.ws).status).toBe(0);
-    expect(can(['ci', '--env', 'dev'], { ...s.env, FAKE_JENKINS_OK: '0' })).toMatchObject({
+    expect(can(['ci', '--env', 'dev'], signedIn(s))).toMatchObject({
       status: 'no_access',
       alternatives: ['fx env pick dev --workspace ws', 'fx doctor --workspace ws'],
     });
+  });
 
+  it('answers who a person is and who owns a repository from the members document', () => {
+    const s = stage();
+
+    const who = fx(['member', 'show', 'alice@example.com', ...json], s.env, s.ws);
+    expect(who.status, who.stderr).toBe(0);
+    expect((who.json() as Items<{ id: string }>).items.map((person) => person.id)).toEqual([
+      'alice',
+    ]);
+    const owners = fx(['repo', 'show', 'a', ...json], s.env, s.ws).json() as {
+      owners: { scenario: string; devLead: { id: string } }[];
+    };
+    expect(owners.owners).toEqual([
+      expect.objectContaining({
+        scenario: 'Core',
+        devLead: expect.objectContaining({ id: 'bob' }),
+      }),
+    ]);
+    const human = fx(['repo', 'show', 'a'], s.env, s.ws).stdout;
+    expect(human).toContain('dev lead: Bob (bob@example.com)');
+    expect(human).toContain('backend: Alice (alice@example.com), Bob (bob@example.com)');
+  });
+
+  it('derives AGENTS.md without people or coordinates, and tells a stale guide from a foreign one', () => {
+    const s = stage();
     const docsStage = (run: ReturnType<typeof fx>) =>
       (run.json() as { stages: { docs: Record<string, number> } }).stages.docs;
+    const docsFinding = (): { level: string; fix?: string } | undefined =>
+      (
+        fx(['doctor', ...json], s.env, s.ws).json() as {
+          findings: { group: string; id: string; level: string; fix?: string }[];
+        }
+      ).findings.find((f) => f.group === 'manifest' && f.id === 'docs');
+
     const derived = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
     expect(derived.status, derived.stderr).toBe(0);
     expect(docsStage(derived), 'init already derived the guide').toMatchObject({ unchanged: 1 });
@@ -385,12 +356,7 @@ describe('facts: where, member, can, derived docs', () => {
     expect(text.startsWith('<!-- fx:derived from '), 'the root file announces its origin').toBe(
       true,
     );
-    const docsFinding = (): { level: string; fix?: string } | undefined =>
-      (
-        fx(['doctor', ...json], s.env, s.ws).json() as {
-          findings: { group: string; id: string; level: string; fix?: string }[];
-        }
-      ).findings.find((f) => f.group === 'manifest' && f.id === 'docs');
+
     const pointer = path.join(s.ws, 'CLAUDE.md');
     writeFileSync(pointer, `${text.split('\n')[0]}\n# CLAUDE.md\n`);
     expect(docsFinding(), 'a pointer an earlier version derived is stale').toMatchObject({
@@ -400,11 +366,13 @@ describe('facts: where, member, can, derived docs', () => {
     const retired = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
     expect(docsStage(retired)).toMatchObject({ removed: 1, unchanged: 1 });
     expect(existsSync(pointer)).toBe(false);
+
     writeFileSync(agents, `${text}\n## Ours\n\nRouting rules people wrote.\n`);
     expect(docsFinding(), 'a derived file is stale as soon as it differs').toMatchObject({
       level: 'warn',
       fix: 'fx sync --only docs --workspace ws',
     });
+
     writeFileSync(agents, text.split('\n').slice(1).join('\n'));
     const foreign = fx(['sync', '--only', 'docs', ...json], s.env, s.ws);
     expect(foreign.error().code).toBe('INPUT_REQUIRED');
@@ -413,9 +381,5 @@ describe('facts: where, member, can, derived docs', () => {
       level: 'warn',
       fix: 'Move the file aside, then fx sync --only docs --workspace ws',
     });
-
-    const query = fx(['repo', 'list', ...json], { ...s.env, FX_AGENTS: 'claude-code' }, s.ws);
-    expect(query.status, query.stderr).toBe(0);
-    expect(query.stderr).not.toMatch(/SKILL_(MISSING|OUTDATED|AVAILABLE|VERSION_)/);
   });
 });

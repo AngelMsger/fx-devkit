@@ -6,15 +6,14 @@ import { FamilyServiceProtocol } from '../../../../src/adapters/family/service-p
 import type { LoginDeps } from '../../../../src/application/login/deps.js';
 import { Login, type LoginInput } from '../../../../src/application/login/run.js';
 import { Verifier } from '../../../../src/application/login/verify.js';
-import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { FakeClock } from '../../../fakes/fake-clock.js';
-import { FakePrompter } from '../../../fakes/fake-prompter.js';
-import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { MANIFEST_DIR, harness, type Harness } from '../../../fakes/workspace.js';
+import type { FakePrompter } from '../../../fakes/fake-prompter.js';
+import type { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
+import { MANIFEST_DIR, harness, withTrust, type Harness } from '../../../fakes/workspace.js';
 
 const HOME = path.resolve('/home/me');
 
@@ -110,27 +109,22 @@ interface Stage {
 async function stage(
   options: { local?: LocalLayer; yes?: boolean; unavailable?: boolean; tools?: string } = {},
 ): Promise<Stage> {
-  const h = await harness({
+  const base = await harness({
     local: options.local ?? { scope: { envs: ['dev', 'test'] } },
     files: {
       [`${MANIFEST_DIR}/manifest/environments.yaml`]: environments,
       [`${MANIFEST_DIR}/manifest/tools.yaml`]: options.tools ?? tools,
     },
   });
-  const prompter = new FakePrompter();
+  const h = { ...base, deps: withTrust(base.deps, { yes: options.yes ?? false }) };
+  const { prompter, trusted: trust } = h;
   prompter.unavailable = options.unavailable ?? false;
-  const trust = new FakeTrustStore();
   const deps: LoginDeps = {
     serviceProtocol: new FamilyServiceProtocol(),
     describeProvider: (id) => DESCRIPTORS[id],
     prompter,
     clock: new FakeClock(),
     home: HOME,
-    trust: {
-      gate: new TrustGate(trust, prompter, new FakeClock()),
-      yes: options.yes ?? false,
-      posture: { readOnly: false, source: 'default' },
-    },
   };
   const s: Stage = {
     h,

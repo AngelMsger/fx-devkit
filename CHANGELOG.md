@@ -45,8 +45,9 @@
 - Quote for the configured `command_shell` the commands that follow a workspace
   `relocate` or `rebind`, a registration `fx init` cannot take or resume, a profile
   import or source contribution whose workspace changed, a probe that could not be
-  recorded and a `--workspace` that names nothing registered. These were printed in
-  POSIX quoting whatever the setting.
+  recorded, a manifest import aimed inside the directory it describes, and a
+  `--workspace` that names nothing registered. These were printed in POSIX quoting
+  whatever the setting.
 - Run git in the C locale when reading a manifest repository or a `local-git` code
   host, as repository synchronization does. Under another locale a file missing from
   a branch was reported as a failed query, because git's translated message went
@@ -61,6 +62,11 @@
 - Report `bundled_tools` in `fx self info` as a path the file system accepts when fx
   is installed under a directory whose name has a space or a non-ASCII character, or
   on Windows. The value was a percent-encoded URL path there.
+- Leave a registration that records no manifest source as it is when
+  `fx init --resume` continues it. Resuming wrote `source: "-"` into `config.yaml`:
+  `fx sync` then took the workspace for one prepared from stdin and stopped saying
+  that it has no source to refresh, and `fx init <dir> --from <source>` refused the
+  directory with `SOURCE_MISMATCH` in place of recording the source.
 
 ## 0.11.0 (2026-10-12)
 

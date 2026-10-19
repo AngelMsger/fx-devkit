@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
-import { freshHome, fx, git, repository } from './harness.js';
+import { disabledBundledTools, freshHome, fx, git, repository } from './harness.js';
 
 function stage(project = 'team', repositoryName = 'api', fileUrl = false) {
   const base = freshHome();
@@ -29,15 +29,8 @@ function stage(project = 'team', repositoryName = 'api', fileUrl = false) {
 function importSource(s: ReturnType<typeof stage>, disableTools = true) {
   const imported = s.run(['manifest', 'import', s.root, '-o', s.file]);
   expect(imported.status, imported.stderr).toBe(0);
-  const baseline = parse(readFileSync('defaults/tools.yaml', 'utf8')) as {
-    tools: { name: string }[];
-  };
   if (disableTools)
-    writeFileSync(
-      path.join(s.source, 'manifest/tools.yaml'),
-      'schema_version: 3\ntools:\n' +
-        baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n'),
-    );
+    writeFileSync(path.join(s.source, 'manifest/tools.yaml'), disabledBundledTools());
   return imported.json() as { manifest: string; report: { review: { note: string }[] } };
 }
 

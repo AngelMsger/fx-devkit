@@ -30,11 +30,13 @@ export async function cleanupAgentWorkspaces(
 ): Promise<readonly AgentCleanupRow[]> {
   const rows: AgentCleanupRow[] = [];
   for (const workspace of input.workspaces) {
+    const cleanup = (): Promise<readonly AgentCleanupRow[]> =>
+      cleanupWorkspace(deps, input, workspace);
     try {
       rows.push(
-        ...(await withWorkspaceOperation(deps.lock, workspace, input.dryRun, () =>
-          cleanupWorkspace(deps, input, workspace),
-        )),
+        ...(input.dryRun
+          ? await cleanup()
+          : await withWorkspaceOperation(deps.lock, workspace, cleanup)),
       );
     } catch (error) {
       rows.push(...failureRows(input, workspace, asDevkitError(error).code));

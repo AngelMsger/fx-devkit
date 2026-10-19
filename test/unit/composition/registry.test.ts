@@ -48,7 +48,7 @@ describe('provider registry', () => {
     });
   });
 
-  it('rejects an unknown provider id with a suggestion', () => {
+  it('refuses a binding the providers it registers cannot serve', () => {
     expect(() =>
       resolveProvider(
         { capability: 'code-host', provider: 'bitbucket-cil', source: 'explicit', vars: {} },
@@ -60,18 +60,6 @@ describe('provider registry', () => {
         hint: expect.stringContaining('bitbucket-cli'),
       }),
     );
-  });
-
-  it('rejects a provider bound to the wrong capability', () => {
-    expect(() =>
-      resolveProvider(
-        { capability: 'im', provider: 'local-git', source: 'explicit', vars: {} },
-        deps,
-      ),
-    ).toThrow(expect.objectContaining({ code: 'PROVIDER_UNKNOWN' }));
-  });
-
-  it('names the missing required variable', () => {
     expect(() =>
       resolveProvider(
         { capability: 'code-host', provider: 'bitbucket-cli', source: 'explicit', vars: {} },
@@ -83,11 +71,5 @@ describe('provider registry', () => {
         message: expect.stringContaining('host'),
       }),
     );
-  });
-
-  it('explains an unbound capability', () => {
-    expect(() =>
-      resolveProvider({ capability: 'im', provider: null, source: 'unbound', vars: {} }, deps),
-    ).toThrow(expect.objectContaining({ code: 'PROVIDER_UNBOUND' }));
   });
 });

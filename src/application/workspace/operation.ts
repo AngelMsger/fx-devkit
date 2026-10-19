@@ -12,10 +12,8 @@ export async function acquireWorkspaceOperation(lock: Lock, name: string): Promi
 export async function withWorkspaceOperation<T>(
   lock: Lock,
   name: string,
-  dryRun: boolean,
   work: () => Promise<T>,
 ): Promise<T> {
-  if (dryRun) return work();
   return withLease(lock, operationRequest(name), () => operationBusy(name), work);
 }
 

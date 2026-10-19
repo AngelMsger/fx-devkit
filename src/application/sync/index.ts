@@ -37,14 +37,12 @@ export class Sync {
     let items: readonly SyncItem[] = [];
     const output = (): SyncOutput => ({
       operation: input.dryRun ? 'preview' : 'apply',
-      preparation: workspacePreparation(
-        this.deps,
-        wanted,
+      preparation: workspacePreparation(this.deps, {
+        stages: wanted,
         checks,
-        input.dryRun,
-        {},
-        syncRecovery(this.deps, input, wanted),
-      ),
+        preview: input.dryRun,
+        resume: syncRecovery(this.deps, input, wanted),
+      }),
       items,
       summary: repositorySummary(items),
       stages,

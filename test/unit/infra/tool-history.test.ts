@@ -1,19 +1,17 @@
 // Atomic appends preserve concurrent audit events and reject foreign files.
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, stat, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { ToolInstallation } from '../../../src/domain/toolchain/installation.js';
 import { FileLock } from '../../../src/infra/lock.js';
 import { FileToolHistoryStore } from '../../../src/infra/tool-history.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'fx-tool-history-'));
-  roots.push(root);
+  const root = tempDir('fx-tool-history-');
   return {
     root,
     file: path.join(root, 'tool-history.json'),
@@ -38,9 +36,6 @@ function event(): ToolInstallation {
     failure_code: null,
   };
 }
-afterEach(async () => {
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
-});
 
 describe('tool history file', () => {
   it('does not write on reads and retains concurrent appends from independent stores', async () => {

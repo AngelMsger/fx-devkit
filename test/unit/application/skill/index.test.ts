@@ -12,12 +12,12 @@ import { Sync } from '../../../../src/application/sync/index.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
+import type { Process } from '../../../../src/ports/process.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
-import { harness, MANIFEST_DIR, ROOT } from '../../../fakes/workspace.js';
+import { harness, MANIFEST_DIR, ROOT, withTrust } from '../../../fakes/workspace.js';
 
 const writable: WritePosture = { readOnly: false, source: 'default' };
 const locked: WritePosture = { readOnly: true, source: 'env' };
@@ -126,15 +126,15 @@ describe('SkillStage partial execution', () => {
         code === 'INTERNAL'
           ? new TypeError('synthetic failure')
           : new DevkitError('internal', code, 'synthetic failure');
-      const deps = {
-        ...h.deps,
-        processWhich: async () => '/synthetic/bin',
-        processRun: async (vector: readonly string[]) => {
+      const process: Process = {
+        which: async () => '/synthetic/bin',
+        run: async (vector) => {
           calls.push(vector[0]!);
           if (vector[0] === 'beta') throw error;
           return { code: 0, stdout: '', stderr: '' };
         },
       };
+      const deps = { ...h.deps, process };
       const stage = new SkillStage(deps, skills);
       await expect(
         new Sync(deps).execute({
@@ -339,7 +339,7 @@ describe('SkillStage: the team link', () => {
   });
 
   it('reports a workspace without a skills directory as nothing to do', async () => {
-    const h = await harness();
+    const h = await harness({ files: bundledSkill.files });
     const out = await new SkillStage(h.deps, {
       hosts: agents,
       configured: undefined,
@@ -467,11 +467,10 @@ describe('SkillStage: the fx copy and the tools', () => {
     h.process.always({ code: 0, stdout: '[]', stderr: '' });
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const gate = new TrustGate(new FakeTrustStore(), prompter, new FakeClock());
+    const gate = new TrustGate(new FakeTrustStore(), prompter);
     await expect(
-      new SkillStage(h.deps, skills).execute({
+      new SkillStage(withTrust(h.deps, { gate, yes: false }), skills).execute({
         toolchain: tools,
-        trust: { gate, workspace: 'fx', yes: false, posture: writable },
         dryRun: false,
         posture: writable,
       }),
@@ -484,9 +483,8 @@ describe('SkillStage: the fx copy and the tools', () => {
         }),
       ]),
     });
-    const out = await new SkillStage(h.deps, skills).execute({
+    const out = await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
       toolchain: tools,
-      trust: { gate, workspace: 'fx', yes: true, posture: writable },
       dryRun: false,
       posture: writable,
     });
@@ -497,28 +495,26 @@ describe('SkillStage: the fx copy and the tools', () => {
     expect(out.summary).toMatchObject({ tools_run: 1, tools_skipped: 1, tools_failed: 0 });
 
     h.process.clear().always({ code: 1, stdout: '', stderr: 'no such agent' });
-    const failed = await new SkillStage(h.deps, skills).execute({
+    const failed = await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
       toolchain: tools,
-      trust: { gate, workspace: 'fx', yes: true, posture: writable },
       dryRun: false,
       posture: writable,
     });
     expect(failed.tools[0]).toMatchObject({ code: 1, note: 'no such agent' });
     expect(failed.summary).toMatchObject({ tools_failed: 1 });
     const store = new FakeTrustStore();
-    const fresh = new TrustGate(store, prompter, new FakeClock());
-    const planned = await new SkillStage(h.deps, skills).execute({
+    const fresh = new TrustGate(store, prompter);
+    const readOnly = withTrust(h.deps, { gate: fresh, yes: true, posture: locked });
+    const planned = await new SkillStage(readOnly, skills).execute({
       toolchain: tools,
-      trust: { gate: fresh, workspace: 'fx', yes: true, posture: locked },
       dryRun: true,
       posture: locked,
     });
     expect(planned.tools[0]).toMatchObject({ code: null, vector: expect.any(Array) });
     expect(store.entries, 'a dry run trusts nothing').toEqual([]);
     await expect(
-      new SkillStage(h.deps, skills).execute({
+      new SkillStage(readOnly, skills).execute({
         toolchain: tools,
-        trust: { gate: fresh, workspace: 'fx', yes: true, posture: locked },
         dryRun: false,
         posture: locked,
       }),
@@ -541,16 +537,15 @@ describe('SkillStage: the fx copy and the tools', () => {
     h.process.always({ code: 0, stdout: '', stderr: '' });
     const prompter = new FakePrompter();
     prompter.unavailable = true;
+    const untrusting = (): SkillStage =>
+      new SkillStage(
+        withTrust(h.deps, { gate: new TrustGate(new FakeTrustStore(), prompter), yes: false }),
+        skills,
+      );
 
     await expect(
-      new SkillStage(h.deps, skills).execute({
+      untrusting().execute({
         toolchain: resolveTools(loaded.doc, loaded.provenance),
-        trust: {
-          gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
-          workspace: 'fx',
-          yes: false,
-          posture: writable,
-        },
         dryRun: false,
         posture: writable,
       }),
@@ -564,14 +559,8 @@ describe('SkillStage: the fx copy and the tools', () => {
       ]),
     });
     expect(h.process.calls).toEqual([]);
-    const background = await new SkillStage(h.deps, skills).execute({
+    const background = await untrusting().execute({
       toolchain: resolveTools(loaded.doc, loaded.provenance),
-      trust: {
-        gate: new TrustGate(new FakeTrustStore(), prompter, new FakeClock()),
-        workspace: 'fx',
-        yes: false,
-        posture: writable,
-      },
       dryRun: false,
       posture: writable,
       background: true,
@@ -607,11 +596,10 @@ describe('SkillStage: independent local effects and command trust', () => {
     const store = new FakeTrustStore();
     const prompter = new FakePrompter();
     prompter.unavailable = true;
-    const gate = new TrustGate(store, prompter, new FakeClock());
+    const gate = new TrustGate(store, prompter);
     const alpha = tools.filter((t) => t.name === 'alpha');
-    await new SkillStage(h.deps, skills).execute({
+    await new SkillStage(withTrust(h.deps, { gate, yes: true }), skills).execute({
       toolchain: alpha,
-      trust: { gate, workspace: 'fx', yes: true, posture: writable },
       dryRun: true,
       posture: writable,
     });
@@ -625,9 +613,8 @@ describe('SkillStage: independent local effects and command trust', () => {
     });
     h.fs.links.clear();
     await expect(
-      new SkillStage(h.deps, skills).execute({
+      new SkillStage(withTrust(h.deps, { gate, yes: false }), skills).execute({
         toolchain: tools,
-        trust: { gate, workspace: 'fx', yes: false, posture: writable },
         dryRun: false,
         posture: writable,
       }),
@@ -664,15 +651,10 @@ describe('SkillStage: one approval per authored Skill command', () => {
     const store = new FakeTrustStore();
     const prompter = new FakePrompter();
     prompter.unavailable = true;
+    const gate = new TrustGate(store, prompter);
     const stage = (hosts: readonly FakeAgentHost[], yes: boolean, background = false) =>
-      new SkillStage(h.deps, { ...skills, hosts }).execute({
+      new SkillStage(withTrust(h.deps, { gate, yes }), { ...skills, hosts }).execute({
         toolchain: resolveTools(loaded.doc, loaded.provenance),
-        trust: {
-          gate: new TrustGate(store, prompter, new FakeClock()),
-          workspace: 'fx',
-          yes,
-          posture: writable,
-        },
         dryRun: false,
         posture: writable,
         background,
@@ -691,7 +673,7 @@ describe('SkillStage: one approval per authored Skill command', () => {
 
   it('keeps honouring an approval recorded for one whole vector', async () => {
     const { h, store, stage } = await teamTool();
-    await new TrustGate(store, new FakePrompter(), new FakeClock()).ensure({
+    await new TrustGate(store, new FakePrompter()).ensure({
       workspace: 'fx',
       vector: ['alpha', 'skill', 'install', '--dir', claudeDir],
       label: 'alpha skill install',
@@ -744,7 +726,7 @@ describe('observeLink with a relative target', () => {
     const { observeLink } = await import('../../../../src/application/skill/observe.js');
     const { FakeFs } = await import('../../../fakes/fake-fs.js');
     const fs = FakeFs.from({});
-    await fs.link('../elsewhere/review', path.resolve('/home/me/.claude/skills/review'));
+    fs.links.set(path.resolve('/home/me/.claude/skills/review'), '../elsewhere/review');
     const observed = await observeLink(fs, path.resolve('/home/me/.claude/skills/review'));
     expect(observed).toEqual({
       kind: 'link',

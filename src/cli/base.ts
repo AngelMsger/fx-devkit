@@ -12,7 +12,7 @@ import type { LoginDeps } from '../application/login/deps.js';
 import type { ManifestContext } from '../application/manifest/context.js';
 import { resolveManifestDir } from '../application/manifest/locate.js';
 import { resolvePosture, type WritePosture } from '../application/safety/posture.js';
-import type { TrustGate } from '../application/safety/trust.js';
+import type { TrustContext } from '../application/safety/trust.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import type { SyncStages } from '../application/sync/types.js';
 import type { Toolchain } from '../application/tool/toolchain.js';
@@ -135,7 +135,7 @@ export abstract class FxCommand extends Command {
       const operation = await beginWorkspaceCommand(
         this.resolveInput(),
         this.container.lock,
-        scope === 'source',
+        scope,
       );
       if (operation) {
         this.operationLease = operation.lease;
@@ -253,6 +253,11 @@ export abstract class FxCommand extends Command {
     return this.wiring().workspaceDeps(await this.workspace());
   }
 
+  // For a command that reaches a workspace's toolchain without its dependency bundle.
+  protected trustFor(workspace: string): TrustContext {
+    return this.wiring().trustFor(workspace);
+  }
+
   protected harnessInput(): HarnessCommandInput {
     return this.wiring().harnessInput();
   }
@@ -292,9 +297,6 @@ export abstract class FxCommand extends Command {
   }
   protected replacement(): ReplaceFiles {
     return this.wiring().replacement();
-  }
-  protected trustGate(): TrustGate {
-    return this.wiring().trustGate();
   }
 
   protected toolchain(): Promise<Toolchain> {

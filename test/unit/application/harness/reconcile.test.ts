@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { ReconcileHarness } from '../../../../src/application/harness/reconcile.js';
 import { TrustGate } from '../../../../src/application/safety/trust.js';
 import { createAgentHosts, mcpCodecFor } from '../../../../src/composition/registry.js';
-import { FakeClock } from '../../../fakes/fake-clock.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
 import { FakeFs } from '../../../fakes/fake-fs.js';
-import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
 import { FakeProcess } from '../../../fakes/fake-process.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
 import { FakeTrustStore } from '../../../fakes/fake-trust-store.js';
@@ -34,9 +34,11 @@ const input = {
   yes: true,
   posture: { readOnly: false, source: 'default' as const },
 };
+const mcpFile = path.join(input.root, '.mcp.json');
 function fixture() {
   const state = new FakeHarnessState();
-  const files = new FakeProjectionStore();
+  const projected = new Map<string, string>();
+  const files = new FakeFileProjection(new FakeFs(projected));
   const trustStore = new FakeTrustStore();
   const prompter = new FakePrompter();
   const deps = {
@@ -47,12 +49,12 @@ function fixture() {
     }),
     state,
     files,
-    trust: new TrustGate(trustStore, prompter, new FakeClock()),
+    trust: new TrustGate(trustStore, prompter),
     env: { TOKEN: 'synthetic-sensitive-value' },
     codec: mcpCodecFor,
     lock: { acquire: async () => ({ release: async () => {} }) },
   };
-  return { state, files, trustStore, prompter, deps, run: new ReconcileHarness(deps) };
+  return { state, files, projected, trustStore, prompter, deps, run: new ReconcileHarness(deps) };
 }
 describe('harness reconciliation', () => {
   it('previews without state and persists only references after trust', async () => {
@@ -61,8 +63,8 @@ describe('harness reconciliation', () => {
     expect(f.files.writes + f.state.writes + f.trustStore.entries.length).toBe(0);
     const result = await f.run.execute(input);
     expect(result.items[0]?.action).toBe('created');
-    expect(f.files.files.get('.mcp.json')).toContain('${TOKEN}');
-    expect(JSON.stringify([...f.files.files, f.state.value])).not.toContain(
+    expect(f.projected.get(mcpFile)).toContain('${TOKEN}');
+    expect(JSON.stringify([...f.projected, f.state.value])).not.toContain(
       'synthetic-sensitive-value',
     );
     await f.run.execute(input);
@@ -100,7 +102,7 @@ describe('harness reconciliation', () => {
       handoff: expect.any(Object),
     });
     expect(f.files.writes).toBe(0);
-    f.files.files.set('.mcp.json', '{"mcpServers":{"fx-knowledge":{"command":"mine"}}}');
+    f.projected.set(mcpFile, '{"mcpServers":{"fx-knowledge":{"command":"mine"}}}');
     expect((await f.run.execute(input)).items[0]?.action).toBe('foreign');
   });
   it('plans multiple resources in one native file without overwriting earlier entries', async () => {
@@ -109,7 +111,7 @@ describe('harness reconciliation', () => {
       ...input,
       harness: { ...harness, mcp: [harness.mcp[0]!, { ...harness.mcp[0]!, name: 'second' }] },
     });
-    const servers = JSON.parse(f.files.files.get('.mcp.json')!).mcpServers;
+    const servers = JSON.parse(f.projected.get(mcpFile)!).mcpServers;
     expect(Object.keys(servers)).toEqual(['fx-knowledge', 'fx-second']);
     expect(f.state.value?.receipts).toHaveLength(2);
   });
@@ -145,7 +147,7 @@ describe('harness reconciliation', () => {
     expect(f.state.value?.receipts[0]?.agents).toEqual(['fixture']);
     await run.execute({ ...input, selected: [] });
     expect(f.state.value?.receipts).toEqual([]);
-    expect(JSON.parse(f.files.files.get('.mcp.json')!).mcpServers).toEqual({});
+    expect(JSON.parse(f.projected.get(mcpFile)!).mcpServers).toEqual({});
   });
   it('does not fall back to Markdown for an unregistered rules protocol', async () => {
     const f = fixture();

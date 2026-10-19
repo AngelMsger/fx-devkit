@@ -13,7 +13,7 @@ import type { LoginDeps } from '../application/login/deps.js';
 import { Login } from '../application/login/run.js';
 import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
 import { replacementFor } from '../application/safety/replace-files.js';
-import { TrustGate } from '../application/safety/trust.js';
+import type { TrustContext } from '../application/safety/trust.js';
 import { SkillStage } from '../application/skill/stage.js';
 import type { SkillDeps } from '../application/skill/targets.js';
 import { syncStages, type SyncStageInput } from '../application/sync/stages.js';
@@ -30,7 +30,14 @@ import type { ResolvedShell } from '../domain/shell.js';
 import type { ReplaceFiles } from '../ports/replace-files.js';
 import type { Reporter } from '../ports/reporter.js';
 
-import { loginDeps, skillDeps, workspaceDeps, type Container } from './container.js';
+import {
+  loginDeps,
+  skillDeps,
+  trustContext,
+  workspaceDeps,
+  type Container,
+  type TrustInvocation,
+} from './container.js';
 import { harnessSession, type HarnessCommandInput } from './harness.js';
 import { hookSession } from './hooks.js';
 import { toolInstall } from './tool-install.js';
@@ -65,7 +72,6 @@ export function resolveInputFor(container: Container, scope: ResolveScope): Reso
 }
 
 export class CommandWiring {
-  private trust: TrustGate | undefined;
   private replace: ReplaceFiles | undefined;
 
   constructor(private readonly input: CommandWiringInput) {}
@@ -75,10 +81,9 @@ export class CommandWiring {
     return { container, resolve, env, cliVersion, noInput, yes, posture };
   }
 
-  trustGate(): TrustGate {
-    const { container, noInput } = this.input;
-    this.trust ??= new TrustGate(container.trust, container.prompter(noInput), container.clock);
-    return this.trust;
+  // For a command that reaches a workspace's toolchain without its dependency bundle.
+  trustFor(workspace: string): TrustContext {
+    return trustContext(this.input.container, workspace, this.trustInvocation());
   }
 
   replacement(): ReplaceFiles {
@@ -100,8 +105,8 @@ export class CommandWiring {
   }
 
   workspaceDeps(ctx: WorkspaceContext): WorkspaceDeps {
-    const { container, reporter, cliVersion, user, commandShell } = this.input;
-    return workspaceDeps(container, { ctx, reporter, cliVersion, user, commandShell });
+    const { container, reporter, cliVersion, user } = this.input;
+    return workspaceDeps(container, { ctx, reporter, cliVersion, user, ...this.trustInvocation() });
   }
 
   skillDeps(): SkillDeps {
@@ -168,6 +173,11 @@ export class CommandWiring {
     ];
   }
 
+  private trustInvocation(): TrustInvocation {
+    const { commandShell, noInput, yes, posture } = this.input;
+    return { commandShell, noInput, yes, posture };
+  }
+
   private hookSessionFor(name: string | undefined): HookSession {
     return hookSession({
       container: this.input.container,
@@ -178,7 +188,7 @@ export class CommandWiring {
   }
 
   loginDeps(): LoginDeps {
-    return loginDeps({ ...this.input, gate: this.trustGate() });
+    return loginDeps(this.input);
   }
 
   initDeps(): InitDeps {
@@ -204,13 +214,7 @@ export class CommandWiring {
           tools: toolchainOf(ctx).tools,
           commandShell: this.input.commandShell,
           posture: this.input.posture,
-          trust: {
-            gate: this.trustGate(),
-            workspace: ctx.name,
-            commandShell: this.input.commandShell,
-            yes: this.input.yes,
-            posture: this.input.posture,
-          },
+          trust: depsFor(ctx).trust,
         }),
       stagesFor: (ctx) =>
         syncStages({ ...this.stageWiring(depsFor(ctx), false), initialize: true }),
@@ -228,14 +232,7 @@ export class CommandWiring {
       this.loginDeps(),
       toolInstall(this.input.container),
       new SkillStage(deps, this.skillDeps()),
-    ).execute({
-      gate: this.trustGate(),
-      workspace: deps.ctx.name,
-      commandShell: deps.commandShell,
-      yes: this.input.yes,
-      posture: this.input.posture,
-      dryRun: true,
-    });
+    ).execute();
   }
 
   stages(deps: WorkspaceDeps, dryRun: boolean): SyncStages {
@@ -254,16 +251,7 @@ export class CommandWiring {
       replace: this.replacement(),
       login: this.loginDeps(),
       skills: this.skillDeps(),
-      process: this.input.container.process,
-      trust: {
-        gate: this.trustGate(),
-        workspace: deps.ctx.name,
-        commandShell: deps.commandShell,
-        yes: this.input.yes,
-        posture: this.input.posture,
-      },
       dryRun,
-      posture: this.input.posture,
     };
   }
 }

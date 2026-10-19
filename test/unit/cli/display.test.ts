@@ -1,18 +1,15 @@
 // Decoration is a property of the stream: a terminal gets colour, symbols and a width;
 // everything a program may read gets none of them, whatever the environment asks for.
-import { Writable } from 'node:stream';
-
 import { describe, expect, it } from 'vitest';
 
 import { displayOf, PLAIN } from '../../../src/cli/render/display.js';
+import { CaptureStream } from '../../fakes/capture-stream.js';
 import { FakeTerminal, tagged } from '../../fakes/fake-terminal.js';
-
-const pipe = (): Writable => new Writable({ write: (_chunk, _encoding, done) => done() });
 
 describe('a stream that is not a terminal', () => {
   it('is plain even when the environment forces colour', () => {
     for (const env of [{}, { TERM: 'xterm-256color' }, { FORCE_COLOR: '1' }, { FORCE_COLOR: '3' }])
-      expect(displayOf(pipe(), env, 'darwin')).toBe(PLAIN);
+      expect(displayOf(new CaptureStream(), env, 'darwin')).toBe(PLAIN);
   });
 
   it('paints nothing, marks nothing and never shortens', () => {

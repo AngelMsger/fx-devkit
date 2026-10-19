@@ -7,12 +7,13 @@ import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
 import { platformOf, type Binding, type PlatformBinding } from '../../domain/manifest/providers.js';
 import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
 import { problemsOfTool } from '../../domain/setup/names.js';
+import { gaveNoAnswer, SetupProgress } from '../../domain/setup/progress.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import { buildPlan } from '../login/collect.js';
 import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
-import { gaveNoAnswer, Verifier } from '../login/verify.js';
+import { Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
 import { ToolCheck, toolRecoveryCommand } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -65,7 +66,7 @@ export class Readiness {
     if (target.tool === null) return this.verdict('ready');
 
     const state = await this.toolState(target.tool);
-    if (state === 'untrusted') return untrusted(this.deps, this.login, target.tool.name);
+    if (state === 'untrusted') return untrusted(this.deps, target.tool.name);
     if (state === 'unknown') return versionUnknown(this.deps, target.tool);
     if (state !== 'ok')
       return this.verdict(
@@ -94,11 +95,10 @@ export class Readiness {
     return { status, handoff: null, alternatives: [this.command('doctor')], ...extra };
   }
 
-  // A step whose check failed is handed over, and outranks a check that could not finish:
-  // nobody is handed a sign-in for the latter, checking again is its only step.
+  // A step whose check failed is handed over, and outranks a check that could not finish.
   private async setupVerdict(tool: string, env: string | null): Promise<Verdict> {
     const pending = await this.pendingSteps(tool, env);
-    if (pending === 'untrusted') return untrusted(this.deps, this.login, tool);
+    if (pending === 'untrusted') return untrusted(this.deps, tool);
     if ('problems' in pending)
       return this.verdict('unconfigured', {
         handoff: handoffEnvelope({
@@ -158,18 +158,9 @@ export class Readiness {
 
   private async inspectToolState(tool: ResolvedTool): Promise<ToolReadiness> {
     try {
-      const [status] = await new ToolCheck({
-        run: this.deps.processRun,
-        which: this.deps.processWhich,
-      }).execute({
+      const [status] = await new ToolCheck(this.deps.process).execute({
         tools: [tool],
-        trust: {
-          gate: this.login.trust.gate,
-          workspace: this.deps.ctx.name,
-          commandShell: this.deps.commandShell,
-          yes: this.login.trust.yes,
-          posture: this.login.trust.posture,
-        },
+        trust: this.deps.trust,
       });
       if (status === undefined) return 'unknown';
       return status.state;
@@ -200,31 +191,24 @@ export class Readiness {
     const verifier = new Verifier(this.deps, this.login);
     const steps: PendingStep[] = [];
     const unfinished: UnfinishedCheck[] = [];
-    // A step waiting on an unfinished check is as unknown as that check is, whatever
-    // else it waits on.
-    const undone = new Set<string>();
-    const unknown = new Set<string>();
+    const progress = new SetupProgress();
     for (const step of plan.steps) {
-      if (step.requires.some((id) => unknown.has(id))) {
-        unknown.add(step.id);
-        continue;
-      }
-      const blockedBy = step.requires.find((id) => undone.has(id));
-      if (blockedBy !== undefined) {
-        steps.push({ step, pending: { blockedBy } });
-        undone.add(step.id);
+      const standing = progress.admit(step);
+      if (standing.kind === 'unanswered') continue;
+      if (standing.kind === 'blocked') {
+        steps.push({ step, pending: { blockedBy: standing.by } });
         continue;
       }
       try {
         const failed = await verifier.verify(step);
         if (failed.ok) continue;
         steps.push({ step, pending: { failed } });
-        undone.add(step.id);
+        progress.record(step, 'undone');
       } catch (err) {
         if (isTrustRequired(err)) return 'untrusted';
         if (!(err instanceof DevkitError) || !gaveNoAnswer(err.code)) throw err;
         unfinished.push({ id: step.id, code: err.code, message: err.message });
-        unknown.add(step.id);
+        progress.record(step, 'unanswered');
       }
     }
     return { steps, unfinished };
