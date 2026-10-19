@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.12.0 (2026-10-19)
+
 ### Added
 
 - Open pull requests on GitHub. `fx source push` works with a manifest source hosted
