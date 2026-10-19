@@ -141,7 +141,9 @@ fx env select --all
 
 工作区根目录不是 Git 仓库，因此 `fx status` 还会返回 `stray_entries`：根目录下既不是 checkout、派生指南、fx 维护的 Go 工作区、Agent 或服务配置，也不是工作台的文件和目录。`fx doctor` 在 `root` 组里逐项列出，级别为警告，不影响就绪判定。
 
-sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
+sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。空的 upstream 会被跳过，因为没有可 fast-forward 的内容；缺少被跟踪分支的 upstream 同样会被跳过，但会作为需要检查的问题报告。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
+
+在终端里，sync 和 init 只显示需要关注的仓库或 Skill 行，成功的由状态行计数。两者最后都按阶段各给一行结论，再按解决方式分组列出阻塞项：登录、服务拒绝的访问，或本机连不上的服务器，后者会给出重新检查的命令。`--verbose` 会显示每一行，管道或 `--format json` 仍会收到全部行。
 
 ## 核心概念 {#concepts}
 
@@ -313,7 +315,7 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 ### 人工接手后恢复登录 {#resume-login-after-a-handoff}
 
-`login` 需要人工输入时，先完成已授权的 handoff，再重跑同一命令。fx 会先检查当前状态，再决定是否重复操作；随后重新执行原先的 `can` 或 `doctor` 检查，继续原任务。
+`login` 需要人工输入时，先完成已授权的 handoff，再重跑同一命令。fx 会先检查当前状态，再决定是否重复操作；随后重新执行原先的 `can` 或 `doctor` 检查，继续原任务。与 init 和 sync 一样，`login` 会直接运行复用已有登录的内置步骤，即使带 `--no-input` 也不询问；只有登录前才会询问。
 
 机器调用方在非零退出时也要同时读取部分 stdout 与 stderr 错误。已完成步骤仍保留；`handoff`、`blocked`、`failed`、`not_started` 区分后续工作。汇总、计划问题和步骤恢复字段见[登录响应契约](../skills/fx-workspace/references/commands.md#readiness-and-recovery)。
 
@@ -329,4 +331,4 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 ### 复用已有登录
 
-初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。
+初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。多个环境可能共享已保存的登录：`fx login` 为其中一个环境完成登录后，会重新检查该工具之前未能完成的环境，并把已经可用的报告为 verified。

@@ -1,6 +1,7 @@
 // Explicit preparation evidence shared by initialization, synchronization and diagnostics.
 // Optional capabilities remain visible without deciding whether required work is usable.
 import type { ErrorEnvelope } from './errors.js';
+import type { CheckCause } from './setup/types.js';
 
 export interface PreparationAction {
   readonly actor: 'agent' | 'user';
@@ -27,6 +28,10 @@ export interface PreparationCheck {
   readonly owner: 'agent' | 'user' | 'maintainer' | 'external';
   readonly actions?: readonly PreparationAction[];
   readonly failure?: ErrorEnvelope['error'];
+  // What the failed check's own output says is wrong, where its recipe can read it.
+  readonly cause?: CheckCause;
+  // The check this one waits on: until that one passes, this one was not checked.
+  readonly waits_on?: string;
 }
 
 export interface PreparationScope {

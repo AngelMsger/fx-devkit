@@ -166,16 +166,40 @@ export class GitRepoSource implements ManifestSource {
     const kept = (reason: string): RefreshOutcome => ({ result: 'kept', reason });
     const onBranch = state.branch === branch;
     const protection = await this.worktreeProtection(dir, state);
-    if (protection !== undefined) return kept(protection);
+    if (protection !== undefined) return kept(protection + (await this.landed(dir, state, branch)));
     const outcome = await this.git.fastForward(dir, 'upstream', branch);
     if (outcome === 'diverged') {
       const suffix = onBranch ? '' : '; its ref was not moved';
       return kept(`local commits on ${branch} diverge from upstream${suffix}`);
     }
+    if (outcome === 'empty_remote') return kept('upstream has no branches yet');
+    if (outcome === 'no_remote_branch') return kept(`upstream has no ${branch} branch`);
     if (!onBranch)
       return kept(
-        `on ${state.branch ?? 'a detached HEAD'}, not ${branch}; only the ${branch} ref moved`,
+        `on ${state.branch ?? 'a detached HEAD'}, not ${branch}; only the ${branch} ref moved` +
+          (await this.landed(dir, state, branch)),
       );
     return { result: outcome };
+  }
+
+  // Whether the commits of a checkout kept on another branch already reached upstream,
+  // so the person knows returning to the default branch loses nothing committed.
+  private async landed(dir: string, state: RepoState, branch: string): Promise<string> {
+    if (state.branch === branch) return '';
+    const target = `upstream/${branch}`;
+    const merged = await runGit(this.process, [
+      '-C',
+      dir,
+      'merge-base',
+      '--is-ancestor',
+      'HEAD',
+      target,
+    ]);
+    if (merged.code === 0) return `; its commits are already in ${target}`;
+    const [head, upstream] = await Promise.all([
+      this.git.sha(dir, 'HEAD^{tree}'),
+      this.git.sha(dir, `${target}^{tree}`),
+    ]);
+    return head !== undefined && head === upstream ? `; its content matches ${target}` : '';
   }
 }

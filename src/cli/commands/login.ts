@@ -4,7 +4,7 @@ import { Login, LOGIN_STEP_COLUMNS } from '../../application/login/run.js';
 import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
 import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
-import { loginNotices } from '../notices.js';
+import { loginNotices, nonZero, stepRecoveryNotices } from '../notices.js';
 import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class LoginCommand extends FxCommand {
@@ -46,6 +46,7 @@ export default class LoginCommand extends FxCommand {
     const { argv, flags } = await this.parse(LoginCommand);
     const tools = argv.length === 0 ? undefined : (argv as string[]);
     const login = new Login(await this.workspaceDeps(), this.loginDeps());
+    this.renderer.status?.fold({ notices: ['LOGIN_SUMMARY'] });
     if (flags.list) {
       const plan = await login.plan({ tools, envs: flags.env });
       this.renderer.list(plan.steps, {
@@ -62,10 +63,17 @@ export default class LoginCommand extends FxCommand {
       ...writeIntent(flags, this.posture),
       noInput: this.noInput,
     });
+    // A person reads the counts once, below the table, and only those that are not zero.
+    const human = this.format === 'human';
+    const summary = human ? nonZero(out.summary) : out.summary;
     this.renderer.list(out.items, {
       columns: LOGIN_STEP_COLUMNS,
-      trailer: { summary: out.summary, problems: out.problems },
+      trailer: {
+        summary,
+        ...(human && out.problems.length === 0 ? {} : { problems: out.problems }),
+      },
     });
+    if (human) for (const notice of stepRecoveryNotices(out.items)) this.renderer.notice(notice);
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
   }
 }

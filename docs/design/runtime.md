@@ -58,7 +58,12 @@ counts its checks, sync, status and release their repositories, login its steps.
 What is said through the `Activity` port is never a record. Progress records stay
 with `Reporter` and reach every reader in every format; on a terminal showing the
 line, a `start` or `running` record is the line's to say and prints no line of its
-own, while every outcome still does.
+own, while every outcome still does. A command whose closing view restates outcomes
+may fold them into the line's count instead: sync and init fold each `done` record and
+the `SYNC_PARTIAL` notice, which their preparation view repeats, and login folds its
+`LOGIN_SUMMARY` notice into the counts under its table. Folding is the terminal's
+alone and `--verbose` or `--details` turns it off; a pipe, a file and the machine
+formats still receive every record and notice as they did.
 
 Everything else written to that terminal goes around the line: results, notices,
 outcomes, diagnostics and errors are written above it. A question to the person
@@ -70,8 +75,9 @@ back. A piped child given a deadline or a cancellation signal leads its own
 session and has no terminal; one given neither stays in fx's session, where git,
 ssh or an installer may ask about a host key, a passphrase or a password. While
 such a child runs, and on Windows while any child runs, nothing is redrawn: the
-line is cleared before the child starts and is printed as an ordinary line every
-five seconds instead, so a question is never wiped and fx is still never silent.
+line is cleared before the child starts and is printed as an ordinary line once the
+terminal has been quiet for five seconds instead, so a question is never wiped and fx
+is still never silent.
 
 Repository work also reaches programs as a `repos` progress record when each phase
 begins, every five seconds after that and once at the end: `phase` (`preflight` or

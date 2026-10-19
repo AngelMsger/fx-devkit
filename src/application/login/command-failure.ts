@@ -7,6 +7,7 @@ export function setupCommandFailure(stderr: string, exitCode: number): ErrorEnve
   const category = CATEGORIES.find((value) => value === native?.['category']) ?? 'config';
   const code = typeof native?.['code'] === 'string' ? native['code'] : 'SETUP_COMMAND_FAILED';
   const hint = typeof native?.['hint'] === 'string' ? native['hint'] : undefined;
+  const retryable = native?.['retryable'];
   const steps = native?.['next_steps'];
   const nextSteps = Array.isArray(steps)
     ? steps.filter((step): step is string => typeof step === 'string')
@@ -15,6 +16,7 @@ export function setupCommandFailure(stderr: string, exitCode: number): ErrorEnve
     new DevkitError(category, code, stderrReason(stderr, exitCode), {
       ...(hint === undefined ? {} : { hint }),
       ...(nextSteps === undefined ? {} : { nextSteps }),
+      ...(typeof retryable === 'boolean' ? { retryable } : {}),
     }),
   ).error;
 }

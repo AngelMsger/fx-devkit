@@ -17,6 +17,14 @@ Tracked changes on the tracked branch skip a working-tree update. Nonconflicting
 untracked files can coexist with a fast-forward; Git refuses updates that would
 overwrite them. A task branch permits only the tracked branch ref update.
 
+When the tracked branch cannot be resolved, sync asks the remote for its branches
+before calling it absent. An empty upstream, as behind a repository registered before
+its first push, is skipped with outcome `empty_remote` and does not block readiness.
+An upstream with other branches but not the tracked one is skipped with outcome
+`no_remote_branch` and blocks readiness, since the manifest may track the wrong
+branch. A branch the remote has but the checkout does not fetch remains a failure.
+An unborn local branch fast-forwards once upstream has commits.
+
 ## Code-host readability
 
 Code-host readability is a current observation rather than cached authorization:

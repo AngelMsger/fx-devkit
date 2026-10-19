@@ -2,17 +2,20 @@
 // `preparation.next` instructs an agent and stays in the structured report.
 import type { InitOutput } from '../application/init/types.js';
 import { isSettled } from '../application/login/run.js';
-import type { SyncOutput } from '../application/sync/types.js';
+import type { StageSummary } from '../application/preparation.js';
+import type { SyncItem, SyncOutput } from '../application/sync/types.js';
 import type { Preparation, PreparationAction, PreparationCheck } from '../domain/preparation.js';
+import type { CheckCause } from '../domain/setup/types.js';
 import { shellEnvironmentLine, shellLine, type ResolvedShell } from '../domain/shell.js';
 
 import type { Display, Mark } from './render/display.js';
+import { roleOf } from './render/tone.js';
 import { gap, widthOf } from './render/width.js';
 
 // Every preparation report carries a verdict. An initialization also names its root,
 // its plan and its first sync; a sync lists the repositories it reconciles.
 export type PreparationReport = { readonly preparation: Preparation } & Partial<
-  Pick<InitOutput, 'root' | 'manifest_dir' | 'plan' | 'sync'> & Pick<SyncOutput, 'items'>
+  Pick<InitOutput, 'root' | 'manifest_dir' | 'plan' | 'sync'> & Pick<SyncOutput, 'items' | 'stages'>
 >;
 
 export interface PreparationView {
@@ -25,6 +28,31 @@ export interface PreparationView {
 // Below this a wrapped reason is a column of fragments; the terminal may wrap it instead.
 const NARROWEST_REASON = 24;
 
+// More names than this say less than their number does.
+const NAMES_SHOWN = 4;
+
+// What each cause asks of the person, in the order a person can act on them.
+const CAUSES: readonly (readonly [CheckCause | undefined, string])[] = [
+  ['credential', 'Sign-in or credentials:'],
+  ['permission', 'Access refused:'],
+  ['network', 'Not reachable from this machine:'],
+  [undefined, 'Other:'],
+];
+
+// Codes that say no more than the message they come with.
+const GENERIC_CODES = new Set(['PREPARATION_REQUIRED', 'SETUP_COMMAND_FAILED']);
+
+const STAGE_LABELS: Readonly<Record<string, string>> = {
+  services: 'Services',
+  setup: 'Logins',
+  docs: 'Guides',
+  go: 'Go workspace',
+  skills: 'Skills',
+  hooks: 'Hooks',
+  mcp: 'MCP',
+  tools: 'Tools',
+};
+
 const VERDICT: Readonly<Record<Preparation['state'], Mark | undefined>> = {
   ready: 'ok',
   planned: undefined,
@@ -36,10 +64,12 @@ export function preparationText(report: PreparationReport, view: PreparationView
   const { preparation } = report;
   const target = report.root ?? preparation.scope.workspace;
   const initialization = report.manifest_dir !== undefined;
+  const groups = blockerRows(preparation.blockers).length;
+  const grouping = groups < preparation.blockers.length ? `, in ${groups} groups` : '';
   const headline = {
     ready: `${initialization ? 'Ready to work' : 'Required preparation verified'}: ${target}`,
     planned: `Preparation preview; no changes made: ${target}`,
-    incomplete: `${target} needs attention: ${count(preparation.blockers.length, 'required check')} not ready`,
+    incomplete: `${target} needs attention: ${count(preparation.blockers.length, 'required check')} not ready${grouping}`,
   }[preparation.state];
   const verdict = VERDICT[preparation.state];
   const lines = [
@@ -47,6 +77,7 @@ export function preparationText(report: PreparationReport, view: PreparationView
   ];
   if (!initialization && preparation.state !== 'incomplete')
     lines.push(display.paint('quiet', `Scope: ${preparation.scope.stages.join(', ')}`));
+  if (preparation.state !== 'planned') lines.push(...stageLines(report, display));
   if (preparation.state === 'planned') lines.push(...previewLines(report, view));
   const setup = report.sync?.stage_details?.setup;
   const steps = setup === undefined || 'failure' in setup ? [] : setup.items;
@@ -96,30 +127,145 @@ function attentionLines(preparation: Preparation, view: PreparationView): string
   ];
 }
 
-// Checks that say the same thing and are resolved by the same commands share a row; a
-// check that could not run is marked apart from one that ran and failed. A reason too
-// long for the line continues under its own column, not under the check id.
-function blockerLines(blockers: readonly PreparationCheck[], display: Display): string[] {
-  const rows = new Map<string, { check: PreparationCheck; label: string; more: number }>();
-  for (const check of blockers) {
+interface BlockerRow {
+  readonly check: PreparationCheck;
+  readonly label: string;
+  // The listed checks that wait, directly or through another, on this row's checks and
+  // were not checked themselves.
+  readonly holding: readonly string[];
+}
+
+// Checks that say the same thing and are resolved by the same commands share a row, and a
+// check waiting on a listed one is named under the row its chain of waits leads to rather
+// than as a row of its own.
+function blockerRows(blockers: readonly PreparationCheck[]): BlockerRow[] {
+  const listed = new Map(blockers.map((check) => [check.id, check]));
+  const waits = (check: PreparationCheck): boolean =>
+    check.waits_on !== undefined && listed.has(check.waits_on);
+  const origin = (check: PreparationCheck): string => {
+    const seen = new Set<string>();
+    let current = check;
+    while (waits(current) && !seen.has(current.id)) {
+      seen.add(current.id);
+      current = listed.get(current.waits_on!)!;
+    }
+    return current.id;
+  };
+  const rows = new Map<string, { check: PreparationCheck; ids: string[] }>();
+  for (const check of blockers.filter((check) => !waits(check))) {
     const resolution = (check.actions ?? []).map((action) => selections(action.argv).command);
     const key = JSON.stringify([check.state, check.message, resolution]);
-    const row = rows.get(key) ?? { check, label: check.id, more: -1 };
-    row.more += 1;
-    row.label = row.more > 0 ? `${row.check.id} (+${row.more} more)` : row.check.id;
+    const row = rows.get(key) ?? { check, ids: [] };
+    row.ids.push(check.id);
     rows.set(key, row);
   }
-  const width = Math.max(...[...rows.values()].map((row) => widthOf(row.label)));
+  return [...rows.values()].map(({ check, ids }) => ({
+    check,
+    label: ids.length > 1 ? `${check.id} (+${ids.length - 1} more)` : check.id,
+    holding: blockers
+      .filter((other) => waits(other) && ids.includes(origin(other)))
+      .map((other) => other.id),
+  }));
+}
+
+// Grouped by what the person is to do once any check says why it failed; a check that
+// could not run is marked apart from one that ran and failed. A reason too long for the
+// line continues under its own column, not under the check id.
+function blockerLines(blockers: readonly PreparationCheck[], display: Display): string[] {
+  const rows = blockerRows(blockers);
+  const width = Math.max(...rows.map((row) => widthOf(row.label)));
   const lead = 2 + widthOf(display.mark()) + width + 2;
   const room = Math.max(display.room(lead), NARROWEST_REASON);
-  return [...rows.values()].flatMap(({ check, label }) => {
-    const [first = '', ...rest] = display.wrap(check.message, room);
+  const line = ({ check, label, holding }: BlockerRow): string[] => {
+    const [first = '', ...rest] = display.wrap(reasonOf(check), room);
     const mark = display.mark(check.state === 'unknown' ? 'step' : 'fail');
+    const quiet = (text: string): string[] =>
+      display.wrap(text, room).map((part) => display.paint('quiet', part));
+    const held = holding.length ? quiet(`holds back ${holding.join(', ')}`) : [];
     return [
       `  ${mark}${display.paint('strong', label)}${gap(label, width)}  ${first}`,
-      ...rest.map((line) => `${' '.repeat(lead)}${line}`),
+      ...[...rest, ...adviceOf(check).flatMap(quiet), ...held].map(
+        (text) => `${' '.repeat(lead)}${text}`,
+      ),
     ];
+  };
+  if (!rows.some((row) => row.check.cause !== undefined)) return rows.flatMap(line);
+  return CAUSES.flatMap(([cause, title]) => {
+    const group = rows.filter((row) => row.check.cause === cause);
+    return group.length ? [display.paint('strong', title), ...group.flatMap(line)] : [];
   });
+}
+
+// A check no fx command resolves keeps the recovery its own failure advises, which would
+// otherwise reach only a machine reader.
+function adviceOf(check: PreparationCheck): readonly string[] {
+  if (check.actions?.length || check.failure === undefined) return [];
+  if (GENERIC_CODES.has(check.failure.code)) return [];
+  const { hint, next_steps } = check.failure;
+  return [...(hint ? [hint] : []), ...next_steps];
+}
+
+function reasonOf(check: PreparationCheck): string {
+  const said = check.failure !== undefined && !GENERIC_CODES.has(check.code);
+  return said && !check.message.includes(check.code)
+    ? `${check.message} (${check.code})`
+    : check.message;
+}
+
+// What each stage did, one line each: repositories by what became of them, the manifest
+// checkout by what its refresh did, any other stage by the counts that say something
+// happened. A stage with nothing to say is left out.
+function stageLines(report: PreparationReport, display: Display): string[] {
+  const sync: Partial<Pick<SyncOutput, 'items' | 'stages'>> =
+    (report.manifest_dir === undefined ? report : report.sync) ?? {};
+  const items = (sync.items ?? []).filter((item) => item.action !== 'skip_unpicked');
+  const rows: [string, string][] = [];
+  const repositories = items.filter((item) => item.action !== 'skip_manifest');
+  if (repositories.length) rows.push(['Repositories', repositoryLine(repositories)]);
+  const manifest = items.find((item) => item.action === 'skip_manifest');
+  if (manifest?.reason !== undefined) rows.push(['Manifest', manifest.reason]);
+  for (const [stage, summary] of Object.entries(sync.stages ?? {})) {
+    const said = stageSummary(summary);
+    if (said !== undefined) rows.push([STAGE_LABELS[stage] ?? stage, said]);
+  }
+  const width = Math.max(0, ...rows.map(([label]) => widthOf(label)));
+  return rows.map(
+    ([label, text]) => `${display.paint('quiet', label)}${gap(label, width)}  ${text}`,
+  );
+}
+
+function repositoryLine(items: readonly SyncItem[]): string {
+  const outcome = (value: string): number => items.filter((item) => item.outcome === value).length;
+  const named = (result: SyncItem['result']): string[] =>
+    items.filter((item) => item.result === result).map((item) => item.name);
+  const cloned = items.filter((item) => item.action === 'clone' && item.result === 'done');
+  const parts = [
+    cloned.length ? `${cloned.length} cloned` : '',
+    outcome('updated') ? `${outcome('updated')} updated` : '',
+    outcome('up_to_date') ? `${outcome('up_to_date')} up to date` : '',
+    names(named('skipped'), 'skipped'),
+    names(named('failed'), 'failed'),
+  ].filter(Boolean);
+  return `${items.length}${parts.length ? `: ${parts.join(', ')}` : ''}`;
+}
+
+function names(list: readonly string[], what: string): string {
+  if (list.length === 0) return '';
+  const shown = list.slice(0, NAMES_SHOWN).join(', ');
+  const more = list.length > NAMES_SHOWN ? ` (+${list.length - NAMES_SHOWN} more)` : '';
+  return `${list.length} ${what} (${shown}${more})`;
+}
+
+// A count of zero, or of what tone reads as nothing happening, says nothing.
+function stageSummary(summary: StageSummary | 'not_implemented'): string | undefined {
+  if (summary === 'not_implemented') return 'not available in this version';
+  if (summary['status'] === 'failed') return 'failed';
+  const said = Object.entries(summary).flatMap(([key, value]) => {
+    if (typeof value === 'number')
+      return value > 0 && roleOf(key) !== 'quiet' ? [`${value} ${key.replaceAll('_', ' ')}`] : [];
+    return roleOf(value) !== 'quiet' ? [`${key.replaceAll('_', ' ')} ${value}`] : [];
+  });
+  return said.length ? said.join(', ') : undefined;
 }
 
 const SELECTIONS = ['--env', '--tool'];

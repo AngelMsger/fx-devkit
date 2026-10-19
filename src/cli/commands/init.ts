@@ -64,6 +64,7 @@ export default class InitCommand extends FxCommand {
         { nextSteps: ['fx init <directory> --from <source>'] },
       );
     const run = { ...writeIntent(flags, this.posture), jobs: flags.jobs };
+    this.foldRestatedOutcomes();
     if (flags.resume) {
       const deps = resumeInitDeps(this.initDeps(), this.container);
       const resumed = { workspace: flags.workspace!, cwd: process.cwd(), ...run };

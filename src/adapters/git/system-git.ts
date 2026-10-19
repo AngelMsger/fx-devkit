@@ -17,6 +17,11 @@ import type { Process, ProcessResult, RunOptions } from '../../ports/process.js'
 
 import { lastLine, runGit } from './run.js';
 
+// How long a remote that just answered a fetch may take to list its branches.
+const BRANCH_LIST_MS = 15_000;
+
+type RemoteBranch = 'present' | 'empty_remote' | 'no_remote_branch' | undefined;
+
 export class SystemGit implements Git {
   constructor(private readonly process: Process) {}
 
@@ -74,12 +79,21 @@ export class SystemGit implements Git {
       : await this.git(['-C', dir, 'fetch', '--quiet', remote, `${branch}:${branch}`]);
     if (result.code !== 0) {
       if (/not possible to fast-forward|non-fast-forward/i.test(result.stderr)) return 'diverged';
+      // A ref git cannot resolve here says nothing about the remote; the remote's own
+      // branch list does.
+      const unresolved = /not something we can merge|couldn't find remote ref/i.test(result.stderr);
+      const remoteBranch = unresolved ? await this.remoteBranch(dir, remote, branch) : undefined;
+      if (remoteBranch === 'empty_remote' || remoteBranch === 'no_remote_branch')
+        return remoteBranch;
       throw new DevkitError(
         gitFailureCategory(result.stderr),
         'GIT_FAST_FORWARD_FAILED',
         `Could not update ${branch}: ${lastLine(result.stderr)}`,
         {
-          hint: gitFailureHint(result.stderr),
+          hint:
+            remoteBranch === 'present'
+              ? `${remote} has ${branch}, but it was not fetched here; check remote.${remote}.fetch.`
+              : gitFailureHint(result.stderr),
           nextSteps: [
             shellLine(['git', '-C', dir, 'status']),
             shellLine(['git', '-C', dir, 'ls-remote', '--heads', remote, branch]),
@@ -89,6 +103,19 @@ export class SystemGit implements Git {
     }
     const after = await this.revParse(dir, ref);
     return before === after ? 'up_to_date' : 'updated';
+  }
+
+  // Undefined when the remote does not list its branches in time.
+  private async remoteBranch(dir: string, remote: string, branch: string): Promise<RemoteBranch> {
+    const listed = await this.git(['-C', dir, 'ls-remote', '--quiet', '--heads', remote], {
+      timeoutMs: BRANCH_LIST_MS,
+    }).catch(() => undefined);
+    if (listed?.code !== 0) return undefined;
+    const heads = listed.stdout
+      .split('\n')
+      .flatMap((line) => /\trefs\/heads\/(\S+)$/.exec(line)?.[1] ?? []);
+    if (heads.length === 0) return 'empty_remote';
+    return heads.includes(branch) ? 'present' : 'no_remote_branch';
   }
 
   async status(dir: string, compareTo?: string): Promise<RepoState> {

@@ -175,6 +175,13 @@ export abstract class FxCommand extends Command {
     return this.reportSink;
   }
 
+  // The preparation view closes with what each stage did, so a terminal leaves every
+  // success and the partial-sync notice to it; --verbose and --details still show each row.
+  protected foldRestatedOutcomes(): void {
+    if (this.renderOptions.verbose || this.renderOptions.details) return;
+    this.renderer.status?.fold({ outcomes: ['done'], notices: ['SYNC_PARTIAL'] });
+  }
+
   protected async renderPreparation(
     value: PreparationReport,
     exitIncomplete = true,

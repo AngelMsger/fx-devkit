@@ -24,7 +24,7 @@ import { setupCommandFailure } from './command-failure.js';
 import type { LoginDeps } from './deps.js';
 import { handoffStep, loginCommand } from './handoff.js';
 import { noteUnsetEnvScope } from './scope-envs.js';
-import { expandHomeIn, stepTrust, Verifier } from './verify.js';
+import { expandHomeIn, stepTrust, Verifier, type CheckVerdict } from './verify.js';
 
 export interface LoginInput {
   readonly mode?: 'login' | 'prepare';
@@ -101,12 +101,23 @@ export interface StepRow {
   readonly failure?: ErrorEnvelope['error'];
   readonly next_steps?: readonly string[];
   readonly handoff?: HandoffStep;
+  // What checking a failed step again after a sign-in found, when it still did not pass.
+  readonly recheck?: { readonly after: string; readonly detail: string; readonly code?: string };
 }
 
 type StepOutcome = Pick<
   StepRow,
   'result' | 'detail' | 'failure' | 'next_steps' | 'handoff' | 'actions'
 >;
+
+// What bringing earlier steps up to date after a sign-in reads and records.
+interface Reconciling {
+  readonly rows: StepRow[];
+  readonly progress: SetupProgress;
+  readonly input: RunInput;
+  readonly steps: Tally;
+  readonly record: (index: number, step: SetupStep, outcome: StepOutcome) => void;
+}
 
 interface PendingHandoff {
   readonly step: SetupStep;
@@ -160,36 +171,101 @@ export class Login {
       summary: summarize(rows),
       problems: plan.problems,
     });
-    for (const [index, step] of plan.steps.entries()) {
-      try {
-        const blocker = progress.undonePrerequisite(step);
-        const outcome = await steps.unit(step.id, () => this.attempt(step, input, blocker));
-        rows.push(row(step, outcome));
-        if (outcome.result === 'handoff')
-          pending.push({ step, handoff: outcome.handoff ?? handoffStep(step) });
-        progress.record(step, isSettled(outcome.result) ? 'done' : 'undone');
-      } catch (error) {
-        const failure = toEnvelope(asDevkitError(error)).error;
+    const record = (index: number, step: SetupStep, outcome: StepOutcome): void => {
+      rows[index] = row(step, outcome);
+      if (outcome.result === 'handoff')
+        pending.push({ step, handoff: outcome.handoff ?? handoffStep(step) });
+      progress.record(step, isSettled(outcome.result) ? 'done' : 'undone');
+    };
+    const stop = (error: unknown, index: number): Error => {
+      for (const remaining of plan.steps.slice(index + 1))
         rows.push(
-          row(step, {
-            result: 'failed',
-            detail: failure.message,
-            failure,
-            next_steps: failure.next_steps,
+          row(remaining, {
+            result: 'not_started',
+            detail: `Stopped after ${plan.steps[index]!.id}`,
           }),
         );
-        if (input.policy.continuesAfterFailure) {
-          progress.record(step, 'undone');
-          continue;
-        }
-        for (const remaining of plan.steps.slice(index + 1))
-          rows.push(row(remaining, { result: 'not_started', detail: `Stopped after ${step.id}` }));
-        throw withPartialResult(error, output());
+      return withPartialResult(error, output());
+    };
+    const run: Reconciling = { rows, progress, input, steps, record };
+    for (const [index, step] of plan.steps.entries()) {
+      let outcome: StepOutcome;
+      try {
+        const blocker = progress.undonePrerequisite(step);
+        outcome = await steps.unit(step.id, () => this.attempt(step, input, blocker));
+      } catch (error) {
+        record(index, step, failedOutcome(error));
+        if (input.policy.continuesAfterFailure) continue;
+        throw stop(error, index);
+      }
+      record(index, step, outcome);
+      if (step.phase !== 'authenticate' || outcome.result !== 'done') continue;
+      try {
+        await this.reconcile(plan.steps.slice(0, index), step, run);
+      } catch (error) {
+        throw stop(error, index);
       }
     }
     if (pending.length > 0 && input.policy.raisesOnPending)
       throw withPartialResult(setupRequired(pending, input, this.deps), output());
     return output();
+  }
+
+  // Which other contexts a sign-in also serves is the companion's to know, so the earlier
+  // steps of the same tool are brought up to date as soon as it succeeds: one that failed
+  // is checked again, and one that waited on a step now passing gets its first attempt.
+  // Nothing that already ran runs again. An attempt that throws is recorded on its own row
+  // before it stops the run, as in the main walk.
+  private async reconcile(
+    earlier: readonly SetupStep[],
+    signIn: SetupStep,
+    run: Reconciling,
+  ): Promise<void> {
+    const stale = earlier.flatMap((step, index) => {
+      const result = run.rows[index]?.result;
+      const behind = result === 'failed' || result === 'blocked';
+      return step.tool === signIn.tool && !step.preparation && behind ? [{ step, index }] : [];
+    });
+    run.steps.plan(stale.length);
+    for (const { step, index } of stale)
+      await run.steps.unit(step.id, async () => {
+        if (run.progress.undonePrerequisite(step) !== undefined) return;
+        if (run.rows[index]?.result !== 'blocked') return this.checkAgain(step, index, signIn, run);
+        try {
+          run.record(index, step, await this.attempt(step, run.input, undefined));
+        } catch (error) {
+          run.record(index, step, failedOutcome(error));
+          throw error;
+        }
+      });
+  }
+
+  // A check that still does not pass, or gives no answer, leaves the step as it was and
+  // says what it found; an error fx does not know stops the run like any other.
+  private async checkAgain(
+    step: SetupStep,
+    index: number,
+    signIn: SetupStep,
+    run: Reconciling,
+  ): Promise<void> {
+    const note = (detail: string, code?: string): void => {
+      const before = run.rows[index]!;
+      run.rows[index] = {
+        ...before,
+        recheck: { after: signIn.id, detail, ...(code === undefined ? {} : { code }) },
+      };
+    };
+    let verdict: CheckVerdict;
+    try {
+      verdict = await this.verifier.verify(step);
+    } catch (error) {
+      if (!(error instanceof DevkitError)) throw error;
+      return note(error.message, error.code);
+    }
+    if (!verdict.ok) return note(verdict.detail);
+    const detail = `verified again after ${signIn.id}`;
+    this.deps.reporter.progress({ id: step.id, state: 'done', detail });
+    run.record(index, step, { result: 'verified', detail });
   }
 
   private validatePlan(plan: SetupPlan): void {
@@ -215,7 +291,12 @@ export class Login {
     input: RunInput,
     blocker: string | undefined,
   ): Promise<StepOutcome> {
-    if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
+    if (blocker !== undefined)
+      return {
+        result: 'blocked',
+        detail: `${blocker} is not done`,
+        handoff: handoffStep(step, { blockedBy: blocker }),
+      };
     if (step.preparation) {
       const prepared = await new ServiceOperation(this.deps, this.setup).execute(step, {
         dryRun: input.dryRun,
@@ -257,7 +338,12 @@ export class Login {
     const { policy } = input;
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    const confirms = policy.confirmsCommands && !this.deps.trust.yes;
+    // Local preparation runs the way init and sync run it: off the terminal, with a
+    // deadline, and for a bundled step without asking anyone.
+    const local = isLocalPreparation(step);
+    const runs = local ? POLICIES.prepare : policy;
+    const asks = !local || step.origin !== 'base';
+    const confirms = policy.confirmsCommands && asks && !this.deps.trust.yes;
     if (confirms && input.noInput)
       return {
         result: 'handoff',
@@ -279,15 +365,15 @@ export class Login {
     }
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
     const run = await this.deps.process.run(expandHomeIn(vector, this.setup.home), {
-      interactive: policy.lendsTerminal && !input.noInput,
-      ...(policy.commandTimeoutMs === undefined ? {} : { timeoutMs: policy.commandTimeoutMs }),
+      interactive: runs.lendsTerminal && !input.noInput,
+      ...(runs.commandTimeoutMs === undefined ? {} : { timeoutMs: runs.commandTimeoutMs }),
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} setup` },
     });
     if (run.code !== 0) {
-      this.deps.reporter.progress({ id: step.id, state: 'fail', detail: `exit ${run.code}` });
       const failure = setupCommandFailure(run.stderr, run.code);
+      this.deps.reporter.progress({ id: step.id, state: 'fail', detail: failureLine(failure) });
       return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
     }
     return this.settle(step, before.why);
@@ -369,6 +455,18 @@ function setupRequired(
       },
     },
   );
+}
+
+function failedOutcome(error: unknown): StepOutcome {
+  const failure = toEnvelope(asDevkitError(error)).error;
+  return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
+}
+
+// A companion's own code says more than the generic one fx falls back to.
+function failureLine(failure: ErrorEnvelope['error']): string {
+  return failure.code === 'SETUP_COMMAND_FAILED'
+    ? failure.message
+    : `${failure.message} (${failure.code})`;
 }
 
 function row(step: SetupStep, outcome: StepOutcome): StepRow {
