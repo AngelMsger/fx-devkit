@@ -4,7 +4,7 @@ import { Login, LOGIN_STEP_COLUMNS } from '../../application/login/run.js';
 import { SETUP_STEP_COLUMNS } from '../../domain/setup/types.js';
 import { FxCommand } from '../base.js';
 import { argument, dryRunFlag, listFlag, writeIntent } from '../flags.js';
-import { loginNotices, nonZero } from '../notices.js';
+import { loginNotices, nonZero, stepRecoveryNotices } from '../notices.js';
 import type { WriteScopeDeclaration } from '../workspace-write-policy.js';
 
 export default class LoginCommand extends FxCommand {
@@ -73,6 +73,7 @@ export default class LoginCommand extends FxCommand {
         ...(human && out.problems.length === 0 ? {} : { problems: out.problems }),
       },
     });
+    if (human) for (const notice of stepRecoveryNotices(out.items)) this.renderer.notice(notice);
     for (const notice of loginNotices(out.problems, out.summary)) this.renderer.notice(notice);
   }
 }

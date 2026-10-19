@@ -449,8 +449,10 @@ output retains all per-step evidence, including the workspace and recovery vecto
 A preparation check keeps what its failed step's check read: `cause` (`credential`,
 `permission` or `network`) where the recipe can tell, and `waits_on`, the check it
 waited on without being checked itself. The view opens with one line per stage, groups
-blockers by cause once any check names one, and names a waiting check under the one it
-waits on, so one problem is one row. A server that could not be reached gets the
+blockers by cause once any check names one, and names a waiting check under the blocker
+its chain of waits leads to, so one problem is one row. A server that could not be reached gets the
 command that checks it again, not a sign-in. A preparation step whose companion says a
 retry will not help gets no fx command: repairing it would repeat the failure and a
-sign-in would wait on it again, so its `failure` carries the companion's own recovery.
+sign-in would wait on it again. The view shows the companion's own recovery, which its
+`failure` carries, under the check instead, and `fx login` repeats it in a
+`LOGIN_STEP_FAILED` notice for a step it ran off the terminal.

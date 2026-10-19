@@ -62,14 +62,16 @@
 - Group sync and init blockers by what resolves them: a sign-in or credentials,
   access refused, or a server this machine cannot reach, which now gets the command
   that checks it again instead of `fx login`; a Prometheus server that does not
-  answer counts as unreachable. A check that waited on another blocker is named
-  under it instead of counted apart, a companion's error code follows its message,
-  and a preparation step whose companion says a retry will not help no longer
-  suggests `fx doctor --fix`. Preparation checks gain `cause` and `waits_on`.
+  answer counts as unreachable. A check that waited on another blocker, directly or
+  through a third, is named under it instead of counted apart, a companion's error
+  code follows its message, and a preparation step whose companion says a retry will
+  not help shows the companion's own advice instead of suggesting `fx doctor --fix`.
+  Preparation checks gain `cause` and `waits_on`.
 - Run the bundled step that reuses an existing login in `fx login` without asking
   and off the terminal, as init and sync do, also with `--no-input`. Its failure
-  keeps the companion's message and code instead of `exit 3`, and the companion's
-  JSON no longer lands on the terminal; fx asks only before a sign-in.
+  keeps the companion's message and code instead of `exit 3`, a terminal shows the
+  companion's advice in a `LOGIN_STEP_FAILED` notice, and the companion's JSON no
+  longer lands on the terminal; fx asks only before a sign-in.
 - Show only non-zero counts and no empty `problems` under the human `fx login`
   table, and leave the `LOGIN_SUMMARY` notice that repeats them to JSON and pipes.
   A passing check says what it established, such as `authenticated is true`,

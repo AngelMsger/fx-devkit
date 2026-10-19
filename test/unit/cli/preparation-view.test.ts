@@ -370,7 +370,7 @@ it('names the setup steps of a first sync whose check passes, and none of a setu
   expect(after({ failure })).toBe('Ready to work: /work\n');
 });
 
-it('groups blockers by what the person is to do and names a waiting check under its cause', () => {
+it('groups blockers by what the person is to do and names each waiting check under its cause', () => {
   const login = action('user', 'fx', 'login', 'logs-cli', '--workspace', 'work', '--env', 'dev');
   const recheck = action('user', 'fx', 'doctor', '--tool', 'metrics-cli', '--env', 'test');
   const text = view([
@@ -389,6 +389,10 @@ it('groups blockers by what the person is to do and names a waiting check under 
       waits_on: 'login:logs-cli.reuse@dev',
       actions: [login],
     }),
+    preparationCheck('login:logs-cli.token@dev', 'blocked', 'Token: credential@dev is not done', {
+      waits_on: 'login:logs-cli.credential@dev',
+      actions: [login],
+    }),
     preparationCheck('login:logs-cli.credential@prod', 'blocked', 'Sign in: HTTP 401', {
       cause: 'credential',
       actions: [login],
@@ -399,7 +403,7 @@ it('groups blockers by what the person is to do and names a waiting check under 
     }),
   ]);
   expect(text.split('\n')[0]).toBe(
-    'work needs attention: 4 required checks are not ready, in 3 groups',
+    'work needs attention: 5 required checks are not ready, in 3 groups',
   );
   expect(text).toContain(
     [
@@ -409,7 +413,8 @@ it('groups blockers by what the person is to do and names a waiting check under 
       '  login:metrics-cli.access@test   Reach: request failed',
       'Other:',
       '  login:logs-cli.reuse@dev        Reuse: no stored login is visible (CREDENTIAL_NOT_VISIBLE_OR_MISSING)',
-      '                                  holds back login:logs-cli.credential@dev',
+      '                                  Retry with access to the host keychain.',
+      '                                  holds back login:logs-cli.credential@dev, login:logs-cli.token@dev',
     ].join('\n'),
   );
 });

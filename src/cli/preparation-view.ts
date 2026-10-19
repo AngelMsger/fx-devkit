@@ -130,16 +130,27 @@ function attentionLines(preparation: Preparation, view: PreparationView): string
 interface BlockerRow {
   readonly check: PreparationCheck;
   readonly label: string;
-  // The listed checks that wait on this row's checks and were not checked themselves.
+  // The listed checks that wait, directly or through another, on this row's checks and
+  // were not checked themselves.
   readonly holding: readonly string[];
 }
 
 // Checks that say the same thing and are resolved by the same commands share a row, and a
-// check waiting on a listed one is named under it rather than as a row of its own.
+// check waiting on a listed one is named under the row its chain of waits leads to rather
+// than as a row of its own.
 function blockerRows(blockers: readonly PreparationCheck[]): BlockerRow[] {
-  const listed = new Set(blockers.map((check) => check.id));
+  const listed = new Map(blockers.map((check) => [check.id, check]));
   const waits = (check: PreparationCheck): boolean =>
     check.waits_on !== undefined && listed.has(check.waits_on);
+  const origin = (check: PreparationCheck): string => {
+    const seen = new Set<string>();
+    let current = check;
+    while (waits(current) && !seen.has(current.id)) {
+      seen.add(current.id);
+      current = listed.get(current.waits_on!)!;
+    }
+    return current.id;
+  };
   const rows = new Map<string, { check: PreparationCheck; ids: string[] }>();
   for (const check of blockers.filter((check) => !waits(check))) {
     const resolution = (check.actions ?? []).map((action) => selections(action.argv).command);
@@ -152,7 +163,7 @@ function blockerRows(blockers: readonly PreparationCheck[]): BlockerRow[] {
     check,
     label: ids.length > 1 ? `${check.id} (+${ids.length - 1} more)` : check.id,
     holding: blockers
-      .filter((other) => waits(other) && ids.includes(other.waits_on!))
+      .filter((other) => waits(other) && ids.includes(origin(other)))
       .map((other) => other.id),
   }));
 }
@@ -168,14 +179,14 @@ function blockerLines(blockers: readonly PreparationCheck[], display: Display): 
   const line = ({ check, label, holding }: BlockerRow): string[] => {
     const [first = '', ...rest] = display.wrap(reasonOf(check), room);
     const mark = display.mark(check.state === 'unknown' ? 'step' : 'fail');
-    const held = holding.length
-      ? display
-          .wrap(`holds back ${holding.join(', ')}`, room)
-          .map((text) => display.paint('quiet', text))
-      : [];
+    const quiet = (text: string): string[] =>
+      display.wrap(text, room).map((part) => display.paint('quiet', part));
+    const held = holding.length ? quiet(`holds back ${holding.join(', ')}`) : [];
     return [
       `  ${mark}${display.paint('strong', label)}${gap(label, width)}  ${first}`,
-      ...[...rest, ...held].map((text) => `${' '.repeat(lead)}${text}`),
+      ...[...rest, ...adviceOf(check).flatMap(quiet), ...held].map(
+        (text) => `${' '.repeat(lead)}${text}`,
+      ),
     ];
   };
   if (!rows.some((row) => row.check.cause !== undefined)) return rows.flatMap(line);
@@ -183,6 +194,15 @@ function blockerLines(blockers: readonly PreparationCheck[], display: Display): 
     const group = rows.filter((row) => row.check.cause === cause);
     return group.length ? [display.paint('strong', title), ...group.flatMap(line)] : [];
   });
+}
+
+// A check no fx command resolves keeps the recovery its own failure advises, which would
+// otherwise reach only a machine reader.
+function adviceOf(check: PreparationCheck): readonly string[] {
+  if (check.actions?.length || check.failure === undefined) return [];
+  if (GENERIC_CODES.has(check.failure.code)) return [];
+  const { hint, next_steps } = check.failure;
+  return [...(hint ? [hint] : []), ...next_steps];
 }
 
 function reasonOf(check: PreparationCheck): string {

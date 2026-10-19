@@ -774,6 +774,88 @@ envs:
   });
 });
 
+describe('a step a sign-in unblocks', () => {
+  it('records its own failure before the run stops on it', async () => {
+    const { h, login } = await fixture({
+      tools: ['openobserve-cli'],
+      environments: `schema_version: 2
+platforms:
+  logs: {provider: openobserve-cli, capability: log-store, service: {org: default, auth_scheme: session}}
+envs:
+  dev: {platforms: {logs: {service: {base_url: 'https://logs.example.com', context: dev}}}}
+  test: {platforms: {logs: {service: {base_url: 'https://logs.example.com', context: test}}}}
+`,
+    });
+    h.process.binaries.add('openobserve-cli');
+    // dev sees the stored login only once test signs in, and then its status check times out.
+    let signedIn = false;
+    h.process.always((vector) => {
+      const context = vector[vector.indexOf('--use-context') + 1] ?? '';
+      if (vector.includes('--version')) return { code: 0, stdout: '0.14.0', stderr: '' };
+      if (vector.includes('set-context')) return UNCHANGED;
+      if (vector.includes('reuse'))
+        return context === 'test' || signedIn
+          ? UNCHANGED
+          : {
+              code: 3,
+              stdout: '',
+              stderr: '{"error":{"code":"CREDENTIAL_MISSING","message":"none"}}',
+            };
+      if (vector.includes('login')) {
+        signedIn = true;
+        return { code: 0, stdout: '', stderr: '' };
+      }
+      if (context === 'dev') throw new DevkitError('internal', 'PROCESS_TIMEOUT', 'timed out');
+      return { code: 0, stdout: JSON.stringify({ authenticated: signedIn }), stderr: '' };
+    });
+    const stopped = await new Login(h.deps, login)
+      .execute({
+        tools: ['openobserve-cli'],
+        dryRun: false,
+        noInput: false,
+        skipManual: false,
+        posture: h.deps.trust.posture,
+      })
+      .catch((error: DevkitError) => error);
+    expect(stopped).toMatchObject({ code: 'PROCESS_TIMEOUT' });
+    const items = ((stopped as DevkitError).partialResult as LoginOutput).items;
+    expect(items.find((item) => item.id === 'openobserve-cli.credential@dev')).toMatchObject({
+      result: 'failed',
+      failure: { code: 'PROCESS_TIMEOUT' },
+    });
+  });
+});
+
+describe('a team-authored preparation step nobody has approved', () => {
+  it('keeps the approval that unblocks it rather than leaving it to the person', async () => {
+    const { h, login } = await fixture({
+      yes: false,
+      patch: `schema_version: 3
+tools:
+  - name: team-tool
+    install: [{via: manual}]
+    setup:
+      - {id: warm, kind: run, phase: prepare, title: Warm the cache, run: [warm], verify: {file: warm.ready}}
+`,
+    });
+    h.prompter.unavailable = true;
+    h.process.binaries.add('team-tool');
+    h.process.always({ code: 0, stdout: '{"changed":false}', stderr: '' });
+    const stage = await prepareWorkspaceSetup(h.deps, login, {
+      initializing: false,
+      dryRun: false,
+      posture: h.deps.trust.posture,
+    });
+    expect(stage.checks.find((check) => check.resource === 'team-tool.warm')).toMatchObject({
+      state: 'blocked',
+      owner: 'agent',
+      code: 'VECTOR_UNTRUSTED',
+      actions: [expect.objectContaining({ id: 'approve:team-tool.warm', requires_approval: true })],
+    });
+    expect(h.process.calls.some((call) => call.vector.includes('warm'))).toBe(false);
+  });
+});
+
 describe('fx login and local preparation', () => {
   it('associates an existing login without asking, and asks before signing in', async () => {
     const { h, login } = await fixture({ yes: false });

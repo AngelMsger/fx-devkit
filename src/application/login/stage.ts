@@ -20,6 +20,7 @@ import {
   type StageResult,
 } from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
+import { isTrustRequiredCode } from '../safety/trust.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -113,9 +114,17 @@ function stepCheck(
 
 // A preparation step whose companion said running it again will not help is the person's:
 // repairing it would repeat the failure, and signing in would wait on it again. What
-// resolves it is the companion's own recovery, which its failure carries.
+// resolves it is the companion's own recovery, which its failure carries. Only the
+// companion's own code says so: the generic one means it said nothing, and fx's own gates,
+// such as an unapproved vector, are resolved by approving it.
 function settled(item: Pick<StepRow, 'failure'>): boolean {
-  return item.failure !== undefined && !item.failure.retryable;
+  const { failure } = item;
+  return (
+    failure !== undefined &&
+    !failure.retryable &&
+    failure.code !== 'SETUP_COMMAND_FAILED' &&
+    !isTrustRequiredCode(failure.code)
+  );
 }
 
 // A check that gave no answer offers its own recovery; a step waiting on it offers none.

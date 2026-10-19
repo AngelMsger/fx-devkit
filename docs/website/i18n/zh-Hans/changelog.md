@@ -14,8 +14,8 @@
 - 以下场景给出的命令按配置的 `command_shell` 加引号：工作区 `relocate`、`rebind` 之后的命令，`fx init` 无法接受或继续的注册，工作区已变化的 profile 导入或源码贡献，未能记录的探测，目标位于被描述目录之内的 manifest 导入，以及 `--workspace` 指向未注册的名称。此前无论如何设置都按 POSIX 方式加引号。
 - 读取 manifest 仓库或 `local-git` 代码托管时，git 与仓库同步一样在 C locale 下运行。在其他 locale 下，分支上不存在的文件曾被报告为查询失败，因为 git 的本地化消息无法识别。在这些场景中 git 无法启动时现在报告 `TOOL_MISSING`。
 - `fx sync` 和 `fx init` 在结论之前按阶段各给一行结论：已更新、已是最新、已跳过和失败的仓库（带名称），manifest 刷新的结果，以及其他阶段报告的计数。在终端里，成功的行不再逐行打印而由状态行计数，结尾视图会重复的 `SYNC_PARTIAL` notice 也同样处理；`--verbose` 会打印它们，管道或 JSON 仍会收到全部记录。Git 调用期间的状态行在其他行持续输出时不再重复出现。
-- 按解决方式分组 sync 和 init 的阻塞项：登录或凭据、被拒绝的访问，或本机连不上的服务器；后者现在给出重新检查的命令而不是 `fx login`，不响应的 Prometheus 服务器算作连不上。等待其他阻塞项的检查列在其下方而不再单独计数，companion 的错误码跟在消息后面；companion 表示重试也无济于事的准备步骤不再建议 `fx doctor --fix`。准备检查新增 `cause` 和 `waits_on`。
-- `fx login` 与 init 和 sync 一样，不询问、不占用终端地运行复用已有登录的内置步骤，带 `--no-input` 时也会运行。它失败时保留 companion 的消息和错误码而不是 `exit 3`，companion 的 JSON 也不再打到终端；只有登录前才会询问。
+- 按解决方式分组 sync 和 init 的阻塞项：登录或凭据、被拒绝的访问，或本机连不上的服务器；后者现在给出重新检查的命令而不是 `fx login`，不响应的 Prometheus 服务器算作连不上。直接或间接等待其他阻塞项的检查列在其下方而不再单独计数，companion 的错误码跟在消息后面；companion 表示重试也无济于事的准备步骤不再建议 `fx doctor --fix`，而是显示 companion 自己的建议。准备检查新增 `cause` 和 `waits_on`。
+- `fx login` 与 init 和 sync 一样，不询问、不占用终端地运行复用已有登录的内置步骤，带 `--no-input` 时也会运行。它失败时保留 companion 的消息和错误码而不是 `exit 3`，终端会在 `LOGIN_STEP_FAILED` notice 中显示 companion 的建议，companion 的 JSON 也不再打到终端；只有登录前才会询问。
 - 人读的 `fx login` 表格下方只显示非零计数，不再显示空的 `problems`；重复这些计数的 `LOGIN_SUMMARY` notice 留给 JSON 和管道。通过的检查不再重复其命令，而是说明确认了什么，例如 `authenticated is true`。
 - 拒绝记录中带有任意大小写的 `.git` 段或删除字符的 harness 路径与贡献路径。harness 所有权元数据此前接受 `.GIT/...`，在不区分大小写的卷上它会解析到仓库自身的目录；两个存储现在都按 `fx source push` 对所选文件使用的规则校验记录的路径。
 - fx 安装在名称含空格或非 ASCII 字符的目录下，或在 Windows 上时，`fx self info` 的 `bundled_tools` 给出文件系统可用的路径。此前该值是经过百分号编码的 URL 路径。

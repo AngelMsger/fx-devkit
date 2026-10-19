@@ -194,13 +194,7 @@ export class Login {
         const blocker = progress.undonePrerequisite(step);
         outcome = await steps.unit(step.id, () => this.attempt(step, input, blocker));
       } catch (error) {
-        const failure = toEnvelope(asDevkitError(error)).error;
-        record(index, step, {
-          result: 'failed',
-          detail: failure.message,
-          failure,
-          next_steps: failure.next_steps,
-        });
+        record(index, step, failedOutcome(error));
         if (input.policy.continuesAfterFailure) continue;
         throw stop(error, index);
       }
@@ -220,7 +214,8 @@ export class Login {
   // Which other contexts a sign-in also serves is the companion's to know, so the earlier
   // steps of the same tool are brought up to date as soon as it succeeds: one that failed
   // is checked again, and one that waited on a step now passing gets its first attempt.
-  // Nothing that already ran runs again.
+  // Nothing that already ran runs again. An attempt that throws is recorded on its own row
+  // before it stops the run, as in the main walk.
   private async reconcile(
     earlier: readonly SetupStep[],
     signIn: SetupStep,
@@ -235,9 +230,13 @@ export class Login {
     for (const { step, index } of stale)
       await run.steps.unit(step.id, async () => {
         if (run.progress.undonePrerequisite(step) !== undefined) return;
-        if (run.rows[index]?.result === 'blocked')
+        if (run.rows[index]?.result !== 'blocked') return this.checkAgain(step, index, signIn, run);
+        try {
           run.record(index, step, await this.attempt(step, run.input, undefined));
-        else await this.checkAgain(step, index, signIn, run);
+        } catch (error) {
+          run.record(index, step, failedOutcome(error));
+          throw error;
+        }
       });
   }
 
@@ -456,6 +455,11 @@ function setupRequired(
       },
     },
   );
+}
+
+function failedOutcome(error: unknown): StepOutcome {
+  const failure = toEnvelope(asDevkitError(error)).error;
+  return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
 }
 
 // A companion's own code says more than the generic one fx falls back to.

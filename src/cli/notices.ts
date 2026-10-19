@@ -2,6 +2,7 @@
 // summary line. Data went to stdout already; these are for the person reading
 // along.
 
+import type { StepRow } from '../application/login/run.js';
 import type { Report } from '../domain/report.js';
 import type { Notice } from '../ports/reporter.js';
 
@@ -23,6 +24,28 @@ export function loginNotices(
   if (summary !== undefined)
     notices.push({ code: 'LOGIN_SUMMARY', message: describe(nonZero(summary)) });
   return notices;
+}
+
+// A step that ran off the terminal and failed with its companion's own error: the table
+// shows only the message, so a person reading along is told what the companion advised.
+// The generic code means fx captured no such error, as from a step given the terminal.
+export function stepRecoveryNotices(
+  rows: readonly Pick<StepRow, 'id' | 'result' | 'failure'>[],
+): Notice[] {
+  return rows.flatMap((row) => {
+    const { failure } = row;
+    if (row.result !== 'failed' || failure === undefined) return [];
+    if (failure.code === 'SETUP_COMMAND_FAILED') return [];
+    const advice = [...(failure.hint ? [failure.hint] : []), ...failure.next_steps];
+    if (advice.length === 0) return [];
+    return [
+      {
+        code: 'LOGIN_STEP_FAILED',
+        message: `${row.id}: ${failure.message}`,
+        nextSteps: advice,
+      },
+    ];
+  });
 }
 
 export interface ReportCodes {
