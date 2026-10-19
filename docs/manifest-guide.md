@@ -243,11 +243,10 @@ Changing the source of an already registered root is not an implicit migration.
 Use `fx workspace rebind <name> --from <source> --dry-run` to preview an explicit
 source change while preserving the workspace identity and personal selection.
 
-`manifest repo-set` rechecks the captured document under a file lease before
-replacing it. If another writer changed it, the path is not a regular file, or
-its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
-content. Inspect the real source path and retry with `--dry-run`; do not remove
-locks or overwrite another edit. An identical edit reports `written: false`.
+`manifest repo-set` never overwrites a concurrent edit: it stops with
+`MANIFEST_EDIT_CONFLICT` and leaves the file as it is. Inspect the source and retry
+with `--dry-run`; [concurrent manifest edits](../skills/fx-workspace/references/commands.md#concurrent-manifest-edits)
+describes the response.
 
 `manifest validate/lint/providers/repo-set/render` honour `--workspace` and
 `FX_WORKSPACE` before looking for a source checkout around the current directory.

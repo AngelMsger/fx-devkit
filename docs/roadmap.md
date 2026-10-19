@@ -1,7 +1,6 @@
 # Roadmap
 
 These are potential extensions, not promises of current functionality.
-Existing workspace, provider, Skill and lifecycle capabilities remain supported.
 
 ## Team knowledge
 

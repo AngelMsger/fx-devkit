@@ -3,13 +3,13 @@
 Lifecycle automation is a workspace feature. `hooks` defaults to true globally;
 `FX_HOOKS` overrides that global setting. A workspace's personal
 `hooks.enabled` defaults to true and can independently disable projection and
-dispatch. The selected agents still come from the existing global agent choice.
+dispatch. The selected agents come from the global agent choice.
 
 ## Entry points and ownership
 
-`fx hook list` is read-only. `inject` enables the workspace and reconciles the
-selected hosts. `remove` disables it before cleaning up, so sync cannot reinstall
-the entries. Writes support dry-run and the ordinary read-only posture.
+`fx hook list` is read-only. `hook enable` enables the workspace and reconciles the
+selected hosts. `hook disable` disables it before cleaning up, so sync cannot
+reinstall the entries. Writes support dry-run and the ordinary read-only posture.
 Global `agent unpick` removes that host from selection and reconciles its owned
 resources across registered workspaces. Cleanup rechecks each registration under
 its lifecycle lease and reports missing roots, pending operations and failures per
@@ -70,7 +70,7 @@ no host terminal handles. Only manifest refresh, docs, Skills and readiness
 observations are wired into this worker. Repository sync and remote writes are
 not available through its service wiring.
 
-Manifest network checks retain the one-hour window and fx checks the one-day
+Manifest network checks use a one-hour window and fx checks a one-day
 window. Failures are remembered too. A 15-second local window coalesces session
 bursts; local projection attempts are separate from successful remote checks.
 The foreground does not wait for an update or reload the host's active session.

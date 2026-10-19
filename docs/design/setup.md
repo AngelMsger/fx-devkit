@@ -9,12 +9,15 @@ not proof that every repository or remote resource is accessible.
 
 Tools schema 3 requires each run step to declare phase prepare or authenticate.
 Prepare steps are bounded, non-interactive local actions; authenticate steps remain
-personal sign-in. Init verifies before every action, executes only approved local
-preparation, and returns all human or authorization blockers together. A blocked
-prerequisite prevents its dependants; independent local steps continue. Completed
-checks are reverified on continuation rather than inferred from an acknowledgment.
-Doctor --fix uses this same local-only policy. Explicit login remains the entry
-for interactive authentication.
+personal sign-in, and manual or file steps belong to the person. Init verifies
+before every action and again after it, executes only approved local preparation,
+and returns all human or authorization blockers together. A blocked prerequisite
+prevents its dependants; independent local steps continue. Completed checks are
+reverified on continuation rather than inferred from an acknowledgment. Every
+explicit sync and doctor --fix use this same local-only policy, and background
+hooks only check. Doctor reports each repair attempt separately from the findings
+it collects afterwards. Explicit login remains the entry for interactive
+authentication.
 
 A custom executable declaration does not synthesize authentication from the bundled
 catalog's default vector. Standalone auth must be explicitly declared; bound
@@ -22,17 +25,25 @@ providers retain their own authentication recipes. Relative verification files
 resolve from the workspace root; ~ resolves from the user's home. The root is
 created after validation/registration and before local setup starts.
 
+## Manifest validation
+
+`fx manifest validate` judges every reported problem in ordinary and strict modes,
+including a missing required `manifest/workspace.yaml`. A missing optional document
+is not a problem, and the tools document always has the bundled catalog to validate
+against. `--kind` validates the requested document only. The report is printed
+before the command fails with `MANIFEST_INVALID`.
+
 ## Manifest verification alternatives
 
 Team setup checks use the same declared command/JSON, file and provider verification
 alternatives as the runtime. Unknown-key normalization retains fields known by any
 union alternative, including nested objects, arrays and maps. It does not select a
 branch or erase conflicting branch fields; normal schema validation rejects mixed
-or invalid alternatives. Genuinely unknown keys retain the existing lenient-report
-and strict-error behavior.
+or invalid alternatives. Genuinely unknown keys are stripped and reported on an
+ordinary load, and are problems on a strict one.
 
 Tool overlays preserve null where the schema accepts it as a value, such as
-`verify.json.equals: null`. Elsewhere null retains its field-deletion meaning.
+`verify.json.equals: null`. Elsewhere null deletes the field.
 Normalization does not run checks, grant command trust or alter verification results.
 
 ## Companion Skill destinations
@@ -40,14 +51,16 @@ Normalization does not run checks, grant command trust or alter verification res
 `skill.dir_flag` installs a companion Skill once per distinct selected global
 Skill directory, using paths supplied by AgentHostSpec. The bundled companions
 support `--dir`; they need not recognize every agent identifier fx supports.
-An empty agent selection executes no directory installer. Each expanded vector
-still passes through the existing write and exact-command trust gates.
+No selected host means no companion Skill invocation. Each expanded vector passes
+through the write gate and exact-command trust. A trust failure is a blocked tool
+row, so independent owned projections proceed. Third-party installers keep their
+own idempotence contracts.
 
-`skill.agent_flag` remains supported and takes precedence when both fields are
-present, preserving existing patches over the bundled defaults. Remove it to
-select directory targeting. Tools with neither flag retain their own targeting
-behavior. `tool show` exposes both fields; installation summary counts are
-command invocations, so directory targeting may report several for one tool.
+`skill.agent_flag` takes precedence when both fields are present, so a patch that
+sets it overrides the bundled default. Remove it to select directory targeting. A
+tool with neither flag targets as its own installer decides. `tool show` exposes
+both fields; installation summary counts are command invocations, so directory
+targeting may report several for one tool.
 
 ## Selection and identity
 
@@ -65,8 +78,8 @@ provider is a mistake to correct rather than a definition to accept.
 Explicit tool and environment selectors must name a tool fx knows and an
 environment the manifest declares before login prompts or doctor repairs.
 Selecting a catalog entry the workspace does not use is inspection, not
-adoption, and remains valid. Unknown tools use the existing `TOOL_UNKNOWN`
-error; unknown environments use `ENV_NOT_FOUND`, with spelling suggestions. A
+adoption, and remains valid. Unknown tools use `TOOL_UNKNOWN` and unknown
+environments use `ENV_NOT_FOUND`, with spelling suggestions. A
 disabled tool or one with no setup recipe remains a valid selection.
 
 Doctor's default companion checks cover manifest-declared tools and tools used by
@@ -85,26 +98,20 @@ overlays are validated after inheritance, including during lint and doctor.
 A step's stable identity is tool, recipe ID and optional environment. Identical
 expanded definitions may coalesce. Different definitions with one identity are
 `step_conflict` plan problems, and those steps and their dependants are withheld.
-This preserves existing acknowledgment/trust references without silently choosing
-one platform's kubeconfig or permissions over another's. A multi-platform setup
-that needs distinct actions under one identity must be disambiguated before it
-can run; the current contract does not invent new platform-qualified step IDs.
+Acknowledgment and trust references therefore name one definition, and fx never
+silently chooses one platform's kubeconfig or permissions over another's. A
+multi-platform setup that needs distinct actions under one identity must be
+disambiguated before it can run; step IDs are never platform-qualified.
 
 `login --list` exposes the static plan and its problem notices. Executing a plan
 with conflicting step definitions fails with `SETUP_PLAN_CONFLICT` before prompts
 or setup effects. Doctor represents unresolved planning as incomplete coverage;
 readiness returns unconfigured rather than inheriting another platform's checks.
 
-`login --format json` includes `items`, `has_more`, `summary` and `problems`;
-`--list` includes plan problems even with `--quiet`. If a step needs human input
-or a later step throws, read the partial result on stdout as well as the error
-on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
-completed steps remain visible. Handoff rows include the required action, and
-service preparation rows retain available `failure` and `next_steps` fields.
-After resolving the blocker, repeat the same invocation: setup verifies current
-state before rerunning actions. Consumers that previously discarded stdout on
-nonzero exit must now parse it when present. `self update` also captures installer
-output so its stdout remains parseable; inspect the returned installer `code`.
+`login --list` includes plan problems even with `--quiet`. The
+[Skill command guide](../../skills/fx-workspace/references/commands.md#readiness-and-recovery)
+owns login's response fields, row statuses and retry rule, and
+[runtime](runtime.md#partial-results) owns what survives a failed step.
 
 ## Readiness and reports
 
@@ -117,6 +124,10 @@ keeps a local startup failure distinct from a failed authentication check.
 Installation and ordinary readiness share this bounded version probe. Installer
 success remains a separate result; a failed post-install check yields a null
 version rather than reclassifying the installation itself as failed.
+Readiness keeps `missing_tool`, `outdated_tool` and `disabled_tool` apart, and
+doctor evidence records `binary_path` from the execution PATH resolver. The
+Bitbucket status recipe requires `configured=true`, which verifies configuration,
+not arbitrary resource permissions.
 
 A capability or tool resolves to an unambiguous binding. Environment filtering
 applies to platform instances; workspace-only bindings do not require an
@@ -143,11 +154,11 @@ explicit write mode with a recording response, described in
 [probe recording](probe-recording.md). It does not turn readiness into blanket
 permission to execute printed commands.
 
-Init, sync and doctor use the preparation contract in [runtime](runtime.md).
-Doctor retains per-finding severity and coverage, with an aggregate coverage label;
+Init, sync and doctor use the [preparation contract](runtime.md#preparation-contract).
+Doctor reports per-finding severity and coverage, with an aggregate coverage label;
 required unknown checks block, optional unknown checks remain warnings. Explicit
-tool selections are required within that query's scope. Release retains its
-independent ok/complete checklist semantics.
+tool selections are required within that query's scope. Release reports `ok` and
+`complete` as its [checklist contract](release.md) defines them.
 
 ## Coordinate composition
 
@@ -180,16 +191,16 @@ come from `ToolInstall`; every installation and post-install probe vector is
 approved through workspace trust before any package manager runs. Selection never
 implicitly upgrades an existing binary or logs in to a companion service.
 
-`init --dry-run` retains its non-materializing preview: `tool_install: null` and
-`sync: null` mean no effects were executed; inspected sources include their planned
-vectors under plan.resources. Actual
-success returns `tool_install` records. Missing installers, trust refusal, failed
-installs and unverified/below-minimum installed versions stop init with an error;
-the source registration may already exist and the same invocation can be retried.
-Normal `sync` never installs packages; its services stage prepares declared public settings; lifecycle hooks do not gain this
-installation path. npm retains ownership of Registry authentication.
-
-Readiness preserves missing_tool, outdated_tool and disabled_tool separately. Doctor evidence records binary_path from the execution PATH resolver. The Bitbucket status recipe requires configured=true; this verifies configuration, not arbitrary resource permissions. Skill trust failures are blocked tool rows, allowing independent owned projections to proceed. No selected hosts means no companion Skill invocation. User-owned fx copies share a lock and recheck version/ownership before writing; third-party installers retain their own idempotence contracts. Agent detection is distinct from selection; current activity remains unknown. Init emits a prepared installation/Skill plan after source validation and registration, before tools and clones; fresh remote dry-runs defer content-dependent effects.
+Init emits a prepared installation/Skill plan after source validation and
+registration, before tools and clones. `init --dry-run` materializes nothing:
+`tool_install: null` and `sync: null` mean no effects were executed, inspected
+sources include their planned vectors under plan.resources, and a fresh remote
+source defers content-dependent effects. Actual success returns `tool_install`
+records. Missing installers, trust refusal, failed installs and
+unverified/below-minimum installed versions stop init with an error; the source
+registration may already exist and the same invocation can be retried. Normal
+`sync` never installs packages, and neither do lifecycle hooks; its services stage
+prepares declared public settings. npm owns Registry authentication.
 
 ## Tool installation evidence
 
@@ -230,26 +241,37 @@ entry. The owning user contract is [installation history](../user-guide.md#tool-
 follow the maintained agent-clis family: repeatable/comma-separated `--agent`, optional
 `--project`, mutually exclusive `--dir` as a Skill parent. Writes detect targets;
 inspection enumerates all hosts. AgentHostSpec owns native paths and project
-markers. Standalone detection ignores workspace selection; init/sync retain it.
-Global detection retains fx's executable probes in addition to home markers.
+markers. Standalone detection ignores workspace selection; init/sync use it.
+Global detection uses fx's executable probes in addition to home markers.
+Detection is distinct from selection, and says nothing about current activity.
 
 SkillCopies shares canonical destination locking, ownership rechecks and recoverable
-replacement. Explicit install refreshes recognized copies, while background and
-workspace maintenance preserve equal/newer versions. Foreign replacement retains
-fx's confirmation and backup contract; uninstall removes only identified copies.
+replacement: user-owned fx copies share a lock and recheck version and ownership
+before writing. A copy is fx's when its frontmatter carries the bundled Skill's name
+and a version; a same-name directory without a version is foreign. Explicit install
+refreshes recognized copies, while background and workspace maintenance preserve
+equal/newer versions. Foreign replacement requires confirmation and keeps a backup;
+uninstall removes only identified copies.
 Source overlap checks precede standalone writes and repeat inside the lease,
 including canonical paths reached through team links. Partial failures retain
 per-target outcomes and observations. Dry-run is allowed under read-only posture.
 
 Self info and Skill commands provide explicit local discovery; business commands
-do not scan global Skill directories or require a loaded-version declaration.
-Skill commands skip network update probes. Skill status reports embedded_version,
-installs and activation: unverified; each copy retains its version/alignment.
-Show is raw text in every format. Other results retain the human default and
-structured collection contract.
+do not scan global Skill directories. Skill commands skip network update probes.
+Skill status reports embedded_version, installs and activation: unverified, and
+each copy carries its version/alignment; native activation stays unverified until
+the host provides evidence. Show is raw text in every format. Other results use the
+human default and the structured collection contract.
 
-The team-skills generated guide region is rendered from current manifest Skill
-frontmatter. Application reads metadata; domain templates render escaped text.
+Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
+`SKILL_WRITE_DENIED` with their original cause and local recovery. Global locks
+coordinate shared targets across FX_HOME directories.
+
+Team Skills reach each selected agent through one directory link to the manifest's
+Skills tree; a copy is never substituted for that link, and [Windows](windows.md) links
+with junctions. The team-skills generated guide region is the root discovery catalog,
+rendered from current manifest Skill frontmatter. Application reads metadata; domain
+templates render escaped text.
 Source guides use relative links; a derived root guide resolves each one that
 names a file inside the source, and leaves the rest as written.
 Existing guides keep their prose and receive a missing-region notice until their
@@ -269,7 +291,7 @@ Inventory also observes known unrecorded executables without writing receipts;
 those rows have `recorded: false` and null package/operation fields. Existing paths
 cannot reveal the original person/manager or detect same-path external replacement.
 Only confirmed fx-origin records may produce unused-package suggestions. No
-uninstall operation is provided. Tool definitions and requirement merging remain unchanged.
+uninstall operation is provided.
 
 ## Check reasons
 
@@ -308,7 +330,7 @@ started is what the process port reports, never an inference from its exit code:
 program that ran and exited 127 failed its check in its own words. A failure another step established
 keeps its handoff, with the unfinished checks listed beside it, and one platform's
 unfinished check does not withhold the other rows of a `where` query. An interrupted
-check still fails the command. Release gates treat `unknown` as they did: the query
+check still fails the command. Release gates stay open on `unknown`: the query
 itself gives the evidence. A Skill copy fx can bring up to date carries the
 `doctor --fix` action instead of waiting for a person.
 
@@ -331,9 +353,10 @@ look: `located` says the manifest resolved one, not that the repository runs the
 
 ## Shared service preparation
 
-Provider descriptors own accepted service fields, authentication methods and setup
-recipes. Validation reads this catalog; environment overrides merge before a
-service declaration is compiled. Declarations contain public settings only.
+Provider descriptors own accepted service fields, authentication methods, setup
+recipes and the names a schema 1 document writes in place of the provider's id.
+Validation reads this catalog; environment overrides merge before a service
+declaration is compiled. Declarations contain public settings only.
 
 `ServiceProtocol` gives application typed plans and failures. The family adapter
 interprets native JSON and conflict codes, filters public fields and redacts URLs
@@ -352,8 +375,8 @@ or activation; the native tool may activate its first context.
 
 Explicit sync and init prepare services before repository/provider work. Login
 reuses this preparation; doctor/readiness withhold dependent auth checks on failure.
-Background hooks only check. Manifests without service declarations retain their
-existing recipes.
+Background hooks only check. A manifest without service declarations uses the
+provider's own recipes.
 
 Sentry declares a public INI projection at the registered workspace root. Compare
 only expected defaults, preserve foreign content/links and recheck absence before
@@ -371,12 +394,14 @@ and does not confer permission to overwrite.
 
 ## Existing-login reuse
 
-After public setup, a separate `phase: prepare` recipe calls native `auth reuse`
-for the declared context. Init, explicit sync and doctor --fix apply prepare steps;
-background hooks and doctor without --fix only check. Preview is read-only, and an
-unchanged post-write preview verifies association.
+Team context names and public service settings stay separate from native identity
+association: after public setup, a separate `phase: prepare` recipe of the family
+adapters calls native `auth reuse` for the declared context. It runs under the
+[execution policy](#initialization-execution-policy) before credential readiness,
+so nobody has to know to ask for it; doctor without --fix only checks. Preview is
+read-only, and an unchanged post-write preview verifies association.
 
-A no-change result does not prove authentication. The independent credential
+An unavailable or no-change result does not prove authentication. The independent credential
 recipe checks auth status and hands personal sign-in to the user. It depends on
 reuse, so ambiguity, inaccessible storage or failed verification blocks dependent
 login. Native tools own identity matching and credential access; fx stores no

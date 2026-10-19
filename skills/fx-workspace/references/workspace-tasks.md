@@ -13,7 +13,7 @@ or resuming its preparation, use the [initialization guide](initialization.md).
    `node <checkout>/bin/fx.js`, keep using that prefix. Bare `fx` can resolve to
    a different installation after shell startup.
 2. Use `--format json` for machine-readable results. Rediscover the bundled
-   version when the executable changes; no environment acknowledgement is needed.
+   version when the executable changes.
 3. Discover the task's resources using the routes below. For team-specific
    workflows, read the matching Skill from the root AGENTS.md catalog.
 
@@ -210,11 +210,8 @@ queries; background hooks only check. Conflicts preserve existing settings.
 Follow the [service reference](commands.md#service-preparation) for
 native context conflicts and scoped login.
 
-fx reuses npm's effective user/global scope Registry, then its default Registry;
-`FX_REGISTRY` is an optional override. `self info` reports `registry_source`.
-Project npmrc does not redirect global self-update. Internal `@fx/devkit` still
-needs a private target; public `@angelmsger/fx` can fall back to npmjs. Normal
-metadata reads use npm authentication, including `NPM_CONFIG_USERCONFIG`.
+`self info` reports the Registry fx updates from and its `registry_source`;
+[update notices](commands.md#update-notices) explains how it is chosen.
 `FX_OUTDATED` and `MANIFEST_OUTDATED` are advisory. Update within the user's scope,
 then rediscover the running version and read its bundled Skill. `fx skill install`
-refreshes installed copies explicitly. See [update notices](commands.md#update-notices).
+refreshes installed copies explicitly.

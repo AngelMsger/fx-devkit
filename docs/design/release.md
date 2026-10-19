@@ -5,9 +5,11 @@ questions of it — dependencies, merge agreement, CI and unresolved errors — 
 answers them as one report. It is read-only: a team runs it while it prepares a
 release, typically until every source branch is merged into its target, and it
 never merges, tags, publishes or deploys. `fx release` remains a compatibility name.
-Severity and coverage stay independent: [setup](setup.md) owns what `ok` and
-`complete` mean, and a check nobody could answer is a warning with incomplete
-coverage, never a pass.
+Severity and coverage stay independent: `ok` is true when no finding failed, and
+`complete` is true when no finding has incomplete coverage. A check nobody could
+answer is a warning with incomplete coverage, never a pass. The command exits zero
+whenever it produced the checklist, so a caller reads both flags and the findings
+rather than the exit status.
 
 The checklist knows capabilities, not providers. It asks the code host for
 branches, a range of commits, one commit and one file, the CI platform for a job's

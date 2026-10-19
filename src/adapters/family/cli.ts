@@ -1,6 +1,6 @@
-// The one place that knows a family CLI's global flags, JSON envelopes and exit codes
-// (bitbucket-cli, jenkins-cli). Raw stdout is kept too, because some answers are not JSON
-// at all — a file's bytes.
+// A call to a family CLI (bitbucket-cli, jenkins-cli): its global flags, JSON envelope
+// and exit codes. Raw stdout is kept too, because some answers are not JSON at all — a
+// file's bytes.
 
 import { type Category, DevkitError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';

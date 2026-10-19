@@ -25,7 +25,7 @@ reports `unknown`: repair the tool it names, or repeat the query after a timeout
 
 `preparation.state` is `ready` or `incomplete`; incomplete preparation exits 12.
 `doctor.coverage` separately identifies missing diagnostic evidence. Release
-checks still use `ok` and `complete`. Parse partial stdout even after a nonzero exit.
+checks use `ok` and `complete`. Parse partial stdout even after a nonzero exit.
 
 If the source cannot be loaded, inspect the reported file and field. Tools schema 3
 requires each run step to identify local preparation or personal authentication.

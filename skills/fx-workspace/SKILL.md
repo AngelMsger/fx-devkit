@@ -30,5 +30,4 @@ For initialization, the source and target directory are sufficient. Follow the
 initialization guide and `preparation.next`; it already includes verification.
 Continue the user's original task on `complete`, or hand off the named missing
 prerequisites. A list of other fx capabilities is not an initialization checklist.
-No Skill-loaded declaration is needed for initialization. Read the other guides
-only when that task or a specific failure needs them.
+Read the other guides only when that task or a specific failure needs them.

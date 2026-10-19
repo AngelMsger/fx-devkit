@@ -156,7 +156,7 @@ fx init ./existing-work --from ./team-workspace --dry-run
 fx init ./existing-work --from ./team-workspace
 ```
 
-`manifest repo-set` 在持有文件锁时核对原文再替换。其他写入者已修改内容、目标不是普通文件或 manifest 目录是符号链接时，会以 `MANIFEST_EDIT_CONFLICT` 保留现有内容。检查真实源路径后用 `--dry-run` 重试；不要删除锁或覆盖他人的修改。内容不变的编辑返回 `written: false`。
+`manifest repo-set` 不会覆盖并发的修改：它以 `MANIFEST_EDIT_CONFLICT` 停止，文件保持原样。检查源文件后用 `--dry-run` 重试；响应内容见[并发的 manifest 编辑](../skills/fx-workspace/references/commands.md#concurrent-manifest-edits)。
 
 `manifest validate/lint/providers/repo-set/render` 优先使用显式 `--workspace` 或 `FX_WORKSPACE`，即使当前目录位于另一份源 checkout 内。未知的显式名称会报错，不会退回修改附近的 manifest。未显式选择时，仍优先使用当前目录附近的源 checkout，支持独立维护。`manifest import <dir>` 保留目录参数语义，`manifest record-probe` 使用所选已注册工作区。所有文件输出参数支持 `-o` 和 `--out`，包括 render。
 

@@ -73,56 +73,58 @@ such a child runs, and on Windows while any child runs, nothing is redrawn: the
 line is cleared before the child starts and is printed as an ordinary line every
 five seconds instead, so a question is never wiped and fx is still never silent.
 
-`--no-input` and a non-TTY stdin never wait for a person. Missing input becomes a
-structured error. `--fields` projects result data; top-level error envelopes on stderr remain
-intact. Include nested recovery fields in the projection when they are needed. Init/sync/doctor exit 12 when required preparation is incomplete; their structured
-result survives that exit. Release retains exit zero with `ok` and `complete`. Login preserves completed and pending step rows on stdout even when a later
-check fails or requires human input. Read stdout alongside the stderr error;
-see [setup](setup.md) for statuses and recovery fields. Self-update captures
-installer output rather than inheriting stdout. Init/sync also
-preserve partial outcomes: inspect synchronization summary, stage counts and
-item failures. Additive `stage_details` retain document, Skill, tool, hook and MCP rows;
-the existing `stages` field remains summary counts. A companion Skill error keeps
-its structured `failure` and emits `SKILL_INSTALL_FAILED` on stderr, so neither
-quiet output nor aggregation hides its identity and recovery data. Init exposes
-these fields under `sync`. Registration or `written: true` does not prove readiness.
+Repository work also reaches programs as a `repos` progress record when each phase
+begins, every five seconds after that and once at the end: `phase` (`preflight` or
+`apply`), completed and total counts, the active names and elapsed milliseconds. A
+terminal showing the status line reads the same count there instead.
+
+`--no-input` and a non-TTY stdin never wait for a person. Missing input becomes
+`INPUT_REQUIRED` or `CONFIRM_REQUIRED`. Positional arguments disable implicit stdin
+parsing; an explicit stdin source remains supported. Self-update captures installer
+output rather than inheriting stdout.
 
 ## Workflow report views
 
 The CLI renderer summarizes JSON for init/sync/doctor/release, including partial
-results. Application values remain complete. --details
-returns those values; explicit --fields projects them before any summary filter.
-Init/sync/doctor emit a single structured result in JSON/NDJSON; their default human
-view shows the task verdict, blockers and the next action. --details exposes the full
-report. Release's human view groups findings by repository: a repository with a failing
-or warning check lists all of its checks, a non-ok finding every repository shares is
-stated once above them, and repositories whose checks all passed share one closing line
-unless --details lists them too. Ordinary collection commands retain their tables.
-With --fields, every workflow report uses its complete top-level result as the
-projection source, including sync's items and trailer fields and doctor/release's
-findings and summary. JSON and NDJSON emit one projected object; human output uses
-key/value layout. --details does not change an explicit projection. Only selected
-fields reach stdout; error envelopes and notices remain independent on stderr.
-Dotted paths remain literal output keys and collect aligned values through arrays,
-using null for missing values in individual rows. Empty arrays preserve [] without
-claiming evidence that a nested field is unknown. Unknown top-level fields still
-produce one non-fatal FIELDS_UNMATCHED notice; --quiet suppresses that notice.
-Ordinary fact collections continue to project each row, keeping their collection
-metadata and default per-row NDJSON format. Human rendering may abbreviate large
-nested values; JSON/NDJSON preserve the complete projected values.
-Summaries expose output_mode and omitted
-counts, keep exception rows and exact trust/recovery data, and remove successful
-rows and large finding evidence. Error envelopes remain intact on stderr.
+results; application values remain complete. A summary exposes `output_mode` and
+`omitted` counts, keeps exception rows and exact trust/recovery data, and removes
+successful rows and large finding evidence. `--details` returns the complete values;
+on a fact query the result is already complete.
 
-Init/sync retain preview/apply in `operation`. Init/sync/doctor expose one
+Init/sync/doctor emit a single structured result in JSON/NDJSON; their default human
+view shows the task verdict, blockers and the next action. Release emits one report
+object in JSON/NDJSON. Its human view groups findings by repository: a repository
+with a failing or warning check lists all of its checks, a non-ok finding every
+repository shares is stated once above them, and repositories whose checks all
+passed share one closing line unless `--details` lists them too. Ordinary
+collection commands keep their tables.
+
+Explicit `--fields` projects before any summary filter, and `--details` does not
+change an explicit projection. Every workflow report uses its complete top-level
+result as the projection source, including sync's items and trailer fields and
+doctor/release's findings and summary. JSON and NDJSON emit one projected object;
+human output uses key/value layout. Dotted paths remain literal output keys and
+collect aligned values through arrays, using null for missing values in individual
+rows. Empty arrays preserve `[]` without claiming evidence that a nested field is
+unknown. Fact collections project each row, keeping their collection metadata and
+default per-row NDJSON format. Human rendering may abbreviate large nested values;
+JSON/NDJSON preserve the complete projected values.
+
+Only selected fields reach stdout. Error envelopes and notices stay independent on
+stderr and are never projected, so include nested recovery fields in the projection
+when they are needed. Unknown top-level fields produce one non-fatal
+`FIELDS_UNMATCHED` notice, none for an empty collection, and `--quiet` suppresses it.
+
+## Preparation contract
+
+Init/sync keep preview/apply in `operation`. Init/sync/doctor expose one
 `preparation` contract: `state` (planned/ready/incomplete), scoped resources,
 completed check IDs, required blockers, optional warnings, unchecked evidence,
 concrete next_actions and a continuation action. Typed stage checks own the
 verdict; rendering never decides readiness by searching nested result strings.
 Only required checks block. Native activation remains separate from local
 projection and service readiness; optional unverified activation is not a permanent
-initialization failure. Doctor reports diagnostic coverage separately and no longer
-exposes the old top-level ok/complete flags.
+initialization failure. Doctor reports diagnostic coverage separately.
 
 `preparation.next` names the current decision: review the preview, continue the
 original task on complete, act on Agent recovery, or hand off missing prerequisites.
@@ -130,38 +132,67 @@ original task on complete, act on Agent recovery, or hand off missing prerequisi
 personal actions remain on their blockers with `actor: user`. `resume` is separate
 and is used after prerequisites change, not an unconditional next action.
 
-Actions carry their actor, exact argv, cwd and requires_approval, plus optional env coordinates
-for FX_HOME, HOME, USERPROFILE and FX_AGENTS. Preserve these coordinates when
-continuing; they contain no credentials. The CLI binds fx actions to
-the running executable; an error before the root exists uses an existing invocation
-directory for retry. Normal incomplete reports exit 12 with PREPARATION_INCOMPLETE;
-fatal errors preserve their original category and partial result. The human view of
-an incomplete report lists what is blocked under its check id, one row for checks
-that say the same thing and are resolved by the same commands, and marks a check
-that could not run apart from one that failed. The person's commands, the repairs
-fx can make and the continuation follow. It spells the executable
-`fx` when PATH resolves one, and joins actions that differ only in their `--env` or
+Actions carry their actor, exact argv, cwd and requires_approval, plus optional env
+coordinates for FX_HOME, HOME, USERPROFILE and FX_AGENTS. Preserve these coordinates
+when continuing; they contain no credentials. The CLI binds fx actions to the running
+executable; an error before the root exists uses an existing invocation directory
+for retry.
+
+A planned or ready report exits zero. An incomplete report exits 12 with
+`PREPARATION_INCOMPLETE`, and its structured result survives that exit. A fatal
+error keeps its own category, which maps to an exit code from 1 to 11, and its
+partial result. Release has no preparation verdict: it exits zero and reports `ok`
+and `complete` as the [release checklist](release.md) defines them. Registration or
+`written: true` does not prove readiness. Workspace discovery reports
+`registration_status`, which is not a readiness verdict;
+[workspace identity](workspace-management.md) owns its values.
+
+The human view of an incomplete report lists what is blocked under its check id, one
+row for checks that say the same thing and are resolved by the same commands, and
+marks a check that could not run apart from one that failed. The person's commands,
+the repairs fx can make and the continuation follow. It spells the executable `fx`
+when PATH resolves one, and joins actions that differ only in their `--env` or
 `--tool` selection into one command. When both streams are terminals that view
-replaces the PREPARATION_INCOMPLETE error; in every other case stderr still
-receives it. Default summaries
-retain every blocker/action and local setup outcome, including completed steps,
-and selected initialization repository/guide/Skill effects, and omit redundant
-execution plans. Workspace discovery
-uses registration_status (available/root_missing/unprepared/missing/invalid), which
-is not a readiness check. Existing category exit codes 1–11 remain unchanged.
+replaces the PREPARATION_INCOMPLETE error; in every other case stderr still receives
+it. Default summaries retain every blocker/action and local setup outcome, including
+completed steps, and selected initialization repository/guide/Skill effects, and
+omit redundant execution plans.
 
-Explicit empty agent lists survive scalar conversion in every entrypoint,
-including hooks and harness cleanup; an unset value alone selects detection.
-Skill discovery is explicit through self info, skill show and skill status.
-Business commands do not scan installations or require a self-reported loaded
-version. Native activation remains unverified until the host provides evidence.
-Skill filesystem EPERM/EACCES errors, including wrapped lock errors, map to
-SKILL_WRITE_DENIED with their original cause and local recovery. Global locks
-continue coordinating shared targets across FX_HOME directories.
+Init and sync notices state the canonical preparation verdict and distinguish
+repository counts from overall stage completion. A missing required tool can
+leave preparation incomplete even when every selected checkout synchronized.
 
-The global `--details` flag expands workflow reports; on fact queries the result
-is already complete. Global `--workspace` accepts a registered name or root path
-without changing fallback precedence or registering new workspaces.
+## Partial results
+
+A partial workflow error keeps its original category and code, and the partial
+result is rendered before the error envelope. Read stdout alongside the stderr
+error.
+
+Login keeps completed and pending step rows on stdout when a later check fails or
+requires human input; the
+[Skill command guide](../../skills/fx-workspace/references/commands.md#readiness-and-recovery)
+owns their statuses and recovery fields.
+
+Init/sync keep the synchronization summary, stage counts and item failures.
+`stages` holds summary counts; `stage_details` holds the document, Skill, tool, hook
+and MCP rows, and init exposes both under `sync`. The executing Skill/package stage
+owns per-item `status` and partial results; an exception stops subsequent execution
+and retains prior rows. Sync nests a failing stage's partial result under
+`stage_details[stage]` without replacing its contents.
+
+A companion Skill error keeps its structured `failure` and emits
+`SKILL_INSTALL_FAILED` on stderr, so neither quiet output nor aggregation hides its
+identity and recovery data. Skill recovery includes separate disk `observed` values
+because a failed operation may have written already; failed observations remain
+`unknown`. Package rows preserve the installer exit code even if a later version
+probe throws (`phase: version`).
+
+Document rendering and derivation share `ProjectionStore` snapshots and locked
+compare-and-replace writes. `action` describes the plan; per-file `result` records
+`planned`, `done`, `skipped`, `failed` or `not_started`. `DOCS_WRITE_CONFLICT`
+preserves current content. Partial errors retain prior file results, including
+when the subsequent native rules projection fails. Summary rendering keeps all
+file rows in a failed docs stage. It does not infer completion from a planned action.
 
 ## Configuration
 
@@ -175,6 +206,11 @@ Precedence is explicit flag, environment, file, default. `config get`,
 environment value is not an explicit flag. `--explain` names only applicable
 layers: a setting without a CLI override does not advertise a nonexistent flag.
 Malformed configuration fails with actionable configuration errors.
+Explicit empty agent lists survive scalar conversion in every entrypoint,
+including hooks and harness cleanup; an unset value alone selects detection.
+
+Configuration transactions hold a cross-process lease over read/modify/write,
+await asynchronous decisions while holding it and use atomic replacement.
 
 The manifest source carries shared facts; personal config registers workspaces
 and sets preferences, including agent selection across registered workspaces;
@@ -182,11 +218,10 @@ local layers select repositories and environments and carry repository overrides
 Profiles carry settings/local layers but no credentials, trust,
 cache or manifest checkout. Their paths may need adjustment on another machine.
 
-`manifest repo-set` rechecks the captured document under a file lease before
-replacing it. If another writer changed it, the path is not a regular file, or
-its directory is a symbolic link, `MANIFEST_EDIT_CONFLICT` preserves the existing
-content. Inspect the real source path and retry with `--dry-run`; do not remove
-locks or overwrite another edit. An identical edit reports `written: false`.
+`manifest repo-set` rechecks the captured document under a file lease and leaves
+the document as it is when replacing it would not be safe. The
+[Skill command guide](../../skills/fx-workspace/references/commands.md#concurrent-manifest-edits)
+owns the `MANIFEST_EDIT_CONFLICT` response.
 
 ## Personal stores
 
@@ -223,6 +258,12 @@ A batch preserves each failure's structured recovery instead of replacing it
 with a success-shaped summary. Source and projection plans are rechecked before
 application so stale evidence cannot overwrite intervening work.
 
+Approved foreign replacement uses `FileSystem.moveToBackup`: a same-directory
+rename under projection leases, preserving the original object and existing
+backup paths. Callers must still compare the vacated destination with absence
+before creating a document. These leases coordinate fx processes, not an
+adversarial writer outside fx; native Windows evidence remains a separate gate.
+
 Command vectors authored by the team patch pass through TrustGate, and a changed
 vector requires new approval bound to its exact identity. Bundled defaults and
 provider recipes are trusted with whatever public settings a service declaration
@@ -248,6 +289,7 @@ and authorization. See [setup](setup.md) for selection and coverage semantics.
 | ------------------------------ | ------------------------------------------------------------------------------------- |
 | Package/manifest update lookup | Two-second upstream deadline; failure is silent and never changes the command outcome |
 | Provider query                 | Fifteen seconds for family tools; thirty seconds for the slower Sentry CLI            |
+| Code-host identity/readability | Five-second process deadline; a timeout reads as `unknown`                            |
 | Hook foreground                | Independent two-second supervisor; host wrapper allows three seconds                  |
 | Hook background                | Thirty-second supervisor; companion calls receive the remaining bounded budget        |
 
@@ -268,34 +310,6 @@ because interactive commands, queries, hooks and MCP have different IO lifetimes
 [Lifecycle](lifecycle.md) owns hook scheduling, output limits and projection
 recovery; [Windows](windows.md) owns platform-specific behavior and acceptance.
 
-## Partial execution and recovery
-
-Positional arguments disable implicit stdin parsing; explicit source stdin remains supported. Partial workflow errors preserve original category/code and render partial results before the error envelope. Unmatched projected fields produce a non-fatal FIELDS_UNMATCHED notice, with no notice for empty collections. Repository work emits a five-second heartbeat record with completed/total, active names and elapsed milliseconds; a terminal showing the status line reads the same count there instead. Configuration transactions hold a cross-process lease over read/modify/write and use atomic replacement.
-
-Optional Bitbucket repository/user probes use five-second process deadlines. Readability is probed live once per absent repository during sync planning or per repository in an explicit unreadable listing. No persisted readability record, positive or negative, is used; normal retries recheck recovered access and changed hosts. Timeouts become `unknown`; explicit refusals/missing results apply only to the current operation. Cancellation and unexpected exceptions propagate. Repository heartbeat records begin before planning and include `phase: preflight | apply`.
-
-Configuration updates await asynchronous decisions while holding the lease. Init planning and registration both compare real paths, including symlink aliases; registration rechecks current state under that lease.
-
-The executing Skill/package stage owns per-item `status` and partial results. Exceptions stop subsequent execution and retain prior rows. Skill recovery includes separate disk `observed` values because a failed operation may have written already; failed observations remain `unknown`. Package rows preserve the installer exit code even if a later version probe throws (`phase: version`). Sync nests a failing stage's partial result under `stage_details[stage]` without replacing its contents. These additions retain the original error category, code, guidance and exit status.
-
-Document rendering and derivation share `ProjectionStore` snapshots and locked
-compare-and-replace writes. `action` describes the plan; per-file `result` records
-`planned`, `done`, `skipped`, `failed` or `not_started`. `DOCS_WRITE_CONFLICT`
-preserves current content. Partial errors retain prior file results, including
-when the subsequent native rules projection fails. Summary rendering keeps all
-file rows in a failed docs stage. It does not infer completion from a planned action.
-
-Approved foreign replacement uses `FileSystem.moveToBackup`: a same-directory
-rename under projection leases, preserving the original object and existing
-backup paths. Callers must still compare the vacated destination with absence
-before creating a document. This replaces copy-then-remove, which could lose a
-save made between those effects. These leases coordinate fx processes, not an
-adversarial writer outside fx; native Windows evidence remains a separate gate.
-
-Init and sync notices state the canonical preparation verdict and distinguish
-repository counts from overall stage completion. A missing required tool can
-leave preparation incomplete even when every selected checkout synchronized.
-
 ## Command selection and compatibility
 
 Canonical resource entries are `agent skills`, `tool inventory`, `hook enable/disable`,
@@ -307,6 +321,9 @@ names or `--all`; the latter selects missing enabled tools for install and all e
 tools for update. Collection flags share repeated/comma-separated syntax. Completion
 uses flag arity, negations and short names to retain routing after option values and
 positionals. Native artifact commands keep their documented raw output exceptions.
+Global `--workspace` accepts a registered name or root path; it selects among
+registered workspaces only and leaves the fallback order of
+[workspace identity](workspace-management.md) as it is.
 
 Command aliases are explicit registry data. Runtime dispatch accepts them; primary
 help, typo suggestions and command-name completion advertise canonical entries.

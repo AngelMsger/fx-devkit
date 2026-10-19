@@ -7,24 +7,14 @@ while machine selections, trust decisions and operation receipts stay in FX_HOME
 
 ## Boundaries
 
-| Layer       | Responsibility                                          | Dependencies                                                          |
-| ----------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
-| Domain      | Pure decisions, configuration schemas and codecs        | No outer layer; YAML/Zod only in declarative codec areas              |
-| Ports       | Contracts for external effects                          | Domain                                                                |
-| Application | Plan, gate, execute and diagnose workflows              | Domain and injected ports                                             |
-| Adapters    | Git, filesystem, processes, platforms and agent formats | Domain and ports                                                      |
-| Infra       | Personal persistence and logging                        | Domain and ports                                                      |
-| CLI         | Parse flags, invoke workflows, render values/errors     | Application/domain/ports, dependency construction through composition |
-| Composition | Construct dependencies and register implementations     | All layers                                                            |
+The [engineering rules](../../AGENTS.md#architecture) own the layers, their
+responsibilities and the import rules ESLint enforces; [validation](../validation.md)
+owns test ownership.
 
 Application owns preparation, recovery and result aggregation. Composition supplies
 ports and registers implementations; it does not interpret their results. Shared
 workflows include initialization preview, sync stages, tool version probes and
 registered-workspace cleanup. Resource owners retain their reconciliation policy.
-
-Configuration codecs may use YAML/Zod in `domain/manifest`, `domain/config` and
-`domain/import/render`; all IO stays behind ports. See [engineering rules](../../AGENTS.md)
-for dependency enforcement and [validation](../validation.md) for test ownership.
 
 ## Main flows
 
@@ -34,7 +24,7 @@ produce the effective workspace; personal choices do not duplicate shared facts.
 Git sources can refresh safely, while directory and stdin sources are snapshots.
 
 Sync plans repository changes and managed resource projections, then applies
-write gates before effects. Repository updates preserve user work; [status and recovery](status-recovery.md)
+write gates before effects. Repository updates preserve user work; [repository status](status-recovery.md)
 describes uncommitted-work visibility and live access checks. Guides, Skills,
 hooks, MCP entries and rules use ownership checks so unrelated content survives.
 Lifecycle dispatch reuses only the bounded background subset: it does not sync
@@ -59,8 +49,8 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | [Workspace identity](workspace-management.md)       | Registry discovery, relocation, source rebinding and owned cleanup |
 | [Root layout](root-layout.md)                       | The workbench, accounted root entries and stray reporting          |
 | [Initialization and selection](init-selection.md)   | Scope modes, first-clone selection and truthful source previews    |
-| [Status and recovery](status-recovery.md)           | Uncommitted work, validation and live repository readiness         |
-| [Setup and readiness](setup.md)                     | Selector validation, stable step identities and evidence semantics |
+| [Repository status](status-recovery.md)             | Uncommitted work and live code-host readability                    |
+| [Setup and readiness](setup.md)                     | Manifest and selector validation, step identities and evidence     |
 | [Release checklist](release.md)                     | Policy resolution, check order and build-currency semantics        |
 | [Import](import.md)                                 | Repository discovery and inference without changing checkouts      |
 | [Harness](harness.md)                               | MCP/rules declarations, projection ownership and readiness         |
@@ -68,7 +58,7 @@ workflow. It is separate from the read-only ports used by platform diagnostics.
 | [Windows](windows.md)                               | Native process/filesystem adapters, terminal and host protocols    |
 | [Source contributions](source-contributions.md)     | Candidate validation, source isolation, fork/PR recovery           |
 | [Probe recording](probe-recording.md)               | Conditional recording of dated coordinate evidence                 |
-| [Registry configuration](registry-configuration.md) | Public npm transition and current distribution boundaries          |
+| [Registry configuration](registry-configuration.md) | Runtime Registry selection, self-update and publication boundaries |
 
 [CLI reference](../cli/README.md) owns command syntax; the shipped
 [Skill command guide](../../skills/fx-workspace/references/commands.md) explains

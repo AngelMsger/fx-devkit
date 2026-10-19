@@ -228,7 +228,7 @@ fx skill status
 
 明示的な install は認識済みコピーを呼び出した CLI の版に揃え、同版の修復や新しい版の置換も行います。init/sync は同版を再利用し、新しい版を下げません。外部所有の内容の置換には確認とバックアップが必要です。削除しても Agent 選択は変わらず、後の sync で再インストールされる場合があります。
 
-`skill status` はインストール版と `activation: unverified` を返します。ファイルの存在だけではホストによる読み込みを証明できません。必要なときに同梱ガイドを読み、通常のコマンドでは Skill の読み込み宣言は不要です。
+`skill status` はインストール版と `activation: unverified` を返します。ファイルの存在だけではホストによる読み込みを証明できません。必要なときに同梱ガイドを読んでください。
 
 チーム Skill は manifest の `skills/` にあり、init/sync が選択ホストへリンクし、ルート AGENTS.md に一覧を生成します。ワークスペースルートから起動してください。子リポジトリでの検出は保証されません。`fx sync --only docs,skills` で更新します。共有リンク経由で fx 同梱 Skill をインストールせず、ユーザー用コピーか独立ディレクトリを使います。
 
@@ -257,7 +257,7 @@ fx skill status
 
 ## コーディング Agent 向け {#for-coding-agents}
 
-`fx self info --format json` から始めます。初期化では返された `initialization_guide` を読み、同じ実行ファイルを使い続けます。Skill 読み込み済みの環境変数は不要です。[完全な Skill](../skills/fx-workspace/SKILL.md) はその他のタスクを説明します。
+`fx self info --format json` から始めます。初期化では返された `initialization_guide` を読み、同じ実行ファイルを使い続けます。[完全な Skill](../skills/fx-workspace/SKILL.md) はその他のタスクを説明します。
 
 `--format json` を使い、stdout の結果と stderr の進捗・通知・エラーを分けて保存します。既定の結果は準備の判定とすべての障害を保持し、`--details` で各段階の証拠を展開します。human ではタスクの結果と次の操作を先に表示します。`release check` の human 出力は、各リポジトリの最初にリリースされる内容を示します。対象ブランチが宣言しているバージョン、両ブランチの先頭コミット、まだ対象ブランチにマージされていないソースブランチのコミット数です。失敗または警告のチェックがあるリポジトリごとにブロックを分けてそのすべてのチェックを示し、すべてのリポジトリに共通する問題はその上に 1 回だけ示し、すべてのチェックが通ったリポジトリは最後に 1 行ずつ示します。`--details` を付けると、それらのチェックも一覧します。端末では色と記号を加え、表を幅に合わせ、エラーをテキストで表示します。パイプやファイルにはプレーンテキストと JSON のエラーエンベロープを出力し、`NO_COLOR` で色を消せます。コマンドの実行中は、端末に経過時間、数えられる作業の進み具合、待っている対象を示すステータス行を 1 行表示します。この行はコマンドの終了とともに消え、パイプ、ファイル、JSON 出力、`--quiet` には出力しません。git やインストーラーの実行中は、同じ端末でホスト鍵やパスフレーズを尋ねられることがあるため、ステータス行は描き直さず、5 秒ごとに 1 行として出力します。明示的な `--fields` は完全な結果から抽出し、ドットパスは平坦なキーになります。例：`fx sync --format json --fields operation,preparation.state,items,summary`。
 
@@ -279,16 +279,6 @@ Init は承認済みのローカル準備を実行し、完了した手順も結
 
 ファイル競合の結果は `stage_details.docs.files`（init では `sync` 配下）に残ります。外部ファイルの置換は承認を必要とし、同じ階層にバックアップを保持します。[応答契約](../skills/fx-workspace/references/commands.md)も参照してください。
 
-## 0.4.0 への移行 {#migrating-to-040}
-
-- ツール文書は `schema_version: 3` を使います。`kind: run` に `phase: prepare`（非対話のローカル準備）または `phase: authenticate`（個人のログイン）を宣言します。旧形式はワークスペースへの変更前に移行エラーを返し、スクリプトの目的を推測しません。
-- Skill 読み込みハンドシェイクと `skill_notice` 設定を廃止しました。`FX_SKILL_LOADED`、`FX_SKILL_VERSION`、`FX_SKILL_NOTICE` は使用しません。loaded/version_verified の代わりにインストール版と `activation` を確認してください。
-- `preparation.state` が `preparation_complete` に代わります。doctor の最上位 `ok/complete` は準備結果と診断 `coverage` に置き換わり、release は従来の契約を保持します。準備未完了は終了コード 12 です。
-- ワークスペースの一覧は、登録を読み取れることを `registration_status: available` で示します。準備完了の判定ではありません。
-- `init --resume --workspace <name>` は管理済みソースと既存の選択を使います。通常のソースガイドに fx マーカーは不要です。不足領域を生成先へ補い、共有ソースは保持します。
-
-形式は[マニフェストガイド](manifest-guide.md)を参照してください。
-
 ## 設定 {#configuration}
 
 `~/.fx` には登録、個人レイヤー、所有権状態、信頼記録、キャッシュがあります。`FX_HOME` は fx の個人ディレクトリのみを変更し、連携ツールの資格情報の場所は変えません。
@@ -307,22 +297,9 @@ bash、zsh、fish、PowerShell の補完は `fx completion <shell>` で生成し
 
 ## 連携 {#integrations}
 
-マニフェストでワークスペースの provider と連携 CLI を選びます。現在の実装は以下のとおりです。
+マニフェストでワークスペースの provider と連携 CLI を選びます。`fx manifest providers` はこのワークスペースで各能力に結び付けられているものを表示し、`fx tool list --catalog` は、ここで何からも選ばれていないものを含め、fx が知っている連携ツールをすべて表示します。コミュニケーションと知識の入口は連携ツールに引き継ぎ、すべての API を fx が仲介するわけではありません。
 
-| 能力                       | プロバイダー                                            |
-| -------------------------- | ------------------------------------------------------- |
-| コードホスト               | Bitbucket CLI、GitHub CLI、ローカル bare Git リポジトリ |
-| CI                         | Jenkins CLI、GitHub CLI による GitHub Actions           |
-| ログ                       | OpenObserve CLI                                         |
-| エラー追跡                 | Sentry CLI                                              |
-| クラスタの発見             | kubectl、読み取り専用の問い合わせ                       |
-| 課題と知識                 | Feishu Project、Confluence CLI                          |
-| コミュニケーションへの入口 | Lark CLI、WeCom CLI                                     |
-| カレンダー                 | Lark CLI、WeCom CLI、WeCom calendar CLI                 |
-
-`fx manifest providers` と `fx tool list` で実際のバインディングを確認します。コミュニケーションと知識の入口は連携ツールに引き継ぎ、すべての API を fx が仲介するわけではありません。
-
-Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホストを含みます。Skill、hook、MCP、ルールの対応はホストによって異なります。`agent list`、`hook list`、`mcp list` と[ホストの契約](user-guide.md#for-coding-agents)で確認してください。
+Agent の検出には Claude Code、Codex CLI、Cursor などの登録済みホストを含みます。Skill、hook、MCP、ルールの対応はホストによって異なります。同等の機能があると決めつけず、`agent list`、`hook list`、`mcp list` で確認してください。
 
 ## 初期化と復旧結果の読み方 {#reading-initialization-and-recovery-results}
 

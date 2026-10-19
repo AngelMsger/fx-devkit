@@ -18,11 +18,10 @@ service environments, companion CLIs and existing access controls.
 - Cross-repository business architecture and product-specific procedures.
 - Team Skills, authorized case definitions and private evaluation evidence.
 
-The private manifest can still be a versioned Git repository. `fx init`, `sync`,
-`manifest`, `member`, `where`, `release` and `source push` retain their existing
-roles. Provider and installer configuration stays data-driven; public source
-cleanup must not disable integrations or replace private endpoints with public
-services at runtime.
+The private manifest can be a versioned Git repository, and every fx command works
+against it. Provider and installer configuration is data in that manifest: the
+published toolkit neither disables an integration nor replaces a private endpoint
+with a public service at runtime.
 
 ## Keep on each machine
 

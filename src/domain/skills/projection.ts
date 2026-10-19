@@ -1,6 +1,5 @@
-// What to do at one Skill location. Ownership decides it, by the rules AGENTS.md states
-// under workspace and data ownership: the stage never replaces a directory it did not
-// create.
+// What to do at one Skill location. Ownership decides it: the stage never replaces a
+// directory it did not create.
 
 import { samePath } from '../path.js';
 import { atLeast } from '../semver.js';
