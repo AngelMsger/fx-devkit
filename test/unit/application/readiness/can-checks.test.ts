@@ -202,7 +202,6 @@ describe('a check that does not pass', () => {
       status: 'unconfigured',
       unfinished: [{ id: 'jenkins-cli.token', code: 'PROCESS_TIMEOUT' }],
     });
-    // The step behind the unfinished check is as unknown as that check, so it is not handed over.
     expect(result.handoff?.user_steps.map((step) => step.id)).toEqual(['jenkins-cli.role']);
     expect(h.process.calls.some((call) => call.vector.includes('quota'))).toBe(false);
   });

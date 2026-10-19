@@ -49,7 +49,7 @@ export async function resolveToolchain(source: ToolchainSource): Promise<Toolcha
 
 export function toolchainOf(ctx: WorkspaceContext): Toolchain {
   const resolved = toolsOf(ctx.manifest);
-  const needed = providerTools(boundToolchain(ctx), ctx.providers, declaredIn(resolved));
+  const needed = providerTools(boundToolchain(ctx), ctx.providers, resolved);
   return { ...selectToolchain(resolved, needed), workspace: ctx.name };
 }
 
@@ -57,10 +57,6 @@ export function toolchainOf(ctx: WorkspaceContext): Toolchain {
 // declares. Narrowing to the selected ones belongs to the checks that run per environment.
 function boundToolchain(ctx: WorkspaceContext): KeyedBinding[] {
   return [...ctx.bindings.map(keyedBinding), ...ctx.platforms.map(keyedPlatform)];
-}
-
-export function declaredIn(tools: readonly ResolvedTool[]): (tool: string) => boolean {
-  return (tool) => tools.some((entry) => entry.name === tool && entry.declared);
 }
 
 export function toolsOf(bundle: ManifestBundle): readonly ResolvedTool[] {

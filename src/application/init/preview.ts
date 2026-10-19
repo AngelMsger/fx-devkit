@@ -7,7 +7,7 @@ import { REGIONS } from '../../domain/docs/templates.js';
 import { DevkitError } from '../../domain/errors.js';
 import { bindPlatforms, bindProviders } from '../../domain/manifest/providers.js';
 import type { LocalLayer } from '../../domain/manifest/types.js';
-import type { SetupPlan } from '../../domain/setup/types.js';
+import { isLocalPreparation, type SetupPlan } from '../../domain/setup/types.js';
 import type { ManifestSourceInspection } from '../../ports/manifest-source.js';
 import type { ProjectionStore } from '../../ports/projection.js';
 import type { ConfigFile } from '../../ports/stores.js';
@@ -186,8 +186,8 @@ async function inspectedResources({
         tool: step.tool,
         phase: step.phase ?? 'manual',
         title: step.title,
-        action: step.phase === 'prepare' ? 'prepare_if_needed' : 'verify_only',
-        command: step.phase === 'prepare' ? (step.run ?? null) : null,
+        action: isLocalPreparation(step) ? 'prepare_if_needed' : 'verify_only',
+        command: isLocalPreparation(step) ? (step.run ?? null) : null,
         cwd: ctx.root,
         verify: step.verify,
         requires: step.requires,

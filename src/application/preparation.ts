@@ -86,9 +86,8 @@ export function verifyAction(deps: Workspace, tool: string): PreparationAction {
   );
 }
 
-// What an agent does about a check that gave no answer. A tool that did not start gets the
-// action a missing tool gets from its own check; a check that ran out of time is asked
-// again, within its environment.
+// What an agent does about a check that gave no answer: preview installing the tool that
+// did not start, or ask the check that ran out of time again, within its environment.
 export function noAnswerAction(
   deps: Workspace,
   step: Pick<SetupStep, 'id' | 'tool' | 'env'>,

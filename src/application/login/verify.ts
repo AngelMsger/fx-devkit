@@ -12,6 +12,7 @@ import type { CheckCause, FailureCase, SetupCheck, SetupStep } from '../../domai
 import { stderrReason } from '../../domain/toolchain/stderr.js';
 import { messageOf } from '../../domain/values.js';
 import type { ProcessResult } from '../../ports/process.js';
+import type { TrustInput } from '../safety/trust.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -67,25 +68,11 @@ export class Verifier {
         return { ok: false, detail: messageOf(err) };
       }
     }
-    const trust = {
-      tool: step.tool,
-      workspace: this.deps.ctx.name,
-      commandShell: this.deps.commandShell,
+    const trust = stepTrust(this.deps, this.setup, step, {
       vector: verify.command,
       label: `${step.id} check`,
-      origin: step.origin,
-      yes: this.setup.trust.yes,
       posture: this.setup.trust.posture,
-      ...(step.executionEnv
-        ? {
-            execution: {
-              purpose: 'service authentication',
-              resource: step.id,
-              bindings: step.executionEnv,
-            },
-          }
-        : {}),
-    };
+    });
     if (options.dryRun && !(await this.setup.trust.gate.isTrusted(trust)))
       return { ok: false, detail: 'manifest command is not trusted', withheld: true };
     await this.setup.trust.gate.ensure(trust);
@@ -112,10 +99,32 @@ export class Verifier {
   }
 }
 
-// A check that gave no answer: its tool did not start, or it outlived its deadline.
-// Nothing about the step follows from it, so nobody is handed the step for it.
-export function gaveNoAnswer(code: string | undefined): boolean {
-  return code === 'TOOL_MISSING' || code === 'PROCESS_TIMEOUT';
+// What the trust gate is asked about one of a step's vectors, its check's or its command's.
+export function stepTrust(
+  deps: Pick<WorkspaceDeps, 'ctx' | 'commandShell'>,
+  setup: Pick<LoginDeps, 'trust'>,
+  step: SetupStep,
+  asked: Pick<TrustInput, 'vector' | 'label' | 'posture'>,
+): TrustInput {
+  return {
+    tool: step.tool,
+    workspace: deps.ctx.name,
+    commandShell: deps.commandShell,
+    vector: asked.vector,
+    label: asked.label,
+    origin: step.origin,
+    yes: setup.trust.yes,
+    posture: asked.posture,
+    ...(step.executionEnv
+      ? {
+          execution: {
+            purpose: 'service authentication',
+            resource: step.id,
+            bindings: step.executionEnv,
+          },
+        }
+      : {}),
+  };
 }
 
 function commandVerdict(

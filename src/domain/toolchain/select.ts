@@ -43,20 +43,28 @@ export interface SelectedToolchain {
   readonly sources: ReadonlyMap<string, ToolSource>;
 }
 
-// The tools each binding needs, keyed by tool name. A provider fx does not know is read as
-// one the manifest defines itself, named after the tool it drives — but only where the team
-// declared that tool, because fx's own catalog names are tools, not provider ids, and an id
-// that merely resembles one is a mistake worth correcting rather than obeying.
+// The tool that makes a provider fx does not know one the manifest defines itself. Such a
+// provider is named after the tool it drives — but only where the team declared that tool,
+// because fx's own catalog names are tools, not provider ids, and an id that merely
+// resembles one is a mistake worth correcting rather than obeying.
+export function manifestProviderTool(
+  provider: string,
+  tools: readonly ResolvedTool[],
+): ResolvedTool | undefined {
+  return tools.find((tool) => tool.name === provider && tool.declared);
+}
+
+// The tools each binding needs, keyed by tool name.
 export function providerTools(
   bindings: readonly KeyedBinding[],
   providers: ProviderCatalog,
-  declaresTool: (tool: string) => boolean,
+  tools: readonly ResolvedTool[],
 ): ReadonlyMap<string, readonly string[]> {
   const needed = new Map<string, string[]>();
   for (const binding of bindings) {
     if (binding.provider === null || binding.source === 'misplaced') continue;
     const provider = providers.find((candidate) => candidate.id === binding.provider);
-    for (const tool of toolsOf(provider, binding, declaresTool))
+    for (const tool of toolsOf(provider, binding, tools))
       needed.set(tool, [...(needed.get(tool) ?? []), binding.key]);
   }
   return needed;
@@ -65,11 +73,12 @@ export function providerTools(
 function toolsOf(
   provider: ProviderFacts | undefined,
   binding: KeyedBinding,
-  declaresTool: (tool: string) => boolean,
+  tools: readonly ResolvedTool[],
 ): readonly string[] {
   if (servesCapability(provider, binding.capability)) return provider.tools;
-  const own = binding.provider;
-  return provider === undefined && own !== null && declaresTool(own) ? [own] : [];
+  if (provider !== undefined || binding.provider === null) return [];
+  const own = manifestProviderTool(binding.provider, tools);
+  return own === undefined ? [] : [own.name];
 }
 
 export function selectToolchain(

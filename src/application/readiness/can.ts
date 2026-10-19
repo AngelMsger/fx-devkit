@@ -118,9 +118,8 @@ export class Can {
     return instances.length > 0 ? instances : [bindingOf([], capability)];
   }
 
-  // A provider fx does not implement is still usable when the manifest describes a tool of
-  // that name: fx has no entry coordinate to offer, but the tool's own readiness answers the
-  // question. Without such a tool the binding names nothing at all.
+  // A provider the manifest defines itself (see manifestProviderTool) has no entry
+  // coordinate to offer: the readiness of its tool answers the question.
   private entry(target: Target): CanResult['entry'] {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;

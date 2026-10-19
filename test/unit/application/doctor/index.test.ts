@@ -534,7 +534,6 @@ describe('Doctor', () => {
     expect(finding).not.toHaveProperty('handoff');
     expect(run.mock.calls.some(([vector]) => vector.includes('can-i'))).toBe(false);
 
-    // The check is the agent's to unblock; the step behind it waits and is nobody's yet.
     const inspect = {
       actor: 'agent',
       argv: ['fx', 'tool', 'install', 'kubectl', '--workspace', 'fx', '--dry-run'],
