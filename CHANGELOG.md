@@ -25,6 +25,42 @@
   or later; without it the times still decide. CI evidence gains `commit`.
 - Let a `github-actions` ci environment leave out `branch`. `fx release check` then
   counts the runs of the branch it is checking on each side.
+- Keep MCP, rules and hook rows that report `untrusted`, `missing_variables`,
+  `invalid` or `busy` in the summary of an `init`, `sync` or `doctor` JSON report.
+  They were counted under `omitted`, while a `foreign` or `conflict` row of the same
+  stage was shown.
+- Report `TOOL_MISSING` from a companion query, `sentry` or `git` only when the
+  executable could not be started. One that started and exited 127 itself now reads
+  as the failed query or Git operation it is, in place of a request to install a tool
+  that is already there.
+- Say `"<id>" is not an agent fx knows` for an unknown `--agent` of
+  `fx can mcp:<name>`, as `fx agent pick` and `fx skill install` do.
+  `fx release check` reports an unknown repository in the words of the other
+  repository commands, lists the known names when none is close, and keeps the
+  workspace in its next step.
+- Quote a directory, tool or repository name that needs it in the command an error
+  suggests: the imported directory of `IMPORT_INSIDE_ROOT`, the tools of a withheld
+  installation or a missing companion Skill tool, and the repository of
+  `PROBE_RECORD_INPUT_REQUIRED`. A path with a space can be pasted as printed.
+- Quote for the configured `command_shell` the commands that follow a workspace
+  `relocate` or `rebind`, a registration `fx init` cannot take or resume, a profile
+  import or source contribution whose workspace changed, a probe that could not be
+  recorded and a `--workspace` that names nothing registered. These were printed in
+  POSIX quoting whatever the setting.
+- Run git in the C locale when reading a manifest repository or a `local-git` code
+  host, as repository synchronization does. Under another locale a file missing from
+  a branch was reported as a failed query, because git's translated message went
+  unrecognised. A git that cannot be started there is now `TOOL_MISSING`.
+
+### Fixed
+
+- Refuse a recorded harness or contribution path that has a `.git` segment in any
+  letter case or a delete character. Harness ownership metadata accepted `.GIT/...`,
+  which a case-insensitive volume resolves into a repository's own directory; both
+  stores now hold a recorded path to the rule `fx source push` applies to a selection.
+- Report `bundled_tools` in `fx self info` as a path the file system accepts when fx
+  is installed under a directory whose name has a space or a non-ASCII character, or
+  on Windows. The value was a percent-encoded URL path there.
 
 ## 0.11.0 (2026-10-12)
 
@@ -138,17 +174,6 @@
   only the environment at hand.
 - Leave the capabilities fx wires itself out of what an unknown `fx can` target is
   offered, and point its next steps at `fx can` and `fx tool list`.
-- Keep MCP, rules and hook rows that report `untrusted`, `missing_variables`,
-  `invalid` or `busy` in the summary of an `init`, `sync` or `doctor` JSON report.
-  They were counted under `omitted`, while a `foreign` or `conflict` row of the same
-  stage was shown.
-
-### Fixed
-
-- Refuse a recorded harness or contribution path that has a `.git` segment in any
-  letter case or a delete character. Harness ownership metadata accepted `.GIT/...`,
-  which a case-insensitive volume resolves into a repository's own directory; both
-  stores now hold a recorded path to the rule `fx source push` applies to a selection.
 
 ## 0.9.1 (2026-10-09)
 

@@ -7,6 +7,14 @@
 - 將 `wecom-calendar-cli` 加入工具目錄並作為 `calendar` provider。它是你自己企業微信行事曆的本機鏡像，可連同歷史一起搜尋。`fx can` 檢查每位成員的登入狀態，並把 `wecom-calendar-cli event list` 交給 Agent；是否用 `wecom-calendar-cli sync` 填充鏡像由成員自己決定。
 - 平台提供 CI 建置檢出的提交時，依該提交判定建置。`fx release check` 認為成功建置了分支最新提交的建置通過，建置了其他提交的建置失敗，不再比較建置開始時間與最新提交的寫入時間。GitHub Actions 會提供提交，Jenkins 從 jenkins-cli 0.12.0 起提供；沒有提交時仍依時間判定。CI 證據新增 `commit`。
 - `github-actions` 的 ci 環境可以省略 `branch`。此時 `fx release check` 在每一側計入正在檢查的分支的執行。
+- `init`、`sync`、`doctor` 的 JSON 報告摘要保留狀態為 `untrusted`、`missing_variables`、`invalid` 或 `busy` 的 MCP、rules 與 hook 列。此前這些列只計入 `omitted`，而同一階段的 `foreign` 或 `conflict` 列會顯示出來。
+- 配套工具查詢、`sentry` 與 `git` 只有在可執行檔無法啟動時才回報 `TOOL_MISSING`。工具已啟動但自身以 127 結束時，現在如實回報為失敗的查詢或 Git 操作，不再要求安裝一個已經裝好的工具。
+- `fx can mcp:<name>` 的 `--agent` 無法識別時，與 `fx agent pick`、`fx skill install` 一樣提示 `"<id>" is not an agent fx knows`。`fx release check` 遇到未知儲存庫時採用其他儲存庫命令的說法，沒有相近名稱時列出已知名稱，並在下一步中保留工作區。
+- 錯誤裡建議的命令會為需要引號的目錄、工具或儲存庫名稱加上引號：`IMPORT_INSIDE_ROOT` 中被匯入的目錄、被暫緩安裝的工具或準備其 Skill 時缺少的配套工具，以及 `PROBE_RECORD_INPUT_REQUIRED` 的儲存庫。帶空格的路徑可以原樣貼上執行。
+- 下列情況給出的命令依設定的 `command_shell` 加引號：工作區 `relocate`、`rebind` 之後的命令，`fx init` 無法接受或繼續的註冊，工作區已變更的 profile 匯入或原始碼貢獻，未能記錄的探測，以及 `--workspace` 指向未註冊的名稱。此前無論如何設定都以 POSIX 方式加引號。
+- 讀取 manifest 儲存庫或 `local-git` 程式碼託管時，git 與儲存庫同步一樣在 C locale 下執行。在其他 locale 下，分支上不存在的檔案曾被回報為查詢失敗，因為 git 的在地化訊息無法識別。在這些情況中 git 無法啟動時現在回報 `TOOL_MISSING`。
+- 拒絕記錄中帶有任意大小寫的 `.git` 區段或刪除字元的 harness 路徑與貢獻路徑。harness 所有權中繼資料此前接受 `.GIT/...`，在不區分大小寫的磁碟區上它會解析到儲存庫自身的目錄；兩個存放區現在都依 `fx source push` 對所選檔案使用的規則驗證記錄的路徑。
+- fx 安裝在名稱含空格或非 ASCII 字元的目錄下，或在 Windows 上時，`fx self info` 的 `bundled_tools` 給出檔案系統可用的路徑。此前該值是經過百分比編碼的 URL 路徑。
 
 ## 0.11.0 (2026-10-12)
 
