@@ -1,32 +1,24 @@
 // Every provider's recipes must be satisfiable from what the manifest can
-// say: the descriptor's variables, the environment's, the built-in names
-// and the recipe's own defaults. And kubectl must never write.
+// say: the descriptor's variables, the environment's, the ones the descriptor
+// derives from them, the built-in names and the recipe's own defaults. And
+// kubectl must never write.
 
 import { describe, expect, it } from 'vitest';
 
-import { jenkinsCliProvider } from '../../../src/adapters/ci/jenkins-cli/provider.js';
 import {
   kubectlProvider,
   READ_ONLY_VERBS,
 } from '../../../src/adapters/cluster/kubectl/provider.js';
-import { bitbucketCliProvider } from '../../../src/adapters/code-host/bitbucket-cli/provider.js';
-import { sentryProvider } from '../../../src/adapters/error-tracker/sentry/provider.js';
-import { openobserveCliProvider } from '../../../src/adapters/log-store/openobserve-cli/provider.js';
-import { prometheusCliProvider } from '../../../src/adapters/metrics/prometheus-cli/provider.js';
+import { describeProvider, providerCatalog } from '../../../src/composition/registry.js';
 import { failureCaseOf } from '../../../src/domain/setup/failure-case.js';
 import type { FailureCase } from '../../../src/domain/setup/types.js';
 import { placeholders } from '../../../src/domain/template.js';
 import type { Platform } from '../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../src/ports/provider.js';
 
-const PROVIDERS: readonly ProviderDescriptor<unknown>[] = [
-  bitbucketCliProvider,
-  sentryProvider,
-  openobserveCliProvider,
-  prometheusCliProvider,
-  jenkinsCliProvider,
-  kubectlProvider,
-];
+const PROVIDERS: readonly ProviderDescriptor<unknown>[] = providerCatalog()
+  .map((provider) => describeProvider(provider.id)!)
+  .filter((provider) => provider.recipes.length > 0);
 
 const BUILT_IN = ['env', 'setup.source'];
 
@@ -52,6 +44,7 @@ describe.each(PROVIDERS.map((p) => [p.id, p] as const))('%s recipes', (_, provid
     const known = new Set([
       ...provider.vars.map((v) => v.name),
       ...(provider.envVars ?? []).map((v) => v.name),
+      ...Object.keys(provider.recipeVars?.({}) ?? {}),
       ...BUILT_IN,
     ]);
     for (const recipe of provider.recipes) {
@@ -66,14 +59,21 @@ describe.each(PROVIDERS.map((p) => [p.id, p] as const))('%s recipes', (_, provid
         expect(provider.recipes.map((r) => r.id)).toContain(dep);
     }
   });
+});
 
-  it('reads a failed check only by what the tool wrote, through patterns that compile', () => {
-    for (const failure of provider.recipes.flatMap(failuresOf)) {
-      const patterns = [failure.stdout, failure.stderr].filter((p) => p !== undefined);
-      expect(patterns.length, `${failure.cause} states an output condition`).toBeGreaterThan(0);
-      for (const pattern of patterns) expect(() => new RegExp(pattern)).not.toThrow();
-    }
-  });
+it('every failure case reads only what the tool wrote, through patterns that compile', () => {
+  const failures = PROVIDERS.flatMap((provider) =>
+    provider.recipes.flatMap(failuresOf).map((failure) => ({ provider: provider.id, failure })),
+  );
+  expect(failures.length).toBeGreaterThan(0);
+  for (const { provider, failure } of failures) {
+    const patterns = [failure.stdout, failure.stderr].filter((p) => p !== undefined);
+    expect(
+      patterns.length,
+      `${provider} ${failure.cause} states an output condition`,
+    ).toBeGreaterThan(0);
+    for (const pattern of patterns) expect(() => new RegExp(pattern)).not.toThrow();
+  }
 });
 
 describe('kubectl', () => {
@@ -100,9 +100,6 @@ describe('kubectl', () => {
   });
 });
 
-// What kubectl writes when its access check does not pass. Only an answer is a permission
-// verdict, only a refused identity is a credential one, and whatever names neither stays
-// unknown instead of sending someone after a new kubeconfig or a role.
 describe('kubectl access check', () => {
   const access = kubectlProvider.recipes.find((recipe) => recipe.id === 'access')!;
   const SERVER = 'Error from server (Forbidden)';

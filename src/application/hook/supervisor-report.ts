@@ -3,6 +3,7 @@
 // replaced by the next run that ends the same way.
 
 import type { HookObservation } from '../../domain/harness/state.js';
+import { hooksLeaseKey } from '../../domain/lease.js';
 import { samePath } from '../../domain/path.js';
 import type { Clock } from '../../ports/clock.js';
 import type { HookStateStore } from '../../ports/hook-state.js';
@@ -26,7 +27,7 @@ export async function recordRunFailure(
   deps: SupervisorReportDeps,
   input: SupervisorReportInput,
 ): Promise<void> {
-  const lease = await deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 0 });
+  const lease = await deps.lock.acquire({ key: hooksLeaseKey(input.workspace), waitMs: 0 });
   if (!lease) return;
   try {
     const current = await deps.state.read(input.workspace);

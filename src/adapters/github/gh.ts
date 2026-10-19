@@ -56,8 +56,7 @@ export class GhCli {
       timeoutMs: options.timeoutMs,
       diagnostic: { phase: `${BINARY} ${args.slice(0, 2).join(' ')}`.trim() },
     });
-    if (result.notStarted === true || result.code === EXIT.missing_binary)
-      throw toolMissing(BINARY);
+    if (result.notStarted) throw toolMissing(BINARY);
     if (result.code === 0)
       return { code: 0, stdout: result.stdout, data: parse(result.stdout), error: undefined };
     const status = httpStatus(result.stderr);

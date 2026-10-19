@@ -41,6 +41,7 @@ describe('ToolCheck under a dry run', () => {
       trust: { gate, workspace: 'fx', yes: true, posture: writable },
     });
     expect(real?.state).toBe('ok');
+    expect(process.vectors(), 'the patched vector is what ran').toEqual([['alpha', '--ver']]);
     expect(store.entries.map((e) => e.label)).toEqual(['alpha version probe']);
 
     const [again] = await new ToolCheck(process).execute({
@@ -56,6 +57,12 @@ describe('ToolCheck under a dry run', () => {
       base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
       patch: 'schema_version: 3\ntools: [{ name: alpha, binary: surprise }]',
       binary: 'surprise',
+    },
+    {
+      case: 'patched version arguments',
+      base: 'schema_version: 3\ndefaults: { install: [{ via: npm }] }\ntools: [{ name: alpha }]',
+      patch: 'schema_version: 3\ntools: [{ name: alpha, version_args: [--ver] }]',
+      binary: 'alpha',
     },
     {
       case: 'a patch-added tool inheriting bundled arguments',

@@ -285,7 +285,11 @@ describe('Release', () => {
     expect(new Set((await run(s, { tags: ['data'] })).findings.map((f) => f.id))).toEqual(
       new Set(['fx-example-data']),
     );
-    await expect(run(s, { repos: ['nope'] })).rejects.toMatchObject({ code: 'REPO_NOT_FOUND' });
+    await expect(run(s, { repos: ['nope'] })).rejects.toMatchObject({
+      code: 'REPO_NOT_FOUND',
+      message: '"nope" is not a shared repository of workspace "fx"',
+      nextSteps: ['fx repo list --workspace fx'],
+    });
   });
 
   it('refuses a tag nobody carries and an environment the workspace does not declare', async () => {

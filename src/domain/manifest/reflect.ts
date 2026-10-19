@@ -2,6 +2,8 @@
 
 import type * as z from 'zod';
 
+import { isRecord } from '../values.js';
+
 export interface FieldInfo {
   readonly type: string;
   readonly required: boolean;
@@ -111,33 +113,6 @@ export function fieldInfo(schema: AnySchema): FieldInfo {
   };
 }
 
-// Every field reachable from the root that has no description, as paths.
-// Union members, array elements and record values are descended into.
-export function undescribedFields(schema: AnySchema, prefix = ''): string[] {
-  const missing: string[] = [];
-  const visit = (node: AnySchema, path: string): void => {
-    if (unwrap(node).description === undefined) missing.push(path === '' ? '(root)' : path);
-    const shape = shapeOf(node);
-    if (shape !== undefined) {
-      for (const [key, child] of Object.entries(shape))
-        visit(child, path === '' ? key : `${path}.${key}`);
-      return;
-    }
-    const element = elementOf(node);
-    if (element !== undefined && kindOf(unwrap(element).schema) === 'object') {
-      const suffix = kindOf(unwrap(node).schema) === 'array' ? '[]' : '.<key>';
-      for (const [key, child] of Object.entries(shapeOf(element) ?? {}))
-        visit(child, `${path}${suffix}.${key}`);
-    }
-    for (const option of optionsOf(node) ?? []) {
-      for (const [key, child] of Object.entries(shapeOf(option) ?? {}))
-        visit(child, `${path}.${key}`);
-    }
-  };
-  visit(schema, prefix);
-  return missing;
-}
-
 export interface Stripped {
   readonly value: unknown;
   readonly unknown: readonly (readonly (string | number)[])[];
@@ -162,7 +137,7 @@ export function stripUnknown(schema: AnySchema, value: unknown): Stripped {
         ? current
         : current.map((item, i) => visit(elements, item, [...path, i]));
     }
-    if (!isPlainObject(current)) return current;
+    if (!isRecord(current)) return current;
     const shapes = alternatives.flatMap((node) => {
       const shape = shapeOf(node);
       return shape === undefined ? [] : [shape];
@@ -208,8 +183,4 @@ export function acceptsNullAt(schema: AnySchema, path: readonly (string | number
     if (nodes.length === 0) return false;
   }
   return nodes.some((node) => node.safeParse(null).success);
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

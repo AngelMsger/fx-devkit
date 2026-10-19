@@ -59,6 +59,10 @@ export class FakeGit implements Git {
     return this.checkouts.has(path.resolve(dir)) ? dir : undefined;
   }
 
+  async isToplevel(dir: string): Promise<boolean> {
+    return this.checkouts.has(path.resolve(dir));
+  }
+
   async remotes(dir: string): Promise<Record<string, string>> {
     return this.checkouts.get(path.resolve(dir))?.remotes ?? {};
   }

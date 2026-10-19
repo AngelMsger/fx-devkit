@@ -13,6 +13,8 @@ const good = {
 };
 const document = (mcp: unknown[], extra = {}) =>
   JSON.stringify({ schema_version: 2, mcp, ...extra });
+const problemPaths = (mcp: unknown[]): string[] =>
+  loadHarness(document(mcp), { ...options, allowInvalid: true }).problems.map((p) => p.path);
 
 describe('harness manifest', () => {
   it('accepts an empty optional resource set and keeps references symbolic', () => {
@@ -30,20 +32,39 @@ describe('harness manifest', () => {
     expect(JSON.stringify(result)).not.toContain(secret);
   });
   it('rejects ambiguous names and undefined variable instructions', () => {
-    expect(() => loadHarness(document([good, good]), options)).toThrow();
-    expect(() => loadHarness(document([{ ...good, variables: {} }]), options)).toThrow();
+    expect(problemPaths([good, good])).toEqual(['mcp']);
+    expect(() => loadHarness(document([good, good]), options)).toThrow(
+      expect.objectContaining({ code: 'MANIFEST_INVALID' }),
+    );
+    expect(problemPaths([{ ...good, variables: {} }])).toEqual(['mcp[0].variables']);
   });
-  it('rejects credential URLs and incompatible transport fields', () => {
-    for (const resource of [
-      { name: 'remote', transport: 'http', url: 'https://user:password@mcp.example.com' },
-      { ...good, url: 'https://mcp.example.com' },
-      { name: 'remote', transport: 'http', url: 'https://mcp.example.com', command: ['server'] },
-    ])
-      expect(() => loadHarness(document([resource]), options)).toThrow();
+  it.each([
+    {
+      case: 'a credential URL',
+      resource: { name: 'remote', transport: 'http', url: 'https://user:password@mcp.example.com' },
+      path: 'mcp[0].url',
+    },
+    {
+      case: 'a URL on a stdio resource',
+      resource: { ...good, url: 'https://mcp.example.com' },
+      path: 'mcp[0].transport',
+    },
+    {
+      case: 'a command on an HTTP resource',
+      resource: {
+        name: 'remote',
+        transport: 'http',
+        url: 'https://mcp.example.com',
+        command: ['server'],
+      },
+      path: 'mcp[0].transport',
+    },
+  ])('rejects $case at its field', ({ resource, path }) => {
+    expect(problemPaths([resource])).toEqual([path]);
   });
   it('rejects credential-shaped startup arguments at the schema boundary', () => {
     const result = mcpSchema.safeParse({ ...good, command: ['server', '--token=inline-secret'] });
-    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toContainEqual(['command']);
   });
   it('reports unknown fields in strict inspection and negotiates the version', () => {
     const result = loadHarness(document([good], { unexpected: true }), {
@@ -52,13 +73,18 @@ describe('harness manifest', () => {
       allowInvalid: true,
     });
     expect(result.unknown).toContain('unexpected');
-    expect(() => loadHarness(document([], { schema_version: 99 }), options)).toThrow();
+    expect(() => loadHarness(document([], { schema_version: 99 }), options)).toThrow(
+      expect.objectContaining({ code: 'MANIFEST_SCHEMA_TOO_NEW' }),
+    );
   });
   it('requires explicit reference bindings instead of credential arguments or implicit interpolation', () => {
     for (const command of [
       ['server', '--token', 'inline-value'],
       ['server', '${TOKEN}'],
     ])
-      expect(mcpSchema.safeParse({ ...good, command }).success).toBe(false);
+      expect(
+        mcpSchema.safeParse({ ...good, command }).error?.issues.map((issue) => issue.path),
+        command.join(' '),
+      ).toEqual([['command']]);
   });
 });

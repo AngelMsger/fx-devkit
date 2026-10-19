@@ -1,7 +1,9 @@
 // Expand service configuration and personal login separately from one binding.
 import { serviceVars, type ServiceSettings } from '../../domain/manifest/service.schema.js';
+import { SERVICE_RECIPE_ID } from '../../domain/setup/names.js';
 import type { RecipeSource } from '../../domain/setup/planner.js';
-import type { ProviderDescriptor, Vars } from '../../ports/provider.js';
+import type { Vars } from '../../domain/template.js';
+import type { ProviderDescriptor } from '../../ports/provider.js';
 
 export function serviceRecipes(input: {
   readonly descriptor: ProviderDescriptor<unknown>;
@@ -24,7 +26,7 @@ export function serviceRecipes(input: {
       ...common,
       preparation: prep,
       recipe: {
-        id: 'service',
+        id: SERVICE_RECIPE_ID,
         tool,
         perEnv: false,
         kind: 'run',
@@ -41,7 +43,11 @@ export function serviceRecipes(input: {
     },
     ...definition.recipes.map((recipe) => ({
       ...common,
-      recipe: { ...recipe, perEnv: false, requires: ['service', ...(recipe.requires ?? [])] },
+      recipe: {
+        ...recipe,
+        perEnv: false,
+        requires: [SERVICE_RECIPE_ID, ...(recipe.requires ?? [])],
+      },
     })),
   ];
 }

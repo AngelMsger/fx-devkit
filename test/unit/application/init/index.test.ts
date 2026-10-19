@@ -49,6 +49,7 @@ class ScriptedSource implements ManifestSource {
 }
 
 function setup(files: Record<string, string> = {}, configFile = {}) {
+  const settled: string[] = [];
   const fs = FakeFs.from(files);
   const git = new FakeGit((dir) => fs.mkdir(dir));
   const config = new FakeConfigStore(configFile);
@@ -88,10 +89,8 @@ function setup(files: Record<string, string> = {}, configFile = {}) {
     }),
   };
   const source = new ScriptedSource(fs);
-  return { deps, fs, git, config, reporter, source };
+  return { deps, fs, git, config, reporter, source, settled };
 }
-
-const settled: string[] = [];
 
 describe('Init', () => {
   it('rejects an invalid required tool before registering or cloning, including in preview', async () => {
@@ -251,12 +250,12 @@ describe('Init', () => {
     });
     expect((await config.read()).workspaces?.new?.root).toBe(ROOT);
     expect(result.written).toBe(true);
+    expect(result.preparation.state).toBe('incomplete');
     expect(result.sync!.summary.failed).toBeGreaterThan(0);
     expect(result.sync!.items.some((item) => item.failure?.next_steps.length)).toBe(true);
   });
   it('creates, registers as default, and syncs a brand-new directory', async () => {
-    settled.length = 0;
-    const { deps, git, config, source } = setup();
+    const { deps, git, config, source, settled } = setup();
     const out = await new Init(deps).execute({
       dir: ROOT,
       source,
@@ -412,8 +411,11 @@ describe('Init', () => {
       posture: writable,
       jobs: 1,
     };
-    await expect(new Init(taken.deps).execute({ ...input, name: 'new' })).rejects.toMatchObject({
+    await expect(
+      new Init({ ...taken.deps, commandShell: 'cmd' }).execute({ ...input, name: 'new' }),
+    ).rejects.toMatchObject({
       code: 'WORKSPACE_NAME_TAKEN',
+      nextSteps: ['fx ^"workspace^" ^"show^" ^"new^"', expect.stringContaining('without --name')],
     });
     expect(taken.source.materialized).toEqual([]);
     const output = await new Init(taken.deps).execute(input);

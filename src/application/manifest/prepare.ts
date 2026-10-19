@@ -1,5 +1,6 @@
 // Discovery may quarantine invalid entries; preparation must preserve the declared scope.
 import { DevkitError } from '../../domain/errors.js';
+import { droppedEntryOf, mapEntryIndex } from '../../domain/manifest/quarantine.js';
 
 import type { ManifestBundle } from './load.js';
 
@@ -14,14 +15,12 @@ export function requireUsableManifest(bundle: ManifestBundle): void {
   const problems = documents.flatMap(
     (document) =>
       document?.result.problems.map((problem) => {
-        const entry = document.result.dropped.find((entry) =>
-          entry.reason.includes(`${problem.path}: ${problem.message}`),
-        );
+        const entry = droppedEntryOf(problem, document.result.dropped);
         return {
           file: document.path ?? 'manifest/tools.yaml',
           ...problem,
           ...(entry
-            ? { entry: entry.name, path: problem.path.replace(/^(tools|repos|mcp)\[\d+\]/, '$1[]') }
+            ? { entry: entry.name, path: mapEntryIndex(problem.path, entry.collection, () => '') }
             : {}),
         };
       }) ?? [],

@@ -130,6 +130,17 @@ describe('SentryErrorTracker', () => {
     ).rejects.toMatchObject({ code: 'TOOL_MISSING' });
   });
 
+  it('reports a CLI that started and exited 127 as a failed query, not as missing', async () => {
+    const proc = new FakeProcess().on(LIST, {
+      code: 127,
+      stdout: '',
+      stderr: 'helper executable unavailable\n',
+    });
+    await expect(
+      new SentryErrorTracker(proc).issues(vars, { since: '14d', limit: 1000 }),
+    ).rejects.toMatchObject({ category: 'server', code: 'PLATFORM_QUERY_FAILED' });
+  });
+
   it('is the provider the manifest names by the platform name sentry', () => {
     expect(sentryProvider.id).toBe('sentry');
     expect(sentryProvider.tools).toEqual(['sentry']);

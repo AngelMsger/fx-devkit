@@ -3,6 +3,7 @@
 // match one query, and all of them come back.
 
 import { DevkitError } from '../../domain/errors.js';
+import { suggestionHint } from '../../domain/fuzzy.js';
 import type { Person } from '../../domain/manifest/types.js';
 import { findPeople, suggestPerson, type MatchedBy } from '../../domain/members/resolve.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -42,10 +43,7 @@ export class MemberShow {
         'PERSON_NOT_FOUND',
         `Nobody in the members document is "${query}"`,
         {
-          hint:
-            suggestion === undefined
-              ? 'fx member list shows everyone.'
-              : `Did you mean "${suggestion}"?`,
+          hint: suggestionHint(suggestion, 'fx member list shows everyone.'),
           nextSteps: ['fx member list'],
         },
       );

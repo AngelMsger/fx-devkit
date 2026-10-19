@@ -71,7 +71,7 @@ it('validates and previews command, JSON, file and provider checks without exter
       ],
     }),
   );
-  const env = { FX_HOME: home, FX_AGENTS: '', FX_HOOKS: '0' };
+  const env = { FX_HOME: home };
   for (const strict of [[], ['--strict']]) {
     const validation = fx(['manifest', 'validate', ...strict, '--format', 'json'], env, root);
     expect(validation.status, validation.stderr).toBe(0);

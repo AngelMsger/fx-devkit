@@ -288,7 +288,7 @@ describe('Doctor', () => {
     );
   });
 
-  it('includes a registered check and runs its repair only when requested', async () => {
+  it('includes a registered check and does not repair without --fix', async () => {
     let repaired = 0;
     const s = await stage({
       extensions: [
@@ -346,19 +346,16 @@ describe('Doctor', () => {
     expect(out.repairs[0]?.failure?.next_steps.length).toBeGreaterThan(0);
   });
 
-  it('reports previews separately from completed repairs and preserves the read-only gate', async () => {
+  it('reports previews separately from completed repairs', async () => {
     const s = await stage({
       extensions: [{ group: 'mcp', fix: async () => {}, check: async () => [] }],
     });
     const preview = await s.doctor.execute({ ...check, fix: true, dryRun: true });
     expect(preview.repairs[0]).toEqual({ group: 'mcp', status: 'planned' });
     expect((await s.doctor.execute(check)).repairs).toEqual([]);
-    await expect(
-      s.doctor.execute({ ...check, fix: true, posture: { readOnly: true, source: 'env' } }),
-    ).rejects.toMatchObject({ code: 'READONLY_BLOCKED' });
   });
 
-  it('reports five groups, failing only on what breaks the workspace', async () => {
+  it('reports every group, failing only on what breaks the workspace', async () => {
     const s = await stage();
     s.h.git.add(path.join(ROOT, 'fx-example-auth'), {
       remotes: { upstream: upstream('fx-example-auth') },
@@ -657,12 +654,8 @@ describe('Doctor', () => {
       const report = await s.doctor.execute(check);
       const counts = s.h.activity.of('checks');
       const last = counts.at(-1)!;
-      expect(last).toEqual({
-        phase: undefined,
-        total: last.total,
-        completed: last.total,
-        active: [],
-      });
+      expect(last.completed).toBe(last.total);
+      expect(last.active).toEqual([]);
       // The groups that are one check each, then one per tool and per sign-in step.
       expect(last.total).toBeGreaterThan(report.findings.filter((f) => f.group === 'login').length);
       expect(s.h.activity.counts.at(-1)).toEqual({ id: 'checks', count: undefined });

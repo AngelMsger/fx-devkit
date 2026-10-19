@@ -2,6 +2,7 @@
 // dead upstream is asked once per window. The cache is disposable: a cache
 // that cannot be read is a miss, one that cannot be written is forgotten.
 
+import { messageOf } from '../../domain/values.js';
 import type { Clock } from '../../ports/clock.js';
 import type { Cache } from '../../ports/stores.js';
 
@@ -75,7 +76,7 @@ async function remember<T>(probe: () => Promise<T>, now: number): Promise<Rememb
   try {
     return { checked_at: now, value: await probe() };
   } catch (err) {
-    return { checked_at: now, error: err instanceof Error ? err.message : String(err) };
+    return { checked_at: now, error: messageOf(err) };
   }
 }
 

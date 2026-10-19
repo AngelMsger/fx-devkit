@@ -24,7 +24,7 @@ function stage() {
       '',
     ].join('\n'),
   );
-  const env = { FX_HOME: freshHome(), FX_AGENTS: '' };
+  const env = { FX_HOME: freshHome() };
   const root = path.join(base, 'workspace');
   const init = () =>
     fx(['init', root, '--name', 'sample', '--from', source, '--details', '--format', 'json'], env);
@@ -197,11 +197,7 @@ describe('status and recovery journeys', () => {
       path.join(manifest, 'tools.yaml'),
       'schema_version: 3\ntools: [{name: jenkins-cli, required: false}]\n',
     );
-    const result = fx(
-      ['doctor', '--details', '--format', 'json'],
-      { ...s.env, PATH: process.platform === 'win32' ? process.env.PATH : '/usr/bin:/bin' },
-      s.root,
-    );
+    const result = fx(['doctor', '--details', '--format', 'json'], s.env, s.root);
     expect(result.status, result.stderr).toBe(0);
     expect(result.json()).toMatchObject({
       findings: expect.arrayContaining([

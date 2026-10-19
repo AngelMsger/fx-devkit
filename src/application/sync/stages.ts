@@ -3,6 +3,8 @@
 // it does not decide stage policy or interpret execution results.
 
 import { asDevkitError, withPartialResult } from '../../domain/errors.js';
+import type { HarnessKind } from '../../domain/harness/ownership.js';
+import { countBy } from '../../domain/values.js';
 import type { Process } from '../../ports/process.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
 import { DeriveDocs } from '../docs/derive.js';
@@ -71,7 +73,7 @@ export function syncStages(input: SyncStageInput): SyncStages {
 
 function harnessResource(
   input: SyncStageInput,
-  only: 'mcp' | 'rules',
+  only: HarnessKind,
 ): Promise<StageResult> | undefined {
   if (input.harness === undefined) return undefined;
   return harnessStage({ ...input.harness, action: 'sync', only, dryRun: input.dryRun })();
@@ -110,12 +112,9 @@ async function docsStage(input: SyncStageInput): Promise<StageResult> {
     updated: 0,
     unchanged: 0,
     foreign: 0,
-    missing_regions: 0,
+    missing_regions: out.files.reduce((sum, file) => sum + file.missing.length, 0),
+    ...countBy(out.files, (file) => file.action),
   };
-  for (const file of out.files) {
-    summary[file.action] = (summary[file.action] ?? 0) + 1;
-    summary['missing_regions'] = (summary['missing_regions'] ?? 0) + file.missing.length;
-  }
   const rules = await harnessResource(input, 'rules')?.catch((error: unknown) => {
     throw withPartialResult(error, {
       files: out.files,

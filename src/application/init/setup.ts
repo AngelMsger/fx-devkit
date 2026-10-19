@@ -131,20 +131,22 @@ export function setupActions(
 ): PreparationAction[] {
   const { initializing = false, handoff } = options;
   const expected = expectedFile(deps, step, home);
-  if (step.phase === 'prepare')
+  if (step.phase === 'prepare') {
+    const resume = resumeAction({ workspace: deps.ctx.name, cwd: deps.ctx.root });
     return [
       {
-        ...resumeAction(deps),
+        ...resume,
         id: `approve:${step.id}`,
         description: initializing
           ? 'Review the remaining initialization effects and continue this workspace'
           : `Repair ${step.tool}'s local preparation and the workspace's managed guides and Skills`,
         argv: initializing
-          ? [...resumeAction(deps).argv, '--yes']
+          ? [...resume.argv, '--yes']
           : ['fx', 'doctor', '--fix', '--tool', step.tool, '--workspace', deps.ctx.name, '--yes'],
         requires_approval: true,
       },
     ];
+  }
   return [
     {
       actor: 'user',

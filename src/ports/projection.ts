@@ -1,13 +1,13 @@
 // Managed files are observed before planning and rechecked at application.
 // Foreign includes links and directories: a codec only receives regular text.
 
+import type { ProjectionSnapshot, ProjectionWriteResult } from '../domain/projection.js';
+
+export type { ProjectionSnapshot, ProjectionWriteResult };
+
 export interface ProjectionPath {
   readonly root: string;
   readonly relative: string;
-}
-export interface ProjectionSnapshot {
-  readonly kind: 'absent' | 'file' | 'foreign';
-  readonly text: string | null;
 }
 export interface ProjectionWrite extends ProjectionPath {
   readonly before: ProjectionSnapshot;
@@ -15,7 +15,7 @@ export interface ProjectionWrite extends ProjectionPath {
 }
 export interface ProjectionStore {
   read(at: ProjectionPath): Promise<ProjectionSnapshot>;
-  write(input: ProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'>;
+  write(input: ProjectionWrite): Promise<ProjectionWriteResult>;
 }
 
 // Link projections share the bounded parent-path checks of managed text files.
@@ -29,5 +29,5 @@ export interface LinkProjectionWrite extends ProjectionPath {
 }
 export interface LinkProjectionStore {
   readLink(at: ProjectionPath): Promise<LinkProjectionSnapshot>;
-  writeLink(input: LinkProjectionWrite): Promise<'written' | 'unchanged' | 'conflict' | 'busy'>;
+  writeLink(input: LinkProjectionWrite): Promise<ProjectionWriteResult>;
 }

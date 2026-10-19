@@ -2,7 +2,7 @@
 // rather than an empty list.
 
 import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import { areasOf, peopleOfArea } from '../../domain/members/owners.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -31,10 +31,7 @@ export class MemberList {
     if (input.area !== undefined && !groups.includes(input.area)) {
       const suggestion = nearest(input.area, groups);
       throw new DevkitError('not_found', 'AREA_NOT_FOUND', `"${input.area}" is not an area`, {
-        hint:
-          suggestion === undefined
-            ? `Areas: ${groups.join(', ') || '(none)'}.`
-            : `Did you mean "${suggestion}"?`,
+        hint: suggestionHint(suggestion, `Areas: ${groups.join(', ') || '(none)'}.`),
         nextSteps: ['fx member list'],
       });
     }

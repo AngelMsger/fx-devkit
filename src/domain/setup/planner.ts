@@ -4,10 +4,11 @@
 // is stable: required tools, the toolchain's order, the environments' order, prerequisites
 // first.
 
-import type { Environments } from '../manifest/types.js';
+import type { DeclaredSetupStep, Environments } from '../manifest/types.js';
 import { substitute, substituteAll, type Vars } from '../template.js';
 import { commandOrigin, type ResolvedTool } from '../toolchain/resolve.js';
 
+import { setupVars, stepId } from './names.js';
 import type {
   FailureCase,
   PlanProblem,
@@ -72,7 +73,7 @@ export function planSetup(input: PlanInput): SetupPlan {
         ...source.recipe.defaults,
         ...source.vars,
         ...onPlatform.vars,
-        ...prefixed('setup', onPlatform.setup),
+        ...setupVars(onPlatform.setup),
         env,
       };
       draft(fromRecipe(tool, source.recipe, vars, env));
@@ -175,7 +176,7 @@ function fromRecipe(
   };
 }
 
-function fromTeam(tool: ResolvedTool, step: ResolvedTool['setup'][number]): SetupStep {
+function fromTeam(tool: ResolvedTool, step: DeclaredSetupStep): SetupStep {
   const withBinary = (parts: readonly string[]): readonly string[] => [tool.binary, ...parts];
   return {
     id: stepId(tool.name, step.id),
@@ -328,16 +329,8 @@ function order(
   return resolved;
 }
 
-function stepId(tool: string, id: string, env?: string): string {
-  return `${tool}.${id}${env === undefined ? '' : `@${env}`}`;
-}
-
 function within(name: string, list: readonly string[] | undefined): boolean {
   return list === undefined || list.includes(name);
-}
-
-function prefixed(prefix: string, record: Readonly<Record<string, string>> | undefined): Vars {
-  return Object.fromEntries(Object.entries(record ?? {}).map(([k, v]) => [`${prefix}.${k}`, v]));
 }
 
 // One native destination cannot receive incompatible declarations in one plan.

@@ -1,16 +1,28 @@
 // Keep exceptional evidence in compact reports. This display filter never decides readiness.
 
-const INCOMPLETE = new Set([
+import {
+  HARNESS_ACTIONS,
+  HOOK_ACTIONS,
+  harnessActionState,
+  hookActionState,
+} from '../../domain/harness/actions.js';
+
+// A row reports unfinished work under one of these words, and a summary counts it
+// under a key that ends in one.
+const UNFINISHED = new Set<string>([
   'failed',
   'blocked',
   'not_started',
   'missing',
   'outdated',
   'unknown',
-  'foreign',
-  'conflict',
   'unverified',
   'unreadable',
+  ...HARNESS_ACTIONS.filter((action) => harnessActionState(action) === 'blocked'),
+  ...HOOK_ACTIONS.filter((action) => hookActionState(action) === 'blocked'),
+]);
+const INCOMPLETE = new Set([
+  ...UNFINISHED,
   'not_implemented',
   'skip_dirty',
   'skip_diverged',
@@ -19,8 +31,7 @@ const INCOMPLETE = new Set([
   'diverged',
 ]);
 const STATE_KEYS = new Set(['status', 'state', 'action', 'result', 'activation', 'outcome']);
-const COUNT_SUFFIX =
-  /(?:^|_)(failed|blocked|not_started|missing|outdated|unknown|foreign|conflict|unverified|unreadable|problems)$/;
+const COUNT_SUFFIX = new RegExp(`(?:^|_)(${[...UNFINISHED, 'problems'].join('|')})$`);
 
 export function hasExceptionalEvidence(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(hasExceptionalEvidence);

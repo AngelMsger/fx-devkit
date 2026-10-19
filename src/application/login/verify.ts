@@ -4,12 +4,13 @@
 
 import path from 'node:path';
 
-import { DevkitError } from '../../domain/errors.js';
+import { type DevkitError, toolMissingError } from '../../domain/errors.js';
 import type { PreparationAction } from '../../domain/preparation.js';
 import { failureCaseOf } from '../../domain/setup/failure-case.js';
 import { matchesJson, statedReason } from '../../domain/setup/json-check.js';
 import type { CheckCause, FailureCase, SetupCheck, SetupStep } from '../../domain/setup/types.js';
 import { stderrReason } from '../../domain/toolchain/stderr.js';
+import { messageOf } from '../../domain/values.js';
 import type { ProcessResult } from '../../ports/process.js';
 import { ServiceOperation } from '../services/operation.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -17,7 +18,7 @@ import { workspaceCommand } from '../workspace/guidance.js';
 
 import type { LoginDeps } from './deps.js';
 
-export interface Verdict {
+export interface CheckVerdict {
   readonly actions?: readonly PreparationAction[];
   readonly ok: boolean;
   readonly detail: string;
@@ -42,7 +43,7 @@ export class Verifier {
     private readonly setup: LoginDeps,
   ) {}
 
-  async verify(step: SetupStep, options: VerifyOptions = {}): Promise<Verdict> {
+  async verify(step: SetupStep, options: VerifyOptions = {}): Promise<CheckVerdict> {
     if (step.preparation) {
       const result = await new ServiceOperation(this.deps, this.setup).execute(step, true);
       return {
@@ -63,7 +64,7 @@ export class Verifier {
         const { user } = await this.deps.codeHost().whoami();
         return { ok: true, detail: `authenticated as ${user}` };
       } catch (err) {
-        return { ok: false, detail: err instanceof Error ? err.message : String(err) };
+        return { ok: false, detail: messageOf(err) };
       }
     }
     const trust = {
@@ -101,7 +102,7 @@ export class Verifier {
   }
 
   private toolMissing(tool: string, binary: string): DevkitError {
-    return new DevkitError('config', 'TOOL_MISSING', `${binary} is not installed or not on PATH`, {
+    return toolMissingError(binary, {
       hint: 'The check did not run, so it says nothing about this step.',
       nextSteps: [
         workspaceCommand(this.deps, 'tool', 'show', tool),
@@ -120,7 +121,7 @@ export function gaveNoAnswer(code: string | undefined): boolean {
 function commandVerdict(
   verify: Extract<SetupCheck, { readonly command: readonly string[] }>,
   result: ProcessResult,
-): Verdict {
+): CheckVerdict {
   const unmet =
     verify.json !== undefined && !matchesJson(result.stdout, verify.json)
       ? (statedReason(result.stdout, verify.json) ??

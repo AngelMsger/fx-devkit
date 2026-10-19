@@ -2,11 +2,13 @@
 // stay outside the workspace lease; source snapshots are rechecked before writing.
 
 import { busyError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import { withLease, workspaceLeaseKey } from '../../domain/lease.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../../domain/obs/observation.js';
 import { confidenceForProbe } from '../../domain/obs/probe.js';
-import { shellLine } from '../../domain/shell.js';
+import { isLostWrite } from '../../domain/projection.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { Where, type WhereRow } from '../readiness/where.js';
 import { assertWritable } from '../safety/posture.js';
 
@@ -31,41 +33,47 @@ export class ProbeRecord {
   async execute(input: ProbeRecordInput): Promise<ProbeRecordOutput> {
     const plan = await planProbeRecord(this.deps, input);
     if (!plan.template || !plan.output.scope)
-      return { ...plan.output, handoff: recovery(plan.output.row) };
+      return {
+        ...plan.output,
+        handoff: recovery(plan.output.row, this.deps.workspace.commandShell),
+      };
     if (input.dryRun) return plan.output;
     assertWritable(input.posture, 'where --probe --record');
     const where = new Where(this.deps.workspace, this.deps.login);
     const [ready] = await where.execute({ ...input, probe: false, check: input.check });
-    const lease = await this.deps.lock.acquire({
-      key: `workspace:${this.deps.workspace.ctx.name}`,
-      waitMs: 2000,
-    });
-    if (!lease) throw busyError('PROBE_RECORD_BUSY', 'The workspace');
-    try {
-      await assertProbeSources(this.deps, plan);
-      const [probed] = await where.execute({
-        ...input,
-        check: false,
-        probe: true,
-        previewProbe: false,
-      });
-      if (
-        !probed ||
-        coordinateFingerprint(probed) !== coordinateFingerprint(plan.output.row) ||
-        JSON.stringify(probed.probe_template) !== JSON.stringify(plan.template)
-      )
-        throw probeChangedError();
-      const row = { ...probed, ready: ready?.ready ?? null, handoff: ready?.handoff ?? null };
-      return await this.record(plan, row);
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.deps.lock,
+      { key: workspaceLeaseKey(this.deps.workspace.ctx.name), waitMs: 2000 },
+      () => busyError('PROBE_RECORD_BUSY', 'The workspace'),
+      async () => {
+        await assertProbeSources(this.deps, plan);
+        const [probed] = await where.execute({
+          ...input,
+          check: false,
+          probe: true,
+          previewProbe: false,
+        });
+        if (
+          !probed ||
+          coordinateFingerprint(probed) !== coordinateFingerprint(plan.output.row) ||
+          JSON.stringify(probed.probe_template) !== JSON.stringify(plan.template)
+        )
+          throw probeChangedError();
+        const row = { ...probed, ready: ready?.ready ?? null, handoff: ready?.handoff ?? null };
+        return this.record(plan, row);
+      },
+    );
   }
 
   private async record(plan: ProbeRecordPlan, row: WhereRow): Promise<ProbeRecordOutput> {
     const after = confidenceForProbe(row.outcome ?? 'unknown');
     if (!after)
-      return { ...plan.output, row, action: 'skipped', handoff: row.handoff ?? recovery(row) };
+      return {
+        ...plan.output,
+        row,
+        action: 'skipped',
+        handoff: row.handoff ?? recovery(row, this.deps.workspace.commandShell),
+      };
     await assertProbeSources(this.deps, plan);
     const note = appendNote(
       plan.previousNote,
@@ -85,7 +93,7 @@ export class ProbeRecord {
       before: plan.environmentSnapshot,
       text,
     });
-    if (result === 'conflict' || result === 'busy') throw probeChangedError();
+    if (isLostWrite(result)) throw probeChangedError();
     return {
       ...output,
       action: result === 'written' ? 'recorded' : 'unchanged',
@@ -100,8 +108,8 @@ function appendNote(before: string, line: string): string {
   return before + (before.endsWith('\n') ? '' : '\n') + line;
 }
 
-function recovery(row: WhereRow): HandoffEnvelope {
-  const command = shellLine(['fx', 'can', row.capability, '--env', row.env]);
+function recovery(row: WhereRow, shell: ResolvedShell | undefined): HandoffEnvelope {
+  const command = shellLine(['fx', 'can', row.capability, '--env', row.env], shell);
   return handoffEnvelope({
     summary: 'No definite, recordable coordinate probe result is available.',
     command,

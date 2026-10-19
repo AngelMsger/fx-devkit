@@ -6,6 +6,7 @@
 // workspace's tools is one decision rather than one decision per package.
 
 import { DevkitError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import type { Origin } from '../../domain/manifest/overlay.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import {
   trustFingerprint,
@@ -27,7 +28,7 @@ export interface TrustInput {
   readonly vector: readonly string[];
   readonly label: string;
   readonly execution?: TrustExecution | undefined;
-  readonly origin: 'base' | 'patch';
+  readonly origin: Origin;
   readonly yes: boolean;
   readonly posture: WritePosture;
 }
@@ -156,8 +157,10 @@ export function commandTrustHandoff(input: {
 }
 
 export function isTrustRequired(err: unknown): boolean {
-  return (
-    err instanceof DevkitError &&
-    (err.code === 'VECTOR_UNTRUSTED' || err.code === 'READONLY_BLOCKED')
-  );
+  return err instanceof DevkitError && isTrustRequiredCode(err.code);
+}
+
+// The same answer for a failure that already travels as an envelope.
+export function isTrustRequiredCode(code: unknown): boolean {
+  return code === 'VECTOR_UNTRUSTED' || code === 'READONLY_BLOCKED';
 }

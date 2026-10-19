@@ -39,7 +39,7 @@ function fixture() {
     path.join(source, 'manifest/tools.yaml'),
     `schema_version: 3\ntools:\n${baseline.tools.map((tool) => `  - {name: ${tool.name}, enabled: false}`).join('\n')}\n`,
   );
-  const env = { FX_HOME: home, FX_AGENTS: '' };
+  const env = { FX_HOME: home };
   const init = ['init', root, '--from', source, '--details', '--format', 'json'];
   const run = (args: string[]) =>
     fx([...args, '--format', 'json'], env, existsSync(root) ? root : base);

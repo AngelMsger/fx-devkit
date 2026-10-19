@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
-import { shellLine } from '../../domain/shell.js';
+import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { ConfigFile } from '../../ports/stores.js';
 
@@ -12,8 +12,9 @@ export async function assertDistinctWorkspaceRoot(
   config: ConfigFile,
   name: string,
   root: string,
-  fs: FileSystem,
+  context: { readonly fs: FileSystem; readonly commandShell?: ResolvedShell | undefined },
 ): Promise<void> {
+  const { fs, commandShell } = context;
   const physical = await fs.realpath(path.resolve(root));
   for (const [other, entry] of Object.entries(config.workspaces ?? {})) {
     if (other === name) continue;
@@ -25,8 +26,8 @@ export async function assertDistinctWorkspaceRoot(
         {
           hint: 'One physical directory has one workspace identity. Rebind its source or relocate its registration.',
           nextSteps: [
-            shellLine(['fx', 'workspace', 'show', other]),
-            shellLine(['fx', 'workspace', 'rebind', other, '--from', '<source>']),
+            shellLine(['fx', 'workspace', 'show', other], commandShell),
+            shellLine(['fx', 'workspace', 'rebind', other, '--from', '<source>'], commandShell),
           ],
         },
       );

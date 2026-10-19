@@ -2,14 +2,12 @@
 // list) the first change spells the detected set out first, so "unpick
 // codex" means exactly that and not "pick nothing".
 
-import { DevkitError } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
 import type { AgentCleanup, AgentCleanupRow } from '../../ports/agent-cleanup.js';
 import type { AgentHost } from '../../ports/agent-host.js';
 import type { ConfigStore } from '../../ports/stores.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 
-import { enabledHosts } from './list.js';
+import { enabledHosts, findHost } from './list.js';
 
 export interface AgentPickInput {
   readonly ids: readonly string[];
@@ -39,7 +37,7 @@ export class AgentPick {
   ) {}
 
   async execute(input: AgentPickInput): Promise<AgentPickOutput> {
-    for (const id of input.ids) this.assertKnown(id);
+    for (const id of input.ids) findHost(this.hosts, id);
     const file = await this.config.read();
     const before = file.agents ?? null;
     const base = before ?? (await enabledHosts(this.hosts, undefined)).map((h) => h.id);
@@ -82,21 +80,6 @@ export class AgentPick {
       written: changed,
       ...(hooks === undefined ? {} : cleanupOutput(hooks)),
     };
-  }
-
-  private assertKnown(id: string): void {
-    if (this.hosts.some((h) => h.id === id)) return;
-    const suggestion = nearest(
-      id,
-      this.hosts.map((h) => h.id),
-    );
-    throw new DevkitError('not_found', 'AGENT_UNKNOWN', `"${id}" is not an agent fx knows`, {
-      hint:
-        suggestion === undefined
-          ? 'fx agent list shows the known ids.'
-          : `Did you mean "${suggestion}"?`,
-      nextSteps: ['fx agent list'],
-    });
   }
 }
 

@@ -1,6 +1,7 @@
 // One tool in full: the resolved entry, why the workspace has it, where each field came
 // from, and which providers depend on it.
 
+import type { Origin } from '../../domain/manifest/overlay.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ToolSource, ToolSourceKind } from '../../domain/toolchain/select.js';
 import type { CommandGuidance } from '../workspace/guidance.js';
@@ -33,7 +34,7 @@ export interface ToolDetail {
   } | null;
   readonly auth: { command: readonly string[]; docs: string | null } | null;
   readonly setup_steps: readonly { id: string; kind: string; title: string }[];
-  readonly fields: Readonly<Record<string, 'base' | 'patch'>>;
+  readonly fields: Readonly<Record<string, Origin>>;
   readonly source: ToolSourceKind;
   readonly bound_by: readonly string[];
   readonly depended_on_by: readonly string[];
@@ -42,7 +43,7 @@ export interface ToolDetail {
 export class ToolShow {
   execute(input: ToolShowInput): ToolDetail {
     const tool = selectTools(input.tools, [input.name], input)[0] as ResolvedTool;
-    const fields: Record<string, 'base' | 'patch'> = {};
+    const fields: Record<string, Origin> = {};
     for (const key of tool.baseFields) fields[key] = 'base';
     for (const key of tool.patchedFields) fields[key] = 'patch';
     return {

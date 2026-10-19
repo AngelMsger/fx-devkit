@@ -8,7 +8,7 @@ export interface SkillFrontmatter {
   readonly description?: string;
 }
 
-export function decodeSkillFrontmatter(text: string): SkillFrontmatter {
+export function parseFrontmatter(text: string): SkillFrontmatter {
   const block = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text);
   if (block?.[1] === undefined) return {};
   try {

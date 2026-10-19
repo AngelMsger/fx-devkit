@@ -6,7 +6,7 @@ import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, searchPath, userHome } from './harness.js';
 
 function fixture() {
   const home = freshHome();
@@ -43,7 +43,7 @@ function fixture() {
     calls,
     vars: {
       FX_HOME: home,
-      PATH: `${binaries}${path.delimiter}${process.env.PATH ?? ''}`,
+      PATH: searchPath(binaries),
       FX_SECRET: 'not-for-recording',
     },
   };

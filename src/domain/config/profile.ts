@@ -10,8 +10,6 @@ import { configFileSchema } from './file.js';
 
 export const PROFILE_VERSION = 1;
 
-export { configFileSchema as profileConfig } from './file.js';
-
 export const profileSchema = z.strictObject({
   fx_profile: z.literal(PROFILE_VERSION),
   exported_at: z.string().optional(),

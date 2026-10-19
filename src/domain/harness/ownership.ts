@@ -1,8 +1,10 @@
 // Workspace ownership metadata excludes configuration bodies and secret values.
 
+export type HarnessKind = 'mcp' | 'rules';
+
 export interface HarnessReceipt {
   readonly key: string;
-  readonly kind: 'mcp' | 'rules';
+  readonly kind: HarnessKind;
   readonly relative: string;
   readonly protocol: string;
   readonly name: string;

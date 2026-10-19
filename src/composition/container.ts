@@ -46,7 +46,7 @@ import type { Installer } from '../ports/installer.js';
 import type { Lock } from '../ports/lock.js';
 import type { Platform } from '../ports/platform.js';
 import type { Process } from '../ports/process.js';
-import type { ProjectionStore } from '../ports/projection.js';
+import type { LinkProjectionStore, ProjectionStore } from '../ports/projection.js';
 import type { Prompter } from '../ports/prompter.js';
 import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
 import type { Registry, RegistryLocator } from '../ports/registry.js';
@@ -79,7 +79,7 @@ export interface Container {
   readonly toolHistory: ToolHistoryStore;
   readonly lock: Lock;
   readonly fs: FileSystem;
-  readonly projections: ProjectionStore;
+  readonly projections: ProjectionStore & LinkProjectionStore;
   readonly process: Process;
   readonly git: Git;
   readonly clock: Clock;
@@ -99,21 +99,28 @@ export interface Container {
   readonly activity: ActivityChannel;
 }
 
-export function createContainer(env: NodeJS.ProcessEnv): Container {
+export interface ContainerOptions {
+  // Wraps the one subprocess port before anything is built on it, so every member
+  // that starts a process obeys the wrapper.
+  readonly decorateProcess?: (process: Process) => Process;
+}
+
+export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOptions = {}): Container {
   const home = fxHome(env);
   const clock = new SystemClock();
   const diagnostics = new DiagnosticChannel();
   const activity = new ActivityChannel();
-  const process = new WatchedProcess(
+  const watched = new WatchedProcess(
     new DiagnosticProcess(new NodeProcess(), diagnostics),
     activity,
   );
+  const process = options.decorateProcess?.(watched) ?? watched;
   const lock = new FileLock(home);
   const fs = new NodeFs(lock);
   return {
     openUrl: (url) => new SystemUrlOpener(process).open(url),
-    config: new FileConfigStore(home),
-    localStore: new FileLocalLayerStore(home),
+    config: new FileConfigStore(home, lock),
+    localStore: new FileLocalLayerStore(home, lock),
     cache: new FileCache(home, clock),
     trust: new FileTrustStore(home, clock, lock),
     toolHistory: new FileToolHistoryStore(home, lock),

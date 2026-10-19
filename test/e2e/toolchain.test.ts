@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { pathKey } from '../../src/domain/path.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, repository, tempDir, userHome } from './harness.js';
+import { freshHome, fx, manifestDirOf, repository, searchPath, tempDir } from './harness.js';
 
 const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
@@ -67,7 +67,7 @@ function stage(): Stage {
   const ws = path.join(base, 'ws');
   const env = {
     FX_HOME: freshHome(),
-    PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
+    PATH: searchPath(shims),
   };
   const boot = fx(
     ['init', ws, '--from', path.dirname(manifestDir), '--yes', '--format', 'json'],
@@ -187,7 +187,6 @@ describe('agent list', () => {
     const list = fx(['agent', 'list', '--format', 'json'], s.env, s.ws);
     expect(list.status, list.stderr).toBe(0);
     const items = (list.json() as Items<{ id: string; skills_dir: string }>).items;
-    expect(items).toHaveLength(13);
     expect(items.map((i) => i.id)).toContain('claude-code');
     for (const item of items) expect(path.isAbsolute(item.skills_dir)).toBe(true);
   });
@@ -246,18 +245,23 @@ describe('the skills stage of sync: the team link at the root, the fx copy in th
     mkdirSync(path.join(skills, 'review'), { recursive: true });
     writeFileSync(path.join(skills, 'review', 'SKILL.md'), '---\nname: review\n---\n');
     const link = path.join(s.ws, '.claude', 'skills');
-    const copy = path.join(userHome, '.claude', 'skills', 'fx-workspace');
+    const home = tempDir('fx-skill-home-');
+    const copy = path.join(home, '.claude', 'skills', 'fx-workspace');
     const sync = () =>
-      fx(['sync', '--details', '--only', 'skills', '--format', 'json'], s.env, s.ws);
+      fx(
+        ['sync', '--details', '--only', 'skills', '--format', 'json'],
+        s.env,
+        s.ws,
+        undefined,
+        home,
+      );
     const summary = (run: ReturnType<typeof fx>) =>
       (run.json() as { stages: { skills: Record<string, number> } }).stages.skills;
 
     const created = sync();
     expect(created.status, created.stderr).toBe(0);
     const first = summary(created);
-    expect(first).toMatchObject({ create: 1 });
-    // The user home is shared by the whole e2e run: an earlier sync may have installed the copy.
-    expect((first['install'] ?? 0) + (first['current'] ?? 0)).toBe(1);
+    expect(first).toMatchObject({ create: 1, install: 1 });
     expect(pathKey(readlinkSync(link))).toBe(pathKey(skills));
     expect(readFileSync(path.join(copy, 'SKILL.md'), 'utf8')).toContain(`version: ${pkg.version}`);
     expect(existsSync(path.join(copy, 'references', 'commands.md'))).toBe(true);

@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, tempDir } from './harness.js';
+import { freshHome, fx, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -105,7 +105,7 @@ function stage(): Stage {
   );
   const env = {
     FX_HOME: freshHome(),
-    PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
+    PATH: searchPath(shims),
     FAKE_BB_OK: '0',
     FAKE_OO_OK: '1',
     FAKE_KUBE_OK: '1',
@@ -148,6 +148,15 @@ describe('login and doctor', () => {
       expect(result.stdout).toBe('');
       expect(result.error()).toMatchObject({ category: 'not_found', code: input.code });
     }
+  });
+
+  it('leaves the optional tool selection empty despite inherited stdin', () => {
+    const s = stage();
+    const args = ['login', '--list', '--format', 'json'];
+    const listed = fx(args, s.env, s.ws);
+    const piped = fx(args, s.env, s.ws, 'definitely-not-a-tool');
+    expect(piped.status, piped.stderr).toBe(0);
+    expect(piped.json()).toEqual(listed.json());
   });
 
   it('plans from the manifest, hands off to a person, verifies, and narrows with env unpick', () => {

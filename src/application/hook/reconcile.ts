@@ -3,6 +3,7 @@
 // store. Inspect and dry-run never create leases or change personal settings.
 
 import { busyError, DevkitError } from '../../domain/errors.js';
+import { hooksLeaseKey, withLease } from '../../domain/lease.js';
 import { assertWritable } from '../safety/posture.js';
 
 import { applyHookPlan } from './apply.js';
@@ -23,13 +24,12 @@ export class ReconcileHooks {
       });
     if (settled(input, preview)) return hookOutput(preview);
     assertWritable(input.posture, 'manage workspace hooks');
-    const lease = await this.deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 2000 });
-    if (!lease) throw busyError('LOCK_BUSY', 'The workspace hook configuration');
-    try {
-      return await applyHookPlan(this.deps, input, await planHooks(this.deps, input));
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.deps.lock,
+      { key: hooksLeaseKey(input.workspace), waitMs: 2000 },
+      () => busyError('LOCK_BUSY', 'The workspace hook configuration'),
+      async () => applyHookPlan(this.deps, input, await planHooks(this.deps, input)),
+    );
   }
 }
 

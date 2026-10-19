@@ -1,9 +1,8 @@
 // Document updates preserve concurrent saves and expose enough evidence to resume partial writes.
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { DeriveDocs } from '../../../../src/application/docs/derive.js';
@@ -21,13 +20,8 @@ import { FileProjectionStore } from '../../../../src/infra/projection-store.js';
 import type { ProjectionStore } from '../../../../src/ports/projection.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { harness } from '../../../fakes/workspace.js';
+import { tempDir } from '../../../temp.js';
 
-const directories: string[] = [];
-afterEach(async () => {
-  await Promise.all(
-    directories.splice(0).map((root) => rm(root, { recursive: true, force: true })),
-  );
-});
 const input = {
   check: false,
   dryRun: false,
@@ -38,8 +32,7 @@ const original =
 // What an earlier version derived beside the guide.
 const pointer = (source: string): string => derive('# CLAUDE.md\n', path.join(source, 'AGENTS.md'));
 async function fixture() {
-  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'fx-docs-recovery-')));
-  directories.push(root);
+  const root = await realpath(tempDir('fx-docs-recovery-'));
   const source = path.join(root, 'source');
   await mkdir(source);
   const h = await harness();

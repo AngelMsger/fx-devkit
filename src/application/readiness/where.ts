@@ -1,8 +1,13 @@
 // Resolve repository coordinates and readiness using read-only provider queries.
 // Recording probe evidence is a separate, explicit write operation.
 
-import { asDevkitError, DevkitError, type HandoffEnvelope } from '../../domain/errors.js';
-import { nearest } from '../../domain/fuzzy.js';
+import {
+  asDevkitError,
+  categoryOfExitCode,
+  DevkitError,
+  type HandoffEnvelope,
+} from '../../domain/errors.js';
+import { nearest, suggestionHint } from '../../domain/fuzzy.js';
 import type { Confidence } from '../../domain/obs/confidence.js';
 import { locateRepo } from '../../domain/obs/coordinate.js';
 import { confidenceForProbe, type ProbeOutcome } from '../../domain/obs/probe.js';
@@ -51,7 +56,6 @@ type ProbeColumns = Required<
 >;
 
 const PROBE_TIMEOUT_MS = 5000;
-const EXIT = { auth: 4, permission: 5, not_found: 6 } as const;
 export class Where {
   private readonly readiness: Readiness;
 
@@ -138,10 +142,7 @@ export class Where {
       'PLATFORM_NOT_FOUND',
       `"${wanted}" is not a platform of this workspace`,
       {
-        hint:
-          suggestion === undefined
-            ? `Known: ${known.join(', ')}.`
-            : `Did you mean "${suggestion}"?`,
+        hint: suggestionHint(suggestion, `Known: ${known.join(', ')}.`),
         nextSteps: [
           env === undefined
             ? workspaceCommand(this.deps, 'env', 'list')
@@ -210,7 +211,8 @@ export class Where {
 
 function classify(code: number): ProbeOutcome {
   if (code === 0) return 'reachable';
-  if (code === EXIT.auth || code === EXIT.permission) return 'unauthorized';
-  if (code === EXIT.not_found) return 'missing';
+  const category = categoryOfExitCode(code);
+  if (category === 'auth' || category === 'permission') return 'unauthorized';
+  if (category === 'not_found') return 'missing';
   return 'unknown';
 }

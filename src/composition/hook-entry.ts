@@ -5,6 +5,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { NodeLifecycleRunner } from '../adapters/process/lifecycle-runner.js';
+import { BACKGROUND_SUPERVISOR_MS, FOREGROUND_SUPERVISOR_MS } from '../domain/harness/deadlines.js';
 
 export async function recordBackgroundFailure(
   argv: readonly string[],
@@ -28,7 +29,7 @@ export async function runHookEntry(
       ...argv,
     ],
     input,
-    timeoutMs: background ? 30000 : 2000,
+    timeoutMs: background ? BACKGROUND_SUPERVISOR_MS : FOREGROUND_SUPERVISOR_MS,
     role: background ? 'background' : 'foreground',
   });
 }

@@ -30,11 +30,13 @@ function resolve(overrides: {
   name?: string;
   config?: FakeConfigStore;
   fs?: FakeFs;
+  commandShell?: 'cmd';
 }) {
   const reporter = new FakeReporter();
   return resolveWorkspace({
     cwd: overrides.cwd ?? path.resolve('/ws/fx/fx-example-api/src'),
     name: overrides.name,
+    commandShell: overrides.commandShell,
     config:
       overrides.config ??
       new FakeConfigStore({
@@ -153,6 +155,16 @@ describe('resolveWorkspace', () => {
       category: 'not_found',
       code: 'WORKSPACE_NOT_FOUND',
       message: expect.stringContaining('not inside a registered workspace'),
+    });
+  });
+
+  it('quotes the status command of a registered workspace for the configured shell', async () => {
+    const config = new FakeConfigStore({ workspaces: { fx: { root: path.resolve('/ws/fx') } } });
+    await expect(
+      resolve({ cwd: path.resolve('/elsewhere'), config, commandShell: 'cmd' }),
+    ).rejects.toMatchObject({
+      code: 'WORKSPACE_NOT_FOUND',
+      nextSteps: ['fx workspace list', 'fx ^"status^" ^"--workspace^" ^"fx^"'],
     });
   });
 });

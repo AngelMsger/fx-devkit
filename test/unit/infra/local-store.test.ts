@@ -4,15 +4,18 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { FileLocalLayerStore } from '../../../src/infra/local-store.js';
+import { FileLock } from '../../../src/infra/lock.js';
 import { localLayerPath } from '../../../src/infra/workspace-home.js';
 import { tempDir } from '../../temp.js';
 
 const home = (): string => tempDir('fx-home-');
+const layerStore = (dir: string): FileLocalLayerStore =>
+  new FileLocalLayerStore(dir, new FileLock(dir));
 
 describe('FileLocalLayerStore', () => {
   it('reads an absent layer as empty and round-trips a write under workspaces/<name>', async () => {
     const dir = home();
-    const store = new FileLocalLayerStore(dir);
+    const store = layerStore(dir);
     expect(await store.read('fx')).toEqual({});
     await store.write('fx', { scope: { repos: ['a'] }, overrides: { a: { branch: 'x' } } });
     expect(store.path('fx')).toBe(localLayerPath(dir, 'fx'));
@@ -25,8 +28,8 @@ describe('FileLocalLayerStore', () => {
 
   it('serializes independent store instances without losing sibling local fields', async () => {
     const dir = home();
-    const first = new FileLocalLayerStore(dir);
-    const second = new FileLocalLayerStore(dir);
+    const first = layerStore(dir);
+    const second = layerStore(dir);
     await first.write('fx', { scope: { envs: ['dev'], repos: ['api'] }, hooks: { enabled: true } });
     await Promise.all([
       first.update('fx', async (current) => ({
@@ -60,7 +63,7 @@ describe('FileLocalLayerStore', () => {
       path.join(dir, 'workspaces', 'fx', 'local.yaml'),
       'overrides:\n  a: { upstream: x }\n',
     );
-    await expect(new FileLocalLayerStore(dir).read('fx')).rejects.toMatchObject({
+    await expect(layerStore(dir).read('fx')).rejects.toMatchObject({
       code: 'LOCAL_INVALID',
     });
   });

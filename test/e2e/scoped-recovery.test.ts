@@ -10,7 +10,15 @@ import { stringify } from 'yaml';
 import { shellLine } from '../../src/domain/shell.js';
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, git, manifestDirOf, repository, userHome } from './harness.js';
+import {
+  childEnvironment,
+  freshHome,
+  fx,
+  git,
+  manifestDirOf,
+  repository,
+  searchPath,
+} from './harness.js';
 
 const invalid = 'schema_version: 2\nrepos: invalid\n';
 function manifest(name: string): string {
@@ -62,13 +70,7 @@ function stage(defaultWorkspace?: string) {
     roots,
     sources,
     config,
-    env: {
-      FX_HOME: home,
-      FX_AGENTS: '',
-      FX_HOOKS: '0',
-      FX_UPDATE_CHECK: '0',
-      FX_COMMAND_SHELL: 'posix',
-    },
+    env: { FX_HOME: home },
   };
 }
 function follow(command: string, s: ReturnType<typeof stage>, environment: NodeJS.ProcessEnv = {}) {
@@ -77,7 +79,7 @@ function follow(command: string, s: ReturnType<typeof stage>, environment: NodeJ
   const result = spawnSync('/bin/sh', ['-c', `${executable}${command.slice(2)} --format json`], {
     cwd: s.base,
     encoding: 'utf8',
-    env: { ...process.env, ...s.env, ...environment, HOME: userHome, USERPROFILE: userHome },
+    env: childEnvironment({ ...s.env, ...environment }),
   });
   return {
     ...result,
@@ -347,7 +349,7 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
     const env = {
       ...s.env,
       FX_WORKSPACE: 'beta',
-      PATH: `${shims}${path.delimiter}${process.env['PATH'] ?? ''}`,
+      PATH: searchPath(shims),
     };
     const result = fx(
       ['login', 'fixture-tool', '--workspace', 'alpha', '--no-input', '--yes', '--format', 'json'],

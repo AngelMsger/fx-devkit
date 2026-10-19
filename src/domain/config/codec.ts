@@ -5,6 +5,7 @@
 import { parse, stringify } from 'yaml';
 
 import { DevkitError } from '../errors.js';
+import { messageOf } from '../values.js';
 import { assertWorkspaceName } from '../workspace/name.js';
 
 import { profileSchema, type Profile } from './profile.js';
@@ -14,7 +15,7 @@ export function parseProfile(text: string): Profile {
   try {
     raw = parse(text);
   } catch (err) {
-    throw invalid(err instanceof Error ? err.message : String(err));
+    throw invalid(messageOf(err));
   }
   const parsed = profileSchema.safeParse(raw);
   if (!parsed.success)

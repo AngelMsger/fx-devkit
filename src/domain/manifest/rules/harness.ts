@@ -2,6 +2,7 @@
 // Findings name fields and constraints without repeating protected values.
 
 import { scanBoundary } from '../../boundary/scan.js';
+import { isPublicHttpUrl } from '../../public-url.js';
 import type { Harness, McpResource, Problem } from '../types.js';
 
 export function harnessRules(doc: Harness): Problem[] {
@@ -27,7 +28,7 @@ function resourceProblems(resource: McpResource): Problem[] {
     if (resource.url !== undefined || resource.headers !== undefined)
       add('transport', 'stdio cannot declare HTTP fields');
   } else {
-    if (!isEndpoint(resource.url))
+    if (!resource.url || !isPublicHttpUrl(resource.url))
       add('url', 'HTTP requires an endpoint without credentials, query or fragment');
     if (resource.command !== undefined || resource.env !== undefined)
       add('transport', 'HTTP cannot declare stdio fields');
@@ -51,20 +52,4 @@ function resourceProblems(resource: McpResource): Problem[] {
   if (literals.some((text) => scanBoundary({ text, policy: 'manifest' }).length > 0))
     add('content', 'protected content is not allowed; use environment references');
   return problems;
-}
-
-function isEndpoint(value: string | undefined): boolean {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    return (
-      ['http:', 'https:'].includes(url.protocol) &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
-    );
-  } catch {
-    return false;
-  }
 }

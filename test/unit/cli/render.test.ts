@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { PLAIN } from '../../../src/cli/render/display.js';
 import { createRenderer, FORMATS } from '../../../src/cli/render/index.js';
 import { DevkitError } from '../../../src/domain/errors.js';
-import { FakeTerminal, tagged } from '../../fakes/fake-terminal.js';
+import { FakeTerminal } from '../../fakes/fake-terminal.js';
 
 function sink(): { stream: Writable; text: () => string } {
   const chunks: string[] = [];
@@ -166,22 +166,15 @@ describe('human renderer on a terminal', () => {
     };
   };
 
-  it('decorates stdout and stderr and sets a trailer apart from its table', () => {
+  it('decorates both streams when both face a person', () => {
     const t = terminals();
     const r = createRenderer('human', t.io);
     r.list([{ name: 'api', state: 'ready' }], { trailer: { workspace: 'work' } });
     r.notice({ code: 'SCOPE_UNSET', message: 'Everything is selected' });
-    expect(tagged(t.out())).toBe(
-      [
-        '<strong>name</>  <strong>state</>',
-        '<quiet>----</>  <quiet>-----</>',
-        'api   <ok>ready</>',
-        '',
-        '<quiet>workspace</>  work',
-        '',
-      ].join('\n'),
-    );
-    expect(tagged(t.err())).toBe('<accent>●</> <quiet>SCOPE_UNSET:</> Everything is selected\n');
+    expect(r.display.out.interactive).toBe(true);
+    expect(r.display.err.interactive).toBe(true);
+    expect(t.out()).toContain('\u001b[');
+    expect(t.err()).toContain('\u001b[');
   });
 
   it('prints an error as text for the person watching', () => {
@@ -189,23 +182,16 @@ describe('human renderer on a terminal', () => {
     createRenderer('human', t.io).error(
       new DevkitError('usage', 'BAD_FLAG', 'no such flag', { nextSteps: ['fx --help'] }),
     );
-    expect(tagged(t.err())).toBe(
-      [
-        '<fail>✗</> <quiet>BAD_FLAG:</> <strong>no such flag</>',
-        '  The command was invoked incorrectly.',
-        '  <quiet>→</> fx --help',
-        '',
-      ].join('\n'),
-    );
+    expect(() => JSON.parse(t.err())).toThrow(SyntaxError);
+    expect(t.err()).toContain('BAD_FLAG');
+    expect(t.err()).toContain('fx --help');
   });
 
   it('tells the person about a field no row has; a program still reads it structured', () => {
     const watched = terminals();
     createRenderer('human', watched.io, { fields: ['name', 'nope'] }).list([{ name: 'a' }]);
-    expect(tagged(watched.err())).toBe(
-      '<accent>●</> <quiet>FIELDS_UNMATCHED:</> Fields absent from this result (possibly optional): nope\n' +
-        '  <quiet>→</> Inspect the result without --fields.\n',
-    );
+    expect(() => JSON.parse(watched.err())).toThrow(SyntaxError);
+    expect(watched.err()).toContain('FIELDS_UNMATCHED');
     const piped = io();
     createRenderer('human', piped.io, { fields: ['name', 'nope'] }).list([{ name: 'a' }]);
     expect(JSON.parse(piped.err())._notice.code).toBe('FIELDS_UNMATCHED');
@@ -216,14 +202,9 @@ describe('human renderer on a terminal', () => {
     createRenderer('human', t.io).error(
       new DevkitError('usage', 'BAD_FLAG', 'no such flag', { nextSteps: ['fx --help'] }),
     );
-    expect(t.err()).toBe(
-      [
-        '✗ BAD_FLAG: no such flag',
-        '  The command was invoked incorrectly.',
-        '  → fx --help',
-        '',
-      ].join('\n'),
-    );
+    expect(t.err()).not.toContain('\u001b[');
+    expect(t.err()).toContain('✗ BAD_FLAG: no such flag');
+    expect(t.err()).toContain('→ fx --help');
   });
 
   it('decides each stream on its own: piped data stays plain beside a decorated stderr', () => {

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { mergeEnvironment } from '../../src/adapters/process/executable.js';
 import { manifestSourceDir } from '../../src/infra/workspace-home.js';
+import { runtimeTools, systemPath } from '../platform.js';
 import { tempDir } from '../temp.js';
 
 export { tempDir };
@@ -20,6 +21,38 @@ export const packageName: string = JSON.parse(
 
 // One home per test file: agent detection and Skill links never reach the person's own.
 export const userHome = tempDir('fx-user-home-');
+
+const runtime = tempDir('fx-runtime-tools-');
+runtimeTools(runtime);
+
+// The PATH a child searches: the given directories, then node and git, then the system's
+// own. Nothing installed on this machine is found unless a case puts it there.
+export function searchPath(...dirs: readonly string[]): string {
+  return [...dirs, runtime, ...systemPath()].join(path.delimiter);
+}
+
+// What a child process inherits. The caller's own fx settings are dropped before the
+// defaults apply, so a run answers the same in any session. A case that asserts what a
+// first run leaves under the user home passes a home of its own.
+export function childEnvironment(
+  overrides: NodeJS.ProcessEnv = {},
+  home: string = userHome,
+): NodeJS.ProcessEnv {
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith('FX_')),
+  );
+  return mergeEnvironment(inherited, {
+    PATH: searchPath(),
+    FX_HOME: freshHome(),
+    FX_UPDATE_CHECK: '0',
+    // Tests opt into Registry discovery explicitly; the host's npm settings are not fixture data.
+    FX_REGISTRY: '',
+    FX_COMMAND_SHELL: 'posix',
+    ...overrides,
+    HOME: home,
+    USERPROFILE: home,
+  });
+}
 
 export interface Run {
   readonly status: number;
@@ -34,20 +67,12 @@ export function fx(
   env: NodeJS.ProcessEnv = {},
   cwd?: string,
   input?: string,
+  home?: string,
 ): Run {
   const result = spawnSync(process.execPath, [bin, ...args], {
     encoding: 'utf8',
     input,
-    env: mergeEnvironment(process.env, {
-      FX_HOME: freshHome(),
-      FX_UPDATE_CHECK: '0',
-      // Tests opt into Registry discovery explicitly; the host's npm settings are not fixture data.
-      FX_REGISTRY: '',
-      FX_COMMAND_SHELL: 'posix',
-      ...env,
-      HOME: userHome,
-      USERPROFILE: userHome,
-    }),
+    env: childEnvironment(env, home),
     ...(cwd === undefined ? {} : { cwd }),
   });
   return {

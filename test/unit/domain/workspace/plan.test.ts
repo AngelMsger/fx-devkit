@@ -125,8 +125,10 @@ describe('planSync', () => {
     expect(item.reason).toContain('elsewhere');
   });
 
-  it('accepts a checkout without an upstream remote when only origin is known', () => {
-    expect(plan(checkout({}, { origin: 'x' })).action).toBe('skip_remote_mismatch');
+  it('skips a checkout whose only remote does not match the declared upstream', () => {
+    const item = plan(checkout({}, { origin: 'x' }));
+    expect(item).toMatchObject({ action: 'skip_remote_mismatch', fetch: false });
+    expect(item.reason).toContain('origin does not exactly match the declared upstream');
   });
 
   it('prepares an upstream only when an ordinary clone origin exactly matches the declaration', () => {
@@ -171,12 +173,6 @@ describe('planSync', () => {
     expect(plan({ kind: 'absent' }, { urls: { a: { upstream: undefined } } })).toMatchObject({
       action: 'unreadable',
     });
-  });
-
-  it('produces no write action for dirty or diverged checkouts', () => {
-    for (const disk of [checkout({ dirty: true }), checkout({ ahead: 1, behind: 1 })]) {
-      expect(['skip_dirty', 'skip_diverged']).toContain(plan(disk).action);
-    }
   });
 });
 

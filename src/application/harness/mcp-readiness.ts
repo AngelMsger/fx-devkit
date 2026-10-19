@@ -1,6 +1,7 @@
 // Checks MCP prerequisites without starting servers or exposing command output.
 
-import type { HandoffEnvelope } from '../../domain/errors.js';
+import { categoryOfExitCode } from '../../domain/errors.js';
+import type { HarnessAction } from '../../domain/harness/actions.js';
 import { assessMcpSupport, referencedVariables } from '../../domain/harness/mcp.js';
 import type { McpResource } from '../../domain/manifest/types.js';
 import { matchesJson } from '../../domain/setup/json-check.js';
@@ -12,6 +13,7 @@ import type { TrustGate } from '../safety/trust.js';
 
 import { mcpTrust, mcpCheckTrust } from './plan.js';
 import { harnessHandoff } from './targets.js';
+import type { HarnessRow } from './types.js';
 
 export interface McpReadinessDeps {
   readonly process: Process;
@@ -24,8 +26,7 @@ export interface McpReadinessInput {
   readonly agent: AgentHost | null;
   readonly posture: WritePosture;
   readonly signal?: AbortSignal | undefined;
-  readonly projection?:
-    { readonly action: string; readonly handoff: HandoffEnvelope | null } | undefined;
+  readonly projection?: Pick<HarnessRow, 'action' | 'handoff'> | undefined;
 }
 export interface McpVerdict extends Verdict {
   readonly capability: 'mcp';
@@ -36,7 +37,7 @@ export interface McpVerdict extends Verdict {
   readonly agent: string | null;
   readonly evidence: 'prerequisites' | 'checked' | 'unverified';
   readonly activation: 'unverified';
-  readonly projection: string | null;
+  readonly projection: HarnessAction | null;
 }
 
 export class McpReadiness {
@@ -131,9 +132,10 @@ export class McpReadiness {
         );
       return verdict(input, 'ready', null, 'checked');
     }
+    const category = categoryOfExitCode(result.code);
     return verdict(
       input,
-      result.code === 4 || result.code === 5 ? 'unconfigured' : 'unknown',
+      category === 'auth' || category === 'permission' ? 'unconfigured' : 'unknown',
       'The companion check did not establish readiness; resolve access or connectivity and retry.',
     );
   }

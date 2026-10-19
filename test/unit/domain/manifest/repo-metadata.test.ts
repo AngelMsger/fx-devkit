@@ -29,14 +29,15 @@ describe('repository metadata', () => {
   });
 
   it.each([
-    { aka: 'alias' },
-    { aka: [1] },
-    { aka: [''] },
-    { aka: [' '] },
-    { links: ['guide'] },
-    { links: { guide: 1 } },
-    { links: { '': 'guide' } },
-  ])('rejects invalid metadata instead of coercing it: %j', (metadata) => {
-    expect(repoSchema.safeParse({ name: 'backend', ...metadata }).success).toBe(false);
+    { metadata: { aka: 'alias' }, at: ['aka'] },
+    { metadata: { aka: [1] }, at: ['aka', 0] },
+    { metadata: { aka: [''] }, at: ['aka', 0] },
+    { metadata: { aka: [' '] }, at: ['aka', 0] },
+    { metadata: { links: ['guide'] }, at: ['links'] },
+    { metadata: { links: { guide: 1 } }, at: ['links', 'guide'] },
+    { metadata: { links: { '': 'guide' } }, at: ['links', ''] },
+  ])('rejects invalid metadata instead of coercing it: $metadata', ({ metadata, at }) => {
+    const result = repoSchema.safeParse({ name: 'backend', ...metadata });
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([at]);
   });
 });

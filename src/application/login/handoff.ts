@@ -5,10 +5,10 @@ import type { HandoffStep } from '../../domain/errors.js';
 import type { SetupStep } from '../../domain/setup/types.js';
 import { workspaceCommand, type WorkspaceGuidance } from '../workspace/guidance.js';
 
-import type { Verdict } from './verify.js';
+import type { CheckVerdict } from './verify.js';
 
 // What keeps a step pending: its own check's answer, or the prerequisite it waits on.
-export type Pending = { readonly failed: Verdict } | { readonly blockedBy: string };
+export type Pending = { readonly failed: CheckVerdict } | { readonly blockedBy: string };
 
 export function handoffStep(step: SetupStep, pending?: Pending): HandoffStep {
   const failed = pending !== undefined && 'failed' in pending ? pending.failed : undefined;

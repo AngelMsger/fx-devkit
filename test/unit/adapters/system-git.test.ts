@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -79,6 +79,23 @@ describe('SystemGit command vectors', () => {
       'diverged',
     );
   });
+  it('tells a git that could not start from one that exited 127 itself', async () => {
+    const request = { dir: '/work/repo', upstream: 'ssh://u/x.git', branch: 'dev' };
+    await expect(new SystemGit(new FakeProcess()).clone(request)).rejects.toMatchObject({
+      code: 'TOOL_MISSING',
+      message: 'git is not installed or not on PATH',
+      nextSteps: ['fx can git'],
+    });
+    const started = new FakeProcess().always({
+      code: 127,
+      stdout: '',
+      stderr: 'git-remote-https: helper executable unavailable\n',
+    });
+    await expect(new SystemGit(started).clone(request)).rejects.toMatchObject({
+      code: 'GIT_CLONE_FAILED',
+      message: expect.stringContaining('helper executable unavailable'),
+    });
+  });
   it('preserves clone branch and destination in recovery commands', async () => {
     const proc = new FakeProcess();
     proc.always({
@@ -154,6 +171,17 @@ describe('SystemGit against real git', () => {
     });
     expect(await sut.toplevel(dir)).toBe(realpathSync.native(dir));
     expect(await sut.toplevel(tmpdir())).toBeUndefined();
+  });
+
+  it('tells the top of a checkout from a directory inside it, through a link as well', async () => {
+    const { work } = upstream();
+    mkdirSync(path.join(work, 'docs'));
+    const alias = path.join(tempDir('fx-alias-'), 'work');
+    symlinkSync(work, alias, process.platform === 'win32' ? 'junction' : 'dir');
+    expect(await sut.isToplevel(work)).toBe(true);
+    expect(await sut.isToplevel(alias)).toBe(true);
+    expect(await sut.isToplevel(path.join(work, 'docs'))).toBe(false);
+    expect(await sut.isToplevel(tmpdir())).toBe(false);
   });
 
   it('distinguishes dirty tracked changes from untracked files', async () => {

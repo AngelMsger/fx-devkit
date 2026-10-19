@@ -3,7 +3,9 @@
 // upstream; dated evidence never asserts current tool readiness.
 
 import { asDevkitError } from '../../domain/errors.js';
+import { SESSION_BURST_MS } from '../../domain/harness/deadlines.js';
 import type { HookObservation, HookState } from '../../domain/harness/state.js';
+import { hooksLeaseKey, workspaceLeaseKey } from '../../domain/lease.js';
 import { samePath } from '../../domain/path.js';
 import type { Clock } from '../../ports/clock.js';
 import type { HookStateStore } from '../../ports/hook-state.js';
@@ -44,7 +46,10 @@ export class AutomaticSync {
   async execute(input: AutomaticSyncInput): Promise<void> {
     if (!(await this.deps.canWrite())) return;
     this.delayed = [];
-    const lease = await this.deps.lock.acquire({ key: `workspace:${input.workspace}`, waitMs: 0 });
+    const lease = await this.deps.lock.acquire({
+      key: workspaceLeaseKey(input.workspace),
+      waitMs: 0,
+    });
     if (!lease) return;
     try {
       await this.run(input, lease);
@@ -60,7 +65,7 @@ export class AutomaticSync {
       previous?.lastAttempt !== null &&
       previous?.lastAttempt !== undefined &&
       now - previous.lastAttempt >= 0 &&
-      now - previous.lastAttempt < 15000
+      now - previous.lastAttempt < SESSION_BURST_MS
     )
       return;
     const refreshAt = previous?.lastRefresh;
@@ -157,7 +162,7 @@ export class AutomaticSync {
     phase?: string,
     observations: readonly HookObservation[] = [],
   ): Promise<boolean> {
-    const lease = await this.deps.lock.acquire({ key: `hooks:${input.workspace}`, waitMs: 0 });
+    const lease = await this.deps.lock.acquire({ key: hooksLeaseKey(input.workspace), waitMs: 0 });
     if (!lease) {
       // A hook never waits for the state lease, and a dropped outcome would
       // read as unchanged.

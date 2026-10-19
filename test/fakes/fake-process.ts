@@ -42,7 +42,12 @@ export class FakeProcess implements Process {
     this.calls.push({ vector, options });
     const rule = this.rules.find((r) => r.matcher(vector));
     if (rule === undefined) {
-      return { code: 127, stdout: '', stderr: `fake: no rule for ${vector.join(' ')}` };
+      return {
+        code: 127,
+        stdout: '',
+        stderr: `fake: no rule for ${vector.join(' ')}`,
+        notStarted: true,
+      };
     }
     return rule.result;
   }

@@ -70,7 +70,7 @@ export function summarize(findings: readonly Finding[]): Record<Level, number> {
 
 // Findings in the groups' declared order, each group keeping its own order,
 // so the report reads the same whichever check answered first.
-export function orderBy<G extends string>(
+function orderBy<G extends string>(
   groups: readonly G[],
   findings: readonly Finding<G>[],
 ): Finding<G>[] {

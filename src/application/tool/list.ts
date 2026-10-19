@@ -2,6 +2,7 @@
 // the patch named it, or fx merely knows it; `origin` says who owns its fields, which is
 // what tells a reader why a vector might need trust.
 
+import type { Origin } from '../../domain/manifest/overlay.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ToolSource, ToolSourceKind } from '../../domain/toolchain/select.js';
 
@@ -12,7 +13,7 @@ export interface ToolRow {
   readonly enabled: boolean;
   readonly min_version: string | null;
   readonly install_via: string | null;
-  readonly origin: 'base' | 'patch' | 'mixed';
+  readonly origin: Origin | 'mixed';
   readonly source: ToolSourceKind;
   readonly bound_by: readonly string[];
   readonly setup_steps: number;

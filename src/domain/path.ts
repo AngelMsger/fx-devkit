@@ -1,6 +1,6 @@
 // Path containment, compared as resolved strings; symbolic links are the
 // caller's business. A boundary (a workspace root, an imported directory)
-// includes the directory itself.
+// includes the directory itself. A stored relative path is judged by its text.
 
 import path from 'node:path';
 
@@ -34,4 +34,17 @@ export function isAtOrInside(child: string, parent: string): boolean {
   if (path.isAbsolute(relative)) return false;
   // A child named `..draft` is still a child; only a real parent step escapes.
   return relative !== '..' && !relative.startsWith(`..${path.sep}`);
+}
+
+// A slash-separated path naming an entry below its root on every platform: no empty,
+// `.`, `..` or case-folded `.git` segment, no backslash, colon or control character.
+export function isPlainRelativePath(value: string): boolean {
+  return (
+    !/[\\:\x00-\x1f\x7f]/u.test(value) &&
+    value
+      .split('/')
+      .every(
+        (part) => part !== '' && part !== '.' && part !== '..' && part.toLowerCase() !== '.git',
+      )
+  );
 }

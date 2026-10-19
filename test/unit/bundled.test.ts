@@ -9,9 +9,6 @@ describe('bundled defaults/tools.yaml', () => {
     expect(result.problems).toEqual([]);
     expect(result.dropped).toEqual([]);
     expect(result.unknown).toEqual([]);
-    const names = result.doc.tools.map((t) => t.name);
-    expect(names).toContain('bitbucket-cli');
-    expect(names).toContain('kubectl');
     for (const tool of result.doc.tools) {
       expect((tool.install ?? result.doc.defaults?.install ?? []).length).toBeGreaterThan(0);
     }

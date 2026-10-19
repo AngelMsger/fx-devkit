@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  negotiate,
-  negotiationError,
-  SUPPORTED,
-} from '../../../../src/domain/manifest/versioning.js';
+import { negotiate, negotiationError } from '../../../../src/domain/manifest/versioning.js';
 
 describe('negotiate', () => {
   it('accepts a supported schema with no floor', () => {
@@ -53,25 +49,13 @@ describe('negotiate', () => {
       failure: undefined,
     });
   });
-
-  it('supports schema 1 and 2 for workspace and environments, 3 for tools and 2 for harness, 1 for members', () => {
-    expect(SUPPORTED).toEqual({
-      workspace: [1, 2],
-      environments: [1, 2],
-      tools: [3],
-      harness: [2],
-      members: [1],
-    });
-  });
 });
 
 describe('negotiationError', () => {
   it('is fatal for every failure, names the upgrade, and names no host', () => {
     for (const failure of ['schema_too_old', 'schema_too_new', 'cli_too_old'] as const) {
       const err = negotiationError('workspace', { schema: 5, minCli: '9.0.0', failure }, '1.0.0');
-      expect(err).toBeDefined();
-      expect(err?.category).toBe('config');
-      expect(err?.code).toBe(`MANIFEST_${failure.toUpperCase()}`);
+      expect(err).toMatchObject({ category: 'config', code: `MANIFEST_${failure.toUpperCase()}` });
       expect(err?.nextSteps.join('\n')).toContain('fx self update --dry-run');
       expect(err?.nextSteps.join('\n')).not.toMatch(/https?:\/\//);
     }

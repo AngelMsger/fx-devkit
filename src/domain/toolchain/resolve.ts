@@ -3,10 +3,10 @@
 // field marked baseline or team patch, which is what decides whether it needs trust.
 
 import { DEFAULTS_KEY, type Origin, type Provenance } from '../manifest/overlay.js';
-import type { SetupStep, Tool, Toolchain } from '../manifest/types.js';
+import type { DeclaredSetupStep, InstallVia, Tool, Toolchain } from '../manifest/types.js';
 
 export interface InstallMethod {
-  readonly via: 'npm' | 'brew' | 'go' | 'manual';
+  readonly via: InstallVia;
   readonly spec?: string | undefined;
   readonly registry?: string | undefined;
 }
@@ -32,7 +32,7 @@ export interface ResolvedTool {
     readonly dirFlag?: string;
   };
   readonly auth?: { readonly command: readonly string[]; readonly docs?: string };
-  readonly setup: readonly SetupStep[];
+  readonly setup: readonly DeclaredSetupStep[];
   readonly origins: Readonly<Record<VectorField | 'binary', Origin>>;
   // Every field path the patch contributed, for `tool list` and `tool show`.
   readonly patchedFields: readonly string[];

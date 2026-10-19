@@ -10,7 +10,6 @@ import type { HookDeps } from '../application/hook/types.js';
 import type { WritePosture } from '../application/safety/posture.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileHookState } from '../infra/hook-state.js';
-import { FileProjectionStore } from '../infra/projection-store.js';
 import type { AgentCleanup } from '../ports/agent-cleanup.js';
 import type { HookStateStore } from '../ports/hook-state.js';
 
@@ -27,7 +26,7 @@ export function hookDeps(container: Container): HookDeps {
     local: container.localStore,
     state: hookStateStore(container),
     lock: container.lock,
-    files: new FileProjectionStore(container.lock),
+    files: container.projections,
     protocol: hookProtocolFor,
     home: container.fxHome,
     executable: [

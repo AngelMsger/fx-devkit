@@ -24,7 +24,13 @@ import { withWorkspaceOperation } from '../workspace/operation.js';
 import { assertDistinctWorkspaceRoot } from '../workspace/registry.js';
 import { scopeMode } from '../workspace/scope.js';
 
-import { initFailure, initializationSourceError, nameTaken, sourceMismatch } from './errors.js';
+import {
+  initFailure,
+  initializationSourceError,
+  nameTaken,
+  sourceMismatch,
+  type InitPhase,
+} from './errors.js';
 import { initialLocalLayer, inspectInitialization, initialPlan } from './preview.js';
 import type { InitDeps, InitInput, InitOutput } from './types.js';
 
@@ -95,7 +101,7 @@ export class Init {
       name,
       manifestDir: this.deps.manifestDirFor(name),
     });
-    await assertDistinctWorkspaceRoot(config, name, root, this.deps.fs);
+    await assertDistinctWorkspaceRoot(config, name, root, this.deps);
     const existing = config.workspaces?.[name];
     if (input.resume && existing === undefined)
       throw new DevkitError(
@@ -105,9 +111,9 @@ export class Init {
         { nextSteps: ['fx workspace list'] },
       );
     if (existing !== undefined && !(await this.sameRoot(existing.root, root)))
-      throw nameTaken(name, root, existing);
+      throw nameTaken(this.deps, name, root, existing);
     if (existing?.source !== undefined && existing.source !== input.source.description)
-      throw sourceMismatch(name, existing.source, input.source);
+      throw sourceMismatch(this.deps, name, existing.source, input.source);
     return { root, name, config };
   }
 
@@ -146,7 +152,7 @@ export class Init {
   }
 
   private async apply({ output, config }: Plan, input: InitInput): Promise<InitOutput> {
-    let phase = 'manifest';
+    let phase: InitPhase = 'manifest';
     let registered = config.workspaces?.[output.name] !== undefined;
     let materialized = false;
     let prepared: object | null = null;
@@ -193,7 +199,7 @@ export class Init {
       });
       return done;
     } catch (error) {
-      throw initFailure(output, error, {
+      throw initFailure(this.deps, output, error, {
         phase,
         registered,
         materialized,
@@ -259,12 +265,12 @@ export class Init {
 
   private async register(output: InitOutput, input: InitInput): Promise<void> {
     await this.deps.config.update(async (current) => {
-      await assertDistinctWorkspaceRoot(current, output.name, output.root, this.deps.fs);
+      await assertDistinctWorkspaceRoot(current, output.name, output.root, this.deps);
       const existing = current.workspaces?.[output.name];
       if (existing && !(await this.sameRoot(existing.root, output.root)))
-        throw nameTaken(output.name, output.root, existing);
+        throw nameTaken(this.deps, output.name, output.root, existing);
       if (existing?.source !== undefined && existing.source !== output.source)
-        throw sourceMismatch(output.name, existing.source, input.source);
+        throw sourceMismatch(this.deps, output.name, existing.source, input.source);
       return {
         ...current,
         default_workspace: current.default_workspace ?? output.name,
@@ -316,9 +322,7 @@ export class Init {
   }
 
   private async warnIfRepository(root: string): Promise<void> {
-    const top = await this.deps.git.toplevel(root);
-    if (top === undefined) return;
-    if ((await this.deps.fs.realpath(top)) !== (await this.deps.fs.realpath(root))) return;
+    if (!(await this.deps.git.isToplevel(root))) return;
     this.deps.reporter.notice({
       code: 'ROOT_IS_GIT',
       message: `${root} is itself a git repository; the workspace root should be a plain directory`,

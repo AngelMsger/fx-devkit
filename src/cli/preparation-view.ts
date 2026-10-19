@@ -2,6 +2,7 @@
 // `preparation.next` instructs an agent and stays in the structured report.
 import type { Preparation, PreparationAction, PreparationCheck } from '../domain/preparation.js';
 import { shellEnvironmentLine, shellLine, type ResolvedShell } from '../domain/shell.js';
+import { isRecord } from '../domain/values.js';
 
 import type { Display, Mark } from './render/display.js';
 import { gap, widthOf } from './render/width.js';
@@ -203,9 +204,7 @@ function previewLines(data: Record<string, unknown>, view: PreparationView): str
 }
 
 function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return isRecord(value) ? value : {};
 }
 function records(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.map(record) : [];

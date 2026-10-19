@@ -6,10 +6,11 @@
 import type * as z from 'zod';
 
 import { formatPath, type PathPart, type Raw } from './document.js';
+import { mapEntryIndex, type EntryCollection } from './quarantine.js';
 import type { Problem } from './types.js';
 
 export interface EntrySpec {
-  readonly key: 'repos' | 'tools' | 'mcp';
+  readonly key: EntryCollection;
   readonly allowEmpty?: boolean;
   readonly schema: z.ZodType;
 }
@@ -56,11 +57,7 @@ export function remapIndexes(
   kept: readonly number[],
 ): Problem {
   if (entries === undefined) return problem;
-  const pattern = new RegExp(`^${entries.key}\\[(\\d+)\\]`);
-  const path = problem.path.replace(
-    pattern,
-    (_, i: string) => `${entries.key}[${kept[Number(i)] ?? i}]`,
-  );
+  const path = mapEntryIndex(problem.path, entries.key, (index) => kept[index] ?? index);
   return { ...problem, path };
 }
 

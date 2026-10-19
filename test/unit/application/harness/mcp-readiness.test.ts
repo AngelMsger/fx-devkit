@@ -54,6 +54,17 @@ describe('MCP readiness', () => {
       ),
     ).toBe(true);
   });
+  it.each([4, 5])(
+    'reads a check that exits %i as access to configure, not as no answer',
+    async (code) => {
+      const f = await fixture();
+      f.process.binaries.add('server');
+      f.process.binaries.add('checker');
+      f.process.always({ code, stdout: '', stderr: '' });
+      const result = await new McpReadiness({ ...f, env: { TOKEN: 'synthetic' } }).execute(input);
+      expect(result.status).toBe('unconfigured');
+    },
+  );
   it('returns an untrusted handoff without recording trust or invoking a command', async () => {
     const process = new FakeProcess();
     process.binaries.add('server');

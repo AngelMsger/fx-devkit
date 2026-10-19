@@ -256,6 +256,6 @@ describe('loadTools', () => {
     ].join('\n');
     const result = loadTools(bundled, patch, cli);
     expect(result.problems).toEqual([]);
-    expect(result.doc.tools.find((t) => t.name === 'only-here')).toBeDefined();
+    expect(result.doc.tools.map((t) => t.name)).toContain('only-here');
   });
 });

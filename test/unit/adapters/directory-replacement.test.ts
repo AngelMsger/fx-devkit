@@ -25,7 +25,7 @@ describe('recoverable directory projection', () => {
     await fs.writeFile(`${target}.fx-transaction`, JSON.stringify({ target, backup, staged }));
     await expect(
       new NodeFs(new FileLock(root)).replaceDir(path.join(root, 'missing'), target),
-    ).rejects.toBeDefined();
+    ).rejects.toMatchObject({ code: 'INTERNAL', cause: { code: 'ENOENT' } });
     expect(await fs.readFile(path.join(target, 'old'), 'utf8')).toBe('kept');
   });
   it('keeps the previous directory when preparing the replacement fails', async () => {
@@ -35,7 +35,10 @@ describe('recoverable directory projection', () => {
     await fs.mkdir(target);
     await fs.writeFile(path.join(target, 'old'), 'kept');
     const store = new NodeFs(new FileLock(root));
-    await expect(store.replaceDir(path.join(root, 'missing'), target)).rejects.toBeDefined();
+    await expect(store.replaceDir(path.join(root, 'missing'), target)).rejects.toMatchObject({
+      code: 'INTERNAL',
+      cause: { code: 'ENOENT' },
+    });
     expect(await fs.readFile(path.join(target, 'old'), 'utf8')).toBe('kept');
     const source = path.join(root, 'source');
     await fs.mkdir(source);

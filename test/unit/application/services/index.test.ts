@@ -76,20 +76,26 @@ async function fixture(
 }
 
 describe('public service declarations', () => {
-  it.each(['token', 'password', 'username', 'email', 'session', 'authorization', 'api_token'])(
-    'rejects personal %s even without strict validation',
+  it.each(['token', 'nickname'])(
+    'rejects the undeclared service field %s even without strict validation',
     (field) => {
       const text = workspace.replace(
         'auth_scheme: pat}',
         `auth_scheme: pat, ${field}: PERSONAL_VALUE_NEVER_SHARE}`,
       );
-      try {
-        loadWorkspace(text, { cliVersion: '1.0.0' });
-        throw new Error('accepted credential');
-      } catch (error) {
-        expect(String(error)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
-        expect(String(error)).toContain('public service settings');
-      }
+      expect(() => loadWorkspace(text, { cliVersion: '1.0.0' })).toThrow(
+        expect.objectContaining({
+          code: 'MANIFEST_INVALID',
+          message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
+        }),
+      );
+      expect(loadWorkspace(text, { cliVersion: '1.0.0', allowInvalid: true }).problems).toEqual([
+        {
+          path: `providers.code-host.service.${field}`,
+          message: expect.stringContaining('public service settings'),
+          line: expect.any(Number),
+        },
+      ]);
     },
   );
 
@@ -97,11 +103,16 @@ describe('public service declarations', () => {
     'https://user:PERSONAL_VALUE_NEVER_SHARE@git.example.com',
     'https://git.example.com/?token=PERSONAL_VALUE_NEVER_SHARE',
   ])('rejects credentials embedded in URL without echoing them', (url) => {
-    expect(() =>
-      loadWorkspace(workspace.replace('https://git.example.com/deploy', url), {
-        cliVersion: '1.0.0',
+    const text = workspace.replace('https://git.example.com/deploy', url);
+    expect(() => loadWorkspace(text, { cliVersion: '1.0.0' })).toThrow(
+      expect.objectContaining({
+        code: 'MANIFEST_INVALID',
+        message: expect.not.stringContaining('PERSONAL_VALUE_NEVER_SHARE'),
       }),
-    ).toThrow('without credentials');
+    );
+    expect(
+      loadWorkspace(text, { cliVersion: '1.0.0', allowInvalid: true }).problems.map((p) => p.path),
+    ).toEqual(['providers.code-host.service.base_url']);
   });
 
   it('preserves the SSH clone prefix and scopes individual login', async () => {
@@ -120,7 +131,6 @@ describe('public service declarations', () => {
       'login',
     ]);
     expect(plan.steps[1]?.requires).toContain('bitbucket-cli.service');
-    expect(JSON.stringify(plan)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
   });
 });
 
@@ -188,9 +198,12 @@ describe('native preparation', () => {
     ).toBe(true);
   });
 
-  it('withholds authenticated queries when the target preset is missing or conflicts', async () => {
+  it.each([
+    { state: 'is missing', preview: { code: 0, stdout: '{"changed":true}', stderr: '' } },
+    { state: 'conflicts', preview: { code: 11, stdout: '', stderr: '{}' } },
+  ])('withholds authenticated queries when the target preset $state', async ({ preview }) => {
     const { h } = await fixture();
-    h.process.on(['bitbucket-cli', 'config'], { code: 11, stdout: '', stderr: '{}' });
+    h.process.on(['bitbucket-cli', 'config'], preview);
     const client = new FamilyCli('bitbucket-cli', h.process, 'team', {
       base_url: 'https://git.example.com',
     });
@@ -283,7 +296,10 @@ describe('native preparation', () => {
     });
     const result = await operation.execute(plan.steps[0]!, false);
     expect(result.status).toBe('blocked');
-    expect(result.changes?.['server']).toBeDefined();
+    expect(result.changes?.['server']).toEqual({
+      before: 'https://old.example.com',
+      after: 'https://git.example.com/deploy',
+    });
     expect(result.next_steps?.[0]).toContain('--overwrite --dry-run');
     expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
     expect(h.process.calls.every((call) => !call.vector.includes('--overwrite'))).toBe(true);

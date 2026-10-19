@@ -4,8 +4,9 @@
 // remembered per tool, because one command judges many targets.
 
 import { DevkitError, handoffEnvelope } from '../../domain/errors.js';
-import type { Binding, PlatformBinding } from '../../domain/manifest/providers.js';
+import { platformOf, type Binding, type PlatformBinding } from '../../domain/manifest/providers.js';
 import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
+import { problemsOfTool } from '../../domain/setup/names.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import { buildPlan } from '../login/collect.js';
@@ -13,7 +14,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
 import { gaveNoAnswer, Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
-import { ToolCheck } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
@@ -23,14 +24,14 @@ import type {
   PendingSteps,
   ReadyStatus,
   Target,
-  ToolState,
+  ToolReadiness,
   UnfinishedCheck,
   Verdict,
 } from './types.js';
 import { untrusted, versionUnknown } from './verdicts.js';
 
 export class Readiness {
-  private readonly toolStates = new Map<string, Promise<ToolState>>();
+  private readonly toolStates = new Map<string, Promise<ToolReadiness>>();
   private readonly pending = new Map<string, Promise<PendingSteps>>();
 
   constructor(
@@ -78,14 +79,14 @@ export class Readiness {
             command: workspaceCommand(
               this.deps,
               'tool',
-              { disabled: 'show', outdated: 'update', missing: 'install' }[state],
+              toolRecoveryCommand(state),
               target.tool.name,
             ),
           }),
         },
       );
 
-    const setupEnv = target.binding !== null && 'platform' in target.binding ? env : null;
+    const setupEnv = target.binding !== null && platformOf(target.binding) !== null ? env : null;
     return this.setupVerdict(target.tool.name, setupEnv);
   }
 
@@ -134,12 +135,11 @@ export class Readiness {
 
   // Why the environment does not cover the target, when it does not.
   private coverage(target: Target, env: string | null): string | undefined {
-    if (env === null || target.binding === null || !('platform' in target.binding))
-      return undefined;
+    const platform = target.binding === null ? null : platformOf(target.binding);
+    if (env === null || platform === null) return undefined;
     const environments = environmentsOf(this.deps.ctx, this.deps.commandShell);
     const spec = environments.envs[env];
     if (spec === undefined) throw envNotFound(this.deps, env, Object.keys(environments.envs));
-    const { platform } = target.binding;
     return spec.platforms?.[platform] === undefined ? undeclaredPlatform(env, platform) : undefined;
   }
 
@@ -148,7 +148,7 @@ export class Readiness {
     return scope === undefined || scope.includes(env);
   }
 
-  private async toolState(tool: ResolvedTool): Promise<ToolState> {
+  private async toolState(tool: ResolvedTool): Promise<ToolReadiness> {
     const cached = this.toolStates.get(tool.name);
     if (cached !== undefined) return cached;
     const state = this.inspectToolState(tool);
@@ -156,7 +156,7 @@ export class Readiness {
     return state;
   }
 
-  private async inspectToolState(tool: ResolvedTool): Promise<ToolState> {
+  private async inspectToolState(tool: ResolvedTool): Promise<ToolReadiness> {
     try {
       const [status] = await new ToolCheck({
         run: this.deps.processRun,
@@ -195,7 +195,7 @@ export class Readiness {
       envs: env === null ? undefined : [env],
       scopeEnvs: this.deps.ctx.local.scope?.envs,
     });
-    const problems = plan.problems.filter((p) => p.step.startsWith(`${tool}.`));
+    const problems = problemsOfTool(plan.problems, tool);
     if (problems.length > 0) return { problems: problems.map((p) => p.detail) };
     const verifier = new Verifier(this.deps, this.login);
     const steps: PendingStep[] = [];

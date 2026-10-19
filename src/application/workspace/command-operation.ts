@@ -2,6 +2,7 @@
 
 import { DevkitError } from '../../domain/errors.js';
 import { samePath } from '../../domain/path.js';
+import { shellLine } from '../../domain/shell.js';
 import type { Lease, Lock } from '../../ports/lock.js';
 import { resolveManifestDir } from '../manifest/locate.js';
 
@@ -27,7 +28,7 @@ export async function beginWorkspaceCommand(
         'The workspace identity changed while waiting',
         {
           nextSteps: [
-            `fx workspace show ${selected.name}`,
+            shellLine(['fx', 'workspace', 'show', selected.name], input.commandShell),
             'Re-run the same command against the new registration.',
           ],
         },

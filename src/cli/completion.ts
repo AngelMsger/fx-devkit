@@ -2,7 +2,7 @@
 // command after positional arguments and skip option values before routing words.
 
 import { DevkitError } from '../domain/errors.js';
-import { nearest } from '../domain/fuzzy.js';
+import { nearest, suggestionHint } from '../domain/fuzzy.js';
 
 export const SHELLS = ['bash', 'zsh', 'fish', 'powershell'] as const;
 export type Shell = (typeof SHELLS)[number];
@@ -54,10 +54,7 @@ export function completionScript(
   if (!(SHELLS as readonly string[]).includes(shell)) {
     const suggestion = nearest(shell, SHELLS);
     throw new DevkitError('usage', 'SHELL_UNKNOWN', `"${shell}" is not a shell fx can complete`, {
-      hint:
-        suggestion === undefined
-          ? `Choose one of ${SHELLS.join(', ')}.`
-          : `Did you mean "${suggestion}"?`,
+      hint: suggestionHint(suggestion, `Choose one of ${SHELLS.join(', ')}.`),
       nextSteps: SHELLS.map((s) => `fx completion ${s}`),
     });
   }

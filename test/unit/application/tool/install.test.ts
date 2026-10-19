@@ -303,28 +303,10 @@ describe('ToolInstall', () => {
     expect(result.map((r) => r.name)).toEqual(['beta', 'byhand']);
   });
 
-  it.each(['node: command not found', 'ETIMEDOUT', 'E404 package unavailable'])(
-    'keeps installer evidence and avoids a success probe after %s',
-    async (error) => {
-      const s = setup(undefined, ['npm']);
-      s.proc.clear().always({ code: 1, stdout: '', stderr: error });
-      const result = await s.install.execute({
-        tools: s.tools,
-        names: ['beta'],
-        update: false,
-        dryRun: false,
-        posture: writable,
-      });
-      expect(result[0]).toMatchObject({ ran: true, code: 1, error, version_after: null });
-      expect(s.proc.calledWith(['beta', '--version']), 'no success probe after a failure').toBe(
-        false,
-      );
-    },
-  );
-
-  it('reports a failed installer run as failed, not as an exception', async () => {
+  it('reports a failed installer run with its own words and runs no success probe', async () => {
     const s = setup(undefined, ['npm']);
-    s.proc.clear().always({ code: 1, stdout: '', stderr: 'E403\n' });
+    const error = 'E404 package unavailable';
+    s.proc.clear().always({ code: 1, stdout: '', stderr: error });
     const result = await s.install.execute({
       tools: s.tools,
       names: ['beta'],
@@ -332,7 +314,10 @@ describe('ToolInstall', () => {
       dryRun: false,
       posture: writable,
     });
-    expect(result[0]).toMatchObject({ ran: true, code: 1, error: expect.stringContaining('E403') });
+    expect(result[0]).toMatchObject({ ran: true, code: 1, error, version_after: null });
+    expect(s.proc.calledWith(['beta', '--version']), 'no success probe after a failure').toBe(
+      false,
+    );
   });
 });
 

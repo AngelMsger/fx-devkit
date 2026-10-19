@@ -1,23 +1,18 @@
 // Real file-store checks cover lost updates and ancestor links outside a registered workspace.
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { SetRepoField } from '../../../../src/application/manifest/set.js';
 import { providerCatalog } from '../../../../src/composition/registry.js';
 import { FileLock } from '../../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../../src/infra/projection-store.js';
+import { tempDir } from '../../../temp.js';
 
-const roots: string[] = [];
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
-});
 const original = 'schema_version: 2\nrepos:\n  - name: app\n    desc: Original\n';
 async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'fx-edit-conflict-'));
-  roots.push(root);
+  const root = tempDir('fx-edit-conflict-');
   await mkdir(path.join(root, 'manifest'));
   const file = path.join(root, 'manifest/workspace.yaml');
   await writeFile(file, original);

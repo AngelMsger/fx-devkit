@@ -1,8 +1,10 @@
 // Git transport and checkout operations with structured failure recovery.
 
+import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
+import { samePath } from '../../domain/path.js';
 import { shellLine } from '../../domain/shell.js';
 import {
   parseAheadBehind,
@@ -12,6 +14,8 @@ import {
 } from '../../domain/workspace/state.js';
 import type { CloneRequest, FastForwardOutcome, Git, RemoteHead } from '../../ports/git.js';
 import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
+
+import { lastLine, runGit } from './run.js';
 
 export class SystemGit implements Git {
   constructor(private readonly process: Process) {}
@@ -124,6 +128,13 @@ export class SystemGit implements Git {
     return result.code === 0 ? path.normalize(result.stdout.trim()) : undefined;
   }
 
+  // git answers with a resolved path, while a directory under /tmp or /var is reached
+  // through a symbolic link, so both sides are compared as physical paths.
+  async isToplevel(dir: string): Promise<boolean> {
+    const top = await this.toplevel(dir);
+    return top !== undefined && samePath(await realpath(top), await realpath(dir));
+  }
+
   async remotes(dir: string, signal?: AbortSignal): Promise<Record<string, string>> {
     const result = await this.git(['-C', dir, 'remote', '-v'], { signal });
     return result.code === 0 ? parseRemotes(result.stdout) : {};
@@ -182,23 +193,9 @@ export class SystemGit implements Git {
     return result.code === 0 ? result.stdout.trim() : undefined;
   }
 
-  private async git(args: readonly string[], options: RunOptions = {}): Promise<ProcessResult> {
-    const result = await this.process.run(['git', ...args], {
-      ...options,
-      env: { ...options.env, LC_ALL: 'C' },
-    });
-    if (result.code === 127) {
-      throw new DevkitError('config', 'TOOL_MISSING', 'git is not installed or not on PATH', {
-        nextSteps: ['fx can git'],
-      });
-    }
-    return result;
+  private git(args: readonly string[], options: RunOptions = {}): Promise<ProcessResult> {
+    return runGit(this.process, args, options);
   }
-}
-
-function lastLine(text: string): string {
-  const lines = text.trim().split('\n');
-  return lines[lines.length - 1] ?? '';
 }
 
 function gitFailureCategory(stderr: string): 'not_found' | 'auth' | 'network' | 'conflict' {

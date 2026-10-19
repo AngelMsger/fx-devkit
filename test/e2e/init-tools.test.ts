@@ -7,7 +7,15 @@ import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, manifestDirOf, repository, tempDir, userHome } from './harness.js';
+import {
+  freshHome,
+  fx,
+  manifestDirOf,
+  repository,
+  searchPath,
+  tempDir,
+  userHome,
+} from './harness.js';
 
 function fixture() {
   const root = tempDir('fx-init-tools-');
@@ -68,7 +76,7 @@ ${baseline.tools.map((t) => `  - {name: ${t.name}, enabled: false}`).join('\n')}
     receipt,
     skillReceipt,
     workspace: path.join(root, 'workspace'),
-    env: { FX_HOME: home, PATH: `${shims}${path.delimiter}${process.env.PATH}` },
+    env: { FX_HOME: home, PATH: searchPath(shims) },
   };
 }
 

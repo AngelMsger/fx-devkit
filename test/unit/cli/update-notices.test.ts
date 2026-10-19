@@ -9,6 +9,7 @@ import { FakeCache } from '../../fakes/fake-cache.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { FakeGit } from '../../fakes/fake-git.js';
 import { FakeRegistry } from '../../fakes/fake-registry.js';
+import { HeldWork } from '../../held-work.js';
 
 const DIR = '/fx/workspaces/ws/source';
 
@@ -74,17 +75,27 @@ describe('updateNotices', () => {
 
   it('runs the two checks side by side', async () => {
     const both = { workspace: 'ws', sourceDir: DIR };
-    const slow = checks('0.2.0', 'b'.repeat(40));
-    const delay = <T>(ms: number, value: T): Promise<T> =>
-      new Promise((resolve) => setTimeout(() => resolve(value), ms));
-    const fxExecute = slow.fx.execute.bind(slow.fx);
-    const manifestExecute = slow.manifest.execute.bind(slow.manifest);
-    slow.fx.execute = async (input) => delay(120, await fxExecute(input));
-    slow.manifest.execute = async (input) => delay(120, await manifestExecute(input));
-    const started = Date.now();
-    expect(await updateNotices(slow, FX, both)).toHaveLength(2);
-    expect(Date.now() - started).toBeLessThan(220);
-  }, 10000);
+    const held = checks('0.2.0', 'b'.repeat(40));
+    const running = new HeldWork<string>();
+    const fxExecute = held.fx.execute.bind(held.fx);
+    const manifestExecute = held.manifest.execute.bind(held.manifest);
+    held.fx.execute = async (input) => {
+      await running.hold('fx');
+      return fxExecute(input);
+    };
+    held.manifest.execute = async (input) => {
+      await running.hold('manifest');
+      return manifestExecute(input);
+    };
+    const notices = updateNotices(held, FX, both);
+    await running.reached(1);
+    expect([...running.started].sort(), 'neither waits for the other to finish').toEqual([
+      'fx',
+      'manifest',
+    ]);
+    running.releaseAll();
+    expect(await notices).toHaveLength(2);
+  });
 
   it("does not put a check's local work under the upstream deadline", async () => {
     vi.useFakeTimers();

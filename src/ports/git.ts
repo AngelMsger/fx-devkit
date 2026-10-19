@@ -20,6 +20,8 @@ export interface Git {
   fastForward(dir: string, remote: string, branch: string): Promise<FastForwardOutcome>;
   status(dir: string, compareTo?: string): Promise<RepoState>;
   toplevel(dir: string): Promise<string | undefined>;
+  // Whether `dir` is itself the top of a checkout, not a directory inside one.
+  isToplevel(dir: string): Promise<boolean>;
   remotes(dir: string, signal?: AbortSignal): Promise<Record<string, string>>;
   // The branch a remote's HEAD points at, e.g. `main` for refs/remotes/<remote>/HEAD.
   remoteHead(dir: string, remote: string, signal?: AbortSignal): Promise<string | undefined>;

@@ -173,8 +173,7 @@ describe('code-host contribution queries and creation', () => {
     expect(existsSync(descriptionFile)).toBe(false);
   });
   it('returns an installation handoff when the companion binary is missing', async () => {
-    const process = new FakeProcess().always({ code: 127, stdout: '', stderr: '' });
-    await expect(host(process).repositoryIdentity(source.repo)).rejects.toMatchObject({
+    await expect(host(new FakeProcess()).repositoryIdentity(source.repo)).rejects.toMatchObject({
       code: 'TOOL_MISSING',
       handoff: expect.any(Object),
     });

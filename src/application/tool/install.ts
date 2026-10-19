@@ -7,6 +7,7 @@ import {
   withPartialResult,
   type ErrorEnvelope,
 } from '../../domain/errors.js';
+import type { EffectOutcome } from '../../domain/outcome.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { ToolInstallation } from '../../domain/toolchain/installation.js';
 import {
@@ -58,7 +59,7 @@ export interface ToolInstallOutput {
   readonly code: number | null;
   readonly version_after: string | null;
   readonly error?: string;
-  readonly status?: 'planned' | 'not_started' | 'done' | 'failed' | 'skipped';
+  readonly status?: EffectOutcome;
   readonly phase?: 'install' | 'version';
   readonly failure?: ErrorEnvelope['error'];
 }
@@ -88,12 +89,10 @@ export class ToolInstall {
     const plans: ToolInstallPlan[] = [];
     for (const tool of selected) plans.push(await this.plan(tool, input));
     if (input.dryRun) return plans.map((plan) => plan.output);
+    const names = selected.map((tool) => tool.name);
     if (plans.some((plan) => plan.output.vector !== null)) {
       const action = input.update ? 'update' : 'install';
-      assertWritable(
-        input.posture,
-        `tool ${action} ${selected.map((tool) => tool.name).join(' ')}`,
-      );
+      assertWritable(input.posture, `tool ${action} ${names.join(' ')}`);
     }
     if (input.requireInstallTrust) {
       if (!input.trust)
@@ -104,7 +103,7 @@ export class ToolInstall {
           {
             nextSteps: [
               'Re-run the same command in a terminal and review the install vector.',
-              `fx tool install ${selected.map((tool) => tool.name).join(' ')}`,
+              recoveryCommand({ commandShell: input.commandShell }, 'tool', 'install', ...names),
             ],
           },
         );

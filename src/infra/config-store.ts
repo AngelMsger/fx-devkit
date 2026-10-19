@@ -7,16 +7,18 @@ import { parse, stringify } from 'yaml';
 
 import { configFileSchema } from '../domain/config/file.js';
 import { busyError, DevkitError } from '../domain/errors.js';
+import { withLease } from '../domain/lease.js';
 import { assertWorkspaceNames } from '../domain/workspace/name.js';
+import type { Lock } from '../ports/lock.js';
 import type { ConfigFile, ConfigStore } from '../ports/stores.js';
 
 import { writeAtomicFile } from './atomic-file.js';
-import { FileLock } from './lock.js';
-
-export const CONFIG_FILE_KEYS = Object.keys(configFileSchema.shape).sort();
 
 export class FileConfigStore implements ConfigStore {
-  constructor(private readonly home: string) {}
+  constructor(
+    private readonly home: string,
+    private readonly lock: Lock,
+  ) {}
 
   path(): string {
     return path.join(this.home, 'config.yaml');
@@ -44,21 +46,22 @@ export class FileConfigStore implements ConfigStore {
   async update(
     change: (current: ConfigFile) => ConfigFile | Promise<ConfigFile>,
   ): Promise<ConfigFile> {
-    const lease = await new FileLock(this.home).acquire({ key: 'config', waitMs: 5000 });
-    if (lease === null)
-      throw busyError('CONFIG_BUSY', 'The personal configuration', {
-        nextSteps: ['Retry the configuration change.'],
-      });
-    try {
-      const next = await change(await this.read());
-      assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
-      if (!configFileSchema.safeParse(next).success)
-        throw new DevkitError('config', 'CONFIG_INVALID', 'Invalid configuration update');
-      await writeAtomicFile(this.path(), stringify(next));
-      return next;
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.lock,
+      { key: 'config', waitMs: 5000 },
+      () =>
+        busyError('CONFIG_BUSY', 'The personal configuration', {
+          nextSteps: ['Retry the configuration change.'],
+        }),
+      async () => {
+        const next = await change(await this.read());
+        assertWorkspaceNames(Object.keys(next.workspaces ?? {}));
+        if (!configFileSchema.safeParse(next).success)
+          throw new DevkitError('config', 'CONFIG_INVALID', 'Invalid configuration update');
+        await writeAtomicFile(this.path(), stringify(next));
+        return next;
+      },
+    );
   }
 
   private async readRaw(): Promise<string | undefined> {

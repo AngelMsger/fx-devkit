@@ -127,6 +127,11 @@ export interface PlatformBinding extends Binding {
   readonly platform: string;
 }
 
+// The platform instance a binding belongs to; a workspace-wide binding has none.
+export function platformOf(binding: Binding | PlatformBinding): string | null {
+  return 'platform' in binding ? binding.platform : null;
+}
+
 export function bindPlatforms(
   environments: Environments | undefined,
   providers: ProviderCatalog,

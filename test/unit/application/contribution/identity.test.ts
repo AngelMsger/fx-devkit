@@ -1,21 +1,16 @@
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { assertContributionIdentity } from '../../../../src/application/contribution/identity.js';
 import { FileConfigStore } from '../../../../src/infra/config-store.js';
-
-const roots: string[] = [];
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
-});
+import { FileLock } from '../../../../src/infra/lock.js';
+import { tempDir } from '../../../temp.js';
 
 async function fixture() {
-  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'fx-source-identity-')));
-  roots.push(base);
+  const base = await fs.realpath(tempDir('fx-source-identity-'));
   const oldHome = path.join(base, 'old-state');
   const newHome = path.join(base, 'new-state');
   const home = path.join(base, 'fx-state');
@@ -41,7 +36,7 @@ async function fixture() {
       expected,
       physicalRoot: await fs.realpath(root),
       logicalSourceDir,
-      config: new FileConfigStore(home),
+      config: new FileConfigStore(home, new FileLock(home)),
       fs: new NodeFs(),
     },
   };
@@ -65,8 +60,10 @@ describe('source contribution physical identity', () => {
     const f = await fixture();
     await fs.unlink(f.root);
     await fs.symlink(f.newRoot, f.root, f.kind);
-    await expect(assertContributionIdentity(f.deps)).rejects.toMatchObject({
+    const registration = { ...f.deps.registration, commandShell: 'cmd' as const };
+    await expect(assertContributionIdentity({ ...f.deps, registration })).rejects.toMatchObject({
       code: 'WORKSPACE_PLAN_CHANGED',
+      nextSteps: ['fx ^"workspace^" ^"show^" ^"test^"'],
     });
   });
 
