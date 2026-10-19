@@ -17,7 +17,9 @@ import type { LocalLayer } from '../../../../src/domain/manifest/types.js';
 import type { SetupRecipe } from '../../../../src/domain/setup/types.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { FakeConfigStore } from '../../../fakes/fake-config-store.js';
-import { FakeHarnessState, FakeProjectionStore } from '../../../fakes/fake-harness.js';
+import { FakeFileProjection } from '../../../fakes/fake-file-projection.js';
+import { FakeFs } from '../../../fakes/fake-fs.js';
+import { FakeHarnessState } from '../../../fakes/fake-harness.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
 import { FakePrompter } from '../../../fakes/fake-prompter.js';
@@ -525,8 +527,9 @@ describe('Can', () => {
 describe('canTarget', () => {
   async function harnessWith(document: string): Promise<HarnessSession> {
     const h = await harness();
-    const files = new FakeProjectionStore();
-    files.files.set(MANIFEST_FILES.harness, document);
+    const files = new FakeFileProjection(
+      FakeFs.from({ [path.join(MANIFEST_DIR, MANIFEST_FILES.harness)]: document }),
+    );
     const config = new FakeConfigStore({ workspaces: { fx: { root: ROOT } } });
     return {
       deps: {

@@ -1,11 +1,11 @@
 // Team-authored verifier alternatives must survive normal manifest loading and reach readonly setup planning.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 
-import { freshHome, fx, manifestDirOf } from './harness.js';
+import { disabledBundledTools, freshHome, fx, manifestDirOf } from './harness.js';
 
 it('validates and previews command, JSON, file and provider checks without external services', () => {
   const home = freshHome();
@@ -36,9 +36,7 @@ it('validates and previews command, JSON, file and provider checks without exter
       repos: [{ name: 'api', upstream: path.join(root, 'api.git') }],
     }),
   );
-  const baseline = parse(readFileSync('defaults/tools.yaml', 'utf8')) as {
-    tools: { name: string }[];
-  };
+  const baseline = parse(disabledBundledTools()) as { tools: object[] };
   const checks = [
     { id: 'command', kind: 'manual', title: 'Command readiness', verify: { command: ['check'] } },
     {
@@ -61,7 +59,7 @@ it('validates and previews command, JSON, file and provider checks without exter
     stringify({
       schema_version: 3,
       tools: [
-        ...baseline.tools.map((tool) => ({ name: tool.name, enabled: false })),
+        ...baseline.tools,
         {
           name: 'fixture-tool',
           install: [{ via: 'manual' }],

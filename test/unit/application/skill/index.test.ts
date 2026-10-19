@@ -339,7 +339,7 @@ describe('SkillStage: the team link', () => {
   });
 
   it('reports a workspace without a skills directory as nothing to do', async () => {
-    const h = await harness();
+    const h = await harness({ files: bundledSkill.files });
     const out = await new SkillStage(h.deps, {
       hosts: agents,
       configured: undefined,
@@ -726,7 +726,7 @@ describe('observeLink with a relative target', () => {
     const { observeLink } = await import('../../../../src/application/skill/observe.js');
     const { FakeFs } = await import('../../../fakes/fake-fs.js');
     const fs = FakeFs.from({});
-    await fs.link('../elsewhere/review', path.resolve('/home/me/.claude/skills/review'));
+    fs.links.set(path.resolve('/home/me/.claude/skills/review'), '../elsewhere/review');
     const observed = await observeLink(fs, path.resolve('/home/me/.claude/skills/review'));
     expect(observed).toEqual({
       kind: 'link',

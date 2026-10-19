@@ -1,21 +1,15 @@
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { FileLock } from '../../../src/infra/lock.js';
 import { FileProjectionStore } from '../../../src/infra/projection-store.js';
-
-const dirs: string[] = [];
-afterEach(async () => {
-  await Promise.all(dirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
-});
+import { tempDir } from '../../temp.js';
 
 describe('projection writes', () => {
   it('refuses an outdated plan and paths reached through foreign symlinks', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-projection-'));
-    dirs.push(root);
+    const root = tempDir('fx-projection-');
     const store = new FileProjectionStore(new FileLock(root));
     const at = { root, relative: '.agent/hooks.json' };
     const before = await store.read(at);
@@ -34,8 +28,7 @@ describe('projection writes', () => {
 
 describe('link projection writes', () => {
   it('rejects redirected ancestors both while planning and after a valid snapshot', async () => {
-    const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'fx-link-projection-')));
-    dirs.push(root);
+    const root = await fs.realpath(tempDir('fx-link-projection-'));
     const outside = path.join(root, 'outside');
     const workspace = path.join(root, 'workspace');
     const target = path.join(root, 'source');

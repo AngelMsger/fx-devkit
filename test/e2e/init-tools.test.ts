@@ -3,11 +3,11 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
-import { parse } from 'yaml';
 
 import { writeNodeShim } from '../platform.js';
 
 import {
+  disabledBundledTools,
   freshHome,
   fx,
   manifestDirOf,
@@ -52,15 +52,9 @@ projects: {team: {label: Fixture, contact: fixture}}
 repos: [{name: sample, desc: Fixture}]
 `,
   );
-  const baseline = parse(readFileSync('defaults/tools.yaml', 'utf8')) as {
-    tools: { name: string }[];
-  };
   writeFileSync(
     path.join(manifest, 'tools.yaml'),
-    `schema_version: 3
-tools:
-${baseline.tools.map((t) => `  - {name: ${t.name}, enabled: false}`).join('\n')}
-  - name: fixture-init-tool
+    `${disabledBundledTools()}  - name: fixture-init-tool
     install_on_init: true
     min_version: '1.0.0'
     install: [{via: npm, spec: '@example/init-tool'}]

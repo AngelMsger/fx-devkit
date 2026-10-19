@@ -1,11 +1,11 @@
 import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { describe, expect, it } from 'vitest';
 
 import { NodeLifecycleRunner } from '../../../src/adapters/process/lifecycle-runner.js';
+import { tempDir } from '../../temp.js';
 
 describe('independent lifecycle supervision', () => {
   it('reports bounded worker failures and timeouts without leaking worker text', async () => {
@@ -36,27 +36,22 @@ describe('independent lifecycle supervision', () => {
 
   const runner = new NodeLifecycleRunner();
   it('reaps descendants together with an expired worker', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fx-supervised-'));
-    const heartbeat = path.join(root, 'heartbeat');
+    const heartbeat = path.join(tempDir('fx-supervised-'), 'heartbeat');
     const helper = `const fs=require('node:fs');setInterval(()=>fs.writeFileSync(${JSON.stringify(heartbeat)},String(Date.now())),20);`;
     const worker = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(helper)}],{stdio:'ignore'});setInterval(()=>{},1000);`;
-    try {
-      expect(
-        await runner.run({
-          vector: [process.execPath, '-e', worker],
-          input: Promise.resolve('{}'),
-          role: 'foreground',
-          timeoutMs: 1000,
-        }),
-      ).toBe('');
-      // Windows finishes ending a killed tree just after the call returns.
-      await delay(100);
-      const before = await fs.readFile(heartbeat, 'utf8');
-      await delay(150);
-      expect(await fs.readFile(heartbeat, 'utf8')).toBe(before);
-    } finally {
-      await fs.rm(root, { recursive: true, force: true });
-    }
+    expect(
+      await runner.run({
+        vector: [process.execPath, '-e', worker],
+        input: Promise.resolve('{}'),
+        role: 'foreground',
+        timeoutMs: 1000,
+      }),
+    ).toBe('');
+    // Windows finishes ending a killed tree just after the call returns.
+    await delay(100);
+    const before = await fs.readFile(heartbeat, 'utf8');
+    await delay(150);
+    expect(await fs.readFile(heartbeat, 'utf8')).toBe(before);
   });
   it('preserves UTF-8 split across worker output chunks', async () => {
     expect(

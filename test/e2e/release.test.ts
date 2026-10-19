@@ -2,7 +2,6 @@
 // with everything wrong and one with nothing wrong, shims standing in for
 // jenkins-cli and sentry, and a temporary FX_HOME.
 
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -10,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, searchPath, tempDir } from './harness.js';
+import { freshHome, fx, repository, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -32,42 +31,6 @@ interface Report {
   readonly findings: Finding[];
 }
 
-const identity = {
-  ...process.env,
-  GIT_AUTHOR_NAME: 'T',
-  GIT_AUTHOR_EMAIL: 't@example.com',
-  GIT_COMMITTER_NAME: 'T',
-  GIT_COMMITTER_EMAIL: 't@example.com',
-};
-
-// A bare repository with main and dev; `ahead` adds one dev-only commit.
-function bare(
-  host: string,
-  base: string,
-  name: string,
-  files: Record<string, string>,
-  ahead: boolean,
-): void {
-  const repo = path.join(host, `${name}.git`);
-  const author = path.join(base, `author-${name}`);
-  const git = (...args: string[]): void => {
-    execFileSync('git', args, { cwd: author, env: identity });
-  };
-  execFileSync('git', ['init', '--quiet', '--bare', '-b', 'main', repo]);
-  execFileSync('git', ['clone', '-q', repo, author]);
-  git('checkout', '-q', '-b', 'main');
-  for (const [file, text] of Object.entries(files)) writeFileSync(path.join(author, file), text);
-  git('add', '.');
-  git('commit', '-q', '-m', 'one');
-  git('checkout', '-q', '-b', 'dev');
-  if (ahead) {
-    writeFileSync(path.join(author, 'NOTE'), 'more\n');
-    git('add', '.');
-    git('commit', '-q', '-m', 'feat: m-1 more');
-  }
-  git('push', '-q', 'origin', 'main', 'dev');
-}
-
 function shim(dir: string, name: string, body: string): void {
   writeNodeShim(dir, name, body);
 }
@@ -76,8 +39,18 @@ function stage(): Stage {
   const base = tempDir('fx-release-e2e-');
   const host = path.join(base, 'host', 'fx');
   mkdirSync(host, { recursive: true });
-  bare(host, base, 'a', { 'package.json': '{"dependencies":{"x":"1.0.0-dev"}}\n' }, true);
-  bare(host, base, 'b', { VERSION: '1.0.0\n', 'requirements.txt': 'httpx==0.27\n' }, false);
+  repository(
+    host,
+    'a',
+    { 'package.json': '{"dependencies":{"x":"1.0.0-dev"}}\n' },
+    { dev: { files: { NOTE: 'more\n' }, message: 'feat: m-1 more' } },
+  );
+  repository(
+    host,
+    'b',
+    { VERSION: '1.0.0\n', 'requirements.txt': 'httpx==0.27\n' },
+    { dev: 'level' },
+  );
   const manifestDir = path.join(base, 'src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
   writeFileSync(

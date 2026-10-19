@@ -8,7 +8,6 @@ export class FakeErrorTracker implements ErrorTracker {
   readonly capability = 'error-tracker' as const;
   readonly asked: { slug: string; since: string }[] = [];
   issuesOf = new Map<string, Issue[]>();
-  more = false;
   failure: Error | undefined;
 
   locate(vars: Vars): Coordinate {
@@ -19,6 +18,6 @@ export class FakeErrorTracker implements ErrorTracker {
     const slug = vars['slug'] ?? '';
     this.asked.push({ slug, since: query.since });
     if (this.failure !== undefined) throw this.failure;
-    return { issues: this.issuesOf.get(slug) ?? [], more: this.more };
+    return { issues: this.issuesOf.get(slug) ?? [], more: false };
   }
 }

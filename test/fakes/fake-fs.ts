@@ -1,12 +1,13 @@
+// An in-memory FileSystem that follows links the way the operating system
+// does and leaves the tree as it was when it refuses an operation.
+// fs-contract.test.ts holds this class and NodeFs to the same assertions.
+
 import path from 'node:path';
 
-import { DevkitError } from '../../src/domain/errors.js';
+import { asDevkitError, DevkitError } from '../../src/domain/errors.js';
 import type { FileSystem } from '../../src/ports/fs.js';
 
 export class FakeFs implements FileSystem {
-  async ensureDir(directory: string): Promise<void> {
-    this.mkdir(directory);
-  }
   readonly writes: string[] = [];
   private readonly dirs = new Set<string>();
   readonly links = new Map<string, string>();
@@ -24,6 +25,10 @@ export class FakeFs implements FileSystem {
     return new this(new Map(Object.entries(entries).map(([k, v]) => [path.resolve(k), v])));
   }
 
+  async ensureDir(directory: string): Promise<void> {
+    this.dirs.add(this.followed(directory));
+  }
+
   async readBytes(file: string): Promise<Uint8Array | undefined> {
     const text = await this.readText(file);
     return text === undefined ? undefined : new TextEncoder().encode(text);
@@ -34,26 +39,34 @@ export class FakeFs implements FileSystem {
   }
 
   async readText(file: string): Promise<string | undefined> {
-    return this.files.get(path.resolve(file));
+    const target = this.followed(file);
+    if (this.holdsDirectory(target)) throw systemError('EISDIR', file);
+    return this.files.get(target);
   }
 
   async writeText(file: string, text: string): Promise<void> {
-    this.files.set(path.resolve(file), text);
+    const entry = this.entry(file);
+    if (this.links.has(entry) || this.holdsDirectory(entry))
+      throw new DevkitError(
+        'conflict',
+        'PROJECTION_FOREIGN',
+        'The projection is not a regular file',
+      );
+    this.files.set(entry, text);
     this.writes.push(path.resolve(file));
   }
 
-  // A directory exists when it was made explicitly or holds a file.
   async exists(file: string): Promise<boolean> {
-    const target = path.resolve(file);
-    if (this.files.has(target) || this.dirs.has(target) || this.links.has(target)) return true;
-    const prefix = target.endsWith(path.sep) ? target : `${target}${path.sep}`;
-    return [...this.files.keys(), ...this.dirs].some((p) => p.startsWith(prefix));
+    const target = this.followed(file);
+    return this.files.has(target) || this.holdsDirectory(target);
   }
 
   async readDir(dir: string): Promise<string[]> {
-    const prefix = `${path.resolve(dir)}${path.sep}`;
+    const target = this.followed(dir);
+    if (this.files.has(target)) throw systemError('ENOTDIR', dir);
+    const prefix = below(target);
     const names = new Set<string>();
-    for (const p of [...this.files.keys(), ...this.dirs, ...this.links.keys()]) {
+    for (const p of this.entries()) {
       if (p.startsWith(prefix)) names.add(p.slice(prefix.length).split(path.sep)[0] ?? '');
     }
     names.delete('');
@@ -61,57 +74,61 @@ export class FakeFs implements FileSystem {
   }
 
   async isDirectory(dir: string): Promise<boolean> {
-    const target = path.resolve(dir);
-    if (this.links.has(target)) return false;
-    const inside = (p: string): boolean => p.startsWith(`${target}${path.sep}`);
-    return this.dirs.has(target) || [...this.files.keys(), ...this.dirs].some(inside);
+    return this.holdsDirectory(this.followed(dir));
   }
 
   async readLink(file: string): Promise<string | undefined> {
-    return this.links.get(path.resolve(file));
+    return this.links.get(this.entry(file));
   }
 
   async link(target: string, at: string): Promise<void> {
-    this.links.set(path.resolve(at), target);
+    const entry = this.entry(at);
+    if (this.holds(entry)) throw systemError('EEXIST', at);
+    this.links.set(entry, path.resolve(target));
     this.writes.push(path.resolve(at));
   }
 
   async copyDir(from: string, to: string): Promise<void> {
-    const file = this.files.get(path.resolve(from));
+    const source = this.entry(from);
+    if (!this.holds(source)) throw systemError('ENOENT', from);
+    const file = this.files.get(source);
     if (file !== undefined) {
       await this.writeText(to, file);
       return;
     }
-    const link = this.links.get(path.resolve(from));
+    const link = this.links.get(source);
     if (link !== undefined) {
       await this.link(link, to);
       return;
     }
-    const prefix = `${path.resolve(from)}${path.sep}`;
+    const destination = this.entry(to);
     for (const [p, text] of [...this.files]) {
-      if (p.startsWith(prefix))
-        this.files.set(path.join(path.resolve(to), p.slice(prefix.length)), text);
+      if (p.startsWith(below(source)))
+        this.files.set(path.join(destination, p.slice(source.length)), text);
     }
-    this.dirs.add(path.resolve(to));
+    this.dirs.add(destination);
     this.writes.push(path.resolve(to));
   }
 
   async replaceDir(from: string, to: string): Promise<void> {
+    const target = this.entry(to);
+    if (this.links.has(target) || this.files.has(target))
+      throw new DevkitError('conflict', 'PROJECTION_FOREIGN', 'The projection is not a directory');
+    if (!this.holds(this.entry(from))) throw asDevkitError(systemError('ENOENT', from));
     await this.remove(to);
     await this.copyDir(from, to);
   }
 
   async moveToBackup(target: string): Promise<string> {
-    const source = path.resolve(target);
-    if (!(await this.exists(source)))
+    const source = this.entry(target);
+    if (!this.holds(source))
       throw new DevkitError('conflict', 'PROJECTION_CHANGED', 'The replacement path changed');
     let backup = `${source}.fx-backup`;
     let suffix = 1;
-    while ((await this.exists(backup)) || (await this.readLink(backup)) !== undefined)
-      backup = `${source}.fx-backup-${suffix++}`;
+    while (this.holds(backup)) backup = `${source}.fx-backup-${suffix++}`;
     const destination = (entry: string): string => backup + entry.slice(source.length);
     const selected = (entry: string): boolean =>
-      entry === source || entry.startsWith(`${source}${path.sep}`);
+      entry === source || entry.startsWith(below(source));
     for (const entries of [this.files, this.links]) {
       for (const [entry, value] of [...entries]) {
         if (!selected(entry)) continue;
@@ -129,17 +146,69 @@ export class FakeFs implements FileSystem {
   }
 
   async remove(file: string): Promise<void> {
-    const target = path.resolve(file);
-    this.links.delete(target);
-    this.dirs.delete(target);
-    for (const p of [...this.files.keys()]) {
-      if (p === target || p.startsWith(`${target}${path.sep}`)) this.files.delete(p);
+    const target = this.entry(file);
+    const selected = (entry: string): boolean =>
+      entry === target || entry.startsWith(below(target));
+    for (const entries of [this.files, this.links, this.dirs]) {
+      for (const entry of [...entries.keys()]) if (selected(entry)) entries.delete(entry);
     }
-    for (const d of [...this.dirs]) if (d.startsWith(`${target}${path.sep}`)) this.dirs.delete(d);
-    this.writes.push(`rm ${target}`);
+    this.writes.push(`rm ${path.resolve(file)}`);
   }
 
+  // A link that leads nowhere stays in the answer, as does everything after it.
   async realpath(target: string): Promise<string> {
-    return path.resolve(target);
+    const absolute = path.resolve(target);
+    const followed = this.followed(absolute);
+    if (this.holds(followed)) return followed;
+    const parent = path.dirname(absolute);
+    return parent === absolute
+      ? absolute
+      : path.join(await this.realpath(parent), path.basename(absolute));
   }
+
+  // Where a path leads once every link on the way, the last one included, is followed.
+  private followed(file: string): string {
+    const absolute = path.resolve(file);
+    const { root } = path.parse(absolute);
+    let current = root;
+    for (const part of absolute.slice(root.length).split(path.sep).filter(Boolean)) {
+      current = path.join(current, part);
+      const target = this.links.get(current);
+      if (target !== undefined)
+        current = this.followed(path.resolve(path.dirname(current), target));
+    }
+    return current;
+  }
+
+  // The path's own entry: links in its parents are followed, a link at the path is not.
+  private entry(file: string): string {
+    const absolute = path.resolve(file);
+    const parent = path.dirname(absolute);
+    return parent === absolute
+      ? absolute
+      : path.join(this.followed(parent), path.basename(absolute));
+  }
+
+  private entries(): string[] {
+    return [...this.files.keys(), ...this.dirs, ...this.links.keys()];
+  }
+
+  // A directory exists when it was made explicitly or holds something.
+  private holdsDirectory(entry: string): boolean {
+    return this.dirs.has(entry) || this.entries().some((p) => p.startsWith(below(entry)));
+  }
+
+  private holds(entry: string): boolean {
+    return this.files.has(entry) || this.links.has(entry) || this.holdsDirectory(entry);
+  }
+}
+
+function below(directory: string): string {
+  return directory.endsWith(path.sep) ? directory : `${directory}${path.sep}`;
+}
+
+type SystemErrorCode = 'ENOENT' | 'EEXIST' | 'EISDIR' | 'ENOTDIR';
+
+function systemError(code: SystemErrorCode, file: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(`${code}: ${file}`), { code });
 }

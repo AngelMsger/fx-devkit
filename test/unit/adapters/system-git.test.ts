@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -8,34 +7,18 @@ import { describe, expect, it } from 'vitest';
 import { SystemGit } from '../../../src/adapters/git/system-git.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { git, repository } from '../../git.js';
 import { tempDir } from '../../temp.js';
-
-const git = (args: string[], cwd: string): string =>
-  execFileSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'T',
-      GIT_AUTHOR_EMAIL: 't@example.com',
-      GIT_COMMITTER_NAME: 'T',
-      GIT_COMMITTER_EMAIL: 't@example.com',
-    },
-  }).trim();
 
 // A bare upstream with one commit on `dev`, plus a scratch clone to push from.
 function upstream(): { bare: string; work: string } {
-  const root = tempDir('fx-git-');
-  const bare = path.join(root, 'a.git');
-  const work = path.join(root, 'work');
-  git(['init', '--bare', '-b', 'dev', bare], root);
-  git(['clone', '-q', bare, work], root);
-  git(['checkout', '-q', '-b', 'dev'], work);
-  writeFileSync(path.join(work, 'README'), 'one\n');
-  git(['add', '.'], work);
-  git(['commit', '-q', '-m', 'one'], work);
-  git(['push', '-q', '-u', 'origin', 'dev'], work);
-  return { bare, work };
+  const { bare, author } = repository(
+    tempDir('fx-git-'),
+    'a',
+    { README: 'one\n' },
+    { branch: 'dev' },
+  );
+  return { bare, work: author };
 }
 
 function advance(work: string, name: string): void {

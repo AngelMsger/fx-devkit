@@ -534,6 +534,7 @@ envs: {dev: {platforms: {errors: {}}}}
     const result = await operation.execute(step, { dryRun: false });
     expect(result.status).toBe('blocked');
     expect(JSON.stringify(result)).not.toContain('PERSONAL_VALUE_NEVER_SHARE');
+    await h.fs.remove(target);
     await h.fs.link('/elsewhere/private', target);
     expect((await operation.execute(step, { dryRun: false })).status).toBe('blocked');
   });

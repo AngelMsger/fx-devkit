@@ -1,28 +1,15 @@
 // Verify effective Registry selection without real npm configuration or publication.
 import { spawnSync } from 'node:child_process';
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  existsSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync, symlinkSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../../platform.js';
+import { tempDir } from '../../temp.js';
 
-const roots: string[] = [];
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), 'fx-ci-publish-'));
-  roots.push(root);
+  const root = tempDir('fx-ci-publish-');
   for (const dir of ['scripts', 'src/adapters/registry', 'src/domain', 'bin'])
     mkdirSync(path.join(root, dir), { recursive: true });
   writeFileSync(

@@ -64,13 +64,18 @@ const codes = (stderr: string): string[] =>
 const forget = (home: string): void =>
   rmSync(path.join(home, 'cache'), { recursive: true, force: true });
 
+const json = ['--format', 'json'] as const;
+
+function initialized(): Stage {
+  const s = stage();
+  const boot = fx(['init', '--details', s.ws, '--from', s.manifest.bare, ...json], s.env);
+  expect(boot.status, boot.stderr).toBe(0);
+  return s;
+}
+
 describe('update notices', () => {
   it('report a manifest that moved upstream on any command, are settled by sync, and never change the result', () => {
-    const s = stage();
-    expect(
-      fx(['init', '--details', s.ws, '--from', s.manifest.bare, '--format', 'json'], s.env).status,
-    ).toBe(0);
-    const json = ['--format', 'json'];
+    const s = initialized();
 
     const current = fx(['status', ...json], s.env, s.ws);
     expect(current.status).toBe(0);
@@ -122,11 +127,12 @@ describe('update notices', () => {
     expect(codes(fx(['status', ...json], s.env, s.ws).stderr)).not.toContain('MANIFEST_OUTDATED');
     forget(s.home);
     expect(codes(fx(['status', ...json], s.env, s.ws).stderr)).not.toContain('MANIFEST_OUTDATED');
+  });
 
-    s.manifest.commit(
-      { 'skills/x/SKILL.md': '---\nname: x\ndescription: X again\n---\n' },
-      'again',
-    );
+  it('show in doctor as a manifest behind its upstream, unless doctor is told to stay quiet', () => {
+    const s = initialized();
+    s.manifest.commit({ 'README.md': 'moved\n' }, 'move');
+
     const doctor = fx(['doctor', '--details', ...json], s.env, s.ws).json() as {
       findings: { group: string; id: string; level: string; fix?: string }[];
     };

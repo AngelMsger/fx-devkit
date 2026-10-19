@@ -1,16 +1,11 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { DeadlineProcess } from '../../../src/adapters/process/deadline-process.js';
 import { createContainer } from '../../../src/composition/container.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { tempDir } from '../../temp.js';
 
-const home = mkdtempSync(path.join(tmpdir(), 'fx-container-'));
-
-afterAll(() => rmSync(home, { recursive: true, force: true }));
+const home = tempDir('fx-container-');
 
 describe('a decorated process port', () => {
   it('bounds the commands of members that were built on the port', async () => {

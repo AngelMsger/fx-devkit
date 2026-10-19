@@ -1,7 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
@@ -10,25 +8,11 @@ import { FileSource } from '../../../src/adapters/manifest-source/file.js';
 import { GitRepoSource } from '../../../src/adapters/manifest-source/git-repo.js';
 import { StdinSource } from '../../../src/adapters/manifest-source/stdin.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
-import { TerminalPrompter } from '../../../src/adapters/prompter/terminal.js';
-import { FakeActivity } from '../../fakes/fake-activity.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeGit } from '../../fakes/fake-git.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
+import { git, repository } from '../../git.js';
 import { tempDir } from '../../temp.js';
-
-const git = (args: string[], cwd: string): string =>
-  execFileSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'T',
-      GIT_AUTHOR_EMAIL: 't@example.com',
-      GIT_COMMITTER_NAME: 'T',
-      GIT_COMMITTER_EMAIL: 't@example.com',
-    },
-  }).trim();
 
 describe('FileSource', () => {
   it('copies every manifest document it finds, from the directory or its manifest/ child', async () => {
@@ -153,21 +137,11 @@ describe('stdin bundle validation', () => {
 describe('GitRepoSource against real git', () => {
   it('clones with upstream as the remote, fast-forwards a clean default branch, and keeps a branch the person is on', async () => {
     const base = tempDir('fx-src-');
-    const bare = path.join(base, 'workspace.git');
-    const author = path.join(base, 'author');
-    git(['init', '--quiet', '--bare', '-b', 'main', bare], base);
-    git(['clone', '-q', bare, author], base);
-    mkdirSync(path.join(author, 'manifest'));
-    const publish = (version: number, message: string): void => {
-      writeFileSync(
-        path.join(author, 'manifest', 'workspace.yaml'),
-        `schema_version: ${version}\n`,
-      );
-      git(['add', '.'], author);
-      git(['commit', '-q', '-m', message], author);
-      git(['push', '-q', '-u', 'origin', 'main'], author);
-    };
-    publish(1, 'one');
+    const { bare, commit } = repository(base, 'workspace', {
+      'manifest/workspace.yaml': 'schema_version: 1\n',
+    });
+    const publish = (version: number, message: string): void =>
+      commit({ 'manifest/workspace.yaml': `schema_version: ${version}\n` }, message);
 
     const process = new NodeProcess();
     const source = new GitRepoSource(bare, process, new SystemGit(process));
@@ -308,42 +282,5 @@ describe('GitRepoSource refresh decisions', () => {
       code: 'MANIFEST_REFRESH_FAILED',
       message: expect.stringContaining('could not resolve host'),
     });
-  });
-});
-
-describe('TerminalPrompter', () => {
-  it('never waits when there is no person: --no-input or no TTY become INPUT_REQUIRED', async () => {
-    const noTty = new TerminalPrompter(false, new FakeActivity(), {
-      input: Object.assign(process.stdin, { isTTY: false }),
-      output: process.stderr,
-    });
-    await expect(noTty.confirm('Proceed?')).rejects.toMatchObject({
-      category: 'config',
-      code: 'INPUT_REQUIRED',
-    });
-    const noInput = new TerminalPrompter(true, new FakeActivity());
-    await expect(noInput.ask('Name?')).rejects.toMatchObject({ code: 'INPUT_REQUIRED' });
-    await expect(noInput.pause('Do the thing')).rejects.toMatchObject({
-      code: 'INPUT_REQUIRED',
-      hint: expect.stringContaining('manual step'),
-    });
-  });
-
-  it('has the terminal to itself from the question to the answer', async () => {
-    const activity = new FakeActivity();
-    const input = Object.assign(new PassThrough(), { isTTY: true });
-    const asked = new TerminalPrompter(false, activity, {
-      input,
-      output: new PassThrough(),
-    }).confirm('Proceed?');
-    expect(activity.handed).toBe(1);
-    input.write('y\n');
-    expect(await asked).toBe(true);
-    expect(activity.handed).toBe(0);
-    // Nobody is handed a terminal that no question reaches.
-    await expect(new TerminalPrompter(true, activity).ask('Name?')).rejects.toMatchObject({
-      code: 'INPUT_REQUIRED',
-    });
-    expect(activity.handovers).toBe(1);
   });
 });

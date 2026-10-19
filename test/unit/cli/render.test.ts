@@ -1,27 +1,15 @@
-import { Writable } from 'node:stream';
-
 import { describe, expect, it } from 'vitest';
 
 import { PLAIN } from '../../../src/cli/render/display.js';
 import { createRenderer, FORMATS } from '../../../src/cli/render/index.js';
 import { DevkitError } from '../../../src/domain/errors.js';
+import { CaptureStream } from '../../fakes/capture-stream.js';
 import { FakeTerminal } from '../../fakes/fake-terminal.js';
 
-function sink(): { stream: Writable; text: () => string } {
-  const chunks: string[] = [];
-  const stream = new Writable({
-    write(chunk, _encoding, callback) {
-      chunks.push(String(chunk));
-      callback();
-    },
-  });
-  return { stream, text: () => chunks.join('') };
-}
-
 function io() {
-  const out = sink();
-  const err = sink();
-  return { io: { out: out.stream, err: err.stream }, out: out.text, err: err.text };
+  const out = new CaptureStream();
+  const err = new CaptureStream();
+  return { io: { out, err }, out: () => out.text(), err: () => err.text() };
 }
 
 const notice = {
@@ -208,9 +196,9 @@ describe('human renderer on a terminal', () => {
   });
 
   it('decides each stream on its own: piped data stays plain beside a decorated stderr', () => {
-    const out = sink();
+    const out = new CaptureStream();
     const err = new FakeTerminal();
-    const r = createRenderer('human', { out: out.stream, err, env: {}, platform: 'darwin' });
+    const r = createRenderer('human', { out, err, env: {}, platform: 'darwin' });
     r.list([{ name: 'api', state: 'ready' }]);
     r.notice({ code: 'SCOPE_UNSET', message: 'Everything is selected' });
     expect(out.text()).toBe('name  state\n----  -----\napi   ready\n');
@@ -221,8 +209,8 @@ describe('human renderer on a terminal', () => {
 
   it('keeps data plain and the error an envelope when only stdout faces a person', () => {
     const out = new FakeTerminal();
-    const err = sink();
-    const r = createRenderer('human', { out, err: err.stream, env: {}, platform: 'darwin' });
+    const err = new CaptureStream();
+    const r = createRenderer('human', { out, err, env: {}, platform: 'darwin' });
     r.error(new DevkitError('usage', 'BAD_FLAG', 'no such flag'));
     expect(JSON.parse(err.text()).error.code).toBe('BAD_FLAG');
   });
