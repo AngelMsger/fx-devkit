@@ -38,6 +38,11 @@ describe('stderrReason', () => {
     expect(
       stderrReason('{\n  "errcode": 850003,\n  "errmsg": "authorization expired"\n}\n', 1),
     ).toBe('authorization expired');
+    const rancher =
+      'Error from server (Forbidden): {"Code":{"Code":"Forbidden","Status":403},"Message":"User \\"system:unauthenticated\\" cannot get clusters"}';
+    expect(stderrReason(rancher, 1)).toBe(
+      'Error from server (Forbidden): User "system:unauthenticated" cannot get clusters',
+    );
   });
 
   it('shortens a reason that would not fit a report row', () => {

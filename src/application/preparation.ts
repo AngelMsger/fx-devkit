@@ -130,6 +130,30 @@ export function noAnswerAction(
   };
 }
 
+// What a person does about a server that did not answer from this machine: reach the
+// network it is served on, then check again.
+export function unreachableAction(
+  deps: Workspace,
+  step: Pick<SetupStep, 'id' | 'tool' | 'env'>,
+): PreparationAction {
+  return {
+    id: `reach:${step.id}`,
+    actor: 'user',
+    description: `Connect to the network ${step.tool} is served on, then check again`,
+    argv: [
+      'fx',
+      'doctor',
+      '--tool',
+      step.tool,
+      ...(step.env ? ['--env', step.env] : []),
+      '--workspace',
+      deps.ctx.name,
+    ],
+    cwd: deps.ctx.root,
+    requires_approval: false,
+  };
+}
+
 export function repairAction(deps: Workspace): PreparationAction {
   return {
     id: 'repair-managed-resources',

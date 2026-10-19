@@ -513,7 +513,7 @@ describe('Sync and the fork remote', () => {
     });
   });
 
-  it('lists the manifest checkout, gives it its fork, and leaves the pull to the refresh', async () => {
+  it('lists the manifest checkout with what its refresh did, and gives it its fork', async () => {
     const source = 'ssh://git@git.example.com:12345/fx/fx-workspace.git';
     const h = await harness({
       source,
@@ -527,7 +527,11 @@ describe('Sync and the fork remote', () => {
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
     });
-    const out = await sync(h.deps).execute(run);
+    const out = await sync(h.deps).execute({
+      ...run,
+      manifest: { result: 'kept', reason: 'uncommitted changes on chore/x', source },
+    });
+    expect(out.items[1]?.reason).toBe('kept as it is: uncommitted changes on chore/x');
     expect(
       out.items.map((i) => [i.name, i.action, i.outcome ?? null, i.origin_added ?? false]),
     ).toEqual([

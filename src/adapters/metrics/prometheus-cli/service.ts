@@ -11,11 +11,20 @@ export const BINARY = 'prometheus-cli';
 
 // `auth status` exits zero when the server does not answer, so only `authenticated` tells.
 // Its own request timeout stays under fx's check deadline: a server that never answers is
-// then the companion's verdict rather than a check fx had to abandon.
+// then the companion's verdict rather than a check fx had to abandon. prometheus-cli says
+// `request to <url> failed` only when no HTTP answer came back at all.
 export function answers(scope: readonly string[]): SetupCheck {
   return {
     command: [...scope, '--timeout', '10s', 'auth', 'status', '--format', 'json'],
     json: { path: 'authenticated', equals: true, reason: 'error' },
+    failures: [
+      {
+        cause: 'network',
+        stdout: '"error":\\s*"request to [^"]* failed"',
+        instructions:
+          'The server did not answer from this machine. Connect to the network it is served on, then check again; no sign-in is involved.',
+      },
+    ],
   };
 }
 

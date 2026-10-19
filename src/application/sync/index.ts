@@ -9,6 +9,7 @@ import {
 import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
 import type { FastForwardOutcome } from '../../ports/git.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
+import type { RefreshManifestOutput } from '../manifest/refresh.js';
 import { pooled } from '../pool.js';
 import { workspacePreparation, type StageResult, type StageSummary } from '../preparation.js';
 import { assertWritable } from '../safety/posture.js';
@@ -159,7 +160,7 @@ export class Sync {
       enter('apply', plan.filter(picked).length);
       return await pooled(plan, input.jobs, async (item) =>
         picked(item)
-          ? tally.unit(item.name, () => this.apply(item))
+          ? tally.unit(item.name, () => this.apply(item, input.manifest))
           : { ...item, result: 'skipped' as const },
       );
     } finally {
@@ -168,7 +169,10 @@ export class Sync {
     }
   }
 
-  private async apply(item: PlanItem): Promise<SyncItem> {
+  private async apply(
+    item: PlanItem,
+    manifest: RefreshManifestOutput | undefined,
+  ): Promise<SyncItem> {
     const { git, reporter } = this.deps;
     const dir = checkoutDir(this.deps, item);
     reporter.progress({ id: item.name, state: 'start', detail: item.action });
@@ -202,8 +206,11 @@ export class Sync {
         });
         return { ...item, ...added, result, outcome };
       }
-      reporter.progress({ id: item.name, state: 'skip', detail: item.reason ?? item.action });
-      return { ...item, ...added, result: 'skipped' };
+      // The manifest checkout's row says what the refresh before this sync did with it.
+      const reason =
+        (item.action === 'skip_manifest' ? manifestReason(manifest) : undefined) ?? item.reason;
+      reporter.progress({ id: item.name, state: 'skip', detail: reason ?? item.action });
+      return { ...item, ...added, result: 'skipped', ...(reason === undefined ? {} : { reason }) };
     } catch (err) {
       const failure = toEnvelope(asDevkitError(err)).error;
       const message = failure.message;
@@ -220,6 +227,23 @@ function absenceReason(outcome: FastForwardOutcome, branch: string): string | un
   if (outcome === 'no_remote_branch')
     return `upstream has no ${branch} branch; check the branch the manifest tracks`;
   return undefined;
+}
+
+function manifestReason(refresh: RefreshManifestOutput | undefined): string | undefined {
+  switch (refresh?.result) {
+    case 'updated':
+      return 'refreshed from upstream before the workspace loaded';
+    case 'up_to_date':
+      return 'already matched upstream';
+    case 'kept':
+      return `kept as it is: ${refresh.reason ?? 'local work'}`;
+    case 'planned':
+      return 'would be refreshed before the workspace loads';
+    case 'unavailable':
+    case 'static':
+    case undefined:
+      return undefined;
+  }
 }
 
 function repositorySummary(items: readonly SyncItem[]): SyncOutput['summary'] {

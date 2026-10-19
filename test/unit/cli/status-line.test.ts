@@ -238,6 +238,34 @@ describe('a status line', () => {
     expect(screen(terminal)).toHaveLength(3);
   });
 
+  it('leaves what the closing view restates to it, and is said only into silence', () => {
+    const terminal = new FakeTerminal(100, false);
+    const renderer = createRenderer('human', {
+      out: new FakeTerminal(),
+      err: terminal,
+      ...SYMBOLS,
+    });
+    const status = renderer.status!;
+    status.start('sync');
+    status.fold({ outcomes: ['done'], notices: ['SYNC_PARTIAL'] });
+    status.counted('repos', { phase: 'apply', total: 3, completed: 0, active: ['api'] });
+    status.waiting({ label: 'git', mayAsk: true });
+    renderer.progress({ id: 'api', state: 'done', detail: 'updated' });
+    renderer.notice({ code: 'SYNC_PARTIAL', message: '1 repository could not be synced' });
+    vi.advanceTimersByTime(4_000);
+    renderer.progress({ id: 'web', state: 'fail', detail: 'unreachable' });
+    // Five seconds after the start, but one after a line that already showed fx working.
+    vi.advanceTimersByTime(1_100);
+    expect(screen(terminal)).toEqual([`✗ ${'web'.padEnd(24)} fail  unreachable`, '']);
+    vi.advanceTimersByTime(4_000);
+    expect(screen(terminal)).toEqual([
+      `✗ ${'web'.padEnd(24)} fail  unreachable`,
+      expect.stringMatching(/^. sync 9s {2}repos apply 0\/3 {2}api 9s$/),
+      '',
+    ]);
+    status.stop();
+  });
+
   it('lets every record through as a line while it is not running', () => {
     const terminal = new FakeTerminal(100, false);
     const renderer = createRenderer('human', {

@@ -1,8 +1,9 @@
 // What a failing tool's stderr means. A family tool writes its `_notice`/`_progress`
 // lines first and its error envelope last, each a JSON object that may be pretty-
 // printed. Any other tool is read by its own words: the message of the error object
-// it printed, or where it failed and why, its first two lines of text once log
-// records and warnings are set aside.
+// it printed, alone or after a prefix such as kubectl's `Error from server (Forbidden):`,
+// or where it failed and why, its first two lines of text once log records and
+// warnings are set aside.
 
 import { isRecord } from '../values.js';
 
@@ -16,16 +17,37 @@ export function stderrReason(stderr: string, code: number): string {
   const { objects, text } = splitJsonObjects(stderr);
   const message = errorEnvelopeOf(objects)?.['message'];
   if (typeof message === 'string') return message;
-  return shorten(statedMessage(objects) ?? textReason(text) ?? `exit ${code}`);
+  return shorten(
+    statedMessage(objects) ?? prefixedMessage(text) ?? textReason(text) ?? `exit ${code}`,
+  );
 }
 
 // A wrapper around a remote API may print that service's error object as it is.
 function statedMessage(objects: readonly Record<string, unknown>[]): string | undefined {
-  for (const object of [...objects].reverse())
-    for (const key of MESSAGE_KEYS) {
-      const value = object[key];
-      if (typeof value === 'string' && value !== '') return value;
-    }
+  for (const object of [...objects].reverse()) {
+    const message = messageOf(object);
+    if (message !== undefined) return message;
+  }
+  return undefined;
+}
+
+function prefixedMessage(text: string): string | undefined {
+  for (const line of text.split('\n')) {
+    const at = line.indexOf('{');
+    if (at <= 0) continue;
+    const object = parseObject(line.slice(at));
+    const message = object === undefined ? undefined : messageOf(object);
+    if (message !== undefined) return `${line.slice(0, at).trim()} ${message}`;
+  }
+  return undefined;
+}
+
+// Services spell the key their own way, `Message` as well as `message`.
+function messageOf(object: Record<string, unknown>): string | undefined {
+  for (const key of MESSAGE_KEYS) {
+    const value = Object.entries(object).find(([name]) => name.toLowerCase() === key)?.[1];
+    if (typeof value === 'string' && value !== '') return value;
+  }
   return undefined;
 }
 

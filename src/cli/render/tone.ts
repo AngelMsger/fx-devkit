@@ -53,6 +53,7 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
   ],
   // Nothing happened, or nothing applies.
   quiet: [
+    'current',
     'skipped',
     'skip',
     'skip_unpicked',

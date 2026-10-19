@@ -32,7 +32,9 @@ Initialization summaries retain selected repository, guide and Skill outcomes,
 along with setup results, so callers can verify effects without extra discovery.
 The setup stage retains completed outcomes in summary mode so callers do not
 repeat local side effects while another step needs human input.
-Only required blockers prevent readiness. Actions contain `actor`, `id`, `description`,
+Only required blockers prevent readiness. A blocker may carry `cause` (`credential`,
+`permission`, `network`) and `waits_on`, the blocker it waited on unchecked; resolve
+that one first. Actions contain `actor`, `id`, `description`,
 `argv`, `cwd` and `requires_approval`, with optional `env` coordinates for the
 current configuration/home and Agent selection. Preserve these values and use
 the returned exact executable. Credentials are never included.
@@ -398,8 +400,9 @@ on stderr. Results distinguish `handoff`, `blocked`, `failed` and `not_started`;
 completed steps remain visible. After a sign-in, the same tool's earlier `failed` rows
 are checked again and `blocked` ones whose prerequisite now passes are attempted. A
 row passing on recheck is `verified` with a `detail` naming the sign-in; one still
-failing keeps its result and adds `recheck` (`after`, `detail`, optional `code`). Handoff rows include the required action, and
-service preparation rows retain available `failure` and `next_steps` fields.
+failing keeps its result and adds `recheck` (`after`, `detail`, optional `code`).
+Handoff rows include the required action, and service preparation rows retain
+available `failure` and `next_steps` fields.
 After resolving the blocker, repeat the same invocation: setup verifies current
 state before rerunning actions. Parse stdout on a nonzero exit whenever it is
 present. `self update` also captures installer output so its stdout remains
@@ -437,6 +440,8 @@ recover an executable that cannot start.
    vectors; it is not just a prompt suppressor. If only part is authorized,
    use the companion's supported scoped operation, keeping the same trust
    boundary. Inspect `failed`, `blocked`, `skipped` rows and setup problems.
+   Bundled `phase: prepare` steps, such as reusing an existing login, run in
+   `fx login` without `--yes` even with `--no-input`, as they do in init and sync.
 3. **Hand off only the human part.** Prepare supported local configuration and
    start an authorized login flow when useful; leave QR/device/browser consent,
    obtaining access and new vector approval to the person. For manual/file

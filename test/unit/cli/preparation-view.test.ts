@@ -7,7 +7,7 @@ import type {
   PlannedSetupStep,
 } from '../../../src/application/init/types.js';
 import type { StepRow } from '../../../src/application/login/run.js';
-import type { StageDetails } from '../../../src/application/sync/types.js';
+import type { StageDetails, SyncItem } from '../../../src/application/sync/types.js';
 import type { ToolInstallOutput } from '../../../src/application/tool/install.js';
 import { preparationText } from '../../../src/cli/preparation-view.js';
 import { displayOf, PLAIN, type Display } from '../../../src/cli/render/display.js';
@@ -61,7 +61,9 @@ it('names what is blocked once per cause and gives one sign-in command per tool,
     ],
     action('agent', 'node', '/tools with spaces/fx.js', 'init', '--resume', '--workspace', 'work'),
   );
-  expect(text.split('\n')[0]).toBe('work needs attention: 3 required checks are not ready');
+  expect(text.split('\n')[0]).toBe(
+    'work needs attention: 3 required checks are not ready, in 2 groups',
+  );
   expect(text).toContain('  login:logs-cli.credential@dev (+1 more)  exit 1\n');
   expect(text).toContain('  login:chat-cli.access                    exit 1\n');
   expect(text).toContain(
@@ -278,6 +280,43 @@ it('previews what an initialization installs, replaces and runs, naming each com
   ]);
 });
 
+it('says what each stage did under the verdict, leaving out what says nothing happened', () => {
+  const repo = (name: string, extra: Pick<SyncItem, 'action' | 'result'> & Partial<SyncItem>) => ({
+    name,
+    path: name,
+    branch: 'main',
+    fetch: false,
+    ...extra,
+  });
+  const synced = {
+    preparation: preparation({ scope: preparationScope('work'), checks: [] }),
+    items: [
+      repo('api', { action: 'fast_forward', result: 'done', outcome: 'updated' }),
+      repo('web', { action: 'fast_forward', result: 'done', outcome: 'up_to_date' }),
+      repo('new', { action: 'fast_forward', result: 'skipped', outcome: 'empty_remote' }),
+      repo('spare', { action: 'skip_unpicked', result: 'skipped' }),
+      repo('fx-workspace', {
+        action: 'skip_manifest',
+        result: 'skipped',
+        reason: 'kept as it is: on chore/x, not main; its commits are already in upstream/main',
+      }),
+    ],
+    stages: {
+      docs: { created: 0, updated: 0, unchanged: 1 },
+      skills: { unchanged: 3, tools_run: 7, tools_failed: 0 },
+    },
+  };
+  const text = preparationText(synced, { shell: 'posix', display: PLAIN });
+  expect(text.split('\n')).toEqual([
+    'Required preparation verified: work',
+    'Scope: ',
+    'Repositories  3: 1 updated, 1 up to date, 1 skipped (new)',
+    'Manifest      kept as it is: on chore/x, not main; its commits are already in upstream/main',
+    'Skills        7 tools run',
+    '',
+  ]);
+});
+
 it('says so when the source of a previewed initialization has not been read', () => {
   const text = preparationText(
     { preparation: planned, ...initialization(standing, false) },
@@ -329,4 +368,48 @@ it('names the setup steps of a first sync whose check passes, and none of a setu
   );
   const failure = toEnvelope(new DevkitError('config', 'SETUP_PLAN_INVALID', 'Invalid plan')).error;
   expect(after({ failure })).toBe('Ready to work: /work\n');
+});
+
+it('groups blockers by what the person is to do and names a waiting check under its cause', () => {
+  const login = action('user', 'fx', 'login', 'logs-cli', '--workspace', 'work', '--env', 'dev');
+  const recheck = action('user', 'fx', 'doctor', '--tool', 'metrics-cli', '--env', 'test');
+  const text = view([
+    preparationCheck('login:logs-cli.reuse@dev', 'blocked', 'Reuse: no stored login is visible', {
+      code: 'CREDENTIAL_NOT_VISIBLE_OR_MISSING',
+      failure: {
+        category: 'config',
+        code: 'CREDENTIAL_NOT_VISIBLE_OR_MISSING',
+        message: 'no stored login is visible',
+        hint: 'Retry with access to the host keychain.',
+        next_steps: [],
+        retryable: false,
+      },
+    }),
+    preparationCheck('login:logs-cli.credential@dev', 'blocked', 'Sign in: reuse@dev is not done', {
+      waits_on: 'login:logs-cli.reuse@dev',
+      actions: [login],
+    }),
+    preparationCheck('login:logs-cli.credential@prod', 'blocked', 'Sign in: HTTP 401', {
+      cause: 'credential',
+      actions: [login],
+    }),
+    preparationCheck('login:metrics-cli.access@test', 'blocked', 'Reach: request failed', {
+      cause: 'network',
+      actions: [recheck],
+    }),
+  ]);
+  expect(text.split('\n')[0]).toBe(
+    'work needs attention: 4 required checks are not ready, in 3 groups',
+  );
+  expect(text).toContain(
+    [
+      'Sign-in or credentials:',
+      '  login:logs-cli.credential@prod  Sign in: HTTP 401',
+      'Not reachable from this machine:',
+      '  login:metrics-cli.access@test   Reach: request failed',
+      'Other:',
+      '  login:logs-cli.reuse@dev        Reuse: no stored login is visible (CREDENTIAL_NOT_VISIBLE_OR_MISSING)',
+      '                                  holds back login:logs-cli.credential@dev',
+    ].join('\n'),
+  );
 });

@@ -192,7 +192,9 @@ describe('GitRepoSource refresh decisions', () => {
   const source = (fake: FakeGit): GitRepoSource =>
     new GitRepoSource(
       'ssh://git@git.example.com/fx/fx-workspace.git',
-      new FakeProcess().on(['git', '-C', dir, 'ls-files'], { code: 0, stdout: '', stderr: '' }),
+      new FakeProcess()
+        .on(['git', '-C', dir, 'ls-files'], { code: 0, stdout: '', stderr: '' })
+        .on(['git', '-C', dir, 'merge-base'], { code: 1, stdout: '', stderr: '' }),
       fake,
     );
 
@@ -227,6 +229,17 @@ describe('GitRepoSource refresh decisions', () => {
     expect(await source(elsewhere).refresh(dir)).toMatchObject({
       result: 'kept',
       reason: 'local commits on main diverge from upstream; its ref was not moved',
+    });
+    const merged = new GitRepoSource(
+      'ssh://git@git.example.com/fx/fx-workspace.git',
+      new FakeProcess()
+        .on(['git', '-C', dir, 'ls-files'], { code: 0, stdout: '', stderr: '' })
+        .on(['git', '-C', dir, 'merge-base'], { code: 0, stdout: '', stderr: '' }),
+      new FakeGit().add(dir, { state: { ...clean, branch: 'chore/x', dirty: true } }),
+    );
+    expect(await merged.refresh(dir)).toMatchObject({
+      result: 'kept',
+      reason: 'uncommitted changes on chore/x; its commits are already in upstream/main',
     });
     const unpushed = new FakeGit().add(dir, { state: clean, fastForward: 'empty_remote' });
     expect(await source(unpushed).refresh(dir)).toMatchObject({

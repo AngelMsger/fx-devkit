@@ -52,6 +52,28 @@
   host, as repository synchronization does. Under another locale a file missing from
   a branch was reported as a failed query, because git's translated message went
   unrecognised. A git that cannot be started there is now `TOOL_MISSING`.
+- Close `fx sync` and `fx init` with one line per stage before the verdict: the
+  repositories updated, already current, skipped and failed, by name; what the
+  manifest refresh did; and the counts other stages report. In a terminal each
+  success is counted on the status line instead of printed, and so is the
+  `SYNC_PARTIAL` notice the closing view repeats; `--verbose` prints them, and a
+  pipe or JSON still receives every record. The status line printed under a Git
+  call no longer repeats itself while other lines keep coming.
+- Group sync and init blockers by what resolves them: a sign-in or credentials,
+  access refused, or a server this machine cannot reach, which now gets the command
+  that checks it again instead of `fx login`; a Prometheus server that does not
+  answer counts as unreachable. A check that waited on another blocker is named
+  under it instead of counted apart, a companion's error code follows its message,
+  and a preparation step whose companion says a retry will not help no longer
+  suggests `fx doctor --fix`. Preparation checks gain `cause` and `waits_on`.
+- Run the bundled step that reuses an existing login in `fx login` without asking
+  and off the terminal, as init and sync do, also with `--no-input`. Its failure
+  keeps the companion's message and code instead of `exit 3`, and the companion's
+  JSON no longer lands on the terminal; fx asks only before a sign-in.
+- Show only non-zero counts and no empty `problems` under the human `fx login`
+  table, and leave the `LOGIN_SUMMARY` notice that repeats them to JSON and pipes.
+  A passing check says what it established, such as `authenticated is true`,
+  instead of repeating its command.
 
 ### Fixed
 
@@ -80,6 +102,11 @@
   step now passing are attempted, so environments sharing a stored login no longer
   stay failed or blocked in the summary. No setup action runs a second time; a check
   that still fails keeps its result and says what it found under `recheck`.
+- Say what became of the manifest checkout in its sync row instead of always
+  "refreshed": refreshed, already current, or kept with the reason, adding when the
+  commits of the branch it was kept on are already upstream.
+- Read the reason a failing check prints inside a JSON object after a prefix, such
+  as kubectl's `Error from server (Forbidden): {…}`, instead of quoting the object.
 
 ## 0.11.0 (2026-10-12)
 

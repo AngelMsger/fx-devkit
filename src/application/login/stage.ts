@@ -4,11 +4,21 @@
 import path from 'node:path';
 
 import type { HandoffStep } from '../../domain/errors.js';
-import { preparationCheck, type PreparationAction } from '../../domain/preparation.js';
+import {
+  preparationCheck,
+  type PreparationAction,
+  type PreparationCheck,
+} from '../../domain/preparation.js';
 import type { Finding } from '../../domain/report.js';
 import { gaveNoAnswer, unansweredSteps } from '../../domain/setup/progress.js';
-import { isLocalPreparation, type SetupStep } from '../../domain/setup/types.js';
-import { noAnswerAction, resumeAction, verifyAction, type StageResult } from '../preparation.js';
+import { isLocalPreparation, type CheckCause, type SetupStep } from '../../domain/setup/types.js';
+import {
+  noAnswerAction,
+  resumeAction,
+  unreachableAction,
+  verifyAction,
+  type StageResult,
+} from '../preparation.js';
 import type { WritePosture } from '../safety/posture.js';
 import { workspaceToolScope } from '../tool/scope.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
@@ -47,31 +57,14 @@ export async function prepareWorkspaceSetup(
     summary: output.summary,
     details: { items: output.items, problems: output.problems },
     checks: [
-      ...output.items.map((item) => {
-        const step = plan.steps.find((step) => step.id === item.id)!;
-        const ready = isSettled(item.result);
-        const unknown = unanswered.has(item.id);
-        const expected = ready || unknown ? undefined : expectedFile(deps, step, login.home);
-        const detail = `${item.title}: ${item.detail ?? item.result}${expected === undefined ? '' : `; expected ${expected}`}`;
-        const pending = unknown ? 'unknown' : 'blocked';
-        return preparationCheck(`login:${item.id}`, ready ? 'ready' : pending, detail, {
-          resource: item.id,
+      ...output.items.map((item) =>
+        stepCheck(deps, login, item, {
+          step: plan.steps.find((step) => step.id === item.id)!,
           required: scope.required.has(item.tool),
-          owner: unknown || isLocalPreparation(step) ? 'agent' : 'user',
-          ...(ready
-            ? {}
-            : {
-                actions:
-                  item.actions ??
-                  actionsFor(deps, step, login.home, {
-                    item,
-                    unknown,
-                    initializing: input.initializing,
-                  }),
-              }),
-          ...(item.failure ? { failure: item.failure, code: item.failure.code } : {}),
-        });
-      }),
+          unknown: unanswered.has(item.id),
+          initializing: input.initializing,
+        }),
+      ),
       ...output.problems.map((problem) =>
         preparationCheck(`setup:${problem.step}`, 'blocked', problem.detail, {
           owner: 'maintainer',
@@ -81,7 +74,53 @@ export async function prepareWorkspaceSetup(
   };
 }
 
+// One step's row as a preparation check, keeping why it is pending and what it waits on.
+function stepCheck(
+  deps: WorkspaceDeps,
+  login: LoginDeps,
+  item: StepRow,
+  context: {
+    readonly step: SetupStep;
+    readonly required: boolean;
+    readonly unknown: boolean;
+    readonly initializing: boolean;
+  },
+): PreparationCheck {
+  const { step, unknown } = context;
+  const ready = isSettled(item.result);
+  const expected = ready || unknown ? undefined : expectedFile(deps, step, login.home);
+  const detail = `${item.title}: ${item.detail ?? item.result}${expected === undefined ? '' : `; expected ${expected}`}`;
+  const pending = unknown ? 'unknown' : 'blocked';
+  const check = ready ? undefined : item.handoff?.check;
+  const cause = check?.result === 'failed' ? check.cause : undefined;
+  const { initializing } = context;
+  return preparationCheck(`login:${item.id}`, ready ? 'ready' : pending, detail, {
+    resource: item.id,
+    required: context.required,
+    owner: unknown || (isLocalPreparation(step) && !settled(item)) ? 'agent' : 'user',
+    ...(cause === undefined ? {} : { cause }),
+    ...(check?.result === 'blocked' ? { waits_on: `login:${check.by}` } : {}),
+    ...(ready
+      ? {}
+      : {
+          actions:
+            item.actions ??
+            actionsFor(deps, step, login.home, { item, unknown, cause, initializing }),
+        }),
+    ...(item.failure ? { failure: item.failure, code: item.failure.code } : {}),
+  });
+}
+
+// A preparation step whose companion said running it again will not help is the person's:
+// repairing it would repeat the failure, and signing in would wait on it again. What
+// resolves it is the companion's own recovery, which its failure carries.
+function settled(item: Pick<StepRow, 'failure'>): boolean {
+  return item.failure !== undefined && !item.failure.retryable;
+}
+
 // A check that gave no answer offers its own recovery; a step waiting on it offers none.
+// A server that cannot be reached is checked again once the network is back; no sign-in
+// would change it.
 function actionsFor(
   deps: WorkspaceDeps,
   step: SetupStep,
@@ -89,15 +128,18 @@ function actionsFor(
   row: {
     readonly item: Pick<StepRow, 'failure' | 'handoff'>;
     readonly unknown: boolean;
+    readonly cause: CheckCause | undefined;
     readonly initializing: boolean;
   },
 ): PreparationAction[] {
   const code = row.item.failure?.code;
   if (code !== undefined && gaveNoAnswer(code)) return [noAnswerAction(deps, step, code)];
   if (row.unknown) return [];
+  if (row.cause === 'network') return [unreachableAction(deps, step)];
   if (!isLocalPreparation(step) && code === 'VECTOR_UNTRUSTED')
     return [verifyAction(deps, step.tool)];
   const { initializing, item } = row;
+  if (isLocalPreparation(step) && settled(item)) return [];
   return setupActions(deps, step, home, { initializing, handoff: item.handoff });
 }
 

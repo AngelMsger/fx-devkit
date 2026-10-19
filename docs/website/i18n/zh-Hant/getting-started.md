@@ -143,6 +143,8 @@ fx env select --all
 
 sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。空的 upstream 會被略過，因為沒有可 fast-forward 的內容；缺少被追蹤分支的 upstream 同樣會被略過，但會作為需要檢查的問題回報。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
 
+在終端機裡，sync 和 init 只顯示需要關注的儲存庫或 Skill 列，成功的由狀態列計數。兩者最後都按階段各給一列結論，再按解決方式分組列出阻擋項：登入、服務拒絕的存取，或本機連不上的伺服器，後者會給出重新檢查的命令。`--verbose` 會顯示每一列，管道或 `--format json` 仍會收到全部列。
+
 ## 核心概念 {#concepts}
 
 ### 工作區和 manifest {#the-workspace-and-the-manifest}
@@ -313,7 +315,7 @@ Agent 探索包括 Claude Code、Codex CLI、Cursor 等已註冊宿主。Skill�
 
 ### 人工接手後恢復登入 {#resume-login-after-a-handoff}
 
-`login` 需要人工輸入時，先完成已授權的 handoff，再重跑同一命令。fx 會先檢查目前狀態，再決定是否重複操作；之後重新執行原先的 `can` 或 `doctor` 檢查，繼續原任務。
+`login` 需要人工輸入時，先完成已授權的 handoff，再重跑同一命令。fx 會先檢查目前狀態，再決定是否重複操作；之後重新執行原先的 `can` 或 `doctor` 檢查，繼續原任務。與 init 和 sync 一樣，`login` 會直接執行重用現有登入的內建步驟，即使帶 `--no-input` 也不詢問；只有登入前才會詢問。
 
 機器呼叫端在非零結束時，也要同時讀取部分 stdout 與 stderr 錯誤。已完成步驟仍保留；`handoff`、`blocked`、`failed`、`not_started` 區分後續工作。彙總、計畫問題與步驟復原欄位見[登入回應契約](../skills/fx-workspace/references/commands.md#readiness-and-recovery)。
 

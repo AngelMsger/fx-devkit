@@ -292,7 +292,12 @@ export class Login {
     input: RunInput,
     blocker: string | undefined,
   ): Promise<StepOutcome> {
-    if (blocker !== undefined) return { result: 'blocked', detail: `${blocker} is not done` };
+    if (blocker !== undefined)
+      return {
+        result: 'blocked',
+        detail: `${blocker} is not done`,
+        handoff: handoffStep(step, { blockedBy: blocker }),
+      };
     if (step.preparation) {
       const prepared = await new ServiceOperation(this.deps, this.setup).execute(step, {
         dryRun: input.dryRun,
@@ -334,7 +339,12 @@ export class Login {
     const { policy } = input;
     const vector = step.run ?? [];
     if (input.dryRun) return { result: 'would_run', detail: vector.join(' ') };
-    const confirms = policy.confirmsCommands && !this.deps.trust.yes;
+    // Local preparation runs the way init and sync run it: off the terminal, with a
+    // deadline, and for a bundled step without asking anyone.
+    const local = isLocalPreparation(step);
+    const runs = local ? POLICIES.prepare : policy;
+    const asks = !local || step.origin !== 'base';
+    const confirms = policy.confirmsCommands && asks && !this.deps.trust.yes;
     if (confirms && input.noInput)
       return {
         result: 'handoff',
@@ -356,15 +366,15 @@ export class Login {
     }
     this.deps.reporter.progress({ id: step.id, state: 'start', detail: vector.join(' ') });
     const run = await this.deps.process.run(expandHomeIn(vector, this.setup.home), {
-      interactive: policy.lendsTerminal && !input.noInput,
-      ...(policy.commandTimeoutMs === undefined ? {} : { timeoutMs: policy.commandTimeoutMs }),
+      interactive: runs.lendsTerminal && !input.noInput,
+      ...(runs.commandTimeoutMs === undefined ? {} : { timeoutMs: runs.commandTimeoutMs }),
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} setup` },
     });
     if (run.code !== 0) {
-      this.deps.reporter.progress({ id: step.id, state: 'fail', detail: `exit ${run.code}` });
       const failure = setupCommandFailure(run.stderr, run.code);
+      this.deps.reporter.progress({ id: step.id, state: 'fail', detail: failureLine(failure) });
       return { result: 'failed', detail: failure.message, failure, next_steps: failure.next_steps };
     }
     return this.settle(step, before.why);
@@ -446,6 +456,13 @@ function setupRequired(
       },
     },
   );
+}
+
+// A companion's own code says more than the generic one fx falls back to.
+function failureLine(failure: ErrorEnvelope['error']): string {
+  return failure.code === 'SETUP_COMMAND_FAILED'
+    ? failure.message
+    : `${failure.message} (${failure.code})`;
 }
 
 function row(step: SetupStep, outcome: StepOutcome): StepRow {

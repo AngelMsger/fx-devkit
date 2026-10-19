@@ -55,6 +55,6 @@ function describe(summary: Readonly<Record<string, number | string>>): string {
   return parts.length === 0 ? 'nothing to do' : parts.join(', ');
 }
 
-function nonZero(summary: Readonly<Record<string, number>>): Record<string, number> {
+export function nonZero(summary: Readonly<Record<string, number>>): Record<string, number> {
   return Object.fromEntries(Object.entries(summary).filter(([, n]) => n > 0));
 }

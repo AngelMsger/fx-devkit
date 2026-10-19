@@ -759,6 +759,49 @@ envs:
     });
     expect(logins).toEqual(['test']);
     expect(reuses, 'each association runs once').toEqual(['dev', 'prod']);
+    const association = h.process.calls.find(
+      ({ vector }) => vector.includes('reuse') && !vector.includes('--dry-run'),
+    );
+    expect(association?.options, 'local preparation stays off the terminal').toMatchObject({
+      interactive: false,
+      timeoutMs: 120000,
+    });
+    expect(h.reporter.progress_).toContainEqual({
+      id: 'openobserve-cli.reuse@dev',
+      state: 'fail',
+      detail: 'No stored login is visible (CREDENTIAL_NOT_VISIBLE_OR_MISSING)',
+    });
+  });
+});
+
+describe('fx login and local preparation', () => {
+  it('associates an existing login without asking, and asks before signing in', async () => {
+    const { h, login } = await fixture({ yes: false });
+    let associated = false;
+    h.process
+      .when((vector) => vector.includes('set-context'), UNCHANGED)
+      .when(
+        (vector) => vector.includes('reuse'),
+        (vector) => {
+          const changed = !associated;
+          if (!vector.includes('--dry-run')) associated = true;
+          return { code: 0, stdout: JSON.stringify({ changed }), stderr: '' };
+        },
+      )
+      .always({ code: 0, stdout: JSON.stringify({ configured: false }), stderr: '' });
+    h.prompter.confirmWith = false;
+    const out = await new Login(h.deps, login).execute({
+      dryRun: false,
+      noInput: false,
+      skipManual: false,
+      posture: h.deps.trust.posture,
+    });
+    expect(out.items.map((item) => [item.id, item.result])).toEqual([
+      ['bitbucket-cli.service', 'verified'],
+      ['bitbucket-cli.reuse', 'done'],
+      ['bitbucket-cli.credential', 'skipped'],
+    ]);
+    expect(h.prompter.questions).toEqual([expect.stringContaining('auth login')]);
   });
 });
 
