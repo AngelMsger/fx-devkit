@@ -18,20 +18,10 @@ const write = {
   posture: { readOnly: false, source: 'default' as const },
 };
 
-// A file system where /alias is a symbolic link to the root.
-const ALIAS = path.resolve('/alias');
-class AliasedFs extends FakeFs {
-  override async realpath(target: string): Promise<string> {
-    const normal = path.normalize(target);
-    const aliased = normal === ALIAS || normal.startsWith(ALIAS + path.sep);
-    return aliased ? ROOT + normal.slice(ALIAS.length) : normal;
-  }
-}
-
 // Every checkout comes from HOST; `forkHost` moves the one personal fork elsewhere.
 function stage(options: { commandShell?: 'cmd'; forkHost?: string } = {}) {
   const { forkHost = HOST, commandShell } = options;
-  const fs = AliasedFs.from({
+  const fs = FakeFs.from({
     [`${ROOT}/.gitmodules`]:
       '[submodule "agent-runtime"]\n\tpath = agent-runtime\n\turl = x\n\tbranch = integration\n',
     [`${ROOT}/docs/README.md`]: 'prose',
@@ -39,7 +29,7 @@ function stage(options: { commandShell?: 'cmd'; forkHost?: string } = {}) {
   });
   fs.mkdir(`${ROOT}/plain-empty`);
   fs.mkdir(HOST);
-  fs.mkdir(path.resolve('/alias'));
+  fs.links.set(path.resolve('/alias'), ROOT);
   const git = new FakeGit((dir) => fs.mkdir(dir));
   git.add(`${ROOT}/fx-example-api`, {
     remotes: {

@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { git } from '../../git.js';
 import { tempDir } from '../../temp.js';
 
 function check(file: string, text: string) {
@@ -14,8 +15,7 @@ function check(file: string, text: string) {
   const target = path.join(root, file);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, text);
-  const initialized = spawnSync('git', ['init', '-q'], { cwd: root, encoding: 'utf8' });
-  expect(initialized.status, initialized.stderr).toBe(0);
+  git(['init', '-q'], root);
   return spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8' });
 }
 const synthetic = 'ssh://git@git.example.com:12345/team/repo.git';

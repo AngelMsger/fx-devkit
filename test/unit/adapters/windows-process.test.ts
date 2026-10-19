@@ -133,7 +133,7 @@ describe('portable command execution', () => {
       timeoutMs: 5000,
     });
     const failure = expect(run).rejects.toMatchObject({ code: 'PROCESS_ABORTED' });
-    for (let n = 0; n < 100 && !existsSync(file); n++) await new Promise((r) => setTimeout(r, 20));
+    await until(() => existsSync(file));
     control.abort();
     await failure;
     const pid = Number(readFileSync(file, 'utf8'));

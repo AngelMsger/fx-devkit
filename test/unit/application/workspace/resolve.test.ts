@@ -11,18 +11,12 @@ const manifestDirFor = (name: string): string =>
   path.resolve(`/home/.fx/workspaces/${name}/source`);
 
 // A file system where /link/fx and /a-much-longer-alias are symbolic links.
-class LinkedFs extends FakeFs {
-  override async realpath(target: string): Promise<string> {
-    for (const [alias, real] of [
-      ['/link/fx', '/ws/fx'],
-      ['/a-much-longer-alias', '/ws'],
-    ]) {
-      const relative = path.relative(path.resolve(alias!), path.resolve(target));
-      if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative)))
-        return path.resolve(real!, relative);
-    }
-    return path.resolve(target);
-  }
+function linkedFs(): FakeFs {
+  const fs = new FakeFs();
+  fs.mkdir('/ws/fx');
+  fs.links.set(path.resolve('/link/fx'), path.resolve('/ws/fx'));
+  fs.links.set(path.resolve('/a-much-longer-alias'), path.resolve('/ws'));
+  return fs;
 }
 
 function resolve(overrides: {
@@ -95,15 +89,15 @@ describe('resolveWorkspace', () => {
   });
 
   it('follows symbolic links before comparing, on cwd and on the roots alike', async () => {
-    const { located } = await resolve({ cwd: path.resolve('/link/fx/deep'), fs: new LinkedFs() });
+    const { located } = await resolve({ cwd: path.resolve('/link/fx/deep'), fs: linkedFs() });
     expect(located.name).toBe('fx');
-    expect(
-      (await resolve({ name: path.resolve('/link/fx'), fs: new LinkedFs() })).located.name,
-    ).toBe('fx');
+    expect((await resolve({ name: path.resolve('/link/fx'), fs: linkedFs() })).located.name).toBe(
+      'fx',
+    );
     await expect(
       resolve({
         name: path.resolve('/link/fx'),
-        fs: new LinkedFs(),
+        fs: linkedFs(),
         config: new FakeConfigStore({
           workspaces: {
             fx: { root: path.resolve('/ws/fx') },
@@ -121,7 +115,7 @@ describe('resolveWorkspace', () => {
     const inner = await resolve({
       cwd: path.resolve('/ws/fx/repo'),
       config: aliased,
-      fs: new LinkedFs(),
+      fs: linkedFs(),
     });
     expect(inner.located).toMatchObject({
       name: 'fx',

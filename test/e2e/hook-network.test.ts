@@ -5,9 +5,10 @@ import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { writeNodeShim, gitExecutable, systemPath } from '../platform.js';
+import { writeNodeShim, gitExecutable } from '../platform.js';
+import { until } from '../waiting.js';
 
-import { freshHome, fx, git, repository } from './harness.js';
+import { freshHome, fx, git, repository, searchPath } from './harness.js';
 
 describe('session-start network isolation', () => {
   it('fetches only the manifest and reuses its network window across sessions', async () => {
@@ -38,11 +39,7 @@ describe('session-start network isolation', () => {
       'git',
       `#!${process.execPath}\nconst fs=require('node:fs');const cp=require('node:child_process');const args=process.argv.slice(2);fs.appendFileSync(${JSON.stringify(log)},JSON.stringify(args)+'\\n');try{process.stdout.write(cp.execFileSync(${JSON.stringify(realGit)},args));}catch(e){process.stderr.write(e.stderr??'');process.exit(e.status??1);}`,
     );
-    const env = {
-      FX_HOME: home,
-      FX_UPDATE_CHECK: '1',
-      PATH: [wrapper, path.dirname(process.execPath), ...systemPath()].join(path.delimiter),
-    };
+    const env = { FX_HOME: home, FX_UPDATE_CHECK: '1', PATH: searchPath(wrapper) };
     expect(
       fx(['hook', 'inject', '--workspace', 'test'], { ...env, FX_UPDATE_CHECK: '0' }, root).status,
     ).toBe(0);
@@ -64,15 +61,12 @@ describe('session-start network isolation', () => {
       owner,
     ];
     expect(fx(args, env, root, JSON.stringify({ cwd: root })).status).toBe(0);
-    for (let i = 0; i < 160; i++) {
-      if (
-        existsSync(path.join(root, 'AGENTS.md')) &&
-        readFileSync(path.join(root, 'AGENTS.md'), 'utf8').includes('new guidance')
-      )
-        break;
-      await delay(50);
-    }
-    expect(readFileSync(path.join(root, 'AGENTS.md'), 'utf8')).toContain('new guidance');
+    const guide = path.join(root, 'AGENTS.md');
+    await until(
+      () => existsSync(guide) && readFileSync(guide, 'utf8').includes('new guidance'),
+      8000,
+    );
+    expect(readFileSync(guide, 'utf8')).toContain('new guidance');
     const network = (): string[][] =>
       readFileSync(log, 'utf8')
         .trim()

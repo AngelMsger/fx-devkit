@@ -7,8 +7,6 @@ import type { SkillDeps } from '../../../../src/application/skill/targets.js';
 import { Sync } from '../../../../src/application/sync/index.js';
 import type { WorkspaceDeps } from '../../../../src/application/workspace/deps.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
-import type { Process } from '../../../../src/ports/process.js';
-import type { ProjectionStore } from '../../../../src/ports/projection.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
 import { fakeLoginDeps } from '../../../fakes/fake-login-deps.js';
@@ -347,27 +345,8 @@ describe('Sync stages', () => {
   describe('selection and order', () => {
     it('runs only the selected stages, in registration order, without touching repositories', async () => {
       const h = await harness();
-      const calls: string[] = [];
-      // The guide is the docs stage's write; only the tools stage looks for a binary.
-      const projections: ProjectionStore = {
-        read: (at) => h.deps.projections.read(at),
-        write: (request) => {
-          calls.push('docs');
-          return h.deps.projections.write(request);
-        },
-      };
-      const process: Process = {
-        run: (vector, options) => h.process.run(vector, options),
-        which: (binary) => {
-          calls.push('tools');
-          return h.process.which(binary);
-        },
-      };
-      const out = await sync({ ...h.deps, projections, process }).execute({
-        ...everyStage,
-        only: ['tools', 'docs'],
-      });
-      expect(calls).toEqual(['docs', 'tools']);
+      const out = await sync(h.deps).execute({ ...everyStage, only: ['tools', 'docs'] });
+      expect(Object.keys(out.stages)).toEqual(['docs', 'tools']);
       expect(h.git.calls).toEqual([]);
       expect(out.items).toEqual([]);
       expect(out.stages).toEqual({

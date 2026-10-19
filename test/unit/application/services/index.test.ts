@@ -424,13 +424,13 @@ envs:
     const { h, login } = await fixture();
     // The companion reports the settings as changed until it has been asked to write them.
     let written = false;
-    h.process
-      .when((vector) => vector.includes('config') && (written ||= !vector.includes('--dry-run')), {
-        code: 0,
-        stdout: '{"changed":false}',
-        stderr: '',
-      })
-      .on(['bitbucket-cli', 'config'], { code: 0, stdout: '{"changed":true}', stderr: '' });
+    h.process.when(
+      (vector) => vector.includes('config'),
+      (vector) => {
+        written ||= !vector.includes('--dry-run');
+        return written ? UNCHANGED : CHANGED;
+      },
+    );
     vi.spyOn(h.fs, 'exists').mockRejectedValue(new Error('filesystem unavailable'));
     const promise = new Sync(h.deps, { login, skills }).execute({
       dryRun: false,
@@ -449,11 +449,13 @@ envs:
       order.push('provider');
       return h.codeHost;
     });
-    h.process.when((vector) => vector.includes('config') && order.push('services') > 0, {
-      code: 0,
-      stdout: '{"changed":true}',
-      stderr: '',
-    });
+    h.process.when(
+      (vector) => vector.includes('config'),
+      () => {
+        order.push('services');
+        return CHANGED;
+      },
+    );
     const input = {
       dryRun: true,
       posture: { readOnly: false, source: 'default' as const },

@@ -33,4 +33,26 @@ describe('SpecAgentHost', () => {
       path.normalize(path.resolve('/ws/.claude/skills')),
     );
   });
+
+  it.each([
+    ['windsurf', '.codeium/windsurf/skills', '.windsurf/skills'],
+    ['pi', '.pi/agent/skills', '.pi/skills'],
+    ['opencode', '.config/opencode/skills', '.opencode/skills'],
+  ])('names the Skill directories %s reads', (id, global, project) => {
+    const irregular = AGENT_SPECS.find((s) => s.id === id)!;
+    const deps = { fs: FakeFs.from({}), process: new FakeProcess(), home };
+    const host = new SpecAgentHost(irregular, deps);
+    const root = path.resolve('/ws');
+    expect(host.skillsDir('global')).toBe(path.join(home, global));
+    expect(host.skillsDir('project', root)).toBe(path.join(root, project));
+  });
+
+  it('describes codex as a host that forwards a variable under its own name only', () => {
+    const codex = AGENT_SPECS.find((s) => s.id === 'codex')!;
+    const deps = { fs: FakeFs.from({}), process: new FakeProcess(), home };
+    expect(new SpecAgentHost(codex, deps).mcp).toMatchObject({
+      status: 'supported',
+      references: 'forward',
+    });
+  });
 });

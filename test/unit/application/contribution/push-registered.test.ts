@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { SuppliedContributionInput } from '../../../../src/application/contribution/collect-input.js';
 import { PushRegisteredSource } from '../../../../src/application/contribution/push-registered.js';
@@ -181,9 +181,8 @@ describe('pushing the registered source', () => {
   it('validates and plans in the physical checkout behind the registered directory', async () => {
     const physical = path.resolve('/volumes/data/source');
     const f = fixture({ checkout: physical });
-    vi.spyOn(f.fs, 'realpath').mockImplementation(async (target) =>
-      path.resolve(target) === MANAGED ? physical : path.resolve(target),
-    );
+    f.fs.mkdir(physical);
+    await f.fs.link(path.dirname(physical), path.dirname(MANAGED));
     await f.usecase.execute(supplied);
     expect(f.validatedAt).toEqual([physical]);
   });

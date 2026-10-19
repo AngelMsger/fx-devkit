@@ -11,10 +11,10 @@ import { ContributionGitTransport } from '../../../src/adapters/git/contribution
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
 import { PushSource } from '../../../src/application/contribution/push.js';
 import { ValidateContribution } from '../../../src/application/contribution/validate.js';
-import { bundledToolsText } from '../../../src/composition/bundled.js';
 import { providerCatalog } from '../../../src/composition/registry.js';
 import { FileContributionStore } from '../../../src/infra/contribution-store.js';
 import { FileLock } from '../../../src/infra/lock.js';
+import { bundledTools } from '../../bundled-tools.js';
 import { FakeCodeHost } from '../../fakes/fake-code-host.js';
 import { FakeConfigStore } from '../../fakes/fake-config-store.js';
 import { FakePrompter } from '../../fakes/fake-prompter.js';
@@ -92,7 +92,7 @@ describe('native contribution workflow with a durable journal', () => {
             reader: new SnapshotReader({ root: '/candidate', files }),
           }),
         },
-        bundledTools: bundledToolsText,
+        bundledTools,
         providers: providerCatalog(),
       }),
       clock: new SystemClock(),
