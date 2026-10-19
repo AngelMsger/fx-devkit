@@ -5,7 +5,6 @@ import type { LoginDeps } from '../application/login/deps.js';
 import { ProbeRecord } from '../application/probe-record/index.js';
 import type { ProbeRecordInput, ProbeRecordOutput } from '../application/probe-record/types.js';
 import type { WorkspaceDeps } from '../application/workspace/deps.js';
-import { FileProjectionStore } from '../infra/projection-store.js';
 
 import type { Container } from './container.js';
 
@@ -20,7 +19,7 @@ export function recordProbe(input: ProbeRecordCommand): Promise<ProbeRecordOutpu
   return new ProbeRecord({
     workspace: input.workspace,
     login: input.login,
-    files: new FileProjectionStore(input.container.lock),
+    files: input.container.projections,
     lock: input.container.lock,
     clock: input.container.clock,
   }).execute(input.input);

@@ -34,6 +34,7 @@ function fixture() {
     'scripts/check-release.mjs',
     'src/adapters/registry/registry-policy.js',
     'src/domain/distribution.js',
+    'src/domain/public-url.js',
     'src/domain/semver.js',
   ])
     writeFileSync(path.join(root, file), readFileSync(file));

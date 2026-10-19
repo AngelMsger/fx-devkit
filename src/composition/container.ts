@@ -46,7 +46,7 @@ import type { Installer } from '../ports/installer.js';
 import type { Lock } from '../ports/lock.js';
 import type { Platform } from '../ports/platform.js';
 import type { Process } from '../ports/process.js';
-import type { ProjectionStore } from '../ports/projection.js';
+import type { LinkProjectionStore, ProjectionStore } from '../ports/projection.js';
 import type { Prompter } from '../ports/prompter.js';
 import type { AdapterDeps, ProviderDescriptor } from '../ports/provider.js';
 import type { Registry, RegistryLocator } from '../ports/registry.js';
@@ -79,7 +79,7 @@ export interface Container {
   readonly toolHistory: ToolHistoryStore;
   readonly lock: Lock;
   readonly fs: FileSystem;
-  readonly projections: ProjectionStore;
+  readonly projections: ProjectionStore & LinkProjectionStore;
   readonly process: Process;
   readonly git: Git;
   readonly clock: Clock;
@@ -119,8 +119,8 @@ export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOption
   const fs = new NodeFs(lock);
   return {
     openUrl: (url) => new SystemUrlOpener(process).open(url),
-    config: new FileConfigStore(home),
-    localStore: new FileLocalLayerStore(home),
+    config: new FileConfigStore(home, lock),
+    localStore: new FileLocalLayerStore(home, lock),
     cache: new FileCache(home, clock),
     trust: new FileTrustStore(home, clock, lock),
     toolHistory: new FileToolHistoryStore(home, lock),

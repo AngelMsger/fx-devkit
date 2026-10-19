@@ -7,7 +7,6 @@ import type { WritePosture } from '../application/safety/posture.js';
 import { TrustGate } from '../application/safety/trust.js';
 import type { ResolveInput } from '../application/workspace/resolve.js';
 import { FileHarnessState } from '../infra/harness-state.js';
-import { FileProjectionStore } from '../infra/projection-store.js';
 
 import type { Container } from './container.js';
 import { mcpCodecFor, rulesProjectorFor } from './registry.js';
@@ -27,7 +26,7 @@ export function harnessDeps(command: HarnessCommandInput): HarnessDeps {
   return {
     hosts: container.agents,
     state: new FileHarnessState(container.fxHome, container.lock),
-    files: new FileProjectionStore(container.lock),
+    files: container.projections,
     lock: container.lock,
     trust: new TrustGate(container.trust, container.prompter(command.noInput), container.clock),
     env: command.env,

@@ -65,6 +65,7 @@ function publicChanges(value: unknown): ServiceChanges {
   );
 }
 
+// isPublicHttpUrl for any scheme: this redacts what a companion reported, it accepts no coordinate.
 function publicValue(value: string): string {
   if (!value.includes('://')) return value;
   try {

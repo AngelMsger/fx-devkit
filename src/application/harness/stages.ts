@@ -3,6 +3,7 @@
 import { asDevkitError, DevkitError } from '../../domain/errors.js';
 import { harnessActionState } from '../../domain/harness/actions.js';
 import type { HarnessKind } from '../../domain/harness/ownership.js';
+import { workspaceLeaseKey } from '../../domain/lease.js';
 import { preparationCheck } from '../../domain/preparation.js';
 import { finding } from '../../domain/report.js';
 import { countBy } from '../../domain/values.js';
@@ -37,7 +38,7 @@ export async function manageHarness(command: ManageHarness): Promise<HarnessOutp
   const lock = held
     ? {
         acquire: async (request: { key: string; waitMs: number }) =>
-          request.key === `workspace:${input.workspace}`
+          request.key === workspaceLeaseKey(input.workspace)
             ? { release: async () => {} }
             : deps.lock.acquire(request),
       }

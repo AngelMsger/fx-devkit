@@ -1,6 +1,7 @@
 // Refresh eligible Git manifest sources and explain any local work retained.
 
 import { busyError } from '../../domain/errors.js';
+import { workspaceLeaseKey } from '../../domain/lease.js';
 import type { Lock } from '../../ports/lock.js';
 import type { ManifestSource, RefreshOutcome } from '../../ports/manifest-source.js';
 import type { Reporter } from '../../ports/reporter.js';
@@ -87,7 +88,7 @@ export async function refreshWorkspaceManifest(
   const lease =
     run.dryRun || run.posture.readOnly
       ? undefined
-      : await deps.lock.acquire({ key: `workspace:${located.name}`, waitMs: 2000 });
+      : await deps.lock.acquire({ key: workspaceLeaseKey(located.name), waitMs: 2000 });
   if (lease === null)
     throw busyError('LOCK_BUSY', 'The workspace', { nextSteps: ['Retry fx sync shortly.'] });
   try {

@@ -2,21 +2,15 @@
 // Personal identities and credentials are never part of this document.
 import * as z from 'zod';
 
-const publicUrl = z.string().refine((value) => {
-  try {
-    const url = new URL(value);
-    return (
-      ['http:', 'https:'].includes(url.protocol) &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash &&
-      !/[\r\n]/.test(value)
-    );
-  } catch {
-    return false;
-  }
-}, 'must be an absolute HTTP(S) URL without credentials, query or fragment');
+import { isPublicHttpUrl } from '../public-url.js';
+
+// URL parsing drops line breaks, and the declared text is what reaches a command.
+const publicUrl = z
+  .string()
+  .refine(
+    (value) => isPublicHttpUrl(value) && !/[\r\n]/.test(value),
+    'must be an absolute HTTP(S) URL without credentials, query or fragment',
+  );
 
 const identifier = z
   .string()

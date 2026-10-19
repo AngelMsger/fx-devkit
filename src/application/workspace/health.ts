@@ -6,6 +6,7 @@ import { asDevkitError, DevkitError, toEnvelope, type ErrorEnvelope } from '../.
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import type { ProviderCatalog } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
+import { operationJournalPath } from '../../domain/workspace/operation-journal.js';
 import { LoadManifest } from '../manifest/load.js';
 
 import type { Located, ResolveInput } from './resolve.js';
@@ -108,7 +109,8 @@ export async function assertNoWorkspaceOperation(
   input: Pick<HealthInput, 'fs' | 'commandShell'>,
   located: Pick<Located, 'name' | 'manifestDir'>,
 ): Promise<void> {
-  const file = path.join(path.dirname(located.manifestDir), 'workspace-operation.json');
+  // Callers hold the manifest source, which lies beside the journal in the workspace's directory.
+  const file = operationJournalPath(path.dirname(located.manifestDir));
   if (!(await input.fs.exists(file))) return;
   throw new DevkitError(
     'conflict',

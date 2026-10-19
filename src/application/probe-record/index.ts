@@ -2,6 +2,7 @@
 // stay outside the workspace lease; source snapshots are rechecked before writing.
 
 import { busyError, handoffEnvelope, type HandoffEnvelope } from '../../domain/errors.js';
+import { withLease, workspaceLeaseKey } from '../../domain/lease.js';
 import { MANIFEST_FILES } from '../../domain/manifest/files.js';
 import { setYamlStrings } from '../../domain/manifest/path-editor.js';
 import { coordinateFingerprint } from '../../domain/obs/observation.js';
@@ -37,30 +38,28 @@ export class ProbeRecord {
     assertWritable(input.posture, 'where --probe --record');
     const where = new Where(this.deps.workspace, this.deps.login);
     const [ready] = await where.execute({ ...input, probe: false, check: input.check });
-    const lease = await this.deps.lock.acquire({
-      key: `workspace:${this.deps.workspace.ctx.name}`,
-      waitMs: 2000,
-    });
-    if (!lease) throw busyError('PROBE_RECORD_BUSY', 'The workspace');
-    try {
-      await assertProbeSources(this.deps, plan);
-      const [probed] = await where.execute({
-        ...input,
-        check: false,
-        probe: true,
-        previewProbe: false,
-      });
-      if (
-        !probed ||
-        coordinateFingerprint(probed) !== coordinateFingerprint(plan.output.row) ||
-        JSON.stringify(probed.probe_template) !== JSON.stringify(plan.template)
-      )
-        throw probeChangedError();
-      const row = { ...probed, ready: ready?.ready ?? null, handoff: ready?.handoff ?? null };
-      return await this.record(plan, row);
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.deps.lock,
+      { key: workspaceLeaseKey(this.deps.workspace.ctx.name), waitMs: 2000 },
+      () => busyError('PROBE_RECORD_BUSY', 'The workspace'),
+      async () => {
+        await assertProbeSources(this.deps, plan);
+        const [probed] = await where.execute({
+          ...input,
+          check: false,
+          probe: true,
+          previewProbe: false,
+        });
+        if (
+          !probed ||
+          coordinateFingerprint(probed) !== coordinateFingerprint(plan.output.row) ||
+          JSON.stringify(probed.probe_template) !== JSON.stringify(plan.template)
+        )
+          throw probeChangedError();
+        const row = { ...probed, ready: ready?.ready ?? null, handoff: ready?.handoff ?? null };
+        return this.record(plan, row);
+      },
+    );
   }
 
   private async record(plan: ProbeRecordPlan, row: WhereRow): Promise<ProbeRecordOutput> {

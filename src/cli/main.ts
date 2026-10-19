@@ -5,17 +5,18 @@
 import { Errors, flush, run } from '@oclif/core';
 
 import { createContainer } from '../composition/container.js';
-import { traceFor } from '../composition/trace.js';
+import { traceSinkFor } from '../composition/trace.js';
 import { asDevkitError, DevkitError, exitCodeFor } from '../domain/errors.js';
 
 import { commandIds } from './commands/index.js';
 import { readInvocationFormat } from './invocation-format.js';
 import { createRenderer, FORMATS, processIo } from './render/index.js';
 import { normalizeArgv, routeArgv, type Route } from './route/index.js';
-import { invocation } from './trace.js';
+import { invocation, Trace } from './trace.js';
 
 export async function main(argv: string[]): Promise<void> {
-  invocation.trace = traceFor(process.env, Date.now());
+  const sink = traceSinkFor(process.env);
+  invocation.trace = sink === undefined ? undefined : new Trace(sink, Date.now());
   const normalized = normalizeArgv(argv, commandIds());
   await dispatch(normalized);
   await invocation.trace?.end(

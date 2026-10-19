@@ -3,6 +3,7 @@
 import path from 'node:path';
 
 import { busyError, DevkitError } from '../../domain/errors.js';
+import { withLease } from '../../domain/lease.js';
 import { pathKey } from '../../domain/path.js';
 import { decideCopy, type CopyAction } from '../../domain/skills/projection.js';
 import type { FileSystem } from '../../ports/fs.js';
@@ -43,20 +44,21 @@ async function lockedSkillWork<T>(
   work: (canonical: string) => Promise<T>,
 ): Promise<T> {
   const canonical = await canonicalSkillPath(fs, target);
-  const lease = await lock.acquire({ key: `skill:${pathKey(canonical)}`, waitMs: 2000 });
-  if (lease === null)
-    throw busyError('SKILL_BUSY', 'The Skill', {
-      nextSteps: ['Retry the Skill command after the other update completes.'],
-    });
-  try {
-    if (pathKey(await canonicalSkillPath(fs, target)) !== pathKey(canonical))
-      throw new DevkitError('conflict', 'SKILL_TARGET_CHANGED', 'The Skill target changed', {
-        nextSteps: ['Inspect the target directory and retry.'],
-      });
-    return await work(canonical);
-  } finally {
-    await lease?.release();
-  }
+  return withLease(
+    lock,
+    { key: `skill:${pathKey(canonical)}`, waitMs: 2000 },
+    () =>
+      busyError('SKILL_BUSY', 'The Skill', {
+        nextSteps: ['Retry the Skill command after the other update completes.'],
+      }),
+    async () => {
+      if (pathKey(await canonicalSkillPath(fs, target)) !== pathKey(canonical))
+        throw new DevkitError('conflict', 'SKILL_TARGET_CHANGED', 'The Skill target changed', {
+          nextSteps: ['Inspect the target directory and retry.'],
+        });
+      return work(canonical);
+    },
+  );
 }
 
 export interface CopySkillInput {

@@ -3,7 +3,7 @@
 import { ManageWorkspace } from '../application/workspace/manage.js';
 import { WorkspaceResources } from '../application/workspace/resources.js';
 import type { ResolvedShell } from '../domain/shell.js';
-import { FileProjectionStore } from '../infra/projection-store.js';
+import { workspaceHome } from '../infra/workspace-home.js';
 
 import { harnessDeps, type HarnessCommandInput } from './harness.js';
 import { hookDeps } from './hooks.js';
@@ -17,6 +17,7 @@ export function workspaceManagement(
     config: container.config,
     lock: container.lock,
     manifestDirFor: container.manifestDirFor,
+    workspaceHomeFor: (name) => workspaceHome(container.fxHome, name),
     bundledTools: container.bundledTools,
     providers: container.providers,
     cliVersion: input.cliVersion,
@@ -25,7 +26,7 @@ export function workspaceManagement(
       container.fs,
       harnessDeps(input),
       hookDeps(container),
-      new FileProjectionStore(container.lock),
+      container.projections,
     ),
   });
 }

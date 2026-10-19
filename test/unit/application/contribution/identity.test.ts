@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { NodeFs } from '../../../../src/adapters/fs/node-fs.js';
 import { assertContributionIdentity } from '../../../../src/application/contribution/identity.js';
 import { FileConfigStore } from '../../../../src/infra/config-store.js';
+import { FileLock } from '../../../../src/infra/lock.js';
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -41,7 +42,7 @@ async function fixture() {
       expected,
       physicalRoot: await fs.realpath(root),
       logicalSourceDir,
-      config: new FileConfigStore(home),
+      config: new FileConfigStore(home, new FileLock(home)),
       fs: new NodeFs(),
     },
   };

@@ -6,16 +6,20 @@ import path from 'node:path';
 import { stringify } from 'yaml';
 
 import { busyError } from '../domain/errors.js';
+import { withLease } from '../domain/lease.js';
 import { loadLocal } from '../domain/manifest/loader.js';
 import type { LocalLayer } from '../domain/manifest/types.js';
+import type { Lock } from '../ports/lock.js';
 import type { LocalLayerStore } from '../ports/stores.js';
 
 import { writeAtomicFile } from './atomic-file.js';
-import { FileLock } from './lock.js';
 import { localLayerPath } from './workspace-home.js';
 
 export class FileLocalLayerStore implements LocalLayerStore {
-  constructor(private readonly home: string) {}
+  constructor(
+    private readonly home: string,
+    private readonly lock: Lock,
+  ) {}
 
   path(workspace: string): string {
     return localLayerPath(this.home, workspace);
@@ -45,21 +49,19 @@ export class FileLocalLayerStore implements LocalLayerStore {
 
   private async persist(workspace: string, change: () => Promise<LocalLayer>): Promise<LocalLayer> {
     const file = this.path(workspace);
-    const lease = await new FileLock(this.home).acquire({
-      key: `local:${workspace}`,
-      waitMs: 5000,
-    });
-    if (lease === null)
-      throw busyError('WORKSPACE_BUSY', `The personal layer for ${workspace}`, {
-        nextSteps: ['Retry the selection change.'],
-      });
-    try {
-      const next = await change();
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await writeAtomicFile(file, stringify(next));
-      return next;
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.lock,
+      { key: `local:${workspace}`, waitMs: 5000 },
+      () =>
+        busyError('WORKSPACE_BUSY', `The personal layer for ${workspace}`, {
+          nextSteps: ['Retry the selection change.'],
+        }),
+      async () => {
+        const next = await change();
+        await fs.mkdir(path.dirname(file), { recursive: true });
+        await writeAtomicFile(file, stringify(next));
+        return next;
+      },
+    );
   }
 }

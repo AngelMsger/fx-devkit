@@ -25,6 +25,7 @@ function fixture() {
     'scripts/guard-registry.mjs',
     'src/adapters/registry/registry-policy.js',
     'src/domain/distribution.js',
+    'src/domain/public-url.js',
   ])
     writeFileSync(path.join(root, file), readFileSync(file));
   writeFileSync(path.join(root, 'bin/package.json'), '{"type":"commonjs"}');

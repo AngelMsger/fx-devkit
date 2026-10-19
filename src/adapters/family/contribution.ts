@@ -72,7 +72,8 @@ export function pullRequestReferenceInvalid(): DevkitError {
   );
 }
 
-// A reference the person typed is reported without echoing it back.
+// isPublicHttpUrl with a fragment allowed: only the origin and path of a pasted
+// link are read, and a reference the person typed is never echoed back.
 export function pullRequestWebUrl(value: string): URL {
   try {
     const url = new URL(value);

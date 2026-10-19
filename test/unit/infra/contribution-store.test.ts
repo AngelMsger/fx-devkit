@@ -1,5 +1,5 @@
 // File-symlink cases require a POSIX host; junction behavior has native Windows coverage.
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -62,6 +62,22 @@ describe('contribution operation journal', () => {
     });
     expect(await f.store.read('test')).toEqual([]);
   });
+  it.each(['.GIT/config', 'docs/a\x7f.md'])(
+    'refuses the recorded path %j on write and on read',
+    async (file) => {
+      const f = await fixture();
+      const recorded = [{ ...record, paths: [file], files: [file] }];
+      await expect(f.store.write('test', recorded)).rejects.toMatchObject({
+        code: 'SOURCE_JOURNAL_INVALID',
+      });
+      await mkdir(path.dirname(f.file), { recursive: true });
+      await writeFile(
+        f.file,
+        JSON.stringify({ owner: 'fx:contributions:v1', operations: recorded }),
+      );
+      await expect(f.store.read('test')).rejects.toMatchObject({ code: 'SOURCE_JOURNAL_INVALID' });
+    },
+  );
   it('preserves malformed or foreign metadata instead of replacing it', async () => {
     const f = await fixture();
     await f.store.write('test', [record]);

@@ -143,6 +143,13 @@
   They were counted under `omitted`, while a `foreign` or `conflict` row of the same
   stage was shown.
 
+### Fixed
+
+- Refuse a recorded harness or contribution path that has a `.git` segment in any
+  letter case or a delete character. Harness ownership metadata accepted `.GIT/...`,
+  which a case-insensitive volume resolves into a repository's own directory; both
+  stores now hold a recorded path to the rule `fx source push` applies to a selection.
+
 ## 0.9.1 (2026-10-09)
 
 ### Changed

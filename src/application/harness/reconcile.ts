@@ -1,6 +1,7 @@
 // Coordinates trust, workspace locking and recoverable harness writes.
 
 import { busyError } from '../../domain/errors.js';
+import { withLease, workspaceLeaseKey } from '../../domain/lease.js';
 import { assertWritable } from '../safety/posture.js';
 
 import { applyHarnessChange, harnessConflict, readHarnessState } from './apply.js';
@@ -21,16 +22,12 @@ export class ReconcileHarness {
       return { items: preview.items, written: false };
     assertWritable(input.posture, 'project workspace harness');
     for (const trust of preview.trusts) await this.deps.trust.ensure(trust);
-    const lease = await this.deps.lock.acquire({
-      key: `workspace:${input.workspace}`,
-      waitMs: 2000,
-    });
-    if (!lease) throw busyError('LOCK_BUSY', 'The workspace projection state');
-    try {
-      return await this.apply(input, preview);
-    } finally {
-      await lease.release();
-    }
+    return withLease(
+      this.deps.lock,
+      { key: workspaceLeaseKey(input.workspace), waitMs: 2000 },
+      () => busyError('LOCK_BUSY', 'The workspace projection state'),
+      () => this.apply(input, preview),
+    );
   }
   private async apply(input: HarnessInput, preview: HarnessPlan): Promise<HarnessOutput> {
     if (input.source) {

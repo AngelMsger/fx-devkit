@@ -1,14 +1,12 @@
 // Identity operations serialize outside projection leases; nested projection work keeps its existing locks.
 
-import { busyError } from '../../domain/errors.js';
-import type { Lease, Lock } from '../../ports/lock.js';
+import { busyError, type DevkitError } from '../../domain/errors.js';
+import { withLease } from '../../domain/lease.js';
+import type { Lease, Lock, LockRequest } from '../../ports/lock.js';
 
 export async function acquireWorkspaceOperation(lock: Lock, name: string): Promise<Lease> {
-  const lease = await lock.acquire({ key: `workspace-operation:${name}`, waitMs: 2000 });
-  if (!lease)
-    throw busyError('LOCK_BUSY', `Workspace "${name}"`, {
-      nextSteps: ['Retry the same command shortly.'],
-    });
+  const lease = await lock.acquire(operationRequest(name));
+  if (!lease) throw operationBusy(name);
   return lease;
 }
 export async function withWorkspaceOperation<T>(
@@ -18,10 +16,15 @@ export async function withWorkspaceOperation<T>(
   work: () => Promise<T>,
 ): Promise<T> {
   if (dryRun) return work();
-  const lease = await acquireWorkspaceOperation(lock, name);
-  try {
-    return await work();
-  } finally {
-    await lease.release();
-  }
+  return withLease(lock, operationRequest(name), () => operationBusy(name), work);
+}
+
+function operationRequest(name: string): LockRequest {
+  return { key: `workspace-operation:${name}`, waitMs: 2000 };
+}
+
+function operationBusy(name: string): DevkitError {
+  return busyError('LOCK_BUSY', `Workspace "${name}"`, {
+    nextSteps: ['Retry the same command shortly.'],
+  });
 }
