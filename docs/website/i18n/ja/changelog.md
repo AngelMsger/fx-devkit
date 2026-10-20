@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `fx where` が表示しプローブする OpenObserve と Prometheus のコマンドに、宣言された認証方式を含めなくなりました。チェックは 0.9.1 からそうしています。basic 認証を使う OpenObserve の context へのプローブは `--auth-scheme session` 付きで送られて拒否されていました。コマンドには context のほか、サーバーの URL と組織だけを指定します。
+
 ## 0.12.0 (2026-10-19)
 
 - GitHub で pull request を作成できるようになりました。`fx source push` は GitHub にある manifest ソースでも Bitbucket と同じように動作します。選択したファイルを `gh` を通じて検証済みの個人フォークに push し、上流に対する pull request を作成、再利用、または終了します。`--pr` には pull request の番号か GitHub 上のページを指定できます。

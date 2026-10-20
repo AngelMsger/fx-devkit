@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Leave the declared authentication method out of the OpenObserve and Prometheus
+  commands `fx where` prints and probes, as checks have done since 0.9.1. A probe of
+  an OpenObserve context that uses basic authentication was sent with
+  `--auth-scheme session` and refused; the commands now name only the server's URL
+  and organization besides the context.
+
 ## 0.12.0 (2026-10-19)
 
 ### Added

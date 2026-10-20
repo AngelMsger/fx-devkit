@@ -31,7 +31,7 @@ export const prometheusCliProvider: ProviderDescriptor<Metrics> = {
       id: BINARY,
       capability: 'metrics',
       label: 'Prometheus job {job}',
-      optionalFlags: { base_url: '--base-url', auth_scheme: '--auth-scheme' },
+      optionalFlags: { base_url: '--base-url' },
       command: [
         BINARY,
         'query',

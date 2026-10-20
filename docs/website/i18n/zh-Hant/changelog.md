@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `fx where` 印出和探測的 OpenObserve 與 Prometheus 命令不再帶上宣告的驗證方式，與 0.9.1 起的檢查一致。先前對使用 basic 驗證的 OpenObserve context 的探測帶著 `--auth-scheme session` 送出並被拒絕；現在這些命令除 context 外只給出伺服器的 URL 和組織。
+
 ## 0.12.0 (2026-10-19)
 
 - 可以在 GitHub 上建立 pull request。`fx source push` 對託管在 GitHub 上的 manifest 來源與對 Bitbucket 一樣運作：透過 `gh` 把所選檔案推送到經過驗證的個人 fork，並針對其上游建立、重複使用或結束 pull request；`--pr` 接受 pull request 編號或它在 GitHub 上的頁面。

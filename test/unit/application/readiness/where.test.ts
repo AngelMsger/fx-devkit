@@ -172,7 +172,7 @@ describe('Where', () => {
     expect(registered).toMatchObject({
       label: 'Prometheus job example-api',
       command:
-        'prometheus-cli query instant --use-context test --query \'up{job="example-api"}\' --base-url https://metrics.example.com --auth-scheme none',
+        'prometheus-cli query instant --use-context test --query \'up{job="example-api"}\' --base-url https://metrics.example.com',
       outcome: 'unknown',
       probed: null,
       suggested_confidence: null,

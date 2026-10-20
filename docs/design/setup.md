@@ -166,7 +166,9 @@ A coordinate is one repository in one environment on one platform. Its variables
 merge platform, then environment, then repository override, and `{svc}`, `{repo}`
 and `{env}` are substituted inside the resulting values. The command is the
 manifest's own template when it declares one — a shell line, printed verbatim —
-and the provider's default otherwise.
+and the provider's default otherwise. A provider's default command and probe hold
+the context to the declared location as checks do, and never name the declared
+authentication method, so a context that signs in another way still runs them.
 
 Absence is an answer rather than a blank coordinate. An environment that does not
 declare the platform, a repository marked uncovered and an entry whose confidence
