@@ -1,7 +1,7 @@
 // Family CLIs own persistence and conflicts; fx supplies only public presets.
 import type { ServiceSettings } from '../../domain/manifest/service.schema.js';
 import type { ServiceDefinition } from '../../domain/setup/service.js';
-import type { SetupRecipe } from '../../domain/setup/types.js';
+import type { CommandDeadline, SetupRecipe } from '../../domain/setup/types.js';
 
 export function familyService(
   tool: string,
@@ -75,6 +75,11 @@ function flagsOf(settings: Settings, keys: readonly string[]): string[] {
   );
 }
 
+// A companion bounds the lookups a reuse adds by ten seconds, or by a shorter `--timeout`.
+// A lookup cut short still answers that nothing would change, which this check reads as
+// passing, so the check is not asked with less than the full ten seconds.
+const REUSE_DEADLINE: CommandDeadline = { flag: '--timeout', minimumMs: 10_000 };
+
 function reuseRecipe(tool: string, scope: readonly string[]): SetupRecipe {
   return {
     id: 'reuse',
@@ -89,6 +94,7 @@ function reuseRecipe(tool: string, scope: readonly string[]): SetupRecipe {
     verify: {
       command: [...scope, 'auth', 'reuse', '--dry-run', '--format', 'json'],
       json: { path: 'changed', equals: false, unmet: 'an existing login can be reused' },
+      deadline: REUSE_DEADLINE,
     },
   };
 }

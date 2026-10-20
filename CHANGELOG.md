@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Tell a companion's reuse check in a background hook run how long the run can give
+  it, through the companion's own `--timeout`, and leave the check unasked when that is
+  under the ten seconds by which a companion bounds the lookups a reuse adds. The check
+  used to be ended when the run's time for it ran out. The reuse step's `verify` in
+  `fx login --list` and the init preview gains `deadline`, with the flag and the least
+  time the check needs (`minimumMs`).
+- Record `LOGIN_UNCHECKED` in place of `LOGIN_REQUIRED` when every login check of a
+  background hook run that did not pass was not asked or gave no answer, which
+  `fx doctor` reports as incomplete coverage, as when the run ran out of time for it.
+
 ### Fixed
 
 - Leave the declared authentication method out of the OpenObserve and Prometheus

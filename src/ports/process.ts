@@ -2,6 +2,8 @@
 // the executable as arguments. Windows batch shims require an adapter-owned
 // interpreter with escaping; callers cannot request raw shell evaluation.
 
+import type { CommandDeadline } from '../domain/setup/types.js';
+
 export interface ProcessResult {
   readonly code: number;
   readonly stdout: string;
@@ -26,6 +28,10 @@ export interface RunOptions {
   // When to give up: the child (with its process group, on POSIX) is killed
   // then; the answer follows once it has closed, or half a second later.
   readonly timeoutMs?: number | undefined;
+  // A process that lends the child a share of a longer deadline tells the child its share
+  // through this flag, and fails with PROCESS_TIMEOUT, without starting the child, when
+  // the share falls short of the minimum. The caller's own timeout needs no telling.
+  readonly deadline?: CommandDeadline | undefined;
   readonly input?: string | undefined;
   readonly sensitiveOutput?: boolean | undefined;
   // The child owns the terminal (a login prompt); only the exit code comes back.

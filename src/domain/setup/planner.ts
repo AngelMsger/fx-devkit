@@ -230,6 +230,7 @@ function check(
       command: vector(source.command) ?? [],
       ...(source.json === undefined ? {} : { json: source.json }),
       ...(source.failures === undefined ? {} : { failures: source.failures.map(failure) }),
+      ...(source.deadline === undefined ? {} : { deadline: source.deadline }),
     };
   if ('file' in source) return { file: text(source.file) ?? '' };
   return source;

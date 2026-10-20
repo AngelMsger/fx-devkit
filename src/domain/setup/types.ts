@@ -33,11 +33,19 @@ export interface FailureCase {
   readonly open?: string;
 }
 
+// How a command takes a deadline of its own: the flag, given whole seconds (`30s`), and
+// the least time in which its answer still means what its check reads from it.
+export interface CommandDeadline {
+  readonly flag: string;
+  readonly minimumMs: number;
+}
+
 export type SetupCheck =
   | {
       readonly command: readonly string[];
       readonly json?: JsonExpectation | undefined;
       readonly failures?: readonly FailureCase[] | undefined;
+      readonly deadline?: CommandDeadline | undefined;
     }
   | { readonly file: string }
   | { readonly provider: 'whoami' };
