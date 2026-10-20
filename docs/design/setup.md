@@ -166,7 +166,9 @@ A coordinate is one repository in one environment on one platform. Its variables
 merge platform, then environment, then repository override, and `{svc}`, `{repo}`
 and `{env}` are substituted inside the resulting values. The command is the
 manifest's own template when it declares one — a shell line, printed verbatim —
-and the provider's default otherwise.
+and the provider's default otherwise. A provider's default command and probe hold
+the context to the declared location as checks do, and never name the declared
+authentication method, so a context that signs in another way still runs them.
 
 Absence is an answer rather than a blank coordinate. An environment that does not
 declare the platform, a repository marked uncovered and an entry whose confidence
@@ -311,6 +313,13 @@ completed, whatever stood in its way. Cases are static data of the bundled recip
 appear with it in `login --list` and the init preview; the tools document does not
 accept them. A check withheld under a dry run did not run and reports no failure.
 
+A bundled command check may also declare a `deadline`: the flag through which its
+command takes a deadline of its own, in whole seconds, and `minimumMs`, the least
+time its answer needs. Like failure cases it is static recipe data that appears in
+`login --list` and the init preview and that the tools document does not accept.
+Only a background run, which lends each command a share of its own deadline, passes
+the flag; every other check keeps its own timeout.
+
 A pending step is handed over with what its check last said. `check.result` is
 `failed`, with the detail and the cause when a case applies, or `blocked`, with the
 step it waits on. A case's guidance replaces the step's own instructions and page in
@@ -403,6 +412,10 @@ so nobody has to know to ask for it; doctor without --fix only checks. Login app
 a bundled prepare step the same way, off the terminal, under a deadline and without
 asking, and asks only before a sign-in; a step the team patch authored still asks.
 Preview is read-only, and an unchanged post-write preview verifies association.
+The preview takes its own deadline through the companion's `--timeout`. A companion
+bounds the lookups a reuse adds by ten seconds, or by a shorter `--timeout`, and a
+lookup cut short still answers that nothing would change; so a background run that
+cannot tell the preview at least ten seconds leaves it unasked.
 
 An unavailable or no-change result does not prove authentication. The independent credential
 recipe checks auth status and hands personal sign-in to the user. It depends on

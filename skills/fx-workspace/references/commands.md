@@ -281,7 +281,10 @@ plus workspace/root, the effective enabled setting, and dated observations.
 `activation: unverified` means native trust/execution has not been established;
 a matching projection alone is not readiness. An observation whose code is
 `HOOK_PHASE_UNREPORTED` names a background phase that never answered, so its
-absence of findings is unknown rather than clean; run its `command` to find out. `fx hook enable [--dry-run]`
+absence of findings is unknown rather than clean; run its `command` to find out.
+`LOGIN_UNCHECKED` likewise says every login check that did not pass was not asked or
+gave no answer in the background run's time, the incomplete coverage `fx doctor`
+reports; it asks for no sign-in. `fx hook enable [--dry-run]`
 enables this workspace and projects selected hosts. `fx hook disable [--dry-run]`
 disables it and removes owned entries. Global `hooks` / `FX_HOOKS` gates all
 workspaces; local `hooks.enabled` gates one. `agent unpick` remains global and

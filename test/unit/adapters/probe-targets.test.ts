@@ -41,4 +41,26 @@ describe('probe target identity', () => {
         ?.command,
     ).toEqual(['openobserve-cli', 'stream', 'get', '--use-context', 'dev', '--', '--help']);
   });
+  it('pins a probe to the declared server, however its context signs in', () => {
+    const probe = openobserveCliProvider.create(deps, {}).probe?.({
+      stream: 'app_dev',
+      context: 'dev',
+      base_url: 'https://logs.example.com',
+      org: 'default',
+      auth_scheme: 'session',
+    });
+    expect(probe?.command).toEqual([
+      'openobserve-cli',
+      'stream',
+      'get',
+      '--use-context',
+      'dev',
+      '--base-url',
+      'https://logs.example.com',
+      '--org',
+      'default',
+      '--',
+      'app_dev',
+    ]);
+  });
 });

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- 在背景 hook 執行中，透過配套 CLI 自己的 `--timeout` 告知登入重用檢查本次執行還能給它多少時間；不足配套 CLI 為重用新增的查找所設的十秒上限時，不發起這項檢查。先前這項檢查會在分給它的時間用完時被終止。`fx login --list` 與 init 預覽中重用步驟的 `verify` 新增 `deadline`，列出該旗標和檢查至少需要的時間 (`minimumMs`)。
+- 背景 hook 執行中未通過的登入檢查全部是未發起或沒有回答的檢查 (即 `fx doctor` 回報為覆蓋不完整的檢查，例如執行的時間用完) 時，記錄 `LOGIN_UNCHECKED` 而不是 `LOGIN_REQUIRED`。
+- `fx where` 印出和探測的 OpenObserve 與 Prometheus 命令不再帶上宣告的驗證方式，與 0.9.1 起的檢查一致。先前對使用 basic 驗證的 OpenObserve context 的探測帶著 `--auth-scheme session` 送出並被拒絕；現在這些命令除 context 外只給出伺服器的 URL 和組織。
+
 ## 0.12.0 (2026-10-19)
 
 - 可以在 GitHub 上建立 pull request。`fx source push` 對託管在 GitHub 上的 manifest 來源與對 Bitbucket 一樣運作：透過 `gh` 把所選檔案推送到經過驗證的個人 fork，並針對其上游建立、重複使用或結束 pull request；`--pr` 接受 pull request 編號或它在 GitHub 上的頁面。

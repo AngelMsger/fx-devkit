@@ -82,6 +82,7 @@ export class Verifier {
     const vector = expandHomeIn(verify.command, this.setup.home);
     const result = await this.deps.process.run(vector, {
       timeoutMs: CHECK_TIMEOUT_MS,
+      deadline: verify.deadline,
       cwd: this.deps.ctx.root,
       env: step.executionEnv,
       diagnostic: { phase: `${step.id} check` },
