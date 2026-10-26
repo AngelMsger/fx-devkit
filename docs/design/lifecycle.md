@@ -63,6 +63,13 @@ A companion command that exhausts its own budget fails only its own phase: the
 run keeps the phases after it, and whatever that child left in the worker's
 group is reaped with that group when the run ends. A foreground run, which a
 host is waiting on, still ends where a companion command was given up on.
+A check that takes a deadline of its own is told its share, a second short of
+it so that it answers before it is ended, and is not started when that falls
+below the time its answer needs; it then counts as a check that gave no answer.
+The checks phase reads its findings as `fx doctor` reports them: it records
+`LOGIN_UNCHECKED` when every check that did not pass has incomplete coverage,
+because it was not asked or gave no answer, `LOGIN_REQUIRED` when any other
+check did not pass, and `LOGIN_CHECKED` when every check passed.
 The supervisor kills the worker process group on POSIX; Windows uses bounded
 PID-scoped `taskkill /T /F` with direct-child fallback. Windows cleanup is
 best-effort when a root has already exited. The supervisor owns

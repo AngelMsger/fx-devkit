@@ -3,6 +3,7 @@
 // because the hook stores evidence a later command reads, not a report.
 
 import type { HookObservation } from '../../domain/harness/state.js';
+import type { Finding } from '../../domain/report.js';
 import { strayDigest } from '../../domain/workspace/root-entries.js';
 import type { Clock } from '../../ports/clock.js';
 import type { Lease } from '../../ports/lock.js';
@@ -173,12 +174,15 @@ async function checkServices(deps: BackgroundDeps): Promise<readonly HookObserva
   const findings = await Tally.during(context.activity, 'checks', (checks) =>
     checkLogin(context, deps.login, {}, checks),
   );
-  return [
-    observer(deps, 'checks')(
-      findings.some((finding) => finding.level !== 'ok') ? 'LOGIN_REQUIRED' : 'LOGIN_CHECKED',
-      'fx login --list',
-    ),
-  ];
+  return [observer(deps, 'checks')(loginCode(findings), 'fx login --list')];
+}
+
+// Only a finding with evidence asks for a login. One whose coverage is incomplete, a
+// check that was not asked or gave no answer in the time the run had, leaves it unknown.
+function loginCode(findings: readonly Finding[]): string {
+  const open = findings.filter((finding) => finding.level !== 'ok');
+  if (open.some((finding) => finding.coverage === 'checked')) return 'LOGIN_REQUIRED';
+  return open.length > 0 ? 'LOGIN_UNCHECKED' : 'LOGIN_CHECKED';
 }
 
 async function updatesEnabled(deps: BackgroundDeps): Promise<boolean> {

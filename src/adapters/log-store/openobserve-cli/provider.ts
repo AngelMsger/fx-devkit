@@ -29,7 +29,7 @@ export const openobserveCliProvider: ProviderDescriptor<LogStore> = {
       id: 'openobserve-cli',
       capability: 'log-store',
       label: 'OpenObserve stream {stream}',
-      optionalFlags: { base_url: '--base-url', org: '--org', auth_scheme: '--auth-scheme' },
+      optionalFlags: { base_url: '--base-url', org: '--org' },
       command: [
         'openobserve-cli',
         'search',

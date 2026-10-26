@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- バックグラウンドの hook 実行では、対応 CLI 自身の `--timeout` を通じて、ログインの再利用チェックにその実行が割ける時間を伝えます。再利用で追加される検索に対応 CLI が設ける上限の 10 秒に満たない場合は、そのチェックを行いません。以前は、そのチェックに割り当てた時間が尽きた時点でチェックが打ち切られていました。`fx login --list` と init のプレビューでは、再利用ステップの `verify` に、フラグとチェックに必要な最小時間 (`minimumMs`) を示す `deadline` が加わります。
+- バックグラウンドの hook 実行で、成功しなかったログインチェックがすべて実行されなかったか応答しなかったもの (`fx doctor` が coverage 不完全と報告するもの。実行の時間が尽きた場合など) である場合は、`LOGIN_REQUIRED` ではなく `LOGIN_UNCHECKED` を記録します。
+- `fx where` が表示しプローブする OpenObserve と Prometheus のコマンドに、宣言された認証方式を含めなくなりました。チェックは 0.9.1 からそうしています。basic 認証を使う OpenObserve の context へのプローブは `--auth-scheme session` 付きで送られて拒否されていました。コマンドには context のほか、サーバーの URL と組織だけを指定します。
+
 ## 0.12.0 (2026-10-19)
 
 - GitHub で pull request を作成できるようになりました。`fx source push` は GitHub にある manifest ソースでも Bitbucket と同じように動作します。選択したファイルを `gh` を通じて検証済みの個人フォークに push し、上流に対する pull request を作成、再利用、または終了します。`--pr` には pull request の番号か GitHub 上のページを指定できます。
