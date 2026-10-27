@@ -204,7 +204,10 @@ function fromAuth(tool: ResolvedTool, auth: NonNullable<ResolvedTool['auth']>): 
     kind: 'manual',
     title: `Authenticate ${tool.name}`,
     ...(auth.docs === undefined ? {} : { open: auth.docs }),
-    verify: { command: [tool.binary, ...auth.command] },
+    verify: {
+      command: [tool.binary, ...auth.command],
+      ...(auth.json === undefined ? {} : { json: auth.json }),
+    },
     requires: [],
     origin: commandOrigin(tool, 'auth'),
     required: tool.required,

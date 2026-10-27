@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import type { HarnessSession } from '../application/harness/session.js';
 import type { HookSession } from '../application/hook/session.js';
+import type { StandaloneInitDeps } from '../application/init/standalone.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import { loadManifestContext, type ManifestContext } from '../application/manifest/context.js';
@@ -200,6 +201,21 @@ export class CommandWiring {
       toolInstall: toolInstall(container),
       stages: this.stageDeps(),
       settleManifest: (name, dir) => this.updateChecks().manifest.markCurrent(name, dir),
+    };
+  }
+
+  standaloneInitDeps(): StandaloneInitDeps {
+    const { container, cliVersion, reporter, commandShell, noInput } = this.input;
+    return {
+      bundledTools: container.bundledTools,
+      cliVersion,
+      commandShell,
+      fs: container.fs,
+      process: container.process,
+      prompter: container.prompter(noInput),
+      reporter,
+      toolInstall: toolInstall(container),
+      skills: this.skillDeps(),
     };
   }
 

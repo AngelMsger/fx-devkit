@@ -21,7 +21,12 @@ authentication.
 
 A custom executable declaration does not synthesize authentication from the bundled
 catalog's default vector. Standalone auth must be explicitly declared; bound
-providers retain their own authentication recipes. Relative verification files
+providers retain their own authentication recipes. A tool's `auth.json` makes its
+status pass only on that scalar, for companions whose status exits zero when nobody
+is signed in; `auth.login` names the tool's own interactive setup, which
+manifest-free init hands to a person and never runs unattended. Both merge like
+other catalog fields, so a patch that replaces `auth.command` keeps them unless it
+deletes them with null. Relative verification files
 resolve from the workspace root; ~ resolves from the user's home. The root is
 created after validation/registration and before local setup starts.
 

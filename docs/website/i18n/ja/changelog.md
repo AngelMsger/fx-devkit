@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
+- manifest がなくても対応 CLI をセットアップできるようになりました。ディレクトリもソースも指定せずに `fx init` を実行すると、fx のカタログにあるツールを一覧し、セットアップするものを番号か名前で尋ねます。Enter ですべてを選びます。エージェントやスクリプトは `fx init --tools <name,...>` または `--tools all` で指定し、`--dry-run` でプレビューできます。fx は不足しているツールをインストールし、各ツールにコーディングエージェント向けの Skill をインストールさせ、自身の `fx-workspace` Skill を追加して、各ツールがサインイン済みかを確認します。ターミナルでは、サインインしていないツールのセットアップ (`<tool> config init`、`gh auth login`) を始めるかを尋ねます。セットアップはサービスと認証情報を尋ねます。ターミナルでない場合と `--yes` の場合は、そのコマンドをレポートで渡します。ワークスペースは登録しません。ツールを決め、接続先のサービスを事前設定するのは、引き続き manifest の役割です。JSON レポートには `tools`、`tool_install`、`skills` があり、`preparation.scope.workspace` は `null` です。
+- カタログや manifest のツールの `auth` で、ステータスが報告すべき JSON フィールド (`json`) とツール自身の対話式セットアップ (`login`) を指定できるようになりました。同梱のカタログはファミリーの CLI に両方を、`gh` に `login` を指定し、`fx tool show` はそれらを示します。
 - バックグラウンドの hook 実行では、対応 CLI 自身の `--timeout` を通じて、ログインの再利用チェックにその実行が割ける時間を伝えます。再利用で追加される検索に対応 CLI が設ける上限の 10 秒に満たない場合は、そのチェックを行いません。以前は、そのチェックに割り当てた時間が尽きた時点でチェックが打ち切られていました。`fx login --list` と init のプレビューでは、再利用ステップの `verify` に、フラグとチェックに必要な最小時間 (`minimumMs`) を示す `deadline` が加わります。
 - バックグラウンドの hook 実行で、成功しなかったログインチェックがすべて実行されなかったか応答しなかったもの (`fx doctor` が coverage 不完全と報告するもの。実行の時間が尽きた場合など) である場合は、`LOGIN_REQUIRED` ではなく `LOGIN_UNCHECKED` を記録します。
+- Jenkins と OpenObserve の環境は、`jenkins-cli auth status` または `openobserve-cli auth status` が `authenticated: true` を報告した場合にだけサインイン済みとみなします。どちらも誰もサインインしていなくても 0 で終了するため、認証情報のないマシンではサインインのステップが完了扱いになり、`fx init` と `fx sync` はサインインを求めていませんでした。
 - `fx where` が表示しプローブする OpenObserve と Prometheus のコマンドに、宣言された認証方式を含めなくなりました。チェックは 0.9.1 からそうしています。basic 認証を使う OpenObserve の context へのプローブは `--auth-scheme session` 付きで送られて拒否されていました。コマンドには context のほか、サーバーの URL と組織だけを指定します。
 
 ## 0.12.0 (2026-10-19)

@@ -124,7 +124,8 @@ when they are needed. Unknown top-level fields produce one non-fatal
 ## Preparation contract
 
 Init/sync keep preview/apply in `operation`. Init/sync/doctor expose one
-`preparation` contract: `state` (planned/ready/incomplete), scoped resources,
+`preparation` contract: `state` (planned/ready/incomplete), scoped resources
+(`scope.workspace` is null when init prepares tools without a workspace),
 completed check IDs, required blockers, optional warnings, unchecked evidence,
 concrete next_actions and a continuation action. Typed stage checks own the
 verdict; rendering never decides readiness by searching nested result strings.

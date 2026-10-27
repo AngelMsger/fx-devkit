@@ -98,12 +98,13 @@ function shim(dir: string, name: string, body: string): void {
 
 const json = ['--format', 'json'] as const;
 
-// A jenkins-cli on the stage's PATH that is signed in only where FAKE_JENKINS_OK is 0.
+// A jenkins-cli on the stage's PATH that is signed in only where FAKE_JENKINS_OK is 0;
+// like the real one, `auth status` exits zero either way and says who is signed in.
 function installJenkins(s: Stage): void {
   shim(
     s.shims,
     'jenkins-cli',
-    'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("jenkins-cli 1.0.0"); else process.exit(a==="auth status"?Number(process.env.FAKE_JENKINS_OK??1):2);',
+    'const a=process.argv.slice(2).join(" "); if(a==="--version") console.log("jenkins-cli 1.0.0"); else if(a==="auth status") console.log(JSON.stringify({authenticated:process.env.FAKE_JENKINS_OK==="0"})); else process.exit(2);',
   );
 }
 

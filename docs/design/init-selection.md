@@ -27,6 +27,19 @@ registration rechecks current state under that lease.
 The [runtime contract](runtime.md) owns preparation output and exit codes; the
 [setup policy](setup.md) separates local preparation from personal sign-in.
 
+Init with neither a directory nor a source prepares companion tools on this machine
+without a manifest or workspace. It offers only enabled tools of the bundled catalog,
+so every vector it runs is fx's own and needs no trust. A terminal chooses from a
+numbered list, with an empty answer taking all; anyone else names tools with
+`--tools`, and no names is a usage error rather than a guess. It installs missing
+tools one by one so a failure stays that tool's, runs each selected tool's Skill
+command and copies fx's own Skill as sync does, then runs each tool's `auth.command`,
+which passes on exit zero and, where the catalog says so, on its `auth.json`. A tool
+not signed in is a user-owned blocker whose action is the catalog's `auth.login`;
+only a person on a terminal, without `--yes`, is offered to run it there, after which
+the status is checked again. Nothing is registered, refreshed or cloned, and
+`--tools` never accompanies a directory. Rerunning with the same names is the resume.
+
 Repository and environment scopes have three explicit modes: `all` is an absent
 scope key and dynamically follows shared declarations; `explicit` is a nonempty
 personal list; `none` is an empty list. Personal repositories and the manifest

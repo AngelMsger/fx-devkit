@@ -76,6 +76,25 @@ it('every failure case reads only what the tool wrote, through patterns that com
   }
 });
 
+it('reads who is signed in from a family CLI’s `auth status`, which exits zero either way', () => {
+  const checks = PROVIDERS.flatMap((provider) =>
+    provider.recipes.filter(
+      (recipe) =>
+        recipe.tool.endsWith('-cli') &&
+        'command' in recipe.verify &&
+        recipe.verify.command.slice(0, 2).join(' ') === 'auth status',
+    ),
+  );
+  expect(checks.map((recipe) => recipe.tool).sort()).toEqual([
+    'bitbucket-cli',
+    'jenkins-cli',
+    'openobserve-cli',
+    'wecom-calendar-cli',
+  ]);
+  for (const recipe of checks)
+    expect('json' in recipe.verify && recipe.verify.json, recipe.tool).toBeTruthy();
+});
+
 describe('kubectl', () => {
   it('never generates a writing verb', () => {
     const vectors = [

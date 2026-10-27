@@ -2,6 +2,7 @@
 // from, and which providers depend on it.
 
 import type { Origin } from '../../domain/manifest/overlay.js';
+import type { JsonExpectation } from '../../domain/setup/types.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { ToolSource, ToolSourceKind } from '../../domain/toolchain/select.js';
 import type { CommandGuidance } from '../workspace/guidance.js';
@@ -32,7 +33,12 @@ export interface ToolDetail {
     agent_flag: string | null;
     dir_flag: string | null;
   } | null;
-  readonly auth: { command: readonly string[]; docs: string | null } | null;
+  readonly auth: {
+    command: readonly string[];
+    json: JsonExpectation | null;
+    login: readonly string[] | null;
+    docs: string | null;
+  } | null;
   readonly setup_steps: readonly { id: string; kind: string; title: string }[];
   readonly fields: Readonly<Record<string, Origin>>;
   readonly source: ToolSourceKind;
@@ -72,7 +78,12 @@ export class ToolShow {
       auth:
         tool.auth === undefined
           ? null
-          : { command: tool.auth.command, docs: tool.auth.docs ?? null },
+          : {
+              command: tool.auth.command,
+              json: tool.auth.json ?? null,
+              login: tool.auth.login ?? null,
+              docs: tool.auth.docs ?? null,
+            },
       setup_steps: tool.setup.map((s) => ({ id: s.id, kind: s.kind, title: s.title })),
       fields,
       source: input.sources.get(tool.name)?.kind ?? 'catalog',

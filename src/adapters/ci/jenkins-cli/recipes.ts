@@ -13,6 +13,10 @@ export const JENKINS_RECIPES: readonly SetupRecipe[] = [
     instructions:
       'Prompts for your user name and an API token (Jenkins: your profile → Configure → API Token).',
     run: ['auth', 'login'],
-    verify: { command: ['auth', 'status'] },
+    // `auth status` exits zero when nobody is signed in, so only `authenticated` tells.
+    verify: {
+      command: ['auth', 'status'],
+      json: { path: 'authenticated', equals: true, reason: 'error' },
+    },
   },
 ];

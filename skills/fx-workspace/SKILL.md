@@ -20,11 +20,11 @@ identify the instructions shipped with this version.
 
 Choose the guide for the user's task:
 
-| Task                                                                                          | Guide                                            |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Prepare a workspace from a manifest, or resume unfinished preparation                         | [Initialization](references/initialization.md)   |
-| Query, synchronize or maintain an existing workspace; route a service task; edit the manifest | [Workspace tasks](references/workspace-tasks.md) |
-| Interpret a particular response field or advanced recovery contract                           | [Response contracts](references/commands.md)     |
+| Task                                                                                                      | Guide                                            |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Prepare a workspace from a manifest, set up companion tools without one, or resume unfinished preparation | [Initialization](references/initialization.md)   |
+| Query, synchronize or maintain an existing workspace; route a service task; edit the manifest             | [Workspace tasks](references/workspace-tasks.md) |
+| Interpret a particular response field or advanced recovery contract                                       | [Response contracts](references/commands.md)     |
 
 For initialization, the source and target directory are sufficient. Follow the
 initialization guide and `preparation.next`; it already includes verification.

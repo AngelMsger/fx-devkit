@@ -43,6 +43,7 @@ function toolRules(tool: Tool, at: string, doc: Toolchain): Problem[] {
     [`${at}.version_args`, tool.version_args],
     [`${at}.skill.command`, tool.skill?.command],
     [`${at}.auth.command`, tool.auth?.command],
+    [`${at}.auth.login`, tool.auth?.login],
   ];
   const ids = new Map<string, number>();
   (tool.setup ?? []).forEach((step, k) => {

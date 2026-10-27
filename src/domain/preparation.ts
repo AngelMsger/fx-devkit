@@ -35,7 +35,8 @@ export interface PreparationCheck {
 }
 
 export interface PreparationScope {
-  readonly workspace: string;
+  // Null when init prepares tools on this machine without a workspace.
+  readonly workspace: string | null;
   readonly stages: readonly string[];
   readonly repositories: readonly string[];
   readonly tools: readonly string[];

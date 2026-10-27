@@ -1,5 +1,6 @@
 // A task-oriented terminal view; structured reports remain the machine interface.
 // `preparation.next` instructs an agent and stays in the structured report.
+import type { StandaloneInitOutput, ToolSetupRow } from '../application/init/standalone.js';
 import type { InitOutput } from '../application/init/types.js';
 import { isSettled } from '../application/login/run.js';
 import type { StageSummary } from '../application/preparation.js';
@@ -13,9 +14,12 @@ import { roleOf } from './render/tone.js';
 import { gap, widthOf } from './render/width.js';
 
 // Every preparation report carries a verdict. An initialization also names its root,
-// its plan and its first sync; a sync lists the repositories it reconciles.
+// its plan and its first sync; a sync lists the repositories it reconciles; an
+// initialization without a manifest lists the tools it set up on this machine.
 export type PreparationReport = { readonly preparation: Preparation } & Partial<
-  Pick<InitOutput, 'root' | 'manifest_dir' | 'plan' | 'sync'> & Pick<SyncOutput, 'items' | 'stages'>
+  Pick<InitOutput, 'root' | 'manifest_dir' | 'plan' | 'sync' | 'tool_install'> &
+    Pick<SyncOutput, 'items' | 'stages'> &
+    Pick<StandaloneInitOutput, 'tools' | 'skills'>
 >;
 
 export interface PreparationView {
@@ -62,8 +66,8 @@ const VERDICT: Readonly<Record<Preparation['state'], Mark | undefined>> = {
 export function preparationText(report: PreparationReport, view: PreparationView): string {
   const { display } = view;
   const { preparation } = report;
-  const target = report.root ?? preparation.scope.workspace;
-  const initialization = report.manifest_dir !== undefined;
+  const target = report.root ?? preparation.scope.workspace ?? 'this machine';
+  const initialization = report.manifest_dir !== undefined || report.tools !== undefined;
   const groups = blockerRows(preparation.blockers).length;
   const grouping = groups < preparation.blockers.length ? `, in ${groups} groups` : '';
   const headline = {
@@ -77,8 +81,9 @@ export function preparationText(report: PreparationReport, view: PreparationView
   ];
   if (!initialization && preparation.state !== 'incomplete')
     lines.push(display.paint('quiet', `Scope: ${preparation.scope.stages.join(', ')}`));
-  if (preparation.state !== 'planned') lines.push(...stageLines(report, display));
-  if (preparation.state === 'planned') lines.push(...previewLines(report, view));
+  if (report.tools !== undefined) lines.push(...toolSetupLines(report, view));
+  else if (preparation.state !== 'planned') lines.push(...stageLines(report, display));
+  else lines.push(...previewLines(report, view));
   const setup = report.sync?.stage_details?.setup;
   const steps = setup === undefined || 'failure' in setup ? [] : setup.items;
   const verified = steps.filter((step) => isSettled(step.result));
@@ -345,6 +350,64 @@ function previewLines(report: PreparationReport, view: PreparationView): string[
       'The source has not been inspected; its requirements will be validated before preparation.',
     );
   return lines;
+}
+
+// One line per tool set up without a manifest: what it is now, its Skill and its sign-in.
+// A preview adds every command it would run.
+function toolSetupLines(report: PreparationReport, view: PreparationView): string[] {
+  const { display, shell } = view;
+  const rows = (report.tools ?? []).map((tool): [ToolSetupRow, string[]] => [
+    tool,
+    [tool.name, installText(tool), SKILL_TEXT[tool.skill], SIGN_IN_TEXT[tool.sign_in]],
+  ]);
+  const widths = [0, 1, 2].map((column) =>
+    Math.max(0, ...rows.map(([, cells]) => widthOf(cells[column]!))),
+  );
+  const lines = rows.map(([tool, cells]) => {
+    const text = cells
+      .map((cell, column) => (column < 3 ? `${cell}${gap(cell, widths[column]!)}` : cell))
+      .join('  ')
+      .trimEnd();
+    return `${display.mark(toolMark(tool, report.preparation.state))}${text}`;
+  });
+  if (report.preparation.state !== 'planned') return lines;
+  const commands = [
+    ...(report.tool_install ?? []).map((install) => install.vector),
+    ...(report.skills?.tools ?? []).map((skill) => skill.vector),
+  ].filter(isVector);
+  for (const command of new Set(commands.map((command) => shellLine(command, shell))))
+    lines.push(`Review command: ${display.paint('accent', command)}`);
+  return lines;
+}
+
+function installText(tool: ToolSetupRow): string {
+  if (tool.install === 'planned') return 'to install';
+  if (tool.install === 'manual') return 'install by hand';
+  if (tool.install === 'failed') return 'not installed';
+  const version = tool.installed ?? 'version unknown';
+  const outdated = tool.state === 'outdated' ? ', older than needed' : '';
+  return `${tool.install === 'installed' ? 'installed ' : ''}${version}${outdated}`;
+}
+
+const SKILL_TEXT: Readonly<Record<ToolSetupRow['skill'], string>> = {
+  planned: 'Skill to install',
+  installed: 'Skill installed',
+  failed: 'Skill failed',
+  none: '',
+};
+
+const SIGN_IN_TEXT: Readonly<Record<ToolSetupRow['sign_in'], string>> = {
+  ready: 'signed in',
+  pending: 'not signed in',
+  unknown: 'sign-in not checked',
+  none: '',
+};
+
+function toolMark(tool: ToolSetupRow, state: Preparation['state']): Mark | undefined {
+  if (state === 'planned') return undefined;
+  const ready =
+    tool.state === 'ok' && tool.skill !== 'failed' && ['ready', 'none'].includes(tool.sign_in);
+  return ready ? 'ok' : 'fail';
 }
 
 function isVector(command: readonly string[] | null): command is readonly string[] {

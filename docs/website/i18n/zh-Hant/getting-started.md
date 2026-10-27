@@ -7,6 +7,7 @@
 依任務選擇閱讀入口：
 
 - 新建工作區：[安裝](#install)，再[快速上手](#quick-start)。
+- 還沒有 manifest：[設定配套 CLI](#set-up-companion-tools-without-a-manifest)。
 - 儲存庫較多：[下載前選擇儲存庫](#choose-repositories-before-downloading)。
 - 設定中斷：[判讀結果並復原](#reading-initialization-and-recovery-results)。
 - 編碼 Agent：[結構化結果與 bundled Skill](#for-coding-agents)。
@@ -15,7 +16,7 @@
 
 - Node.js ≥22；開發版本以 package.json 為準。Bun 也可以作為執行環境。
 - Git 位於 PATH 中。全域安裝和 `fx self update` 仍需要 npm，包括使用 Bun 時。
-- 團隊提供的 manifest，或[自行建立的 manifest](manifest-guide.md)。
+- 工作區需要團隊提供的 manifest，或[自行建立的 manifest](manifest-guide.md)。只設定配套 CLI 時不需要。
 
 支援 macOS 和 Linux。原生 Windows 介接器已實作，但 Windows 實機執行和 Agent 宿主啟用尚未完成驗證；目標為本機 NTFS 上的 PowerShell 5.1/7 和 cmd。請參閱 [Windows 支援範圍](support.md#platform-support)。
 
@@ -87,6 +88,20 @@ fx init --resume --workspace work
 續跑會驗證目前狀態並略過已完成準備，不會重新匯入目錄來源或重建既有儲存庫。無需自行選擇內部階段或組合診斷命令。
 
 新工作區預設選取全部共享儲存庫。需要縮小首次下載範圍時，先[選擇儲存庫](#choose-repositories-before-downloading)，在初始預覽和執行都加上 `--repos`。既有目錄會自動納入管理。日常更新使用 `fx sync`，查看儲存庫狀態使用 `fx status`。
+
+## 不用 manifest 設定配套 CLI {#set-up-companion-tools-without-a-manifest}
+
+沒有團隊 manifest 時，不帶目錄執行 `fx init`，即可在本機設定 fx 支援的配套 CLI。它會列出這些工具並詢問需要哪些，按 Enter 選擇全部。直接寫出名稱則不再詢問：
+
+```sh
+fx init
+fx init --tools bitbucket-cli,jira-cli --dry-run
+fx init --tools all
+```
+
+fx 會安裝尚未安裝的工具，讓每個工具把自己的 Skill 與 fx 自身的 Skill 一起安裝到你的編碼 Agent 中，並檢查你是否已登入。對於尚未設定的工具，fx 會詢問是否啟動該工具自己的設定，例如 `bitbucket-cli config init`，它會詢問服務位址和你的憑證。如果你拒絕、傳入 `--yes` 或在沒有終端時執行，fx 會改為列出這些命令；執行之後再執行一次 `fx init --tools <names>` 即可確認。既有的工具保持原樣，fx 回報版本過舊的工具可用 `fx tool update` 升級。
+
+這樣不會註冊工作區，也不預設任何內容。有 manifest 時，`fx init <dir> --from <manifest>` 會決定工具，並為你填好每個服務的位址。
 
 ## 探索與管理工作區 {#find-and-manage-workspaces}
 
