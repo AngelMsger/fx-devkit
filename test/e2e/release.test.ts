@@ -115,7 +115,7 @@ function stage(): Stage {
     `
 const a=process.argv.slice(2).join(' ');
 if(a==='--version') console.log('jenkins-cli 1.0.0');
-else if(a==='auth status') process.exit(0);
+else if(a==='auth status') console.log(JSON.stringify({authenticated:true}));
 else if(a.includes('build get ')) console.log(JSON.stringify({building:false,number:a.includes('build get services/a/dev')?4:9,status:a.includes('build get services/a/dev')?'failure':'success',started_at:'2999-01-01T00:00:00Z',url:null}));
 else process.exit(2);
 `,
