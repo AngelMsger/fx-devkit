@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.13.0 (2026-10-27)
+
 - 没有 manifest 也能设置配套 CLI。不指定目录和源直接运行 `fx init`，会列出 fx 工具目录中的工具，并询问要设置哪些，可以输入编号或名称，按 Enter 选择全部；Agent 和脚本用 `fx init --tools <name,...>` 或 `--tools all` 指定，`--dry-run` 可以预览。fx 会安装缺少的工具，让每个工具为你的编码 Agent 安装它的 Skill，加上 fx 自己的 `fx-workspace` Skill，并检查每个工具是否已登录。在终端中，fx 会询问是否开始设置尚未登录的工具 (`<tool> config init`、`gh auth login`)，设置过程会询问服务和你的凭据；不在终端或使用 `--yes` 时，报告会把这条命令交给你。不会注册工作区；决定工具并预设它们所连服务的，仍然是 manifest。JSON 报告包含 `tools`、`tool_install` 和 `skills`，`preparation.scope.workspace` 为 `null`。
 - 工具目录或 manifest 中工具的 `auth` 可以指定状态必须报告的 JSON 字段 (`json`) 和工具自己的交互式设置 (`login`)。内置工具目录为本系列 CLI 指定了这两项，为 `gh` 指定了 `login`，`fx tool show` 会显示它们。
 - 在后台 hook 运行中，通过配套 CLI 自己的 `--timeout` 告诉登录复用检查本次运行还能给它多少时间；不足配套 CLI 为复用新增的查找所设的十秒上限时，不发起这项检查。此前这项检查会在分给它的时间用完时被终止。`fx login --list` 与 init 预览中复用步骤的 `verify` 新增 `deadline`，给出该标志和检查至少需要的时间 (`minimumMs`)。
