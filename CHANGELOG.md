@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+
+- Set up companion tools without a manifest. `fx init` with no directory and no source
+  lists the tools in fx's catalog and asks which to set up, by number or name, with
+  Enter taking all of them; `fx init --tools <name,...>` or `--tools all` names them
+  for agents and scripts, and `--dry-run` previews. fx installs the tools that are
+  missing, has each one install its Skill for your coding agents, adds its own
+  `fx-workspace` Skill, and checks whether each one is signed in. On a terminal it
+  offers to start the setup of a tool that is not signed in (`<tool> config init`,
+  `gh auth login`), which asks for the service and your credentials; otherwise, and
+  with `--yes`, the report hands that command to you. No workspace is registered, and
+  a manifest still decides the tools and presets the services they point at. The JSON
+  report has `tools`, `tool_install` and `skills`, and `preparation.scope.workspace`
+  is `null`.
+- Let a tool's `auth` in the catalog or a manifest name the JSON field its status must
+  report (`json`) and the tool's own interactive setup (`login`). The bundled catalog
+  names both for the family CLIs and `login` for `gh`, and `fx tool show` reports them.
+
 ### Changed
 
 - Tell a companion's reuse check in a background hook run how long the run can give
@@ -16,6 +34,11 @@
 
 ### Fixed
 
+- Count a Jenkins or OpenObserve environment as signed in only when
+  `jenkins-cli auth status` or `openobserve-cli auth status` reports
+  `authenticated: true`. Both exit zero when nobody is signed in, so on a machine
+  without credentials the sign-in step counted as done and `fx init` and `fx sync`
+  did not ask for it.
 - Leave the declared authentication method out of the OpenObserve and Prometheus
   commands `fx where` prints and probes, as checks have done since 0.9.1. A probe of
   an OpenObserve context that uses basic authentication was sent with

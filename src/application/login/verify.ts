@@ -37,7 +37,7 @@ export interface VerifyOptions {
 
 // Identity and access checks may contact a remote service or unlock native storage.
 // Local binary and public-setting probes retain their separate short deadlines.
-const CHECK_TIMEOUT_MS = 30_000;
+export const CHECK_TIMEOUT_MS = 30_000;
 
 export class Verifier {
   constructor(
@@ -130,7 +130,8 @@ export function stepTrust(
   };
 }
 
-function commandVerdict(
+// Init without a workspace reads a tool's sign-in status through the same verdict.
+export function commandVerdict(
   verify: Extract<SetupCheck, { readonly command: readonly string[] }>,
   result: ProcessResult,
 ): CheckVerdict {

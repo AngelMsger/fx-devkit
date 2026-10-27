@@ -15,7 +15,7 @@ import { skillTargets, type SkillDeps } from './targets.js';
 import type { SkillStageInput, ToolSkillItem } from './types.js';
 
 export async function planTools(
-  deps: WorkspaceDeps,
+  deps: Pick<WorkspaceDeps, 'process' | 'commandShell'>,
   skills: SkillDeps,
   input: SkillStageInput,
 ): Promise<ToolSkillItem[]> {
@@ -165,7 +165,10 @@ export function wasHeldBack(item: ToolSkillItem): boolean {
   return item.vector === null && item.note === HELD_BACK;
 }
 
-export async function runTools(deps: WorkspaceDeps, items: ToolSkillItem[]): Promise<void> {
+export async function runTools(
+  deps: Pick<WorkspaceDeps, 'process' | 'commandShell' | 'reporter'>,
+  items: ToolSkillItem[],
+): Promise<void> {
   // A tool installs into one directory per agent; its progress is still one start and one end.
   const pending = new Map<string, number>();
   for (const item of items)
@@ -203,7 +206,7 @@ export async function runTools(deps: WorkspaceDeps, items: ToolSkillItem[]): Pro
 }
 
 function installFailure(
-  deps: WorkspaceDeps,
+  deps: Pick<WorkspaceDeps, 'commandShell' | 'reporter'>,
   tool: string,
   result: ProcessResult,
 ): Pick<ToolSkillItem, 'note' | 'failure'> {

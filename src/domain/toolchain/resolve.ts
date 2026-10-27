@@ -4,6 +4,7 @@
 
 import { DEFAULTS_KEY, type Origin, type Provenance } from '../manifest/overlay.js';
 import type { DeclaredSetupStep, InstallVia, Tool, Toolchain } from '../manifest/types.js';
+import type { JsonExpectation } from '../setup/types.js';
 
 export interface InstallMethod {
   readonly via: InstallVia;
@@ -31,7 +32,12 @@ export interface ResolvedTool {
     readonly agentFlag?: string;
     readonly dirFlag?: string;
   };
-  readonly auth?: { readonly command: readonly string[]; readonly docs?: string };
+  readonly auth?: {
+    readonly command: readonly string[];
+    readonly json?: JsonExpectation;
+    readonly login?: readonly string[];
+    readonly docs?: string;
+  };
   readonly setup: readonly DeclaredSetupStep[];
   readonly origins: Readonly<Record<VectorField | 'binary', Origin>>;
   // Every field path the patch contributed, for `tool list` and `tool show`.
@@ -73,8 +79,6 @@ function resolveTool(
     provenance[tool.name],
     tool.binary === undefined ? 'name' : 'binary',
   );
-  const skill = tool.skill ?? defaults.skill;
-  const auth = tool.auth ?? defaults.auth;
   return {
     name: tool.name,
     binary: tool.binary ?? tool.name,
@@ -89,20 +93,8 @@ function resolveTool(
     install: (tool.install ?? defaults.install ?? []).map((m) =>
       completeSpec(m, tool.name, defaults.npm_scope),
     ),
-    ...(skill === undefined || skill.command.length === 0
-      ? {}
-      : {
-          skill: {
-            command: skill.command,
-            ...(skill.agent_flag === undefined ? {} : { agentFlag: skill.agent_flag }),
-            ...(skill.dir_flag === undefined ? {} : { dirFlag: skill.dir_flag }),
-          },
-        }),
-    ...(auth === undefined || auth.command.length === 0
-      ? {}
-      : {
-          auth: { command: auth.command, ...(auth.docs === undefined ? {} : { docs: auth.docs }) },
-        }),
+    ...resolvedSkill(tool.skill ?? defaults.skill),
+    ...resolvedAuth(tool.auth ?? defaults.auth),
     setup: tool.setup ?? [],
     patchedFields: fieldsWithOrigin(provenance[tool.name], 'patch'),
     baseFields: fieldsWithOrigin(provenance[tool.name], 'base'),
@@ -113,6 +105,30 @@ function resolveTool(
       skill: origin('skill'),
       auth: origin('auth'),
       setup: origin('setup'),
+    },
+  };
+}
+
+// An empty command means the tool has no Skill or needs no sign-in.
+function resolvedSkill(skill: Tool['skill']): Pick<ResolvedTool, 'skill'> {
+  if (skill === undefined || skill.command.length === 0) return {};
+  return {
+    skill: {
+      command: skill.command,
+      ...(skill.agent_flag === undefined ? {} : { agentFlag: skill.agent_flag }),
+      ...(skill.dir_flag === undefined ? {} : { dirFlag: skill.dir_flag }),
+    },
+  };
+}
+
+function resolvedAuth(auth: Tool['auth']): Pick<ResolvedTool, 'auth'> {
+  if (auth === undefined || auth.command.length === 0) return {};
+  return {
+    auth: {
+      command: auth.command,
+      ...(auth.json === undefined ? {} : { json: auth.json }),
+      ...(auth.login === undefined || auth.login.length === 0 ? {} : { login: auth.login }),
+      ...(auth.docs === undefined ? {} : { docs: auth.docs }),
     },
   };
 }

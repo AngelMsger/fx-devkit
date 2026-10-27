@@ -9,6 +9,7 @@ the features it supports.
 Choose the section for your task:
 
 - New workspace: [install](#install), then [quick start](#quick-start).
+- No manifest yet: [set up companion tools](#set-up-companion-tools-without-a-manifest).
 - Large workspace: [choose repositories before downloading](#choose-repositories-before-downloading).
 - Interrupted setup: [read the result and recover](#reading-initialization-and-recovery-results).
 - Coding agent: [use structured results and the bundled Skill](#for-coding-agents).
@@ -17,7 +18,8 @@ Choose the section for your task:
 
 - Node.js ≥22 (development uses Node 24), or Bun as an alternative runtime.
 - Git on PATH. Companion CLIs can be installed afterward through `fx tool install`.
-- A manifest source: use your team's repository or [create your own](manifest-guide.md).
+- A manifest source for a workspace: use your team's repository or [create your own](manifest-guide.md).
+  Setting up companion tools alone needs none.
 - npm for global installation and `fx self update`, including when using Bun.
 
 macOS and Linux are supported. Native Windows adapters are implemented, but
@@ -128,6 +130,30 @@ New workspaces select all shared repositories. To limit the first download,
 [choose repositories](#choose-repositories-before-downloading) and add `--repos`
 to the initial preview and apply. Existing directories are adopted automatically.
 For everyday updates use `fx sync`; `fx status` shows repository state.
+
+## Set up companion tools without a manifest
+
+Without a team manifest, `fx init` with no directory sets up the companion CLIs
+fx knows on this machine. It lists them and asks which ones you want; press Enter
+for all of them. Name them instead to skip the question:
+
+```sh
+fx init
+fx init --tools bitbucket-cli,jira-cli --dry-run
+fx init --tools all
+```
+
+fx installs the tools you do not have yet, has each one install its Skill into
+your coding agents next to fx's own Skill, and checks whether you are signed in.
+For a tool that is not set up yet, fx offers to start that tool's own setup, such
+as `bitbucket-cli config init`, which asks for the service address and your
+credentials. If you decline, pass `--yes` or run without a terminal, fx lists those
+commands for you instead; run `fx init --tools <names>` again afterwards to check.
+Tools you already have are kept as they are, and `fx tool update` upgrades one
+fx reports as too old.
+
+This registers no workspace and presets nothing. With a manifest, `fx init <dir>
+--from <manifest>` decides the tools and fills in each service's address for you.
 
 ## Find and manage workspaces
 

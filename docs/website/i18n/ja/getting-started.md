@@ -7,6 +7,7 @@ fx をインストールし、チームのマニフェストを接続してリ�
 目的に合わせて読み始めてください：
 
 - 新規ワークスペース：[インストール](#install)、次に[クイックスタート](#quick-start)。
+- マニフェストがまだない場合：[対応 CLI のセットアップ](#set-up-companion-tools-without-a-manifest)。
 - リポジトリが多い場合：[ダウンロード前に選択](#choose-repositories-before-downloading)。
 - セットアップが中断した場合：[結果の確認と復旧](#reading-initialization-and-recovery-results)。
 - コーディング Agent：[構造化結果と bundled Skill](#for-coding-agents)。
@@ -15,7 +16,7 @@ fx をインストールし、チームのマニフェストを接続してリ�
 
 - Node.js ≥22。開発バージョンは package.json に固定されています。Bun もランタイムとして利用できます。
 - PATH 上の Git。グローバルインストールと `fx self update` には、Bun を使う場合も npm が必要です。
-- チームのマニフェスト、または[自分で作成したマニフェスト](manifest-guide.md)。
+- ワークスペースには、チームのマニフェスト、または[自分で作成したマニフェスト](manifest-guide.md)。対応 CLI だけをセットアップする場合は不要です。
 
 macOS と Linux をサポートします。Windows のネイティブアダプターは実装済みですが、実機実行とエージェントホストの有効化は未検証です。対象はローカル NTFS 上の PowerShell 5.1/7 と cmd です。[Windows の検証範囲](support.md#platform-support)を参照してください。
 
@@ -87,6 +88,20 @@ fx init --resume --workspace work
 再開時は現在の状態を検証し、完了済みの準備を省略します。ディレクトリのソースを再取り込みしたり、既存の checkout を作り直したりしません。内部ステージや診断コマンドの組み合わせを覚える必要はありません。
 
 新しいワークスペースでは共有リポジトリをすべて選択します。初回のダウンロードを絞る場合は[リポジトリを選び](#choose-repositories-before-downloading)、初回のプレビューと実行に `--repos` を加えます。既存ディレクトリも自動で採用されます。日常の更新は `fx sync`、リポジトリの状態確認は `fx status` を使います。
+
+## マニフェストなしで対応 CLI をセットアップする {#set-up-companion-tools-without-a-manifest}
+
+チームのマニフェストがない場合は、ディレクトリを指定せずに `fx init` を実行すると、fx が扱える対応 CLI をこのマシンにセットアップします。一覧を表示して必要なものを尋ね、Enter を押すとすべてを選びます。名前を指定すると質問を省略できます：
+
+```sh
+fx init
+fx init --tools bitbucket-cli,jira-cli --dry-run
+fx init --tools all
+```
+
+fx はまだ入っていないツールをインストールし、各ツールに自分の Skill を fx 自身の Skill と並べてコーディング Agent へインストールさせ、サインイン済みかどうかを確認します。まだセットアップされていないツールには、そのツール自身のセットアップを始めるかを尋ねます。たとえば `bitbucket-cli config init` は、サービスのアドレスと認証情報を尋ねます。断った場合、`--yes` を付けた場合、ターミナルなしで実行した場合は、代わりにそのコマンドを一覧で示します。実行した後に `fx init --tools <names>` をもう一度実行すると確認できます。すでにあるツールはそのまま残し、fx が古すぎると報告したツールは `fx tool update` で更新します。
+
+ワークスペースは登録せず、何も事前に設定しません。マニフェストがある場合は、`fx init <dir> --from <manifest>` がツールを決め、各サービスのアドレスも設定します。
 
 ## ワークスペースの確認と管理 {#find-and-manage-workspaces}
 

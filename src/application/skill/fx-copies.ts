@@ -13,7 +13,7 @@ import { skillTargets, type SkillDeps } from './targets.js';
 import type { FxSkillItem, SkillStageInput } from './types.js';
 
 export async function planCopies(
-  deps: WorkspaceDeps,
+  deps: Pick<WorkspaceDeps, 'fs' | 'cliVersion'>,
   skills: SkillDeps,
   agents: readonly string[] | undefined,
 ): Promise<FxSkillItem[]> {
@@ -27,7 +27,7 @@ export async function planCopies(
 }
 
 export async function applyCopies(
-  deps: WorkspaceDeps,
+  deps: Pick<WorkspaceDeps, 'fs' | 'cliVersion'>,
   skills: SkillDeps,
   items: FxSkillItem[],
   input: SkillStageInput,

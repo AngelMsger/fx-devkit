@@ -7,6 +7,7 @@
 按任务选择阅读入口：
 
 - 新建工作区：[安装](#install)，然后[快速上手](#quick-start)。
+- 还没有 manifest：[设置配套 CLI](#set-up-companion-tools-without-a-manifest)。
 - 仓库较多：[下载前选择仓库](#choose-repositories-before-downloading)。
 - 设置中断：[判读结果并恢复](#reading-initialization-and-recovery-results)。
 - 编码 Agent：[结构化结果与 bundled Skill](#for-coding-agents)。
@@ -15,7 +16,7 @@
 
 - Node.js ≥22；开发版本以 package.json 为准。Bun 也可以作为运行时。
 - Git 位于 PATH 中。全局安装和 `fx self update` 仍需要 npm，包括使用 Bun 时。
-- 团队提供的 manifest，或[自行创建的 manifest](manifest-guide.md)。
+- 工作区需要团队提供的 manifest，或[自行创建的 manifest](manifest-guide.md)。只设置配套 CLI 时不需要。
 
 支持 macOS 和 Linux。原生 Windows 适配器已实现，但 Windows 实机执行和 Agent 宿主激活尚未完成验证；目标为本地 NTFS 上的 PowerShell 5.1/7 和 cmd。参见 [Windows 支持边界](support.md#platform-support)。
 
@@ -87,6 +88,20 @@ fx init --resume --workspace work
 续跑会验证当前状态并跳过已完成的准备，不会重新导入目录来源或重建已有仓库。无需自行选择内部阶段或再组合一套诊断命令。
 
 新工作区默认选择全部共享仓库。需要减少首次下载时，先[选择仓库](#choose-repositories-before-downloading)，给初始预览和执行都加 `--repos`。已有目录自动纳入管理。日常更新使用 `fx sync`，查看仓库状态使用 `fx status`。
+
+## 不用 manifest 设置配套 CLI {#set-up-companion-tools-without-a-manifest}
+
+没有团队 manifest 时，不带目录运行 `fx init`，即可在本机设置 fx 支持的配套 CLI。它会列出这些工具并询问需要哪些，按 Enter 选择全部。直接写出名称则不再询问：
+
+```sh
+fx init
+fx init --tools bitbucket-cli,jira-cli --dry-run
+fx init --tools all
+```
+
+fx 会安装尚未安装的工具，让每个工具把自己的 Skill 与 fx 自身的 Skill 一起安装到你的编码 Agent 中，并检查你是否已登录。对于尚未设置的工具，fx 会询问是否启动该工具自己的设置，例如 `bitbucket-cli config init`，它会询问服务地址和你的凭证。如果你拒绝、传入 `--yes` 或在没有终端时运行，fx 会改为列出这些命令；运行之后再执行一次 `fx init --tools <names>` 即可确认。已有的工具保持原样，fx 报告版本过旧的工具可用 `fx tool update` 升级。
+
+这样不会注册工作区，也不预设任何内容。有 manifest 时，`fx init <dir> --from <manifest>` 会决定工具，并为你填好每个服务的地址。
 
 ## 发现和管理工作区 {#find-and-manage-workspaces}
 

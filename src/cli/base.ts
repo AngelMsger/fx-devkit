@@ -6,6 +6,7 @@
 import { Command, Errors } from '@oclif/core';
 
 import { readSettings } from '../application/config/settings.js';
+import type { StandaloneInitDeps } from '../application/init/standalone.js';
 import type { InitDeps } from '../application/init/types.js';
 import type { LoginDeps } from '../application/login/deps.js';
 import type { ManifestContext } from '../application/manifest/context.js';
@@ -210,7 +211,9 @@ export abstract class FxCommand extends Command {
       const error = new DevkitError(
         'incomplete',
         'PREPARATION_INCOMPLETE',
-        'Required workspace preparation is unfinished',
+        bound.scope.workspace === null
+          ? 'Required tool setup is unfinished'
+          : 'Required workspace preparation is unfinished',
         {
           nextSteps: [
             bound.next.message,
@@ -298,6 +301,9 @@ export abstract class FxCommand extends Command {
   }
   protected initDeps(): InitDeps {
     return this.wiring().initDeps();
+  }
+  protected standaloneInitDeps(): StandaloneInitDeps {
+    return this.wiring().standaloneInitDeps();
   }
   protected stageDeps(): SyncStageDeps {
     return this.wiring().stageDeps();

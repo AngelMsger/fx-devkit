@@ -8,7 +8,7 @@ Use `fx <command> --help` for the exact syntax supported by your executable.
 
 | Command | What it answers |
 |---|---|
-| `fx init` | Prepare a workspace from a manifest, or continue unfinished preparation |
+| `fx init` | Prepare a workspace from a manifest, set up companion tools without one, or continue unfinished preparation |
 | `fx sync` | Bring the workspace up to date: clone what is missing, fast-forward what is clean, never touch work in progress |
 | `fx login` | Prepare tool access for the selected workspace: authentication, configuration and permission checks |
 | `fx doctor` | Check repositories, tools, login state, agent Skills, the manifest and whether fx or the manifest is behind, in one pass |
@@ -57,9 +57,11 @@ Every command accepts these.
 
 ## `fx init`
 
-Prepare a workspace from a manifest, or continue unfinished preparation
+Prepare a workspace from a manifest, set up companion tools without one, or continue unfinished preparation
 
 Provide a directory and source. fx prepares the selected repositories, local tools and Agent guides, then verifies the result. Only local prepare steps execute automatically, even with --yes; personal sign-in is a handoff. Read preparation.next for the next decision. After completing them, use init --resume --workspace <name>. Existing user files and completed work are preserved.
+
+Without a directory and source, init sets up companion tools on this machine instead: the ones --tools names, or the ones a person picks from the catalog. fx installs the missing ones and their Skills, checks each sign-in, and on a terminal offers to start a tool's own setup, which asks for the service and the person's credentials.
 
 Arguments:
 
@@ -77,7 +79,8 @@ Flags:
 | `--name` | registration name; default: an available name derived from the directory |
 | `--no-repos` | select no shared repositories; still prepares declared tools and agent resources (exclusive with: --repos) |
 | `--repos` | comma-separated shared repositories to select before the first clone; replaces existing shared selection when provided (exclusive with: --no-repos) |
-| `--resume` | continue a registered workspace without reimporting its source (exclusive with: --from, --name, --repos, --no-repos) |
+| `--resume` | continue a registered workspace without reimporting its source (exclusive with: --from, --name, --repos, --no-repos, --tools) |
+| `--tools` | without a manifest: comma-separated catalog tools to set up on this machine, or all; a terminal asks when omitted (exclusive with: --from, --name, --repos, --no-repos) |
 
 Examples:
 
@@ -86,6 +89,8 @@ fx init ~/Workspaces/fx --from ssh://git@git.example.com/team/workspace-manifest
 fx init ./ws --from ./manifest --repos api --dry-run
 fx init --resume --workspace ws
 cat workspace.yaml | fx init ./ws --from -
+fx init   # pick companion tools to set up on this machine
+fx init --tools bitbucket-cli,jira-cli --dry-run
 ```
 
 ## `fx sync`

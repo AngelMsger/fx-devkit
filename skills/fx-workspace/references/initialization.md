@@ -46,6 +46,23 @@ source was never accepted. Preserve both streams on failure. Default results
 contain the decision and recovery; use `--details` only for a specific missing
 piece of evidence, without repeating a successful write.
 
+## Companion tools without a manifest
+
+When the user wants companion tools on this machine and has no manifest, name the
+tools they asked for; `fx tool list --catalog` shows the choices. No directory is
+given, and nothing is registered:
+
+```sh
+fx init --tools "<name,...>" --dry-run --format json
+fx init --tools "<name,...>" --format json
+```
+
+Init installs the missing tools, installs their Skills and fx's own, and checks
+each sign-in. A tool not signed in is a `handoff` blocker whose `actor: user`
+action is the tool's own setup, such as `jira-cli config init`; it asks the person
+for the service and their credentials, so give it to them instead of running it.
+After they finish, run the returned `resume`, which repeats the same `--tools`.
+
 If fx is absent, install the package/source provided by the team within the
 authorized prefix. npm configuration supplies Registry routing and authentication;
 no separate FX_REGISTRY setup is needed. Verify `self info`, then use this route.

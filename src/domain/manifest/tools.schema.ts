@@ -46,6 +46,14 @@ export const authCommand = z
     command: commandVector.describe(
       'arguments that report credential status; empty means no credentials are needed',
     ),
+    json: jsonExpectation
+      .optional()
+      .describe('a JSON result the status must also report; exit zero alone is otherwise enough'),
+    login: commandVector
+      .optional()
+      .describe(
+        "arguments of the tool's own interactive setup, which asks a person for the service and their credentials",
+      ),
     docs: z.string().optional().describe('where signing in is documented'),
   })
   .describe('how a tool reports whether its credentials work');

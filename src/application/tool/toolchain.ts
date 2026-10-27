@@ -64,7 +64,7 @@ export function toolsOf(bundle: ManifestBundle): readonly ResolvedTool[] {
   return resolveTools(doc, provenance, declared);
 }
 
-function bundledToolchain(bundledText: string, cliVersion: string): Toolchain {
+export function bundledToolchain(bundledText: string, cliVersion: string): Toolchain {
   const { doc, provenance, declared } = loadTools(bundledText, undefined, { cliVersion });
   const tools = resolveTools(doc, provenance, declared);
   return {
