@@ -1,11 +1,16 @@
-// Share locked, recoverable bundled Skill replacement between explicit installation and sync.
+// Share locked, recoverable bundled Skill replacement between explicit installation, update
+// and sync.
 
 import path from 'node:path';
 
 import { busyError, DevkitError } from '../../domain/errors.js';
 import { withLease } from '../../domain/lease.js';
 import { pathKey } from '../../domain/path.js';
-import { decideCopy, type CopyAction } from '../../domain/skills/projection.js';
+import {
+  decideCopy,
+  type CopyAction,
+  type CopyObservation,
+} from '../../domain/skills/projection.js';
 import type { FileSystem } from '../../ports/fs.js';
 import type { Lock } from '../../ports/lock.js';
 import type { ReplaceFiles } from '../../ports/replace-files.js';
@@ -68,6 +73,12 @@ export interface CopySkillInput {
   readonly validate?: (target: string) => Promise<void>;
 }
 
+// What update found at a copy under the lock, and whether it brought that copy up.
+export interface CopyUpdate {
+  readonly observed: CopyObservation;
+  readonly upgraded: boolean;
+}
+
 export interface SkillCopiesDeps {
   readonly fs: FileSystem;
   // The version of the bundled Skill a copy is compared against.
@@ -94,6 +105,26 @@ export class SkillCopies {
       if (action === 'install' || action === 'upgrade')
         await this.deps.fs.replaceDir(this.deps.skills.bundledSkillDir, canonical);
       return action;
+    });
+  }
+
+  // Bring a copy fx recognizes up to this version only if it is older, decided again under
+  // the lock: a copy removed, replaced or brought up by someone else since the plan stays as
+  // it now is, so update never creates, replaces or downgrades a copy.
+  async update(
+    target: string,
+    input: Pick<CopySkillInput, 'posture' | 'validate'> = {},
+  ): Promise<CopyUpdate> {
+    return withSkillLock(this.deps.fs, this.deps.skills.globalLock, target, async (canonical) => {
+      await input.validate?.(canonical);
+      const observed = await observeCopy(this.deps.fs, canonical);
+      const upgraded =
+        observed.kind === 'ours' && decideCopy(observed, this.deps.version) === 'upgrade';
+      if (upgraded) {
+        if (input.posture) assertWritable(input.posture, 'update companion Skill');
+        await this.deps.fs.replaceDir(this.deps.skills.bundledSkillDir, canonical);
+      }
+      return { observed, upgraded };
     });
   }
 }

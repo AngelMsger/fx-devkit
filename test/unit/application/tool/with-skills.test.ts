@@ -125,6 +125,32 @@ describe('installing or updating tools from the tool commands', () => {
     expect(s.proc.calledWith(['alpha', 'skill'])).toBe(false);
   });
 
+  it('keeps the package results when a Skill command cannot start, and the Skills left behind', async () => {
+    const s = setup();
+    s.proc.override(
+      ['alpha', 'skill'],
+      Object.assign(new Error('spawn EACCES'), { code: 'EACCES' }),
+    );
+    await expect(
+      s.command.execute({
+        tools: s.tools,
+        names: ['alpha', 'beta'],
+        update: true,
+        dryRun: false,
+        posture: writable,
+      }),
+    ).rejects.toMatchObject({
+      partialResult: {
+        items: [
+          { name: 'alpha', status: 'done', skill: 'failed' },
+          { name: 'beta', status: 'done', skill: 'not_started' },
+        ],
+        has_more: false,
+      },
+    });
+    expect(s.proc.calledWith(['beta', 'skill'])).toBe(false);
+  });
+
   it('in a workspace, names the tools update --all left out and runs no team-written Skill command unapproved', async () => {
     const s = setup(
       'schema_version: 3\ntools:\n  - name: alpha\n    skill: { command: [team, skill], dir_flag: --dir }\n',

@@ -204,4 +204,43 @@ describe('shared Skill copy service', () => {
     expect(await fs.readText(path.join(copy('newer'), 'SKILL.md'))).toBe(text('2.0.0'));
     expect(await fs.exists(copy('absent'))).toBe(false);
   });
+
+  it('decides an update again under the lock, so a copy changed since the plan stays as it is', async () => {
+    const copy = path.join(path.resolve('/fake/home'), 'claude', 'skills', 'fx-workspace');
+    const skill = path.join(copy, 'SKILL.md');
+    const run = async (meanwhile: (fs: FakeFs) => Promise<void>) => {
+      const fs = FakeFs.from({ ...files, [skill]: text('0.9.0') });
+      const [row] = await new StandaloneSkill({
+        fs,
+        version: '1.0.0',
+        prompter: new FakePrompter(),
+        replace: async () => true,
+        skills: {
+          hosts: [new FakeAgentHost('claude', true)],
+          configured: undefined,
+          bundledSkillDir: source,
+          globalLock: new FakeLock().onAcquire(() => meanwhile(fs)),
+        },
+      }).write('update', {
+        cwd: '/work',
+        dryRun: false,
+        posture: { readOnly: false, source: 'default' },
+        yes: true,
+      });
+      return { fs, row };
+    };
+
+    const newer = await run((fs) => fs.writeText(skill, text('2.0.0')));
+    expect(newer.row).toMatchObject({ action: 'refresh', status: 'skipped', version: '2.0.0' });
+    expect(await newer.fs.readText(skill)).toBe(text('2.0.0'));
+
+    const removed = await run((fs) => fs.remove(copy));
+    expect(removed.row).toMatchObject({ status: 'not_installed', version: null });
+    expect(await removed.fs.exists(copy)).toBe(false);
+
+    const foreign = '---\nname: someone-else\n---\n';
+    const replaced = await run((fs) => fs.writeText(skill, foreign));
+    expect(replaced.row).toMatchObject({ status: 'foreign' });
+    expect(await replaced.fs.readText(skill)).toBe(foreign);
+  });
 });

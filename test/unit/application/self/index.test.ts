@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { NpmInstaller } from '../../../../src/adapters/installer/npm.js';
+import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { selfInfo } from '../../../../src/application/self/info.js';
 import { isUpdated, SelfUpdate } from '../../../../src/application/self/update.js';
 import { CachedProbe } from '../../../../src/application/update/check.js';
@@ -74,6 +75,24 @@ describe('SelfUpdate', () => {
     expect(process.soleCallTo(['npm']).options.interactive).toBe(false);
     expect(process.calls.map((call) => call.vector[0])).toEqual(['npm', 'node']);
     expect(prompter.questions).toHaveLength(1);
+  });
+
+  it('passes an explicit --allow-writes on to the refresh, and only that', async () => {
+    const run = async (posture: WritePosture) => {
+      const process = new FakeProcess().always({ code: 0, stdout: '{"items":[]}', stderr: '' });
+      process.binaries.add('npm');
+      await new SelfUpdate({
+        process,
+        prompter: new FakePrompter(),
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+        skillRefresh: REFRESH,
+      }).execute({ ...base, yes: true, posture });
+      return process.soleCallTo(['node']).vector;
+    };
+    expect(await run({ readOnly: false, source: 'flag' })).toEqual([...REFRESH, '--allow-writes']);
+    expect(await run({ readOnly: false, source: 'env' })).toEqual(REFRESH);
+    expect(await run({ readOnly: false, source: 'default' })).toEqual(REFRESH);
   });
 
   it('returns a handoff instead of invoking a missing installer', async () => {

@@ -2,6 +2,7 @@
 // tool it installed or updated, so the agents read the instructions of the version now on
 // PATH. Init and sync run their own Skill stage after installing and do not come here.
 
+import { withPartialResult } from '../../domain/errors.js';
 import type { ResolvedShell } from '../../domain/shell.js';
 import type { Process } from '../../ports/process.js';
 import type { Reporter } from '../../ports/reporter.js';
@@ -12,6 +13,7 @@ import {
   toolSkillOutcome,
   type ToolSkillOutcome,
 } from '../skill/tool-skills.js';
+import type { ToolSkillItem } from '../skill/types.js';
 import { recoveryCommand } from '../workspace/guidance.js';
 
 import type { ToolInstall, ToolInstallInput, ToolInstallOutput } from './install.js';
@@ -45,15 +47,22 @@ export class ToolInstallWithSkills {
   async execute(input: ToolInstallInput): Promise<ToolInstallRow[]> {
     const results = await this.deps.install.execute(input);
     const changed = new Set(results.filter(changedPackage).map((row) => row.name));
-    const items = await planToolSkills(this.deps, this.deps.skills, {
-      tools: input.tools.filter((tool) => changed.has(tool.name)),
-      dryRun: input.dryRun,
-      posture: input.posture,
-      trust: input.trust,
-    });
-    if (!input.dryRun) await runTools(this.deps, items);
+    let items: ToolSkillItem[] = [];
+    const rows = () => results.map((row) => ({ ...row, skill: toolSkillOutcome(items, row.name) }));
+    try {
+      items = await planToolSkills(this.deps, this.deps.skills, {
+        tools: input.tools.filter((tool) => changed.has(tool.name)),
+        dryRun: input.dryRun,
+        posture: input.posture,
+        trust: input.trust,
+      });
+      if (!input.dryRun) await runTools(this.deps, items);
+    } catch (error) {
+      // The packages changed whatever became of the Skills; the result says both.
+      throw withPartialResult(error, { items: rows(), has_more: false });
+    }
     if (input.update && input.all === true) this.notInstalled(input, results);
-    return results.map((row) => ({ ...row, skill: toolSkillOutcome(items, row.name) }));
+    return rows();
   }
 
   // A workspace's toolchain is what it needs, so one of its tools left out of `update --all`

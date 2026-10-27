@@ -412,7 +412,9 @@ state before rerunning actions. Parse stdout on a nonzero exit whenever it is
 present. `self update` also captures installer output so its stdout remains
 parseable; inspect the returned installer `code`, and `skill_refresh` for the new
 installation's refresh of this Skill. `tool install/update` rows add `skill`:
-`installed`, `planned`, `failed`, `blocked` (awaiting approval) or `none`.
+`installed`, `planned`, `failed`, `not_started` (an earlier Skill command could not
+start; the error's partial result keeps these rows), `blocked` (awaiting approval) or
+`none`.
 
 Retain the original task, repository/environment and readiness query while
 repairing prerequisites. Authorization already given in this session persists;

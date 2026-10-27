@@ -63,7 +63,7 @@ export class SelfUpdate {
       ran: false,
       code: null,
       reason,
-      skill_refresh: this.unrefreshed(reason),
+      skill_refresh: this.unrefreshed(input.posture, reason),
     });
     if (input.dryRun) return unrun('dry run');
     assertWritable(input.posture, 'self update');
@@ -81,10 +81,16 @@ export class SelfUpdate {
         ran: true,
         code: result.code,
         reason: stderrReason(result.stderr, result.code),
-        skill_refresh: this.unrefreshed('fx was not updated'),
+        skill_refresh: this.unrefreshed(input.posture, 'fx was not updated'),
       };
     await this.settleCheck(input);
-    return { vector, ran: true, code: 0, reason: null, skill_refresh: await this.refreshSkill() };
+    return {
+      vector,
+      ran: true,
+      code: 0,
+      reason: null,
+      skill_refresh: await this.refreshSkill(input.posture),
+    };
   }
 
   private plan(input: SelfUpdateInput): readonly string[] {
@@ -126,12 +132,20 @@ export class SelfUpdate {
     });
   }
 
-  private unrefreshed(reason: string): SkillRefresh {
-    return { vector: this.deps.skillRefresh, ran: false, code: null, refreshed: null, reason };
+  // The refresh is an invocation of its own and resolves its posture again, so the explicit
+  // --allow-writes that let this one write goes with it; nothing weaker does.
+  private refreshVector(posture: WritePosture): readonly string[] {
+    const refresh = this.deps.skillRefresh;
+    return posture.source === 'flag' ? [...refresh, '--allow-writes'] : refresh;
   }
 
-  private async refreshSkill(): Promise<SkillRefresh> {
-    const vector = this.deps.skillRefresh;
+  private unrefreshed(posture: WritePosture, reason: string): SkillRefresh {
+    const vector = this.refreshVector(posture);
+    return { vector, ran: false, code: null, refreshed: null, reason };
+  }
+
+  private async refreshSkill(posture: WritePosture): Promise<SkillRefresh> {
+    const vector = this.refreshVector(posture);
     const result = await this.deps.process.run(vector, {
       diagnostic: { phase: 'fx skill update' },
     });

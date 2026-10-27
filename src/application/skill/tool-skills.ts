@@ -192,15 +192,18 @@ export async function planToolSkills(
   return trustAll(items, toolchain, input.trust);
 }
 
-export type ToolSkillOutcome = 'planned' | 'installed' | 'failed' | 'blocked' | 'none';
+export type ToolSkillOutcome =
+  'planned' | 'installed' | 'failed' | 'not_started' | 'blocked' | 'none';
 
 // One tool's Skill across every agent directory it went to, in a word for the tool's row.
+// A run cut short leaves the rest not started, which is not installed.
 export function toolSkillOutcome(items: readonly ToolSkillItem[], tool: string): ToolSkillOutcome {
   const own = items.filter((item) => item.tool === tool);
   if (own.some(awaitsApproval)) return 'blocked';
   const ran = own.filter((item) => item.vector !== null);
   if (ran.length === 0) return 'none';
   if (ran.some((item) => item.status === 'failed' || item.failure !== undefined)) return 'failed';
+  if (ran.some((item) => item.status === 'not_started')) return 'not_started';
   return ran.some((item) => item.status === 'planned') ? 'planned' : 'installed';
 }
 

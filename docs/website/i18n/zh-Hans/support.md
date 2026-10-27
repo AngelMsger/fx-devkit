@@ -49,7 +49,7 @@ npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 
 <!-- /distribution -->
 
-源码安装通过 Git 更新，再在 checkout 内执行 `npm ci` 和 `npm run build`。fx 本体更新与刷新 manifest 的 `fx sync` 分开。`self update --format json` 保持 stdout 可解析，请检查安装器 `code` 和失败时的 `reason`，不要仅凭收到 JSON 判断成功。更新成功后，新安装的 fx 会刷新比它旧的自身 Skill 副本；`skill_refresh` 报告这次运行，以及刷新的副本数 `refreshed`。
+源码安装通过 Git 更新，再在 checkout 内执行 `npm ci` 和 `npm run build`。fx 本体更新与刷新 manifest 的 `fx sync` 分开。`self update --format json` 保持 stdout 可解析，请检查安装器 `code` 和失败时的 `reason`，不要仅凭收到 JSON 判断成功。更新成功后，新安装的 fx 会沿用显式传入的 `--allow-writes`，刷新比它旧的自身 Skill 副本；`skill_refresh` 报告这次运行，以及刷新的副本数 `refreshed`。
 
 ## 平台支持 {#platform-support}
 

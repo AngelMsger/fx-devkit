@@ -150,7 +150,8 @@ export class StandaloneSkill {
     row: SkillMutation,
     posture: WritePosture,
   ): Promise<SkillMutation> {
-    if (operation !== 'uninstall') {
+    if (operation === 'update') return this.refreshOlder(row, posture);
+    if (operation === 'install') {
       const action = await new SkillCopies(this.deps).install(row.path, {
         posture,
         refresh: true,
@@ -177,6 +178,17 @@ export class StandaloneSkill {
       await this.deps.fs.remove(target);
       return { ...row, status: 'removed', version: current.version };
     });
+  }
+
+  private async refreshOlder(row: SkillMutation, posture: WritePosture): Promise<SkillMutation> {
+    const { observed, upgraded } = await new SkillCopies(this.deps).update(row.path, {
+      posture,
+      validate: (target) => this.validate(target),
+    });
+    if (upgraded) return { ...row, status: 'installed', version: this.deps.version };
+    if (observed.kind === 'foreign') return { ...row, status: 'foreign' };
+    if (observed.kind === 'absent') return { ...row, status: 'not_installed', version: null };
+    return { ...row, status: 'skipped', version: observed.version };
   }
 
   private async confirmRemoval(rows: readonly SkillMutation[], yes: boolean): Promise<boolean> {

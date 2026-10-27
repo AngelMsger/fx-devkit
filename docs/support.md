@@ -87,8 +87,8 @@ checkout. Updating fx is separate from `fx sync`, which refreshes manifest sourc
 `self update --format json` keeps stdout parseable; inspect installer `code` and
 any failure `reason` rather than treating JSON output as success. After a
 successful update, the newly installed fx refreshes the copies of its Skill that
-are older than it; `skill_refresh` reports that run and how many copies it
-`refreshed`.
+are older than it, passing on an explicit `--allow-writes`; `skill_refresh`
+reports that run and how many copies it `refreshed`.
 
 ## Platform support
 
