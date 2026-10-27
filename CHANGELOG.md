@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.13.0 (2026-10-27)
+
 ### Added
 
 - Set up companion tools without a manifest. `fx init` with no directory and no source
