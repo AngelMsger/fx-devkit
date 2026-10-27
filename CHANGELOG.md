@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+
+- Refresh Skills when tools change. `fx tool install` and `fx tool update` have each
+  tool they installed or updated install its Skill again for your coding agents, so
+  the agents read the instructions of the version now on PATH; each row gains
+  `skill`. `fx self update` ends by having the newly installed fx refresh the copies
+  of its own Skill that are older than it, reported as `skill_refresh`, and the new
+  `fx skill update` does that on its own: it refreshes only recognized copies older
+  than the running fx, in every agent's directory, and installs none. Keeping
+  everything current is `fx self update --yes` and `fx tool update --all`.
+
+### Changed
+
+- Update only installed tools with `fx tool update --all`. Outside a workspace it
+  used to take the whole catalog and install every tool not yet there; inside one it
+  installed the workspace's missing tools. It now leaves those to
+  `fx tool install --all`, and inside a workspace a `TOOLS_NOT_INSTALLED` notice names
+  them. The `FX_OUTDATED` notice no longer suggests `fx skill install`.
+
 ## 0.13.0 (2026-10-27)
 
 ### Added

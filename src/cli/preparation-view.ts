@@ -393,6 +393,8 @@ const SKILL_TEXT: Readonly<Record<ToolSetupRow['skill'], string>> = {
   planned: 'Skill to install',
   installed: 'Skill installed',
   failed: 'Skill failed',
+  not_started: 'Skill not installed',
+  blocked: 'Skill awaits approval',
   none: '',
 };
 

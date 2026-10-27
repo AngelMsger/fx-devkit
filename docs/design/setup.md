@@ -245,10 +245,15 @@ entry. The owning user contract is [installation history](../user-guide.md#tool-
 
 ## Standalone companion lifecycle
 
-`skill install/uninstall/path/status/show` work without WorkspaceDeps. Target flags
-follow the maintained agent-clis family: repeatable/comma-separated `--agent`, optional
-`--project`, mutually exclusive `--dir` as a Skill parent. Writes detect targets;
-inspection enumerates all hosts. AgentHostSpec owns native paths and project
+`skill install/update/uninstall/path/status/show` work without WorkspaceDeps. Target
+flags follow the maintained agent-clis family: repeatable/comma-separated `--agent`,
+optional `--project`, mutually exclusive `--dir` as a Skill parent. Install and
+uninstall detect targets; update visits every host's directory, merged where hosts
+share one, and refreshes only recognized older copies; inspection enumerates all
+hosts. Self-update runs the new installation's `skill update`, since only that
+installation knows its Skill and version. `tool install/update` plan the Skill
+command of each tool whose package operation ran, through the same planner as the
+sync Skill stage, so a catalog `skill` entry is all a new tool needs. AgentHostSpec owns native paths and project
 markers. Standalone detection ignores workspace selection; init/sync use it.
 Global detection uses fx's executable probes in addition to home markers.
 Detection is distinct from selection, and says nothing about current activity.

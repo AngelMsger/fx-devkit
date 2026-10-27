@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- 工具變化時重新整理 Skill。`fx tool install` 與 `fx tool update` 會讓每個安裝或更新過的工具為你的編碼 Agent 重新安裝它的 Skill，讓 Agent 讀到 PATH 上目前版本的說明；每一列新增 `skill`。`fx self update` 最後會讓新安裝的 fx 重新整理比它舊的自身 Skill 副本，結果記在 `skill_refresh`；新增的 `fx skill update` 單獨做這件事：只重新整理可辨識且比目前 fx 舊的副本，涵蓋每個 Agent 的目錄，不新裝任何副本。保持一切最新只需 `fx self update --yes` 與 `fx tool update --all`。
+- `fx tool update --all` 只更新已安裝的工具。先前在工作區外它會取整個工具目錄，並安裝每個尚未安裝的工具；在工作區內會安裝工作區缺少的工具。現在這些交給 `fx tool install --all`，在工作區內會以 `TOOLS_NOT_INSTALLED` 提示列出它們。`FX_OUTDATED` 提示不再建議 `fx skill install`。
+
 ## 0.13.0 (2026-10-27)
 
 - 沒有 manifest 也能設定配套 CLI。不指定目錄和來源直接執行 `fx init`，會列出 fx 工具目錄中的工具，並詢問要設定哪些，可以輸入編號或名稱，按 Enter 選擇全部；Agent 和腳本用 `fx init --tools <name,...>` 或 `--tools all` 指定，`--dry-run` 可以預覽。fx 會安裝缺少的工具，讓每個工具為你的編碼 Agent 安裝它的 Skill，加上 fx 自己的 `fx-workspace` Skill，並檢查每個工具是否已登入。在終端機中，fx 會詢問是否開始設定尚未登入的工具 (`<tool> config init`、`gh auth login`)，設定過程會詢問服務和你的憑證；不在終端機或使用 `--yes` 時，報告會把這條命令交給你。不會註冊工作區；決定工具並預設它們所連服務的，仍然是 manifest。JSON 報告包含 `tools`、`tool_install` 和 `skills`，`preparation.scope.workspace` 為 `null`。

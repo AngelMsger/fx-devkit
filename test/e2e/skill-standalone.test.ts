@@ -84,6 +84,21 @@ describe('standalone companion Skill lifecycle', () => {
     );
   });
 
+  it('updates the older copies already installed and installs none where there was none', () => {
+    const s = stage();
+    const claude = path.join(s.home, '.claude', 'skills');
+    const target = installed(claude, '0.0.1');
+    const updated = s.run(['update']);
+    expect(updated.status, updated.stderr).toBe(0);
+    expect(updated.json().items).toContainEqual(
+      expect.objectContaining({ agent: 'claude-code', action: 'refresh', status: 'installed' }),
+    );
+    expect(readFileSync(path.join(target, 'SKILL.md'), 'utf8')).toContain(`version: ${version}`);
+    const again = s.run(['update']).json().items as { action: string; path: string }[];
+    expect(again.every((row) => row.action === 'skip')).toBe(true);
+    expect(existsSync(path.join(s.home, '.agents', 'skills', 'fx-workspace'))).toBe(false);
+  });
+
   it('keeps previews and read-only calls free of Skill writes', () => {
     const s = stage();
     const preview = s.run(['install', '--dir', './custom', '--dry-run'], { FX_READ_ONLY: '1' });

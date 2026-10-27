@@ -122,7 +122,7 @@ stand in for `fx`; `self update` cannot repair an entry that cannot execute.
 | Find service diagnostics                   | `fx where <repo> --env <env>`                                                            |
 | Check tools/access                         | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                 |
 | Inspect repository release criteria        | `fx release check <repo> --only merge --details`                                         |
-| Install/update a companion                 | `fx tool install <tool> --dry-run`; `fx tool update <tool> --dry-run`                    |
+| Install/update a companion and its Skill   | `fx tool install <tool> --dry-run`; `fx tool update <tool>\|--all --dry-run`             |
 | Review tool provenance                     | `fx tool history [tool]`; `fx tool inventory`                                            |
 | Inspect host resources                     | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                    |
 | Inspect declarations                       | `fx manifest validate --strict`; `fx manifest explain '<path>'`; `fx manifest providers` |
@@ -215,5 +215,5 @@ native context conflicts and scoped login.
 `self info` reports the Registry fx updates from and its `registry_source`;
 [update notices](commands.md#update-notices) explains how it is chosen.
 `FX_OUTDATED` and `MANIFEST_OUTDATED` are advisory. Update within the user's scope,
-then rediscover the running version and read its bundled Skill. `fx skill install`
-refreshes installed copies explicitly.
+then rediscover the running version and read its bundled Skill. `fx self update`
+refreshes the installed copies of this Skill; `fx skill update` does so on its own.

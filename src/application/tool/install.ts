@@ -40,16 +40,6 @@ export interface ToolInstallInput {
   readonly trust?: TrustContext | undefined;
 }
 
-export const TOOL_INSTALL_COLUMNS = [
-  'name',
-  'via',
-  'vector',
-  'ran',
-  'code',
-  'version_after',
-  'error',
-] as const;
-
 export interface ToolInstallOutput {
   readonly name: string;
   readonly via: string;
@@ -297,19 +287,16 @@ export class ToolInstall {
     );
   }
 
-  // --all: every enabled tool whose binary is not on PATH. An outdated tool
-  // is a `tool update` decision, not an implicit one.
-  private async needing(tools: readonly ResolvedTool[]): Promise<ResolvedTool[]> {
-    const needing: ResolvedTool[] = [];
-    for (const tool of tools) {
-      if (!tool.enabled) continue;
-      if ((await this.deps.process.which(tool.binary)) === undefined) needing.push(tool);
-    }
-    return needing;
-  }
-
+  // --all: install takes every enabled tool whose binary is not on PATH, and update every
+  // one whose binary is. An outdated tool is a `tool update` decision, and a missing one a
+  // `tool install` decision; neither command makes the other's implicitly.
   private async selectAll(input: ToolInstallInput): Promise<ResolvedTool[]> {
-    if (input.update) return input.tools.filter((tool) => tool.enabled);
-    return this.needing(input.tools);
+    const selected: ResolvedTool[] = [];
+    for (const tool of input.tools) {
+      if (!tool.enabled) continue;
+      const present = (await this.deps.process.which(tool.binary)) !== undefined;
+      if (present === input.update) selected.push(tool);
+    }
+    return selected;
   }
 }

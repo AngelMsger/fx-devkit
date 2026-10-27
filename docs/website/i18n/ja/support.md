@@ -49,7 +49,7 @@ npm install -g @fx/devkit --registry=https://registry.npmjs.org/
 
 <!-- /distribution -->
 
-ソース版は Git を更新し、checkout で `npm ci` と `npm run build` を実行します。fx 本体の更新と manifest を更新する `fx sync` は別の操作です。`self update --format json` は stdout を解析可能に保ちます。JSON が返るだけで成功とせず、インストーラーの `code` と失敗時の `reason` を確認してください。
+ソース版は Git を更新し、checkout で `npm ci` と `npm run build` を実行します。fx 本体の更新と manifest を更新する `fx sync` は別の操作です。`self update --format json` は stdout を解析可能に保ちます。JSON が返るだけで成功とせず、インストーラーの `code` と失敗時の `reason` を確認してください。更新が成功すると、新しくインストールした fx が明示的な `--allow-writes` を引き継いで、それより古い自身の Skill のコピーを更新します。`skill_refresh` はその実行結果と、更新したコピーの数 `refreshed` を示します。
 
 ## 対応プラットフォーム {#platform-support}
 

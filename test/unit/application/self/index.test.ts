@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { NpmInstaller } from '../../../../src/adapters/installer/npm.js';
+import type { WritePosture } from '../../../../src/application/safety/posture.js';
 import { selfInfo } from '../../../../src/application/self/info.js';
 import { isUpdated, SelfUpdate } from '../../../../src/application/self/update.js';
 import { CachedProbe } from '../../../../src/application/update/check.js';
@@ -23,6 +24,9 @@ const base = {
   posture: { readOnly: false, source: 'default' as const },
 };
 
+// The updated installation's own refresh, as composition builds it.
+const REFRESH = ['node', '/pkg/bin/fx.js', 'skill', 'update', '--format', 'json', '--no-input'];
+
 function updateCheck() {
   const cache = new FakeCache();
   const clock = new FakeClock();
@@ -32,8 +36,20 @@ function updateCheck() {
 }
 
 describe('SelfUpdate', () => {
-  it('runs npm against the publish registry with isolated installer output, after asking', async () => {
-    const process = new FakeProcess().always({ code: 0, stdout: '', stderr: '' });
+  it('runs npm against the publish registry with isolated installer output, after asking, then has the new fx refresh its Skill', async () => {
+    const process = new FakeProcess()
+      .on(REFRESH, {
+        code: 0,
+        stdout: JSON.stringify({
+          items: [
+            { agent: 'claude-code', action: 'refresh', status: 'installed' },
+            { agent: 'codex', action: 'skip', status: 'skipped' },
+          ],
+          has_more: false,
+        }),
+        stderr: '',
+      })
+      .always({ code: 0, stdout: '', stderr: '' });
     process.binaries.add('npm');
     const prompter = new FakePrompter();
     const out = await new SelfUpdate({
@@ -41,6 +57,7 @@ describe('SelfUpdate', () => {
       prompter,
       installer: new NpmInstaller(process),
       check: updateCheck().check,
+      skillRefresh: REFRESH,
     }).execute(base);
     expect(out).toEqual({
       vector: [
@@ -53,9 +70,29 @@ describe('SelfUpdate', () => {
       ran: true,
       code: 0,
       reason: null,
+      skill_refresh: { vector: REFRESH, ran: true, code: 0, refreshed: 1, reason: null },
     });
     expect(process.soleCallTo(['npm']).options.interactive).toBe(false);
+    expect(process.calls.map((call) => call.vector[0])).toEqual(['npm', 'node']);
     expect(prompter.questions).toHaveLength(1);
+  });
+
+  it('passes an explicit --allow-writes on to the refresh, and only that', async () => {
+    const run = async (posture: WritePosture) => {
+      const process = new FakeProcess().always({ code: 0, stdout: '{"items":[]}', stderr: '' });
+      process.binaries.add('npm');
+      await new SelfUpdate({
+        process,
+        prompter: new FakePrompter(),
+        installer: new NpmInstaller(process),
+        check: updateCheck().check,
+        skillRefresh: REFRESH,
+      }).execute({ ...base, yes: true, posture });
+      return process.soleCallTo(['node']).vector;
+    };
+    expect(await run({ readOnly: false, source: 'flag' })).toEqual([...REFRESH, '--allow-writes']);
+    expect(await run({ readOnly: false, source: 'env' })).toEqual(REFRESH);
+    expect(await run({ readOnly: false, source: 'default' })).toEqual(REFRESH);
   });
 
   it('returns a handoff instead of invoking a missing installer', async () => {
@@ -66,6 +103,7 @@ describe('SelfUpdate', () => {
         prompter: new FakePrompter(),
         installer: new NpmInstaller(process),
         check: updateCheck().check,
+        skillRefresh: REFRESH,
       }).execute({
         ...base,
         yes: true,
@@ -85,6 +123,7 @@ describe('SelfUpdate', () => {
           prompter,
           installer: new NpmInstaller(process),
           check: updateCheck().check,
+          skillRefresh: REFRESH,
         }).execute({
           ...base,
           dryRun: true,
@@ -98,10 +137,12 @@ describe('SelfUpdate', () => {
         prompter,
         installer: new NpmInstaller(process),
         check: updateCheck().check,
+        skillRefresh: REFRESH,
       }).execute(base),
     ).toMatchObject({
       ran: false,
       reason: 'declined',
+      skill_refresh: { ran: false, reason: 'declined' },
     });
     expect(process.calls).toEqual([]);
     await expect(
@@ -110,6 +151,7 @@ describe('SelfUpdate', () => {
         prompter,
         installer: new NpmInstaller(process),
         check: updateCheck().check,
+        skillRefresh: REFRESH,
       }).execute({
         ...base,
         posture: { readOnly: true, source: 'env' },
@@ -121,6 +163,7 @@ describe('SelfUpdate', () => {
         prompter,
         installer: new NpmInstaller(process),
         check: updateCheck().check,
+        skillRefresh: REFRESH,
       }).execute({
         ...base,
         registry: null,
@@ -139,6 +182,7 @@ describe('SelfUpdate', () => {
       prompter: new FakePrompter(),
       installer: new NpmInstaller(process),
       check: s.check,
+      skillRefresh: REFRESH,
     }).execute({ ...base, yes: true });
     expect(isUpdated(out)).toBe(true);
     s.clock.advance(2000);
@@ -157,8 +201,11 @@ describe('SelfUpdate', () => {
       prompter: new FakePrompter(),
       installer: new NpmInstaller(failing),
       check: f.check,
+      skillRefresh: REFRESH,
     }).execute({ ...base, yes: true });
     expect(isUpdated(failed)).toBe(false);
+    expect(failed.skill_refresh).toMatchObject({ ran: false, reason: 'fx was not updated' });
+    expect(failing.calledWith(REFRESH)).toBe(false);
     expect(f.registry.calls).toBe(0);
     expect(f.cache.entries.size).toBe(0);
   });

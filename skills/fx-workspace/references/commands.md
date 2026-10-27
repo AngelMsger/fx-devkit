@@ -339,8 +339,9 @@ copies. Foreign replacements require confirmation and backup. Uninstall removes
 recognized copies after confirmation (`--yes` for noninteractive execution), keeps
 foreign paths and leaves agent selection unchanged; later sync can reinstall a copy.
 
-`skill install/uninstall` return collection rows with `action`, `status`, `version`
-and target fields. Status is `planned` for previews; execution distinguishes
+`skill install/update/uninstall` return collection rows with `action`, `status`,
+`version` and target fields; update's `action` is `refresh` for an older copy and
+`skip` for every other target. Status is `planned` for previews; execution distinguishes
 `installed`, `removed`, `not_installed`, `foreign`, `skipped`, `failed` and
 `not_started`. On interruption, stdout retains the partial collection with each
 row's `observed` state and failure envelope; stderr preserves the original error.
@@ -409,7 +410,11 @@ available `failure` and `next_steps` fields.
 After resolving the blocker, repeat the same invocation: setup verifies current
 state before rerunning actions. Parse stdout on a nonzero exit whenever it is
 present. `self update` also captures installer output so its stdout remains
-parseable; inspect the returned installer `code`.
+parseable; inspect the returned installer `code`, and `skill_refresh` for the new
+installation's refresh of this Skill. `tool install/update` rows add `skill`:
+`installed`, `planned`, `failed`, `not_started` (an earlier Skill command could not
+start; the error's partial result keeps these rows), `blocked` (awaiting approval) or
+`none`.
 
 Retain the original task, repository/environment and readiness query while
 repairing prerequisites. Authorization already given in this session persists;

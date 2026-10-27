@@ -2,7 +2,7 @@
 // repository moved upstream, on any command, without the command's own
 // result changing; sync settles it; the switches silence it.
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -176,4 +176,34 @@ it('self update keeps installer output out of its JSON result', () => {
   });
   expect(result.json()).toMatchObject({ ran: true, code: 17 });
   expect(result.stdout).not.toContain('installer progress');
+});
+
+// A successful installer shim leaves this fx in place, so the refresh that follows is this
+// build's own `skill update`, running as a separate invocation that resolves its posture again.
+it('self update carries an explicit --allow-writes into its Skill refresh', () => {
+  const shims = tempDir('fx-update-shim-');
+  writeNodeShim(shims, 'npm', 'process.exit(0);');
+  const userHome = tempDir('fx-update-user-');
+  const skill = path.join(userHome, '.claude', 'skills', 'fx-workspace', 'SKILL.md');
+  mkdirSync(path.dirname(skill), { recursive: true });
+  writeFileSync(skill, '---\nname: fx-workspace\nversion: 0.0.1\n---\nold');
+  const result = fx(
+    ['self', 'update', '--yes', '--no-input', '--allow-writes', '--format', 'json'],
+    {
+      FX_HOME: freshHome(),
+      FX_READ_ONLY: '1',
+      FX_REGISTRY: 'https://npm.example.com',
+      PATH: searchPath(shims),
+    },
+    undefined,
+    undefined,
+    userHome,
+  );
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.json()).toMatchObject({
+    ran: true,
+    code: 0,
+    skill_refresh: { ran: true, code: 0, refreshed: 1 },
+  });
+  expect(readFileSync(skill, 'utf8')).not.toContain('version: 0.0.1');
 });

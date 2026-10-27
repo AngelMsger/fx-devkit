@@ -10,6 +10,7 @@ Choose the section for your task:
 
 - New workspace: [install](#install), then [quick start](#quick-start).
 - No manifest yet: [set up companion tools](#set-up-companion-tools-without-a-manifest).
+- Keep current: [update tools and Skills](#keep-tools-and-skills-up-to-date).
 - Large workspace: [choose repositories before downloading](#choose-repositories-before-downloading).
 - Interrupted setup: [read the result and recover](#reading-initialization-and-recovery-results).
 - Coding agent: [use structured results and the bundled Skill](#for-coding-agents).
@@ -149,11 +150,26 @@ For a tool that is not set up yet, fx offers to start that tool's own setup, suc
 as `bitbucket-cli config init`, which asks for the service address and your
 credentials. If you decline, pass `--yes` or run without a terminal, fx lists those
 commands for you instead; run `fx init --tools <names>` again afterwards to check.
-Tools you already have are kept as they are, and `fx tool update` upgrades one
-fx reports as too old.
+Tools you already have are kept as they are; [updating](#keep-tools-and-skills-up-to-date)
+is a separate step.
 
 This registers no workspace and presets nothing. With a manifest, `fx init <dir>
 --from <manifest>` decides the tools and fills in each service's address for you.
+
+## Keep tools and Skills up to date
+
+```sh
+fx self update --yes   # fx, then the copies of its Skill you have installed
+fx tool update --all   # every companion tool you have installed, then its Skill
+```
+
+`fx tool update --all` updates the companion tools that are already installed and
+installs nothing new; `fx tool install` does that. Each tool fx installs or updates
+then installs its Skill again for your coding agents, so they read the instructions
+of the version you now have. `fx self update` ends by having the new fx refresh the
+copies of its own Skill that are older than it, as `fx skill update` does on its own.
+Inside a workspace the same commands update the tools the workspace uses, and
+`fx sync` refreshes Skills too.
 
 ## Find and manage workspaces
 
@@ -329,9 +345,12 @@ are no bindings to read, so tool commands list the bundled catalog. The package
 manager owns installation locations; tools are shared across workspaces.
 
 `tool install` and `tool update` require names or `--all`, never both. Install's
-`--all` selects enabled tools missing from PATH; update's `--all` selects all
-enabled tools in the selected toolchain. Named operations can explicitly select
-a disabled tool. No-argument invocations fail before package operations.
+`--all` selects enabled tools missing from PATH; update's `--all` selects the
+enabled tools of the selected toolchain that are on PATH, and inside a workspace a
+`TOOLS_NOT_INSTALLED` notice names the ones it left out. Named operations can
+explicitly select a disabled tool. No-argument invocations fail before package
+operations. After the package operation, each tool it installed or updated
+installs its Skill for the selected agents; the row's `skill` reports the result.
 
 Doctor checks tools declared by the workspace and dependencies of providers
 active in the selected environments. Bundled tools the workspace does not use
@@ -421,8 +440,10 @@ See the [Skill reference](../skills/fx-workspace/references/commands.md#standalo
 for detection, replacement and uninstall behavior.
 
 Explicit `skill install` refreshes recognized copies to the invoking CLI version,
-including same-version repair or replacement of a newer copy. `init/sync` reuse
-same-version copies and never downgrade newer ones. Foreign replacements require
+including same-version repair or replacement of a newer copy. `skill update`
+refreshes only recognized copies older than the invoking CLI, in every agent's
+directory, and installs none; `self update` runs it from the newly installed fx.
+`init/sync` reuse same-version copies and never downgrade newer ones. Foreign replacements require
 confirmation and backup. Uninstalling a copy does not unselect its host, so later
 sync may install it again.
 

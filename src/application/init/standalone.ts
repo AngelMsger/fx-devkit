@@ -22,7 +22,12 @@ import { CHECK_TIMEOUT_MS, commandVerdict } from '../login/verify.js';
 import { assertWritable, type WritePosture } from '../safety/posture.js';
 import { applyCopies, planCopies } from '../skill/fx-copies.js';
 import { skillTargets, type SkillDeps } from '../skill/targets.js';
-import { planTools, runTools } from '../skill/tool-skills.js';
+import {
+  planToolSkills,
+  runTools,
+  toolSkillOutcome,
+  type ToolSkillOutcome,
+} from '../skill/tool-skills.js';
 import type { FxSkillItem, ToolSkillItem } from '../skill/types.js';
 import { skillChecks } from '../sync/checks.js';
 import { ToolCheck, type ToolStatus } from '../tool/check.js';
@@ -60,7 +65,7 @@ export interface ToolSetupRow {
   readonly state: ToolStatus['state'];
   readonly installed: string | null;
   readonly install: 'present' | 'planned' | 'installed' | 'manual' | 'failed';
-  readonly skill: 'planned' | 'installed' | 'failed' | 'none';
+  readonly skill: ToolSkillOutcome;
   readonly sign_in: SignIn;
   // The tool's own setup, which asks for the service and the person's credentials.
   readonly setup: readonly string[] | null;
@@ -220,20 +225,17 @@ export class StandaloneInit {
     input: StandaloneInitInput,
   ): Promise<StandaloneInitOutput['skills']> {
     const failed = new Set(installs.filter((item) => item.status === 'failed').map((i) => i.name));
-    const toolchain = selected
-      .filter((tool) => (input.dryRun ? !failed.has(tool.name) : onPath.includes(tool)))
-      .map((tool) => ({ ...tool, installOnInit: true }));
     const status = input.dryRun ? 'planned' : 'not_started';
     const fx: FxSkillItem[] = (await planCopies(this.deps, this.deps.skills, undefined)).map(
       (item) => ({ ...item, status }),
     );
-    const tools: ToolSkillItem[] = (
-      await planTools(this.deps, this.deps.skills, {
-        toolchain,
-        dryRun: input.dryRun,
-        posture: input.posture,
-      })
-    ).map((item) => ({ ...item, status }));
+    const tools = await planToolSkills(this.deps, this.deps.skills, {
+      tools: selected.filter((tool) =>
+        input.dryRun ? !failed.has(tool.name) : onPath.includes(tool),
+      ),
+      dryRun: input.dryRun,
+      posture: input.posture,
+    });
     if (input.dryRun) return { fx, tools };
     try {
       await applyCopies(this.deps, this.deps.skills, fx, input);
@@ -351,13 +353,12 @@ function row(
   signIn: SignInResult | undefined,
 ): ToolSetupRow {
   const installed = installs.find((item) => item.name === tool.name);
-  const own = skills.filter((item) => item.tool === tool.name && item.vector !== null);
   return {
     name: tool.name,
     state: current.state,
     installed: current.installed,
     install: installOutcome(installed),
-    skill: skillOutcome(own, installed),
+    skill: toolSkillOutcome(skills, tool.name),
     sign_in: signIn?.state ?? 'unknown',
     setup: tool.auth?.login === undefined ? null : [tool.binary, ...tool.auth.login],
   };
@@ -368,17 +369,6 @@ function installOutcome(installed: ToolInstallOutput | undefined): ToolSetupRow[
   if (installed.status === 'planned') return 'planned';
   if (installed.status === 'failed') return 'failed';
   return installed.ran ? 'installed' : 'manual';
-}
-
-function skillOutcome(
-  own: readonly ToolSkillItem[],
-  installed: ToolInstallOutput | undefined,
-): ToolSetupRow['skill'] {
-  if (own.length === 0) return 'none';
-  if (own.some((item) => item.status === 'failed' || item.failure !== undefined)) return 'failed';
-  if (own.every((item) => item.status === 'planned') || installed?.status === 'planned')
-    return 'planned';
-  return 'installed';
 }
 
 // A tool that is not on PATH has nothing to sign in to yet; its installation is the blocker.
