@@ -57,6 +57,9 @@ export const SKILL_INSTALLATION_COLUMNS = [
 ] as const;
 export const SKILL_MUTATION_COLUMNS = ['agent', 'path', 'action', 'status', 'version'] as const;
 
+// Install writes where agents are found; update refreshes the older copies already there.
+export type SkillOperation = 'install' | 'update' | 'uninstall';
+
 export interface SkillWriteInput extends StandaloneTargetsInput {
   readonly dryRun: boolean;
   readonly posture: WritePosture;
@@ -73,7 +76,7 @@ export class StandaloneSkill {
   constructor(private readonly deps: StandaloneSkillDeps) {}
 
   async paths(input: StandaloneTargetsInput): Promise<SkillInstallation[]> {
-    const targets = await standaloneTargets(this.deps.fs, this.deps.skills.hosts, input, true);
+    const targets = await standaloneTargets(this.deps.fs, this.deps.skills.hosts, input, 'inspect');
     return Promise.all(targets.map((target) => this.inspect(target)));
   }
 
@@ -96,11 +99,13 @@ export class StandaloneSkill {
     return text;
   }
 
-  async write(
-    operation: 'install' | 'uninstall',
-    input: SkillWriteInput,
-  ): Promise<SkillMutation[]> {
-    const targets = await standaloneTargets(this.deps.fs, this.deps.skills.hosts, input);
+  async write(operation: SkillOperation, input: SkillWriteInput): Promise<SkillMutation[]> {
+    const targets = await standaloneTargets(
+      this.deps.fs,
+      this.deps.skills.hosts,
+      input,
+      operation === 'update' ? 'every' : 'detected',
+    );
     const rows: SkillMutation[] = [];
     for (const target of targets) {
       await this.validate(target.path);
@@ -117,6 +122,10 @@ export class StandaloneSkill {
     if (operation === 'uninstall' && !(await this.confirmRemoval(rows, input.yes)))
       return rows.map((r) => ({ ...r, status: 'skipped' }));
     for (const [index, row] of rows.entries()) {
+      if (operation === 'update' && row.action === 'skip') {
+        rows[index] = { ...row, status: 'skipped' };
+        continue;
+      }
       try {
         rows[index] = await this.apply(operation, row, input.posture);
       } catch (error) {
@@ -137,11 +146,11 @@ export class StandaloneSkill {
   }
 
   private async apply(
-    operation: 'install' | 'uninstall',
+    operation: SkillOperation,
     row: SkillMutation,
     posture: WritePosture,
   ): Promise<SkillMutation> {
-    if (operation === 'install') {
+    if (operation !== 'uninstall') {
       const action = await new SkillCopies(this.deps).install(row.path, {
         posture,
         refresh: true,
@@ -210,10 +219,12 @@ function versionState(installed: string, bundled: string): SkillInstallation['ve
 }
 
 function mutationAction(
-  operation: 'install' | 'uninstall',
+  operation: SkillOperation,
   row: SkillInstallation,
 ): SkillMutation['action'] {
   if (operation === 'uninstall') return row.status === 'installed' ? 'remove' : 'skip';
+  // Update brings an older copy fx recognizes to this version, and touches nothing else.
+  if (operation === 'update') return row.version_state === 'older' ? 'refresh' : 'skip';
   if (row.status === 'foreign') return 'replace';
   return row.status === 'installed' ? 'refresh' : 'install';
 }

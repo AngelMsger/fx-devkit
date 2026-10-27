@@ -26,6 +26,7 @@ const UNLEASED: Readonly<Record<string, readonly CommandId[]>> = {
     'manifest:import',
     'skill:install',
     'skill:uninstall',
+    'skill:update',
     'tool:install',
     'tool:update',
     'self:update',

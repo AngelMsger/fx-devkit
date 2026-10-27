@@ -8,6 +8,7 @@ import { FxUpdateCheck } from '../application/update/fx.js';
 import { ManifestUpdateCheck } from '../application/update/manifest.js';
 import { PROBE_TIMEOUT_MS } from '../application/update/policy.js';
 
+import { fxExecutable } from './bundled.js';
 import type { Container } from './container.js';
 
 export interface UpdateChecks {
@@ -29,5 +30,6 @@ export function selfUpdate(container: Container, noInput: boolean): SelfUpdate {
     prompter: container.prompter(noInput),
     installer: new NpmInstaller(container.process),
     check: updateChecks(container).fx,
+    skillRefresh: [...fxExecutable(), 'skill', 'update', '--format', 'json', '--no-input'],
   });
 }

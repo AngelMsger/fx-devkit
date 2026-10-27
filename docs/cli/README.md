@@ -1100,6 +1100,26 @@ Flags:
 | `--dry-run` | print the plan instead of applying it (default: false) |
 | `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
 
+## `fx skill update`
+
+Refresh installed copies of the bundled fx companion Skill that are older than this fx
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--agent` | target agent ids (repeatable or comma-separated) (repeatable) |
+| `--dir` | explicit Skill parent directory; excludes --agent and --project |
+| `--dry-run` | print the plan instead of applying it (default: false) |
+| `--project` | use agent Skill directories in the current directory instead of the user home (default: false) |
+
+Examples:
+
+```bash
+fx skill update
+fx skill update --project --dry-run
+```
+
 ## `fx source push`
 
 Validate selected source files and contribute them through a personal-fork pull request

@@ -415,7 +415,7 @@ describe('explicit tool selection', () => {
     }
     expect(s.proc.calls).toEqual([]);
   });
-  it('updates all enabled tools including existing ones, while skipping disabled tools', async () => {
+  it('updates every enabled tool that is installed, leaving missing and disabled ones alone', async () => {
     const s = setup();
     s.proc.binaries.add('alpha');
     const result = await s.install.execute({
@@ -425,6 +425,6 @@ describe('explicit tool selection', () => {
       dryRun: true,
       posture: writable,
     });
-    expect(result.map((row) => row.name)).toEqual(['alpha', 'beta', 'byhand']);
+    expect(result.map((row) => row.name)).toEqual(['alpha']);
   });
 });

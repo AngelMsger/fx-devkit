@@ -7,6 +7,7 @@ import { shellLine, type ResolvedShell } from '../../domain/shell.js';
 import { commandOrigin, type ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import type { ProcessResult } from '../../ports/process.js';
+import type { WritePosture } from '../safety/posture.js';
 import { isTrustRequired, isTrustRequiredCode, type TrustContext } from '../safety/trust.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
@@ -163,6 +164,44 @@ export function awaitsApproval(item: ToolSkillItem): boolean {
 // trustedTools' row has no failure to read, so its own note is the only record.
 export function wasHeldBack(item: ToolSkillItem): boolean {
   return item.vector === null && item.note === HELD_BACK;
+}
+
+export interface ToolSkillsInput {
+  readonly tools: readonly ResolvedTool[];
+  readonly dryRun: boolean;
+  readonly posture: WritePosture;
+  // Inside a workspace, where a vector the team's patch wrote is approved before it runs.
+  // Outside one, every vector is the bundled catalog's own.
+  readonly trust?: TrustContext | undefined;
+}
+
+// The Skills of tools fx just chose, installed or updated outside the sync stage, approved
+// and ready for runTools. A preview plans each tool as if it were already installed, since
+// the same run would install it.
+export async function planToolSkills(
+  deps: Pick<WorkspaceDeps, 'process' | 'commandShell'>,
+  skills: SkillDeps,
+  input: ToolSkillsInput,
+): Promise<ToolSkillItem[]> {
+  const toolchain = input.tools.map((tool) => ({ ...tool, installOnInit: true }));
+  const status = input.dryRun ? 'planned' : 'not_started';
+  const items: ToolSkillItem[] = (
+    await planTools(deps, skills, { toolchain, dryRun: input.dryRun, posture: input.posture })
+  ).map((item) => ({ ...item, status }));
+  if (input.dryRun || input.trust === undefined) return items;
+  return trustAll(items, toolchain, input.trust);
+}
+
+export type ToolSkillOutcome = 'planned' | 'installed' | 'failed' | 'blocked' | 'none';
+
+// One tool's Skill across every agent directory it went to, in a word for the tool's row.
+export function toolSkillOutcome(items: readonly ToolSkillItem[], tool: string): ToolSkillOutcome {
+  const own = items.filter((item) => item.tool === tool);
+  if (own.some(awaitsApproval)) return 'blocked';
+  const ran = own.filter((item) => item.vector !== null);
+  if (ran.length === 0) return 'none';
+  if (ran.some((item) => item.status === 'failed' || item.failure !== undefined)) return 'failed';
+  return ran.some((item) => item.status === 'planned') ? 'planned' : 'installed';
 }
 
 export async function runTools(

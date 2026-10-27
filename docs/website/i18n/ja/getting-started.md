@@ -8,6 +8,7 @@ fx をインストールし、チームのマニフェストを接続してリ�
 
 - 新規ワークスペース：[インストール](#install)、次に[クイックスタート](#quick-start)。
 - マニフェストがまだない場合：[対応 CLI のセットアップ](#set-up-companion-tools-without-a-manifest)。
+- 最新に保つ：[ツールと Skill の更新](#keep-tools-and-skills-up-to-date)。
 - リポジトリが多い場合：[ダウンロード前に選択](#choose-repositories-before-downloading)。
 - セットアップが中断した場合：[結果の確認と復旧](#reading-initialization-and-recovery-results)。
 - コーディング Agent：[構造化結果と bundled Skill](#for-coding-agents)。
@@ -99,9 +100,18 @@ fx init --tools bitbucket-cli,jira-cli --dry-run
 fx init --tools all
 ```
 
-fx はまだ入っていないツールをインストールし、各ツールに自分の Skill を fx 自身の Skill と並べてコーディング Agent へインストールさせ、サインイン済みかどうかを確認します。まだセットアップされていないツールには、そのツール自身のセットアップを始めるかを尋ねます。たとえば `bitbucket-cli config init` は、サービスのアドレスと認証情報を尋ねます。断った場合、`--yes` を付けた場合、ターミナルなしで実行した場合は、代わりにそのコマンドを一覧で示します。実行した後に `fx init --tools <names>` をもう一度実行すると確認できます。すでにあるツールはそのまま残し、fx が古すぎると報告したツールは `fx tool update` で更新します。
+fx はまだ入っていないツールをインストールし、各ツールに自分の Skill を fx 自身の Skill と並べてコーディング Agent へインストールさせ、サインイン済みかどうかを確認します。まだセットアップされていないツールには、そのツール自身のセットアップを始めるかを尋ねます。たとえば `bitbucket-cli config init` は、サービスのアドレスと認証情報を尋ねます。断った場合、`--yes` を付けた場合、ターミナルなしで実行した場合は、代わりにそのコマンドを一覧で示します。実行した後に `fx init --tools <names>` をもう一度実行すると確認できます。すでにあるツールはそのまま残します。[更新](#keep-tools-and-skills-up-to-date)は別の手順です。
 
 ワークスペースは登録せず、何も事前に設定しません。マニフェストがある場合は、`fx init <dir> --from <manifest>` がツールを決め、各サービスのアドレスも設定します。
+
+## ツールと Skill を最新に保つ {#keep-tools-and-skills-up-to-date}
+
+```sh
+fx self update --yes   # fx と、インストール済みの fx の Skill のコピー
+fx tool update --all   # インストール済みのすべての対応 CLI と、その Skill
+```
+
+`fx tool update --all` はすでにインストールされている対応 CLI を更新し、新しいものはインストールしません。それは `fx tool install` の役割です。fx がインストールまたは更新した各ツールは、続けてコーディング Agent 向けの Skill をもう一度インストールするので、Agent はいま入っている版の説明を読みます。`fx self update` は最後に、新しい fx に、それより古い自身の Skill のコピーを更新させます。`fx skill update` は同じことを単独で行います。ワークスペース内では、同じコマンドがワークスペースの使うツールを更新し、`fx sync` も Skill を更新します。
 
 ## ワークスペースの確認と管理 {#find-and-manage-workspaces}
 
@@ -193,7 +203,7 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 ツール定義は内蔵の目録と選択したワークスペースの `tools.yaml` を統合します。ワークスペースのツールチェーンはそのうち実際に使う部分、つまり結び付けた provider が動かすツールと tools.yaml が宣言したツールです。`fx tool list` は各ツールがなぜそこにあるかを示し、`--catalog` は fx が知っていて選ばれていないツールも表示します。選択順は `--workspace`、`FX_WORKSPACE`、現在のディレクトリを含む登録済みルート、`default_workspace` です。解決できない場合は読み取る結び付けがないため、内蔵の目録を表示します。インストール先はパッケージ管理ツールが決め、複数のワークスペースで共有します。
 
-`tool install` と `tool update` は名前か `--all` のいずれか一方を必須とします。install の `--all` は有効で PATH にないツールを補い、update の `--all` は選択したツールチェーンの有効なツールすべてを対象にします。明示した名前では無効なツールも選べます。引数なしの呼び出しはパッケージ操作前にエラーになります。
+`tool install` と `tool update` は名前か `--all` のいずれか一方を必須とします。install の `--all` は有効で PATH にないツールを補い、update の `--all` は選択したツールチェーンの有効なツールのうち PATH にあるものを対象にします。ワークスペース内では、対象外にしたツールを `TOOLS_NOT_INSTALLED` 通知で示します。明示した名前では無効なツールも選べます。引数なしの呼び出しはパッケージ操作前にエラーになります。パッケージ操作の後、インストールまたは更新した各ツールが選択した Agent 向けに Skill をインストールし、行の `skill` が結果を示します。
 
 doctor はワークスペースが宣言したツールと、選択された環境で有効な provider の依存ツールを既定で確認します。未使用の組み込みツールは `tool list --catalog` または明示的な `doctor --tool <name>` で確認できます。不在でも無関係なワークスペースの異常にはしません。インストールはマシン単位なので、ツールチェーン自体は manifest が宣言する全環境にまたがり、doctor の検査だけが対象環境に絞られます。有効な provider の依存ツールが無効化されている場合は、検査を未完了として報告します。
 
@@ -243,7 +253,7 @@ fx skill status
 
 ホストにコピーを検出させるには `fx skill install --agent codex` を使います。`--project` は現在のディレクトリ、`--dir ./custom-skills` は独立ディレクトリを対象とし、後者は `--agent`、`--project` と併用できません。単独の Skill コマンドはワークスペースの Agent 選択とは独立しています。検出・置換・削除は [Skill リファレンス](../skills/fx-workspace/references/commands.md#standalone-companion-skill)を参照してください。
 
-明示的な install は認識済みコピーを呼び出した CLI の版に揃え、同版の修復や新しい版の置換も行います。init/sync は同版を再利用し、新しい版を下げません。外部所有の内容の置換には確認とバックアップが必要です。削除しても Agent 選択は変わらず、後の sync で再インストールされる場合があります。
+明示的な install は認識済みコピーを呼び出した CLI の版に揃え、同版の修復や新しい版の置換も行います。`skill update` は呼び出した CLI より古い認識済みコピーだけを、すべての Agent のディレクトリで更新し、新しくはインストールしません。`self update` は新しくインストールした fx からこれを実行します。init/sync は同版を再利用し、新しい版を下げません。外部所有の内容の置換には確認とバックアップが必要です。削除しても Agent 選択は変わらず、後の sync で再インストールされる場合があります。
 
 `skill status` はインストール版と `activation: unverified` を返します。ファイルの存在だけではホストによる読み込みを証明できません。必要なときに同梱ガイドを読んでください。
 

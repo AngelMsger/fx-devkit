@@ -59,6 +59,7 @@ import SkillPath from './skill/path.js';
 import SkillShow from './skill/show.js';
 import SkillStatus from './skill/status.js';
 import SkillUninstall from './skill/uninstall.js';
+import SkillUpdate from './skill/update.js';
 import SourcePushCommand from './source/push.js';
 import StatusCommand from './status.js';
 import SyncCommand from './sync.js';
@@ -122,6 +123,7 @@ const CANONICAL_COMMANDS = {
   'skill:show': SkillShow,
   'skill:status': SkillStatus,
   'skill:uninstall': SkillUninstall,
+  'skill:update': SkillUpdate,
   'tool:list': ToolList,
   'tool:history': ToolHistory,
   'tool:inventory': ToolInventory,

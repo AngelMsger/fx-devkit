@@ -3,7 +3,11 @@
 import { Flags } from '@oclif/core';
 
 import type { StandaloneTargetsInput } from '../application/skill/standalone-targets.js';
-import { StandaloneSkill, type SkillMutation } from '../application/skill/standalone.js';
+import {
+  StandaloneSkill,
+  type SkillMutation,
+  type SkillOperation,
+} from '../application/skill/standalone.js';
 
 import { FxCommand } from './base.js';
 import { listFlag, writeIntent } from './flags.js';
@@ -47,7 +51,7 @@ export abstract class SkillCommand extends FxCommand {
   }
 
   protected skillWrite(
-    operation: 'install' | 'uninstall',
+    operation: SkillOperation,
     flags: SkillTargetFlags & { readonly 'dry-run': boolean },
   ): Promise<SkillMutation[]> {
     return this.companionSkill().write(operation, {

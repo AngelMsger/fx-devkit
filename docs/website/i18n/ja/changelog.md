@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- ツールが変わったときに Skill を更新します。`fx tool install` と `fx tool update` は、インストールまたは更新した各ツールにコーディング Agent 向けの Skill をもう一度インストールさせ、Agent が PATH 上の現在の版の説明を読めるようにします。各行に `skill` が加わります。`fx self update` は最後に、新しくインストールした fx に、それより古い自身の Skill のコピーを更新させ、結果を `skill_refresh` で示します。新しい `fx skill update` はこれを単独で行います。認識できる、実行中の fx より古いコピーだけを、すべての Agent のディレクトリで更新し、新しいコピーはインストールしません。すべてを最新に保つには `fx self update --yes` と `fx tool update --all` を実行します。
+- `fx tool update --all` はインストール済みのツールだけを更新します。以前はワークスペースの外ではカタログ全体を対象にし、まだないツールをすべてインストールしていました。ワークスペース内では、ワークスペースに足りないツールをインストールしていました。これらは `fx tool install --all` に任せ、ワークスペース内では `TOOLS_NOT_INSTALLED` 通知でそれらを示します。`FX_OUTDATED` 通知は `fx skill install` を勧めなくなりました。
+
 ## 0.13.0 (2026-10-27)
 
 - manifest がなくても対応 CLI をセットアップできるようになりました。ディレクトリもソースも指定せずに `fx init` を実行すると、fx のカタログにあるツールを一覧し、セットアップするものを番号か名前で尋ねます。Enter ですべてを選びます。エージェントやスクリプトは `fx init --tools <name,...>` または `--tools all` で指定し、`--dry-run` でプレビューできます。fx は不足しているツールをインストールし、各ツールにコーディングエージェント向けの Skill をインストールさせ、自身の `fx-workspace` Skill を追加して、各ツールがサインイン済みかを確認します。ターミナルでは、サインインしていないツールのセットアップ (`<tool> config init`、`gh auth login`) を始めるかを尋ねます。セットアップはサービスと認証情報を尋ねます。ターミナルでない場合と `--yes` の場合は、そのコマンドをレポートで渡します。ワークスペースは登録しません。ツールを決め、接続先のサービスを事前設定するのは、引き続き manifest の役割です。JSON レポートには `tools`、`tool_install`、`skills` があり、`preparation.scope.workspace` は `null` です。

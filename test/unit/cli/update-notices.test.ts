@@ -41,6 +41,7 @@ describe('shouldCheckUpdates', () => {
     for (const id of [
       'skill:install',
       'skill:uninstall',
+      'skill:update',
       'skill:status',
       'skill:path',
       'skill:show',

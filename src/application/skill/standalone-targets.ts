@@ -22,11 +22,16 @@ export interface StandaloneTarget {
   readonly path: string;
 }
 
+// `detected` is where install writes: the agents found here. `every` is every agent's
+// directory, merged where agents share one, so update finds copies wherever they are.
+// `inspect` lists every agent's directory on its own, for status and path.
+export type TargetSelection = 'detected' | 'every' | 'inspect';
+
 export async function standaloneTargets(
   fs: FileSystem,
   hosts: readonly AgentHost[],
   input: StandaloneTargetsInput,
-  inspect = false,
+  selection: TargetSelection = 'detected',
 ): Promise<StandaloneTarget[]> {
   const ids = input.agents?.flatMap((a) => a.split(',').map((id) => id.trim()));
   if (input.dir !== undefined) {
@@ -55,9 +60,9 @@ export async function standaloneTargets(
     }
   } else {
     for (const host of hosts)
-      if (inspect || (await host.detect(scope, input.cwd))) selected.push(host);
+      if (selection !== 'detected' || (await host.detect(scope, input.cwd))) selected.push(host);
   }
-  if (!inspect && selected.length === 0)
+  if (selection === 'detected' && selected.length === 0)
     throw new DevkitError('usage', 'SKILL_NO_AGENT', 'No coding agent detected', {
       nextSteps: ['fx skill path', 'Pass --agent <id> or --dir <path> to choose a target.'],
     });
@@ -65,7 +70,15 @@ export async function standaloneTargets(
     agent: host.id,
     path: path.resolve(host.skillsDir(scope, input.cwd), FX_SKILL),
   }));
-  if (inspect) return targets.sort((a, b) => a.agent.localeCompare(b.agent));
+  if (selection === 'inspect') return targets.sort((a, b) => a.agent.localeCompare(b.agent));
+  return mergeShared(fs, targets);
+}
+
+// Agents that share one Skill directory share one target, named after all of them.
+async function mergeShared(
+  fs: FileSystem,
+  targets: readonly { readonly agent: string; readonly path: string }[],
+): Promise<StandaloneTarget[]> {
   const byPath = new Map<string, StandaloneTarget>();
   for (const target of targets) {
     const key = pathKey(await canonicalSkillPath(fs, target.path));

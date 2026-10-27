@@ -54,7 +54,7 @@ describe('FxUpdateCheck', () => {
     expect(fxOutdated(await s.check.execute(s.input))).toMatchObject({
       code: 'FX_OUTDATED',
       message: 'fx 0.1.0 is behind 0.2.0',
-      nextSteps: ['fx self update --yes', 'fx skill install'],
+      nextSteps: ['fx self update --yes'],
     });
   });
 

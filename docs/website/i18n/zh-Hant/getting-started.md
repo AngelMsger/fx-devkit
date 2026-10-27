@@ -8,6 +8,7 @@
 
 - 新建工作區：[安裝](#install)，再[快速上手](#quick-start)。
 - 還沒有 manifest：[設定配套 CLI](#set-up-companion-tools-without-a-manifest)。
+- 保持最新：[更新工具和 Skill](#keep-tools-and-skills-up-to-date)。
 - 儲存庫較多：[下載前選擇儲存庫](#choose-repositories-before-downloading)。
 - 設定中斷：[判讀結果並復原](#reading-initialization-and-recovery-results)。
 - 編碼 Agent：[結構化結果與 bundled Skill](#for-coding-agents)。
@@ -99,9 +100,18 @@ fx init --tools bitbucket-cli,jira-cli --dry-run
 fx init --tools all
 ```
 
-fx 會安裝尚未安裝的工具，讓每個工具把自己的 Skill 與 fx 自身的 Skill 一起安裝到你的編碼 Agent 中，並檢查你是否已登入。對於尚未設定的工具，fx 會詢問是否啟動該工具自己的設定，例如 `bitbucket-cli config init`，它會詢問服務位址和你的憑證。如果你拒絕、傳入 `--yes` 或在沒有終端時執行，fx 會改為列出這些命令；執行之後再執行一次 `fx init --tools <names>` 即可確認。既有的工具保持原樣，fx 回報版本過舊的工具可用 `fx tool update` 升級。
+fx 會安裝尚未安裝的工具，讓每個工具把自己的 Skill 與 fx 自身的 Skill 一起安裝到你的編碼 Agent 中，並檢查你是否已登入。對於尚未設定的工具，fx 會詢問是否啟動該工具自己的設定，例如 `bitbucket-cli config init`，它會詢問服務位址和你的憑證。如果你拒絕、傳入 `--yes` 或在沒有終端時執行，fx 會改為列出這些命令；執行之後再執行一次 `fx init --tools <names>` 即可確認。既有的工具保持原樣；[更新](#keep-tools-and-skills-up-to-date)是單獨的一步。
 
 這樣不會註冊工作區，也不預設任何內容。有 manifest 時，`fx init <dir> --from <manifest>` 會決定工具，並為你填好每個服務的位址。
+
+## 保持工具和 Skill 最新 {#keep-tools-and-skills-up-to-date}
+
+```sh
+fx self update --yes   # 更新 fx，再更新你已安裝的 fx Skill 副本
+fx tool update --all   # 更新你已安裝的每個配套 CLI，再更新它的 Skill
+```
+
+`fx tool update --all` 只更新已經安裝的配套 CLI，不會安裝新的工具；那是 `fx tool install` 的事。fx 每安裝或更新一個工具，都會讓它再為你的編碼 Agent 安裝一次自己的 Skill，這樣 Agent 讀到的就是你現在這個版本的說明。`fx self update` 最後會讓新的 fx 更新比它舊的自身 Skill 副本，`fx skill update` 也可以單獨做這件事。在工作區內，同樣的命令會更新工作區使用的工具，`fx sync` 也會更新 Skill。
 
 ## 探索與管理工作區 {#find-and-manage-workspaces}
 
@@ -193,7 +203,7 @@ capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provide
 
 工具定義由內建目錄與所選工作區的 `tools.yaml` 合併；工作區的工具鏈則是其中它真正使用的部分：被繫結 provider 驅動的工具，加上 tools.yaml 宣告的工具。`fx tool list` 說明每個工具因何在此，`--catalog` 會再列出 fx 知道但沒有被選用的工具。工作區優先順序為 `--workspace`、`FX_WORKSPACE`、目前目錄所屬的已註冊工作區、`default_workspace`；無法確定工作區時沒有繫結可推導，因此列出內建目錄。套件管理器決定安裝位置，工具由多個工作區共用。
 
-`tool install` 和 `tool update` 必須指定名稱或 `--all`，兩者互斥。安裝的 `--all` 補齊已啟用且 PATH 缺少的工具；更新的 `--all` 選擇目前工具表中全部已啟用工具。明確名稱可以選擇已停用的工具。無參數呼叫會在執行套件操作前報錯。
+`tool install` 和 `tool update` 必須指定名稱或 `--all`，兩者互斥。安裝的 `--all` 補齊已啟用且 PATH 缺少的工具；更新的 `--all` 選擇目前工具表中已啟用且在 PATH 上的工具，在工作區內還會以 `TOOLS_NOT_INSTALLED` 通知列出被略過的工具。明確名稱可以選擇已停用的工具。無參數呼叫會在執行套件操作前報錯。套件操作之後，每個被安裝或更新的工具會為所選 Agent 安裝自己的 Skill，列中的 `skill` 回報結果。
 
 doctor 預設檢查工作區宣告的工具及所選環境中實際啟用的 provider 相依項目。未使用的內建工具仍可透過 `tool list --catalog` 或明確指定 `doctor --tool <name>` 查詢；缺少它們不會導致無關工作區不健康。工具鏈本身涵蓋 manifest 宣告的所有環境（安裝是整機的），而 doctor 的檢查仍依所選環境收窄。活躍 provider 的相依工具若被停用，仍會回報檢查不完整。
 
@@ -243,7 +253,7 @@ fx skill status
 
 希望宿主自動探索副本時，使用 `fx skill install --agent codex`。`--project` 面向目前目錄；`--dir ./custom-skills` 面向獨立目錄，不能與 `--agent`、`--project` 同用。獨立 Skill 命令的目標選擇不依賴工作區 Agent 設定。偵測、取代與解除安裝規則見[Skill 參考](../skills/fx-workspace/references/commands.md#standalone-companion-skill)。
 
-明確執行 install 會將已識別副本更新為呼叫 CLI 的版本，包括同版修復和取代較新副本；init/sync 同版重用且不降級。取代外來內容需要確認和備份。解除安裝不改變 Agent 選擇，後續 sync 可能再次安裝。
+明確執行 install 會將已識別副本更新為呼叫 CLI 的版本，包括同版修復和取代較新副本。`skill update` 只更新比呼叫 CLI 舊的已識別副本，涵蓋所有 Agent 的目錄，不新裝副本；`self update` 會從新安裝的 fx 執行它。init/sync 同版重用且不降級。取代外來內容需要確認和備份。解除安裝不改變 Agent 選擇，後續 sync 可能再次安裝。
 
 `skill status` 報告安裝版本與 `activation: unverified`。檔案已安裝不代表宿主已載入。按需閱讀隨包指南。
 

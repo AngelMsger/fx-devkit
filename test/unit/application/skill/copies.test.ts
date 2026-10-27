@@ -161,4 +161,47 @@ describe('shared Skill copy service', () => {
       },
     });
   });
+
+  it('updates only older copies it recognizes, wherever an agent keeps them, and never installs', async () => {
+    const copy = (id: string) =>
+      path.join(path.resolve('/fake/home'), id, 'skills', 'fx-workspace');
+    const fs = FakeFs.from({
+      ...files,
+      [path.join(copy('older'), 'SKILL.md')]: text('0.9.0'),
+      [path.join(copy('current'), 'SKILL.md')]: text('1.0.0'),
+      [path.join(copy('newer'), 'SKILL.md')]: text('2.0.0'),
+      [path.join(copy('foreign'), 'SKILL.md')]: '---\nname: someone-else\n---\n',
+    });
+    const service = new StandaloneSkill({
+      fs,
+      version: '1.0.0',
+      prompter: new FakePrompter(),
+      replace: async () => false,
+      skills: {
+        // An agent that is not detected here still keeps the copy an earlier install wrote.
+        hosts: ['older', 'current', 'newer', 'foreign', 'absent'].map(
+          (id) => new FakeAgentHost(id, id === 'current'),
+        ),
+        configured: undefined,
+        bundledSkillDir: source,
+        globalLock: new FakeLock(),
+      },
+    });
+    const rows = await service.write('update', {
+      cwd: '/work',
+      dryRun: false,
+      posture: { readOnly: false, source: 'default' },
+      yes: false,
+    });
+    expect(rows.map((row) => [row.agent, row.action, row.status])).toEqual([
+      ['older', 'refresh', 'installed'],
+      ['current', 'skip', 'skipped'],
+      ['newer', 'skip', 'skipped'],
+      ['foreign', 'skip', 'skipped'],
+      ['absent', 'skip', 'skipped'],
+    ]);
+    expect(await fs.readText(path.join(copy('older'), 'SKILL.md'))).toBe(text('1.0.0'));
+    expect(await fs.readText(path.join(copy('newer'), 'SKILL.md'))).toBe(text('2.0.0'));
+    expect(await fs.exists(copy('absent'))).toBe(false);
+  });
 });
