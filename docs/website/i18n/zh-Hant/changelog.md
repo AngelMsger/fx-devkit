@@ -2,8 +2,12 @@
 
 ## [Unreleased]
 
+## 0.14.0 (2026-10-28)
+
 - 工具變化時重新整理 Skill。`fx tool install` 與 `fx tool update` 會讓每個安裝或更新過的工具為你的編碼 Agent 重新安裝它的 Skill，讓 Agent 讀到 PATH 上目前版本的說明；每一列新增 `skill`。`fx self update` 最後會讓新安裝的 fx 重新整理比它舊的自身 Skill 副本，結果記在 `skill_refresh`；新增的 `fx skill update` 單獨做這件事：只重新整理可辨識且比目前 fx 舊的副本，涵蓋每個 Agent 的目錄，不新裝任何副本。保持一切最新只需 `fx self update --yes` 與 `fx tool update --all`。
 - `fx tool update --all` 只更新已安裝的工具。先前在工作區外它會取整個工具目錄，並安裝每個尚未安裝的工具；在工作區內會安裝工作區缺少的工具。現在這些交給 `fx tool install --all`，在工作區內會以 `TOOLS_NOT_INSTALLED` 提示列出它們。`FX_OUTDATED` 提示不再建議 `fx skill install`。
+
+- `fx release check` 優先讀取根目錄 `VERSION`, 避免服務版本缺少或顯示為套件版本. 相依檢查繼續讀取相依檔案.
 
 ## 0.13.0 (2026-10-27)
 

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.14.0 (2026-10-28)
+
 ### Added
 
 - Refresh Skills when tools change. `fx tool install` and `fx tool update` have each
@@ -20,6 +22,12 @@
   installed the workspace's missing tools. It now leaves those to
   `fx tool install --all`, and inside a workspace a `TOOLS_NOT_INSTALLED` notice names
   them. The `FX_OUTDATED` notice no longer suggests `fx skill install`.
+
+### Fixed
+
+- Prefer the root `VERSION` file over dependency metadata in `fx release check`,
+  so services with a separate release version no longer show a missing or package-only
+  version. Dependency checks continue to inspect the dependency file.
 
 ## 0.13.0 (2026-10-27)
 
