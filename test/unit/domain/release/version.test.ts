@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { declaredVersion } from '../../../../src/domain/release/version.js';
 
 describe('declaredVersion', () => {
+  it('reads root VERSION as trimmed text and leaves an empty declaration unknown', () => {
+    expect(declaredVersion('VERSION', ' 2.1.0\r\n')).toBe('2.1.0');
+    expect(declaredVersion('VERSION', ' \r\n')).toBeUndefined();
+  });
+
   it('reads the version a package.json declares, and nothing from a broken one', () => {
     expect(declaredVersion('package.json', '{"name":"api","version":"1.3.0"}')).toBe('1.3.0');
     expect(declaredVersion('package.json', '{"name":"api"}')).toBeUndefined();

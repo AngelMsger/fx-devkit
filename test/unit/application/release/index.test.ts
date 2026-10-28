@@ -262,6 +262,34 @@ describe('Release', () => {
     expect(asked('compare fx/fx-example-api m1..d1')).toBe(1);
   });
 
+  it.each([undefined, '0.0.1'])(
+    'prefers VERSION over package metadata (%s)',
+    async (packageVersion) => {
+      const s = await stage();
+      s.codeHost.files.set('fx/fx-example-api d1:VERSION', ' 2.1.0\r\n');
+      s.codeHost.files.set('fx/fx-example-api m1:VERSION', '2.0.0\n');
+      s.codeHost.files.set(
+        'fx/fx-example-api d1:package.json',
+        JSON.stringify({ version: packageVersion, dependencies: { x: '1.0.0-dev' } }),
+      );
+      s.codeHost.files.set('fx/fx-example-api m1:package.json', '{"version":"0.0.1"}');
+      // VERSION also works for repositories whose dependency file has no own version.
+      s.codeHost.files.set('data/fx-example-data s1:VERSION', '3.0.0\n');
+      const report = await run(s);
+      expect(report.repos[0]).toMatchObject({
+        source: { version: '2.1.0' },
+        target: { version: '2.0.0' },
+        version_file: 'VERSION',
+        unanswered: [],
+      });
+      expect(report.repos[1]).toMatchObject({
+        source: { version: '3.0.0' },
+        version_file: 'VERSION',
+      });
+      expect(byKey(report)['deps:fx-example-api']).toBe('fail');
+    },
+  );
+
   it('says which question to the host failed, even one no check asks', async () => {
     const s = await stage();
     s.codeHost.files.set('fx/fx-example-api d1:package.json', '{"version":"1.3.0"}');

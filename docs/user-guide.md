@@ -550,6 +550,11 @@ projects the complete report in any format, using flat keys for dot paths, for e
 fx sync --format json --fields operation,preparation.state,items,summary
 ```
 
+Release versions prefer the root `VERSION` file when present on the source branch;
+the selected file is read at both branch heads. Its text is trimmed, and an empty
+declaration stays unknown. Without `VERSION`, fx uses the existing dependency-file
+version lookup (for example, `package.json`). Dependency checks still read dependencies.
+
 | Result                   | Completion decision                                                                |
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | `init`, `sync`, `doctor` | `preparation.state`: `planned`, `ready`, or `incomplete`, for `preparation.scope`. |

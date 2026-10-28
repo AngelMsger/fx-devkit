@@ -1,6 +1,6 @@
-// The version a repository declares for itself, read from the same dependency file
-// the deps check reads. It finds the version a person wrote, it does not run the build
-// that might compute another one; TOML is parsed, and comments never count.
+// The version a repository declares for itself, from VERSION or a dependency file.
+// It finds the written declaration without running a build that might compute another.
+// VERSION is plain text; structured metadata uses the readers below.
 
 import { parse } from 'smol-toml';
 
@@ -8,8 +8,10 @@ export type VersionReader = (text: string) => string | undefined;
 
 // A Gradle build often keeps its version beside the build file.
 export const GRADLE_PROPERTIES = 'gradle.properties';
+export const ROOT_VERSION = 'VERSION';
 
 export const VERSION_READERS: Readonly<Record<string, VersionReader>> = {
+  [ROOT_VERSION]: (text) => text,
   'package.json': packageVersion,
   'pyproject.toml': pyprojectVersion,
   'pom.xml': pomVersion,

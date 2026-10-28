@@ -236,10 +236,10 @@ describe('release', () => {
     expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not merged into main$/m);
     expect(run.stdout.trimEnd().split('\n').slice(-2)).toEqual([
       'All checks ok',
-      expect.stringMatching(/^ {2}b {2}main [0-9a-f]{7}, dev merged$/),
+      expect.stringMatching(/^ {2}b {2}1\.0\.0 {2}main [0-9a-f]{7}, dev merged$/),
     ]);
     const all = fx(['release', 'check', '--details', 'b'], s.env, s.ws);
-    expect(all.stdout).toMatch(/^b {2}ok\n {2}main [0-9a-f]{7}, dev merged\n/);
+    expect(all.stdout).toMatch(/^b {2}ok\n {2}1\.0\.0 {2}main [0-9a-f]{7}, dev merged\n/);
     expect(all.stdout).toMatch(/^ {2}merge {3}ok {4}dev and main agree$/m);
   });
 
@@ -255,6 +255,9 @@ describe('release', () => {
       unmerged: { commits: 1, authors: 1 },
     });
     expect(repos[1]).toMatchObject({
+      source: { version: '1.0.0' },
+      target: { version: '1.0.0' },
+      version_file: 'VERSION',
       unmerged: { commits: 0, authors: 0 },
       note: null,
       unanswered: [],

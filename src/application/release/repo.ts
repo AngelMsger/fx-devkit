@@ -16,6 +16,7 @@ import type {
 import {
   declaredVersion,
   GRADLE_PROPERTIES,
+  ROOT_VERSION,
   VERSION_READERS,
 } from '../../domain/release/version.js';
 import type { Branch } from '../../domain/workspace/commits.js';
@@ -106,8 +107,9 @@ async function headOf(
   };
 }
 
-// The dependency file the deps check reads, when it is a kind that declares a version.
+// Prefer the explicit root VERSION file, then the dependency file the deps check reads.
 async function versionFileAt(facts: RepoFacts, sha: string): Promise<string | undefined> {
+  if ((await facts.host.readFile(facts.ref, ROOT_VERSION, sha)) !== undefined) return ROOT_VERSION;
   for (const { file } of DEPENDENCY_FILES) {
     const text = await facts.host.readFile(facts.ref, file, sha);
     if (text !== undefined) return VERSION_READERS[file] === undefined ? undefined : file;

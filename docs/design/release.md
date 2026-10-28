@@ -26,8 +26,10 @@ by how many people. It counts them rather than listing them: a team that merges 
 the end of a cycle can have hundreds, and the two heads name the range for whoever
 wants the list, read with the code host's own tools. That count is what the next merge
 brings, not everything the next version contains, which also holds what was merged
-since the last release. The version is read from the same dependency file the
-dependency check reads. It finds the version a person wrote (`package.json`, the
+since the last release. The root `VERSION` file takes precedence over dependency metadata when present
+on the source branch; the same selected file is read at both branch heads. Its
+contents are trimmed, and an empty declaration stays unknown. Without `VERSION`,
+the version is read from the same dependency file the dependency check reads. It finds the version a person wrote (`package.json`, the
 `[project]` or Poetry table of `pyproject.toml` parsed as TOML, the project or parent
 `<version>` of `pom.xml` with one `${property}` resolved, a top-level Gradle `version`
 outside comments, or `gradle.properties`) and does not run the build. This description
