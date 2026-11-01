@@ -212,13 +212,17 @@ describe('SystemGit against real git', () => {
     writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '.env\n');
     writeFileSync(path.join(dir, '.env'), 'mine\n');
     writeFileSync(path.join(dir, 'notes'), 'mine\n');
+    // A leading space is part of the name (and valid on every platform), so the
+    // reported path must keep it.
+    writeFileSync(path.join(dir, ' spaced'), 'mine\n');
     writeFileSync(path.join(work, '.env'), 'theirs\n');
+    writeFileSync(path.join(work, ' spaced'), 'theirs\n');
     advance(work, 'notes');
     await sut.fetch(dir, 'upstream');
     const before = git(['rev-parse', 'HEAD'], dir);
     expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({
       outcome: 'local_files_in_the_way',
-      paths: ['.env', 'notes'],
+      paths: [' spaced', '.env', 'notes'],
     });
     expect(git(['rev-parse', 'HEAD'], dir)).toBe(before);
     expect(readFileSync(path.join(dir, '.env'), 'utf8')).toBe('mine\n');

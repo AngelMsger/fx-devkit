@@ -242,9 +242,11 @@ export class SystemGit implements Git {
 const FILES_IN_THE_WAY =
   /untracked working tree files would be (?:overwritten|removed) by merge|would lose untracked files/i;
 
+// Git lists each path raw after one tab. Only that tab is dropped: spaces at either end
+// belong to the file name, and files_in_the_way must name the exact files to move.
 function listedPaths(stderr: string): string[] {
-  const listed = stderr.split('\n').filter((line) => line.startsWith('\t'));
-  return [...new Set(listed.map((line) => line.trim()).filter((line) => line.length > 0))];
+  const listed = stderr.split(/\r?\n/).filter((line) => line.startsWith('\t'));
+  return [...new Set(listed.map((line) => line.slice(1)).filter((line) => line.length > 0))];
 }
 
 function gitFailureCategory(stderr: string): 'not_found' | 'auth' | 'network' | 'conflict' {
