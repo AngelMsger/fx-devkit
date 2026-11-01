@@ -13,9 +13,14 @@ selection is an empty collection rather than an invented clean checkout.
 ## Relation to sync
 
 Status fields describe a checkout; sync's Git contract decides what happens to it.
-Tracked changes on the tracked branch skip a working-tree update. Nonconflicting
-untracked files can coexist with a fast-forward; Git refuses updates that would
-overwrite them. A task branch permits only the tracked branch ref update.
+Tracked changes on the tracked branch skip a working-tree update. Untracked and
+ignored files the update does not touch stay beside it. When upstream starts
+tracking a path the checkout holds as an untracked or ignored file, such as a local
+`.env`, the fast-forward moves nothing: Git is asked to refuse ignored files too,
+which it would otherwise replace. The checkout is skipped with outcome
+`local_files_in_the_way`, `files_in_the_way` lists every such path, the reason names
+the first few, and readiness is blocked until they are moved aside. The manifest
+checkout is kept the same way. A task branch permits only the tracked branch ref update.
 
 When the tracked branch cannot be resolved, sync asks the remote for its branches
 before calling it absent. An empty upstream, as behind a repository registered before

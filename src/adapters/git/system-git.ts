@@ -12,7 +12,7 @@ import {
   parseRemotes,
   type RepoState,
 } from '../../domain/workspace/state.js';
-import type { CloneRequest, FastForwardOutcome, Git, RemoteHead } from '../../ports/git.js';
+import type { CloneRequest, FastForwardResult, Git, RemoteHead } from '../../ports/git.js';
 import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
 
 import { lastLine, runGit } from './run.js';
@@ -69,22 +69,35 @@ export class SystemGit implements Git {
     }
   }
 
-  async fastForward(dir: string, remote: string, branch: string): Promise<FastForwardOutcome> {
+  // Git refuses to overwrite untracked files but by default replaces ignored ones, such
+  // as a local .env the upstream starts tracking; --no-overwrite-ignore refuses both.
+  async fastForward(dir: string, remote: string, branch: string): Promise<FastForwardResult> {
     const state = await this.status(dir);
     const onBranch = state.branch === branch && !state.dirty;
     const ref = onBranch ? 'HEAD' : branch;
     const before = await this.revParse(dir, ref);
     const result = onBranch
-      ? await this.git(['-C', dir, 'merge', '--ff-only', '--quiet', `${remote}/${branch}`])
+      ? await this.git([
+          '-C',
+          dir,
+          'merge',
+          '--ff-only',
+          '--no-overwrite-ignore',
+          '--quiet',
+          `${remote}/${branch}`,
+        ])
       : await this.git(['-C', dir, 'fetch', '--quiet', remote, `${branch}:${branch}`]);
     if (result.code !== 0) {
-      if (/not possible to fast-forward|non-fast-forward/i.test(result.stderr)) return 'diverged';
+      if (/not possible to fast-forward|non-fast-forward/i.test(result.stderr))
+        return { outcome: 'diverged' };
+      if (onBranch && FILES_IN_THE_WAY.test(result.stderr))
+        return { outcome: 'local_files_in_the_way', paths: listedPaths(result.stderr) };
       // A ref git cannot resolve here says nothing about the remote; the remote's own
       // branch list does.
       const unresolved = /not something we can merge|couldn't find remote ref/i.test(result.stderr);
       const remoteBranch = unresolved ? await this.remoteBranch(dir, remote, branch) : undefined;
       if (remoteBranch === 'empty_remote' || remoteBranch === 'no_remote_branch')
-        return remoteBranch;
+        return { outcome: remoteBranch };
       throw new DevkitError(
         gitFailureCategory(result.stderr),
         'GIT_FAST_FORWARD_FAILED',
@@ -102,7 +115,7 @@ export class SystemGit implements Git {
       );
     }
     const after = await this.revParse(dir, ref);
-    return before === after ? 'up_to_date' : 'updated';
+    return { outcome: before === after ? 'up_to_date' : 'updated' };
   }
 
   // Undefined when the remote does not list its branches in time.
@@ -223,6 +236,15 @@ export class SystemGit implements Git {
   private git(args: readonly string[], options: RunOptions = {}): Promise<ProcessResult> {
     return runGit(this.process, args, options);
   }
+}
+
+// Git lists the files it would have replaced, one per tab-indented line, and moves nothing.
+const FILES_IN_THE_WAY =
+  /untracked working tree files would be (?:overwritten|removed) by merge|would lose untracked files/i;
+
+function listedPaths(stderr: string): string[] {
+  const listed = stderr.split('\n').filter((line) => line.startsWith('\t'));
+  return [...new Set(listed.map((line) => line.trim()).filter((line) => line.length > 0))];
 }
 
 function gitFailureCategory(stderr: string): 'not_found' | 'auth' | 'network' | 'conflict' {

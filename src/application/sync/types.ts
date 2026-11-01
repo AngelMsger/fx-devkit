@@ -86,6 +86,8 @@ export interface SyncInput {
 export interface SyncItem extends PlanItem {
   readonly result: Exclude<EffectOutcome, 'not_started'>;
   readonly outcome?: string;
+  // Every file a fast-forward would have replaced, when that is why it was skipped.
+  readonly files_in_the_way?: readonly string[];
   readonly origin_added?: boolean;
   readonly upstream_added?: boolean;
   readonly error?: string;

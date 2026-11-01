@@ -166,7 +166,7 @@ fx env select --all
 
 工作區根目錄不是 Git 儲存庫，因此 `fx status` 還會回傳 `stray_entries`：根目錄下既不是 checkout、派生指南、fx 維護的 Go 工作區、Agent 或服務設定，也不是工作台的檔案與目錄。`fx doctor` 在 `root` 群組中逐項列出，等級為警告，不影響就緒判定。
 
-sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。空的 upstream 會被略過，因為沒有可 fast-forward 的內容；缺少被追蹤分支的 upstream 同樣會被略過，但會作為需要檢查的問題回報。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
+sync 保留工作檔案與分支。請查看計畫動作：已追蹤檔案修改可能觸發 `skip_dirty`；checkout 位於其他分支時，只更新被追蹤的分支參照。空的 upstream 會被略過，因為沒有可 fast-forward 的內容；缺少被追蹤分支的 upstream 同樣會被略過，但會作為需要檢查的問題回報。如果更新會覆寫分支未追蹤的本機檔案（包括 `.env` 這類被忽略的檔案），sync 會保持該 checkout 不變，回報 outcome `local_files_in_the_way`，並在 `files_in_the_way` 中列出這些檔案；將它們移開後再次執行 sync。status 預設不 fetch，需要更新遠端比較時明確加上 `--fetch`。
 
 在終端機裡，sync 和 init 只顯示需要關注的儲存庫或 Skill 列，成功的由狀態列計數。兩者最後都按階段各給一列結論，再按解決方式分組列出阻擋項：登入、服務拒絕的存取，或本機連不上的伺服器，後者會給出重新檢查的命令。`--verbose` 會顯示每一列，管道或 `--format json` 仍會收到全部列。
 

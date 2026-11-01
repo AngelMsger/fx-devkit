@@ -69,18 +69,24 @@ describe('status and recovery journeys', () => {
     expect(dirty(s).items).toMatchObject([{ dirty: true, untracked: 0, uncommitted: true }]);
   });
 
-  it('keeps untracked work and refuses a conflicting upstream fast-forward', () => {
+  it('keeps untracked and ignored work and holds back a fast-forward that would replace it', () => {
     const s = stage();
     expect(s.init().status).toBe(0);
     const local = path.join(s.root, 'api/local.txt');
     writeFileSync(local, 'my uncommitted file\n');
+    const secrets = path.join(s.root, 'api/.env');
+    writeFileSync(path.join(s.root, 'api/.git/info/exclude'), '.env\n');
+    writeFileSync(secrets, 'TOKEN=mine\n');
     s.repo.commit({ 'other.txt': 'upstream\n' }, 'independent update');
     const updated = fx(['sync', '--only', 'repos', '--format', 'json', '--details'], s.env, s.root);
     expect(updated.status, updated.stderr).toBe(0);
     expect(updated.json()).toMatchObject({ summary: { failed: 0 } });
     expect(readFileSync(local, 'utf8')).toBe('my uncommitted file\n');
     expect(readFileSync(path.join(s.root, 'api/other.txt'), 'utf8')).toBe('upstream\n');
-    s.repo.commit({ 'local.txt': 'conflicting upstream\n' }, 'conflicting update');
+    s.repo.commit(
+      { 'local.txt': 'conflicting upstream\n', '.env': 'TOKEN=example\n' },
+      'conflicting update',
+    );
     const conflict = fx(
       ['sync', '--only', 'repos', '--format', 'json', '--details'],
       s.env,
@@ -88,9 +94,18 @@ describe('status and recovery journeys', () => {
     );
     expect(conflict.json()).toMatchObject({
       preparation: { state: 'incomplete' },
-      summary: { failed: 1 },
+      summary: { failed: 0, skipped: 1 },
+      items: [
+        {
+          name: 'api',
+          result: 'skipped',
+          outcome: 'local_files_in_the_way',
+          files_in_the_way: ['.env', 'local.txt'],
+        },
+      ],
     });
     expect(readFileSync(local, 'utf8')).toBe('my uncommitted file\n');
+    expect(readFileSync(secrets, 'utf8')).toBe('TOKEN=mine\n');
   });
 
   it('normally retries a repository that was missing during initialization', () => {

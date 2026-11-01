@@ -256,7 +256,10 @@ Sync preserves working files and branches. Read the planned action: tracked
 modifications can cause `skip_dirty`, while a checkout on another branch can
 update only the tracked branch reference. An empty upstream is skipped with nothing
 to fast-forward; one that lacks the tracked branch is skipped too, and reported for
-review. A status report does not itself run fetch; add `--fetch` explicitly when
+review. When an update would replace a local file the branch does not track, ignored
+files such as `.env` included, sync leaves that checkout as it is, reports outcome
+`local_files_in_the_way` and lists the files in `files_in_the_way`; move them aside,
+then sync again. A status report does not itself run fetch; add `--fetch` explicitly when
 remote comparisons must be refreshed.
 
 In a terminal, sync and init print a repository or Skill row only when it needs a

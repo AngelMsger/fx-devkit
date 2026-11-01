@@ -40,6 +40,7 @@ const VOCABULARY: Readonly<Partial<Record<Role, readonly string[]>>> = {
     'skip_not_git',
     'skip_remote_mismatch',
     'no_remote_branch',
+    'local_files_in_the_way',
   ],
   fail: [
     'fail',

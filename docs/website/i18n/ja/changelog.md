@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- sync の更新で置き換えられてしまうローカルファイルを保持するようになりました。upstream が、checkout では無視されたファイルとして存在するパス (ローカルの `.env` など) を追跡し始めると、`fx sync` はそのファイルを fast-forward で上書きし、内容を置き換えていました。現在はその checkout を変更せずに残して outcome `local_files_in_the_way` でスキップし、対象ファイルを `files_in_the_way` に示して、それらが移されるまで準備完了にしません。同じ位置にある追跡されていないファイルは、もともと Git が置き換えを拒否していましたが、失敗した `GIT_FAST_FORWARD_FAILED` の行ではなく同じ形で報告されます。manifest の checkout も同じように保持されます。
+
 ## 0.14.0 (2026-10-28)
 
 - ツールが変わったときに Skill を更新します。`fx tool install` と `fx tool update` は、インストールまたは更新した各ツールにコーディング Agent 向けの Skill をもう一度インストールさせ、Agent が PATH 上の現在の版の説明を読めるようにします。各行に `skill` が加わります。`fx self update` は最後に、新しくインストールした fx に、それより古い自身の Skill のコピーを更新させ、結果を `skill_refresh` で示します。新しい `fx skill update` はこれを単独で行います。認識できる、実行中の fx より古いコピーだけを、すべての Agent のディレクトリで更新し、新しいコピーはインストールしません。すべてを最新に保つには `fx self update --yes` と `fx tool update --all` を実行します。
