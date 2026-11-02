@@ -113,6 +113,8 @@ repos:
 
 `fx manifest providers` 列出每個能力及其繫結。一個能力可以有多個實作——`issue-tracker` 可選 `feishu-project` 或 `jira-cli`，`knowledge-base` 可選 `confluence` 或 `lark-wiki`，`calendar` 可選 `lark-calendar`、`wecom-calendar` 或 `wecom-calendar-cli`；一個配套 CLI 也可以服務多個能力，lark-cli 就同時服務 `im` 與 `knowledge-base`，它仍然只安裝與檢查一次。
 
+將工作區能力 `channel` 綁定到 `wecom-channel-cli` 即可安裝 CLI 和 Skill。就緒檢查透過代理通訊端偵測本機 broker。
+
 在包含 team-workspace/ 的目錄執行：
 
 ```sh

@@ -173,6 +173,8 @@ capability may have more than one implementation — `issue-tracker` accepts
 `wecom-calendar-cli` — and one companion CLI may serve several capabilities, as
 lark-cli does for `im` and `knowledge-base`. It is still installed and checked once.
 
+Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness checks the local broker through the agent socket.
+
 From the directory containing `team-workspace/`, preview and initialize:
 
 ```sh

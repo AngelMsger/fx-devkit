@@ -195,7 +195,9 @@ fx manifest schema --kind tools
 
 capability 表示代码托管、CI、日志、错误追踪等意图，provider 通过配套 CLI 实现它。manifest 绑定能力、提供者和环境坐标。`can` 查询就绪，`where` 查询坐标，`release check` 查询声明的发布检查项。
 
-工作区级能力一次绑定：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`calendar`、`meeting`、`task`、`worklog`；环境级能力按平台实例绑定：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。不带目标的 `fx can` 列出这些能力以及当前工作区里各由谁提供；`fx manifest providers` 列出已绑定的内容和每个能力可选的 provider。`calendar` 是日程与忙闲所在；`meeting` 是承载在线会议及其录制、纪要的会议系统，在一个产品里排日程、在另一个产品里开会的团队两者都绑定。在企业微信上，`wecom-calendar` 通过 WeCom CLI 列出其机器人可见的日程，`wecom-calendar-cli` 则在每位成员自己日历的本地镜像中连同历史一起搜索；登录以及用 `wecom-calendar-cli sync` 填充镜像都由成员自己完成。
+工作区级能力一次绑定：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`channel`、`calendar`、`meeting`、`task`、`worklog`；环境级能力按平台实例绑定：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。不带目标的 `fx can` 列出这些能力以及当前工作区里各由谁提供；`fx manifest providers` 列出已绑定的内容和每个能力可选的 provider。`calendar` 是日程与忙闲所在；`meeting` 是承载在线会议及其录制、纪要的会议系统，在一个产品里排日程、在另一个产品里开会的团队两者都绑定。在企业微信上，`wecom-calendar` 通过 WeCom CLI 列出其机器人可见的日程，`wecom-calendar-cli` 则在每位成员自己日历的本地镜像中连同历史一起搜索；登录以及用 `wecom-calendar-cli sync` 填充镜像都由成员自己完成。
+
+将工作区能力 `channel` 绑定到 `wecom-channel-cli` 即可安装 CLI 和 Skill。就绪检查通过代理套接字检测本地 broker。
 
 `metrics` 由 `prometheus-cli` 提供。它的坐标是服务的抓取 job：`where` 输出一条 `up{job="..."}` 查询，返回该服务各抓取目标的标签集合，可作为编写后续选择器的起点。选择器匹配不到任何序列时查询仍然成功，因此指标不提供存在性探测，`where --probe` 对它报告 `unknown`，不作猜测。
 
