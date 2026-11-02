@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { DevkitError } from '../../domain/errors.js';
 import { messageOf } from '../../domain/values.js';
-import type { RepoState } from '../../domain/workspace/state.js';
+import { filesInTheWayReason, type RepoState } from '../../domain/workspace/state.js';
 import type { FileReader } from '../../ports/fs.js';
 import type { Git } from '../../ports/git.js';
 import type {
@@ -167,19 +167,21 @@ export class GitRepoSource implements ManifestSource {
     const onBranch = state.branch === branch;
     const protection = await this.worktreeProtection(dir, state);
     if (protection !== undefined) return kept(protection + (await this.landed(dir, state, branch)));
-    const outcome = await this.git.fastForward(dir, 'upstream', branch);
-    if (outcome === 'diverged') {
+    const forwarded = await this.git.fastForward(dir, 'upstream', branch);
+    if (forwarded.outcome === 'diverged') {
       const suffix = onBranch ? '' : '; its ref was not moved';
       return kept(`local commits on ${branch} diverge from upstream${suffix}`);
     }
-    if (outcome === 'empty_remote') return kept('upstream has no branches yet');
-    if (outcome === 'no_remote_branch') return kept(`upstream has no ${branch} branch`);
+    if (forwarded.outcome === 'empty_remote') return kept('upstream has no branches yet');
+    if (forwarded.outcome === 'no_remote_branch') return kept(`upstream has no ${branch} branch`);
+    if (forwarded.outcome === 'local_files_in_the_way')
+      return kept(filesInTheWayReason(forwarded.paths));
     if (!onBranch)
       return kept(
         `on ${state.branch ?? 'a detached HEAD'}, not ${branch}; only the ${branch} ref moved` +
           (await this.landed(dir, state, branch)),
       );
-    return { result: outcome };
+    return { result: forwarded.outcome };
   }
 
   // Whether the commits of a checkout kept on another branch already reached upstream,

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep local files that a sync update would replace. When upstream starts tracking a
+  path that a checkout holds as an ignored file, such as a local `.env`, `fx sync`
+  fast-forwarded over it and replaced its contents. It now leaves that checkout as it
+  is and skips it with outcome `local_files_in_the_way`, lists the files in
+  `files_in_the_way` and holds readiness until they are moved aside. An untracked file
+  in the same position, which Git already refused to replace, is reported the same way
+  instead of as a failed `GIT_FAST_FORWARD_FAILED` row. The manifest checkout is kept
+  the same way.
+
 ## 0.14.0 (2026-10-28)
 
 ### Added

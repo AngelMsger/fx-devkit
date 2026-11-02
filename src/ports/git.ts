@@ -1,7 +1,8 @@
 // Git as sync and status need it, and nothing more: there is deliberately no checkout,
 // reset, stash, rebase or merge here, so "sync never destroys work" holds at the type
 // level. A fast-forward on the checked-out branch is the one merge that can happen, and
-// only when the tree is clean; on any other branch only the branch ref moves.
+// only when the tree is clean and no file the branch does not track, ignored ones
+// included, would be overwritten; on any other branch only the branch ref moves.
 
 import type { RepoState } from '../domain/workspace/state.js';
 
@@ -14,14 +15,24 @@ export interface CloneRequest {
 
 // When there is nothing to fast-forward to, the remote itself said why: `empty_remote`
 // has no branches yet, as behind a checkout registered before its first push, while
-// `no_remote_branch` has others but not this one.
+// `no_remote_branch` has others but not this one. `local_files_in_the_way` names the
+// files the branch does not track that the update would have replaced; nothing moved.
 export type FastForwardOutcome =
-  'updated' | 'up_to_date' | 'diverged' | 'empty_remote' | 'no_remote_branch';
+  | 'updated'
+  | 'up_to_date'
+  | 'diverged'
+  | 'empty_remote'
+  | 'no_remote_branch'
+  | 'local_files_in_the_way';
+
+export type FastForwardResult =
+  | { readonly outcome: Exclude<FastForwardOutcome, 'local_files_in_the_way'> }
+  | { readonly outcome: 'local_files_in_the_way'; readonly paths: readonly string[] };
 
 export interface Git {
   clone(request: CloneRequest): Promise<void>;
   fetch(dir: string, remote: string): Promise<void>;
-  fastForward(dir: string, remote: string, branch: string): Promise<FastForwardOutcome>;
+  fastForward(dir: string, remote: string, branch: string): Promise<FastForwardResult>;
   status(dir: string, compareTo?: string): Promise<RepoState>;
   toplevel(dir: string): Promise<string | undefined>;
   // Whether `dir` is itself the top of a checkout, not a directory inside one.

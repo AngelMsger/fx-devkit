@@ -1,4 +1,4 @@
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -57,9 +57,9 @@ describe('SystemGit command vectors', () => {
       stdout: '',
       stderr: 'fatal: Not possible to fast-forward, aborting.',
     });
-    expect(await new SystemGit(proc).fastForward('/work/repo', 'upstream', 'main')).toBe(
-      'diverged',
-    );
+    expect(await new SystemGit(proc).fastForward('/work/repo', 'upstream', 'main')).toEqual({
+      outcome: 'diverged',
+    });
   });
   it('tells a git that could not start from one that exited 127 itself', async () => {
     const request = { dir: '/work/repo', upstream: 'ssh://u/x.git', branch: 'dev' };
@@ -132,7 +132,9 @@ describe('SystemGit command vectors', () => {
     for (const forbidden of ['checkout', 'reset', 'stash', 'rebase', 'pull']) {
       expect(flat.some((v) => v.includes(` ${forbidden}`))).toBe(false);
     }
-    expect(flat.some((v) => v.includes('merge --ff-only --quiet upstream/dev'))).toBe(true);
+    expect(
+      flat.some((v) => v.includes('merge --ff-only --no-overwrite-ignore --quiet upstream/dev')),
+    ).toBe(true);
   });
 });
 
@@ -180,11 +182,11 @@ describe('SystemGit against real git', () => {
     const { bare, work } = upstream();
     const dir = path.join(tempDir('fx-ws-'), 'a');
     await sut.clone({ dir, upstream: bare, branch: 'dev' });
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('up_to_date');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'up_to_date' });
     advance(work, 'two');
     await sut.fetch(dir, 'upstream');
     expect(await sut.status(dir, 'upstream/dev')).toMatchObject({ behind: 1 });
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('updated');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'updated' });
     expect(git(['log', '--oneline'], dir).split('\n')).toHaveLength(2);
   });
 
@@ -196,10 +198,35 @@ describe('SystemGit against real git', () => {
     writeFileSync(path.join(dir, 'wip'), 'wip');
     advance(work, 'two');
     await sut.fetch(dir, 'upstream');
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('updated');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'updated' });
     expect(git(['rev-parse', '--abbrev-ref', 'HEAD'], dir)).toBe('feature/x');
     expect(git(['rev-parse', 'dev'], dir)).toBe(git(['rev-parse', 'upstream/dev'], dir));
     expect(git(['status', '--porcelain'], dir)).toContain('wip');
+  });
+
+  it('keeps files the branch does not track, ignored ones included, and names them', async () => {
+    const { bare, work } = upstream();
+    const dir = path.join(tempDir('fx-ws-'), 'a');
+    await sut.clone({ dir, upstream: bare, branch: 'dev' });
+    mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
+    writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '.env\n');
+    writeFileSync(path.join(dir, '.env'), 'mine\n');
+    writeFileSync(path.join(dir, 'notes'), 'mine\n');
+    // A leading space is part of the name (and valid on every platform), so the
+    // reported path must keep it.
+    writeFileSync(path.join(dir, ' spaced'), 'mine\n');
+    writeFileSync(path.join(work, '.env'), 'theirs\n');
+    writeFileSync(path.join(work, ' spaced'), 'theirs\n');
+    advance(work, 'notes');
+    await sut.fetch(dir, 'upstream');
+    const before = git(['rev-parse', 'HEAD'], dir);
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({
+      outcome: 'local_files_in_the_way',
+      paths: [' spaced', '.env', 'notes'],
+    });
+    expect(git(['rev-parse', 'HEAD'], dir)).toBe(before);
+    expect(readFileSync(path.join(dir, '.env'), 'utf8')).toBe('mine\n');
+    expect(readFileSync(path.join(dir, 'notes'), 'utf8')).toBe('mine\n');
   });
 
   it('reports a diverged branch and changes nothing', async () => {
@@ -213,7 +240,7 @@ describe('SystemGit against real git', () => {
     await sut.fetch(dir, 'upstream');
     const before = git(['rev-parse', 'HEAD'], dir);
     expect(await sut.status(dir, 'upstream/dev')).toMatchObject({ ahead: 1, behind: 1 });
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('diverged');
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'diverged' });
     expect(git(['rev-parse', 'HEAD'], dir)).toBe(before);
   });
 
@@ -225,17 +252,17 @@ describe('SystemGit against real git', () => {
     git(['init', '-q', '-b', 'dev', dir], root);
     git(['remote', 'add', 'upstream', bare], dir);
     await sut.fetch(dir, 'upstream');
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('empty_remote');
-    expect(await sut.fastForward(dir, 'upstream', 'main'), 'only a ref would move').toBe(
-      'empty_remote',
-    );
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'empty_remote' });
+    expect(await sut.fastForward(dir, 'upstream', 'main'), 'only a ref would move').toEqual({
+      outcome: 'empty_remote',
+    });
     const work = path.join(root, 'work');
     git(['clone', '-q', bare, work], root);
     git(['checkout', '-q', '-b', 'dev'], work);
     advance(work, 'one');
     await sut.fetch(dir, 'upstream');
-    expect(await sut.fastForward(dir, 'upstream', 'main')).toBe('no_remote_branch');
-    expect(await sut.fastForward(dir, 'upstream', 'dev')).toBe('updated');
+    expect(await sut.fastForward(dir, 'upstream', 'main')).toEqual({ outcome: 'no_remote_branch' });
+    expect(await sut.fastForward(dir, 'upstream', 'dev')).toEqual({ outcome: 'updated' });
     expect(git(['rev-parse', 'HEAD'], dir)).toBe(git(['rev-parse', 'upstream/dev'], dir));
     // A branch the remote has but this checkout never fetches is not an absent one.
     git(['config', 'remote.upstream.fetch', '+refs/heads/main:refs/remotes/upstream/main'], dir);

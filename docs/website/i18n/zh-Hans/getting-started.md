@@ -166,7 +166,7 @@ fx env select --all
 
 工作区根目录不是 Git 仓库，因此 `fx status` 还会返回 `stray_entries`：根目录下既不是 checkout、派生指南、fx 维护的 Go 工作区、Agent 或服务配置，也不是工作台的文件和目录。`fx doctor` 在 `root` 组里逐项列出，级别为警告，不影响就绪判定。
 
-sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。空的 upstream 会被跳过，因为没有可 fast-forward 的内容；缺少被跟踪分支的 upstream 同样会被跳过，但会作为需要检查的问题报告。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
+sync 保留工作文件和分支。应查看计划动作：已跟踪文件修改可能触发 `skip_dirty`；checkout 位于其他分支时，只更新被跟踪的分支引用。空的 upstream 会被跳过，因为没有可 fast-forward 的内容；缺少被跟踪分支的 upstream 同样会被跳过，但会作为需要检查的问题报告。如果更新会覆盖分支未跟踪的本地文件（包括 `.env` 这类被忽略的文件），sync 会保持该 checkout 不变，报告 outcome `local_files_in_the_way`，并在 `files_in_the_way` 中列出这些文件；将它们移开后再次运行 sync。status 默认不 fetch，需要刷新远端比较时显式加 `--fetch`。
 
 在终端里，sync 和 init 只显示需要关注的仓库或 Skill 行，成功的由状态行计数。两者最后都按阶段各给一行结论，再按解决方式分组列出阻塞项：登录、服务拒绝的访问，或本机连不上的服务器，后者会给出重新检查的命令。`--verbose` 会显示每一行，管道或 `--format json` 仍会收到全部行。
 

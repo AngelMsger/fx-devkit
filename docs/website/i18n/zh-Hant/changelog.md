@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 保留 sync 更新會取代的本機檔案。當 upstream 開始追蹤某個在 checkout 中是被忽略檔案的路徑（例如本機的 `.env`）時，`fx sync` 會 fast-forward 覆寫該檔案並取代其內容。現在會保持該 checkout 不變，以 outcome `local_files_in_the_way` 略過，在 `files_in_the_way` 中列出這些檔案，並在它們被移開之前不視為就緒。位於同樣位置的未追蹤檔案原本就會被 Git 拒絕取代，現在也以相同方式回報，而不再是失敗的 `GIT_FAST_FORWARD_FAILED` 列。manifest checkout 也以相同方式保留。
+
 ## 0.14.0 (2026-10-28)
 
 - 工具變化時重新整理 Skill。`fx tool install` 與 `fx tool update` 會讓每個安裝或更新過的工具為你的編碼 Agent 重新安裝它的 Skill，讓 Agent 讀到 PATH 上目前版本的說明；每一列新增 `skill`。`fx self update` 最後會讓新安裝的 fx 重新整理比它舊的自身 Skill 副本，結果記在 `skill_refresh`；新增的 `fx skill update` 單獨做這件事：只重新整理可辨識且比目前 fx 舊的副本，涵蓋每個 Agent 的目錄，不新裝任何副本。保持一切最新只需 `fx self update --yes` 與 `fx tool update --all`。

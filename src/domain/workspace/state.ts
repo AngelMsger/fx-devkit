@@ -1,7 +1,8 @@
 // What a checkout looks like right now, and the parsers that read it off
 // git's machine-readable output. `dirty` means tracked changes; untracked
 // paths are counted separately from the index/worktree changes used by sync.
-// Ignored paths are not requested; Git itself refuses a conflicting fast-forward.
+// Ignored paths are not requested: the fast-forward itself refuses to replace any
+// file the branch does not track, and names them.
 
 export interface RepoState {
   readonly branch: string | undefined;
@@ -32,6 +33,17 @@ export function parsePorcelainStatus(text: string): RepoState {
     }
   }
   return { branch, dirty, untracked, ahead, behind };
+}
+
+const NAMED_FILES = 5;
+
+// Why a checkout was left as it was when updating it would replace files the branch
+// does not track: the first few are named, the rest counted.
+export function filesInTheWayReason(paths: readonly string[]): string {
+  const named = paths.slice(0, NAMED_FILES).join(', ');
+  const rest = paths.length - NAMED_FILES;
+  const list = named === '' ? '' : `: ${named}${rest > 0 ? ` and ${rest} more` : ''}`;
+  return `upstream would replace local files Git does not track${list}; move them aside to update`;
 }
 
 export function parseRemotes(text: string): Record<string, string> {

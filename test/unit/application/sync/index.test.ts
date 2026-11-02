@@ -263,8 +263,8 @@ describe('Sync', () => {
     expect(h.activity.counts.at(-1)).toEqual({ id: 'repos', count: undefined });
   });
 
-  it('skips an empty upstream as nothing to do, and holds back one that lacks the branch', async () => {
-    const h = await harness({ local: { scope: { repos: ['fx-example-api', 'fx-example-auth'] } } });
+  it('skips an empty upstream as nothing to do, and holds back one that lacks the branch or would replace local files', async () => {
+    const h = await harness();
     h.git.add(path.join(ROOT, 'fx-example-api'), {
       remotes: { upstream: upstream('fx-example-api') },
       fastForward: 'empty_remote',
@@ -274,17 +274,31 @@ describe('Sync', () => {
       state: { branch: 'main', dirty: false, untracked: 0, ahead: 0, behind: 0 },
       fastForward: 'no_remote_branch',
     });
+    const inTheWay = ['.env', 'a', 'b', 'c', 'd', 'e', 'f'];
+    h.git.add(path.join(ROOT, 'fx-example-docs'), {
+      remotes: { upstream: upstream('fx-example-docs') },
+      fastForward: { outcome: 'local_files_in_the_way', paths: inTheWay },
+    });
     const out = await sync(h.deps).execute(run);
-    expect(out.items.slice(0, 2).map((i) => [i.result, i.outcome, i.reason])).toEqual([
+    expect(out.items.map((i) => [i.result, i.outcome, i.reason])).toEqual([
       ['skipped', 'empty_remote', 'upstream has no commits yet; nothing to fast-forward'],
       [
         'skipped',
         'no_remote_branch',
         'upstream has no main branch; check the branch the manifest tracks',
       ],
+      [
+        'skipped',
+        'local_files_in_the_way',
+        'upstream would replace local files Git does not track: .env, a, b, c, d and 2 more; move them aside to update',
+      ],
     ]);
+    expect(out.items[2]?.files_in_the_way, 'every file, for a program').toEqual(inTheWay);
     expect(out.summary.failed).toBe(0);
-    expect(out.preparation.blockers.map((check) => check.id)).toEqual(['repo:fx-example-auth']);
+    expect(out.preparation.blockers.map((check) => check.id)).toEqual([
+      'repo:fx-example-auth',
+      'repo:fx-example-docs',
+    ]);
     expect(h.reporter.codes()).not.toContain('SYNC_PARTIAL');
   });
 

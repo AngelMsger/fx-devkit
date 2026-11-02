@@ -1,12 +1,13 @@
 import path from 'node:path';
 
 import type { RepoState } from '../../src/domain/workspace/state.js';
-import type { CloneRequest, FastForwardOutcome, Git, RemoteHead } from '../../src/ports/git.js';
+import type { CloneRequest, FastForwardResult, Git, RemoteHead } from '../../src/ports/git.js';
 
 export interface FakeCheckout {
   state: RepoState;
   remotes: Record<string, string>;
-  fastForward?: FastForwardOutcome;
+  // An outcome that names no files can be given on its own.
+  fastForward?: Exclude<FastForwardResult['outcome'], 'local_files_in_the_way'> | FastForwardResult;
   remoteHeads?: Record<string, string>;
   liveHeads?: Record<string, RemoteHead | undefined>;
   shas?: Record<string, string>;
@@ -58,10 +59,11 @@ export class FakeGit implements Git {
     this.calls.push(`fetch ${dir} ${remote}`);
   }
 
-  async fastForward(dir: string, remote: string, branch: string): Promise<FastForwardOutcome> {
+  async fastForward(dir: string, remote: string, branch: string): Promise<FastForwardResult> {
     await this.hooks.fastForward?.(dir, remote, branch);
     this.calls.push(`fast-forward ${dir} ${remote}/${branch}`);
-    return this.checkouts.get(path.resolve(dir))?.fastForward ?? 'up_to_date';
+    const result = this.checkouts.get(path.resolve(dir))?.fastForward ?? 'up_to_date';
+    return typeof result === 'string' ? { outcome: result } : result;
   }
 
   async status(dir: string): Promise<RepoState> {

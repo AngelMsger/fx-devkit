@@ -7,7 +7,8 @@ import {
   type PreparationCheck,
 } from '../../domain/preparation.js';
 import { leavesCheckoutUsable, type PlanItem } from '../../domain/workspace/plan.js';
-import type { FastForwardOutcome } from '../../ports/git.js';
+import { filesInTheWayReason } from '../../domain/workspace/state.js';
+import type { FastForwardResult } from '../../ports/git.js';
 import { requireUsableManifest } from '../manifest/prepare.js';
 import type { RefreshManifestOutput } from '../manifest/refresh.js';
 import { pooled } from '../pool.js';
@@ -192,11 +193,16 @@ export class Sync {
       }
       if (item.fetch) await git.fetch(dir, 'upstream');
       if (item.action === 'fast_forward' && item.branch !== undefined) {
-        const outcome = await git.fastForward(dir, 'upstream', item.branch);
-        const absent = absenceReason(outcome, item.branch);
-        if (absent !== undefined) {
-          reporter.progress({ id: item.name, state: 'skip', detail: absent });
-          return { ...item, ...added, result: 'skipped', outcome, reason: absent };
+        const forwarded = await git.fastForward(dir, 'upstream', item.branch);
+        const { outcome } = forwarded;
+        const reason = skipReason(forwarded, item.branch);
+        if (reason !== undefined) {
+          reporter.progress({ id: item.name, state: 'skip', detail: reason });
+          const files =
+            forwarded.outcome === 'local_files_in_the_way'
+              ? { files_in_the_way: forwarded.paths }
+              : {};
+          return { ...item, ...added, result: 'skipped', outcome, reason, ...files };
         }
         const result = outcome === 'diverged' ? 'skipped' : 'done';
         reporter.progress({
@@ -220,14 +226,26 @@ export class Sync {
   }
 }
 
-// An empty upstream has had no first push yet; a missing branch in one that has others may
-// mean the manifest tracks the wrong branch, so only the second holds readiness back.
-function absenceReason(outcome: FastForwardOutcome, branch: string): string | undefined {
-  if (outcome === 'empty_remote') return 'upstream has no commits yet; nothing to fast-forward';
-  if (outcome === 'no_remote_branch')
-    return `upstream has no ${branch} branch; check the branch the manifest tracks`;
-  return undefined;
+// Why a fast-forward that moved nothing was skipped, when a person has to know.
+function skipReason(result: FastForwardResult, branch: string): string | undefined {
+  switch (result.outcome) {
+    case 'empty_remote':
+      return 'upstream has no commits yet; nothing to fast-forward';
+    case 'no_remote_branch':
+      return `upstream has no ${branch} branch; check the branch the manifest tracks`;
+    case 'local_files_in_the_way':
+      return filesInTheWayReason(result.paths);
+    case 'updated':
+    case 'up_to_date':
+    case 'diverged':
+      return undefined;
+  }
 }
+
+// An empty upstream has had no first push yet, so it leaves readiness alone. A missing
+// branch in one that has others may mean the manifest tracks the wrong branch, and
+// diverged commits or files in the way wait for a person.
+const HELD_BACK = new Set(['diverged', 'no_remote_branch', 'local_files_in_the_way']);
 
 function manifestReason(refresh: RefreshManifestOutput | undefined): string | undefined {
   switch (refresh?.result) {
@@ -263,8 +281,7 @@ function repositoryChecks(items: readonly SyncItem[]): PreparationCheck[] {
     .map((item) => {
       const ready =
         item.result !== 'failed' &&
-        item.outcome !== 'diverged' &&
-        item.outcome !== 'no_remote_branch' &&
+        !HELD_BACK.has(item.outcome ?? '') &&
         leavesCheckoutUsable(item.action);
       let state: PreparationCheck['state'] = ready ? 'ready' : 'blocked';
       if (item.result === 'planned') state = 'unknown';

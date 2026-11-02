@@ -30,6 +30,7 @@ const INCOMPLETE = new Set([
   'skip_remote_mismatch',
   'diverged',
   'no_remote_branch',
+  'local_files_in_the_way',
 ]);
 const STATE_KEYS = new Set(['status', 'state', 'action', 'result', 'activation', 'outcome']);
 const COUNT_SUFFIX = new RegExp(`(?:^|_)(${[...UNFINISHED, 'problems'].join('|')})$`);

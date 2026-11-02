@@ -198,7 +198,7 @@ describe('GitRepoSource refresh decisions', () => {
       fake,
     );
 
-  it('follows the default branch upstream names, and keeps a dirty, diverged or unpushed tree', async () => {
+  it('follows the default branch upstream names, and keeps a dirty, diverged, unpushed or obstructed tree', async () => {
     const git = new FakeGit().add(dir, {
       state: { ...clean, branch: 'trunk' },
       remoteHeads: { upstream: 'trunk' },
@@ -245,6 +245,15 @@ describe('GitRepoSource refresh decisions', () => {
     expect(await source(unpushed).refresh(dir)).toMatchObject({
       result: 'kept',
       reason: 'upstream has no branches yet',
+    });
+    const inTheWay = new FakeGit().add(dir, {
+      state: clean,
+      fastForward: { outcome: 'local_files_in_the_way', paths: ['.env'] },
+    });
+    expect(await source(inTheWay).refresh(dir)).toMatchObject({
+      result: 'kept',
+      reason:
+        'upstream would replace local files Git does not track: .env; move them aside to update',
     });
   });
 
