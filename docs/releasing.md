@@ -61,9 +61,9 @@ The public channel follows the same contract as the sibling CLIs
 GitHub Pages. Every workflow first selects public metadata with
 `scripts/select-distribution.mjs public`.
 
-The release workflow checks that the tag matches `package.json`, runs the quality
-gates and tests, creates (or refreshes) the GitHub Release with the packed tarball
-and `checksums.txt`, then publishes `@angelmsger/fx` to npmjs through
+The release workflow checks that the tag is exactly `v<package.json version>`,
+runs the quality gates and tests, creates (or refreshes) the GitHub Release with
+the packed tarball and `checksums.txt`, then publishes `@angelmsger/fx` to npmjs through
 `scripts/publish.mjs`. It is idempotent: a version already on npmjs is skipped,
 so a failed run can be re-run.
 
