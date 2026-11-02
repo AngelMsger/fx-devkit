@@ -310,7 +310,7 @@ to providers and environment-specific coordinates. Use `can` for readiness,
 `where` for service coordinates, and `release check` for the declared release checklist.
 
 A workspace binds `code-host`, `issue-tracker`, `knowledge-base`, `im`,
-`calendar`, `meeting`, `task` and `worklog` once; an environment binds
+`channel`, `calendar`, `meeting`, `task` and `worklog` once; an environment binds
 `error-tracker`, `log-store`, `metrics`, `ci` and `cluster` per platform
 instance. `fx can` without a target lists them with what serves each one in this
 workspace; `fx manifest providers` lists what is bound and what each capability
@@ -321,6 +321,8 @@ WeCom, `wecom-calendar` lists the schedules its bot can see through the WeCom CL
 while `wecom-calendar-cli` searches a local mirror of each member's own calendars,
 history included; each member signs in and fills the mirror with
 `wecom-calendar-cli sync` themselves.
+
+Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness checks the local broker through the agent socket.
 
 `metrics` is served by `prometheus-cli`. Its coordinate is a service's scrape
 job: `where` prints an `up{job="..."}` query that returns the label set of that

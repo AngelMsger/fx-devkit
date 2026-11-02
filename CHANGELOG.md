@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.15.0 (2026-11-02)
+
+### Added
+
+- Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness checks the local broker through the agent socket.
+
 ### Fixed
 
 - Keep local files that a sync update would replace. When upstream starts tracking a

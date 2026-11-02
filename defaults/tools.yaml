@@ -63,6 +63,15 @@ tools:
     desc: A local, searchable mirror of your own WeCom calendars, history included
     install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
     docs: https://github.com/AngelMsger/wecom-calendar-cli
+  - name: wecom-channel-cli
+    min_version: '0.1.0'
+    desc: Posts, replies and event updates in WeCom channels
+    install: [{ via: npm, spec: '@angelmsger/wecom-channel-cli' }]
+    auth:
+      command: [auth, status]
+      json: { path: data.ready, equals: true }
+      docs: https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/security.md
+    docs: https://github.com/AngelMsger/wecom-channel-cli
   - name: gh
     min_version: '2.50.0'
     desc: Repositories, branches, pull requests and Actions runs on GitHub

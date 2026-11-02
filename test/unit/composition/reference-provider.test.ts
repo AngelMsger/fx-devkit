@@ -133,6 +133,18 @@ describe('workspace reference providers', () => {
     expect(s.h.localStore.writes).toEqual([]);
   });
 
+  it('checks the channel broker before offering a bounded event query', async () => {
+    const s = await stage('channel', 'wecom-channel-cli', {});
+    const result = { code: 0, stdout: '{"data":{"ready":false}}', stderr: '' };
+    s.h.process.on(['wecom-channel-cli', 'auth', 'status'], result);
+    expect((await s.can.execute({ target: 'channel' })).status).toBe('unconfigured');
+    result.stdout = '{"data":{"ready":true,"authentication_verified":false}}';
+    expect(await s.can.execute({ target: 'channel' })).toMatchObject({
+      status: 'ready',
+      entry: { command: 'wecom-channel-cli event list --limit 10' },
+    });
+  });
+
   it('needs a stored WeCom CalDAV credential and neither syncs nor reads the calendar mirror', async () => {
     const s = await stage('calendar', 'wecom-calendar-cli', {});
     const status = ['wecom-calendar-cli', 'auth', 'status', '--format', 'json'];

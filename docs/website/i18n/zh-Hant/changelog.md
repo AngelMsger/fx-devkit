@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.15.0 (2026-11-02)
+
+- 將工作區能力 `channel` 綁定到 `wecom-channel-cli` 即可安裝 CLI 和 Skill。就緒檢查透過代理通訊端偵測本機 broker。
+
 - 保留 sync 更新會取代的本機檔案。當 upstream 開始追蹤某個在 checkout 中是被忽略檔案的路徑（例如本機的 `.env`）時，`fx sync` 會 fast-forward 覆寫該檔案並取代其內容。現在會保持該 checkout 不變，以 outcome `local_files_in_the_way` 略過，在 `files_in_the_way` 中列出這些檔案，並在它們被移開之前不視為就緒。位於同樣位置的未追蹤檔案原本就會被 Git 拒絕取代，現在也以相同方式回報，而不再是失敗的 `GIT_FAST_FORWARD_FAILED` 列。manifest checkout 也以相同方式保留。
 
 ## 0.14.0 (2026-10-28)
