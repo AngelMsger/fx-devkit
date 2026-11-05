@@ -99,6 +99,9 @@ export function contextualWorkspaceError(
     cause: failure,
     diagnostics: failure.diagnostics,
     nextSteps: [
+      ...(['MANIFEST_SCHEMA_TOO_NEW', 'MANIFEST_CLI_TOO_OLD'].includes(failure.code)
+        ? failure.nextSteps
+        : []),
       shellLine(['fx', 'manifest', 'validate', '--workspace', located.name], input.commandShell),
       shellLine(['fx', 'workspace', 'show', located.name], input.commandShell),
     ],

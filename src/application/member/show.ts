@@ -5,17 +5,22 @@
 import { DevkitError } from '../../domain/errors.js';
 import { suggestionHint } from '../../domain/fuzzy.js';
 import type { Person } from '../../domain/manifest/types.js';
+import {
+  memberView,
+  type MemberScope,
+  type MemberClassification,
+} from '../../domain/members/classify.js';
 import { findPeople, suggestPerson, type MatchedBy } from '../../domain/members/resolve.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { membersOf } from './source.js';
 
-export interface PersonRow {
+export interface PersonRow extends MemberClassification {
   readonly id: string;
   readonly display: string | null;
   readonly email: string | null;
   readonly status: string;
-  readonly accounts: Person['accounts'] extends infer A | undefined ? A : never;
+  readonly accounts: NonNullable<Person['accounts']>;
   readonly matched_by: MatchedBy;
   readonly via: string | null;
 }
@@ -28,14 +33,18 @@ export const PERSON_COLUMNS = [
   'matched_by',
   'via',
   'accounts',
+  'classification',
+  'memberships',
+  'assignments',
+  'responsible_teams',
 ] as const;
 
 export class MemberShow {
   constructor(private readonly deps: WorkspaceDeps) {}
 
-  execute(query: string): PersonRow[] {
+  execute(query: string, input: MemberScope & { system?: string | undefined } = {}): PersonRow[] {
     const members = membersOf(this.deps.ctx);
-    const matches = findPeople(members, query);
+    const matches = findPeople(members, query, input.system);
     if (matches.length === 0) {
       const suggestion = suggestPerson(members, query);
       throw new DevkitError(
@@ -48,6 +57,7 @@ export class MemberShow {
         },
       );
     }
+    const view = memberView(members, input, new Date().toISOString().slice(0, 10));
     return matches.map(({ person, matchedBy, via }) => ({
       id: person.id,
       display: person.display ?? null,
@@ -56,6 +66,7 @@ export class MemberShow {
       accounts: person.accounts ?? {},
       matched_by: matchedBy,
       via: via ?? null,
+      ...view.describe(person.id, matches.length > 1),
     }));
   }
 }

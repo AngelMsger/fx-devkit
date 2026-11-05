@@ -286,3 +286,46 @@ fx 0.2.0 支持在工作区 provider、platform 默认值及其环境覆盖项�
 相同预设可共享本地目标，同一目标的不同预设会阻止配置。冲突的旧 vars 应删除，避免两个来源。用户名、邮箱、密码、PAT/API Token 值、Cookie 和浏览器会话不可分发；每人通过自己的 CLI 获取并保存凭证。额外 service 字段在非严格模式下也校验失败；URL 中的凭证会被拒绝且不会回显。
 
 预设要求 Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0、Prometheus ≥0.2.0，需在 tools.yaml 设置版本下限。init、显式 sync 和 login 使用受信任命令准备配置；`fx sync --only services --dry-run` 预览。非空冲突不会自动覆盖或切换激活项；Sentry 公共工作区默认值遵循同样的保留原则。
+
+## 成员归属与业务协作 {#member-relationships}
+
+成员 schema 2 需要 fx 0.16.0（待发布）。先分发并验证 CLI，再启用新版资料。CLI 继续读取 schema 1。迁移时保留人员 ID、账号及其否定状态、负责人、角色和仓库引用。给每个域和域内场景分配稳定 ID。团队和职能词表由清单声明。每条关系关联一个人、团队或职能，多职能可分行登记。域和场景可以有多个责任团队。目录关系可以只记录个人职能。旧 `all` 保留为团队范围未知的集体职责；有范围的集体协作使用 `person: all`，指定团队并可指定职能。 在 `manifest/workspace.yaml` 中同步设置版本下限，旧 CLI 进入工作区时即可提示所需版本。
+
+以下虚构的 `manifest/members.yaml` 可配合工作区清单使用。
+
+```yaml
+schema_version: 2
+min_cli: '0.16.0'
+sensitive: true
+people: [{ id: fern, email: fern@example.com }]
+teams: [{ id: ink, name: Ink Studio }, { id: clay, name: Clay Studio }]
+functions: [{ id: illustrator, name: Illustrator }]
+areas: [{ id: atlas, group: Illustrated Atlas, responsible_teams: [ink] }]
+memberships:
+  - {
+      person: fern,
+      team: clay,
+      function: illustrator,
+      status: confirmed,
+      source: roster/fern,
+      verified_at: '2025-04-02',
+    }
+assignments:
+  - {
+      person: fern,
+      area: atlas,
+      team: ink,
+      function: illustrator,
+      status: confirmed,
+      source: atlas/credits,
+      verified_at: '2025-04-02',
+    }
+```
+
+```sh
+fx manifest validate --kind members --strict --format json
+fx member show fern --area atlas --format json
+fx member list --team ink --function illustrator --area atlas --format json
+```
+
+每项筛选只传一个值。日期按 UTC 自然日计算，包含 `valid_from`，不含 `valid_until`，省略的一端开放。`verified_at` 是证据核验日。日期查询只检查当前文件声明的区间。候选关系使用 `status: unverified`。已确认关系须有来源和核验日期。区分没有配置协作部分（`not_configured`）和没有适用关系（`not_covered`）。 只核实业务职能时可省略协作关系的团队。该证据可以确认职能，团队归属仍待补证。

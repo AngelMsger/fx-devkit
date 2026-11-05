@@ -20,14 +20,27 @@ export function nearest(
   candidates: readonly string[],
   maxDistance = 3,
 ): string | undefined {
-  let best: { candidate: string; distance: number } | undefined;
+  return nearestMatches(name, candidates, maxDistance)[0];
+}
+
+// Identity resolution keeps every equally close name; single suggestions retain input order.
+export function nearestMatches(
+  name: string,
+  candidates: readonly string[],
+  maxDistance: number,
+): string[] {
+  let closest = maxDistance;
+  const matches = new Set<string>();
   for (const candidate of candidates) {
     const distance = levenshtein(name, candidate);
-    if (distance <= maxDistance && (best === undefined || distance < best.distance)) {
-      best = { candidate, distance };
+    if (distance > closest) continue;
+    if (distance < closest) {
+      matches.clear();
+      closest = distance;
     }
+    matches.add(candidate);
   }
-  return best?.candidate;
+  return [...matches];
 }
 
 // The hint for a name that matched nothing: the close candidate when there is one,

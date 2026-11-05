@@ -1,0 +1,33 @@
+schema_version: 2
+min_cli: '0.16.0'
+sensitive: true
+teams:
+  - { id: team-alpha, name: Indigo Workshop }
+  - { id: team-beta, name: Marigold Workshop }
+functions:
+  - { id: frontend, name: Frontend }
+  - { id: backend, name: Backend }
+  - { id: product, name: Product management }
+  - { id: interaction, name: Interaction design }
+people:
+  - { id: person-a, display: Aster, email: aster@example.com, accounts: { loom: { id: Ax7 } } }
+  - { id: person-b, display: Basil, accounts: { loom: { id: Ax7 }, post: basil } }
+  - { id: person-c, display: Crocus, accounts: { post: { id: Ax7 } } }
+areas:
+  - id: domain-docs
+    group: Field Guides
+    responsible_teams: [team-alpha, team-beta]
+    scenarios:
+      - { id: proof, name: Proofreading, repos: [folio], roles: { reader: [all] } }
+  - id: domain-forms
+    group: Paper Forms
+    responsible_teams: [team-beta]
+    scenarios:
+      - { id: fold, name: Folding, repos: [folio] }
+memberships:
+  - { person: person-a, team: team-beta, function: frontend, status: confirmed, source: roster/blue, verified_at: '2025-02-03' }
+  - { person: person-b, function: product, status: confirmed, source: roster/green, verified_at: '2025-02-03' }
+assignments:
+  - { person: person-a, area: domain-docs, team: team-alpha, function: frontend, status: confirmed, source: card/iris, verified_at: '2025-02-04' }
+  - { person: person-a, area: domain-forms, team: team-beta, function: frontend, status: confirmed, source: card/lily, verified_at: '2025-02-04' }
+  - { person: all, area: domain-docs, scenario: proof, team: team-beta, function: backend, status: confirmed, source: charter/paper, verified_at: '2025-02-04' }

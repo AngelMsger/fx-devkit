@@ -5,10 +5,12 @@
 import { isSemver } from '../../semver.js';
 import type { Members, Problem } from '../types.js';
 
+import { classificationRules } from './member-classifications.js';
+
 const ALL = 'all';
 
 export function membersRules(doc: Members): Problem[] {
-  const problems: Problem[] = [];
+  const problems: Problem[] = classificationRules(doc);
   if (doc.min_cli !== undefined && !isSemver(doc.min_cli)) {
     problems.push({ path: 'min_cli', message: 'must be a semantic version' });
   }

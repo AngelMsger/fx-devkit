@@ -344,3 +344,9 @@ before cwd discovery. Unknown explicit selectors fail rather than editing a near
 checkout. Without a selector, standalone source maintenance keeps cwd precedence.
 Commands taking a source-independent schema or explicit directory retain those
 contracts. All file-output flags include the `-o` shorthand.
+
+## Member results
+
+Member queries resolve identities and relationship declarations in memory from the readable sensitive members document. An ambiguous lookup returns one row per candidate with `identity_ambiguous`. A single fuzzy or partial display-name match retains its method. Only a unique exact account lookup in a named system is suitable for attributing that system's author. Lint reports shared account positions within a system without changing document validity. Opaque schema 2 account IDs use exact case. Unscoped schema 1 lookups retain their original case folding.
+
+List and show share the same filter for relationship validity and business scope. A scenario inherits area-wide assignments and responsible teams. Its own assignments apply only to that scenario, or to an area-wide query that includes all scenarios. Each returned edge retains its scope. Legacy leads and roles are reported separately. A team-scoped collective stays in `collective.assignments` and a legacy collective in `collective.roles`; neither creates individual assignments. Collection envelopes and the sensitive response path are shared with schema 1. See the [manifest guide](../manifest-guide.md#member-relationships) for migration and date boundaries.

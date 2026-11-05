@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Query directory memberships, personal functions and business collaboration separately with members schema 2. Scoped member lookups return the matching relationships, validity dates and sources. Schema 1 remains readable.
+
 ## 0.15.0 (2026-11-02)
 
 ### Added
