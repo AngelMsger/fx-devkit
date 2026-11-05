@@ -2,7 +2,7 @@
 // order of trust — an email address is unambiguous, a display name is not —
 // and only when nothing matches exactly does spelling distance get a say.
 
-import { nearest } from '../fuzzy.js';
+import { nearest, nearestMatches } from '../fuzzy.js';
 import type { Members, Person } from '../manifest/types.js';
 
 export type MatchedBy = 'email' | 'id' | 'account' | 'display' | 'git_name' | 'fuzzy';
@@ -16,36 +16,49 @@ export interface Match {
 
 const ORDER: readonly MatchedBy[] = ['email', 'id', 'account', 'display', 'git_name'];
 
-export function findPeople(members: Members, query: string): Match[] {
+export function findPeople(members: Members, query: string, system?: string): Match[] {
   const q = query.trim().toLowerCase();
   const matches: Match[] = [];
   for (const person of members.people) {
-    const hit = exactMatch(person, q);
+    if (system !== undefined) {
+      const account = person.accounts?.[system];
+      if (account !== undefined && accountMatches(account, query.trim(), false))
+        matches.push({ person, matchedBy: 'account', via: system });
+      continue;
+    }
+    const hit = exactMatch(person, query.trim(), members.schema_version === 1);
     if (hit !== undefined) matches.push(hit);
   }
   if (matches.length > 0)
     return matches.sort((a, b) => ORDER.indexOf(a.matchedBy) - ORDER.indexOf(b.matchedBy));
+  if (system !== undefined) return [];
   const candidates = members.people.flatMap((p) => [
     p.id,
     ...(p.display === undefined ? [] : [p.display]),
   ]);
-  const near = nearest(
-    q,
-    candidates.map((c) => c.toLowerCase()),
-    2,
+  const near = new Set(
+    nearestMatches(
+      q,
+      candidates.map((c) => c.toLowerCase()),
+      2,
+    ),
   );
-  if (near === undefined) return [];
-  const person = members.people.find(
-    (p) => p.id.toLowerCase() === near || p.display?.toLowerCase() === near,
-  );
-  return person === undefined ? [] : [{ person, matchedBy: 'fuzzy', via: near }];
+  return members.people.flatMap((person) => {
+    const via = [person.id, person.display].find(
+      (name) => name !== undefined && near.has(name.toLowerCase()),
+    );
+    return via === undefined
+      ? []
+      : [{ person, matchedBy: 'fuzzy' as const, via: via.toLowerCase() }];
+  });
 }
 
-function exactMatch(person: Person, q: string): Match | undefined {
+function exactMatch(person: Person, query: string, legacy: boolean): Match | undefined {
+  const q = query.toLowerCase();
   if (person.email?.toLowerCase() === q) return { person, matchedBy: 'email' };
   if (person.id.toLowerCase() === q) return { person, matchedBy: 'id' };
   for (const [system, account] of Object.entries(person.accounts ?? {})) {
-    if (handlesOf(account).some((h) => h.toLowerCase() === q))
+    if (accountMatches(account, query, legacy))
       return { person, matchedBy: 'account', via: system };
   }
   if (person.display !== undefined && person.display.toLowerCase().includes(q))
@@ -55,9 +68,15 @@ function exactMatch(person: Person, q: string): Match | undefined {
   return undefined;
 }
 
-function handlesOf(account: NonNullable<Person['accounts']>[string]): string[] {
-  if (typeof account === 'string') return [account];
-  return [account.username, account.id].filter((h): h is string => h !== undefined);
+function accountMatches(
+  account: NonNullable<Person['accounts']>[string],
+  query: string,
+  legacy: boolean,
+): boolean {
+  const username = typeof account === 'string' ? account : account.username;
+  if (username?.toLowerCase() === query.toLowerCase()) return true;
+  if (typeof account === 'string') return false;
+  return legacy ? account.id?.toLowerCase() === query.toLowerCase() : account.id === query;
 }
 
 // A commit author is attributed only on an exact git name or display

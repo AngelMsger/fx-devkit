@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 成員 schema 2 支援分別查詢目錄歸屬、個人職能和業務協作。依業務範圍查詢可取得符合的關係、有效日期及來源。CLI 繼續讀取 schema 1。
+
 ## 0.15.0 (2026-11-02)
 
 - 將工作區能力 `channel` 綁定到 `wecom-channel-cli` 即可安裝 CLI 和 Skill。就緒檢查透過代理通訊端偵測本機 broker。

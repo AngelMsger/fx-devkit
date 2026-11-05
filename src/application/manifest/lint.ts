@@ -6,6 +6,7 @@ import path from 'node:path';
 import { lintManifest, type LintFinding } from '../../domain/manifest/lint.js';
 import { loadToolsDocument, loadToolsPatchDocument } from '../../domain/manifest/loader.js';
 import { bindPlatforms, type ProviderCatalog } from '../../domain/manifest/providers.js';
+import { accountCollisions } from '../../domain/members/account-collisions.js';
 import { setupKeyOf } from '../../domain/setup/names.js';
 import type { SetupRecipe } from '../../domain/setup/types.js';
 import { lintSkill } from '../../domain/skills/lint.js';
@@ -86,7 +87,11 @@ export class LintManifest {
             },
           }),
     });
-    return [...documents, ...(await this.skills(input.dir))];
+    return [
+      ...documents,
+      ...(members ? accountCollisions(members) : []),
+      ...(await this.skills(input.dir)),
+    ];
   }
 
   private async skills(dir: string): Promise<LintFinding[]> {

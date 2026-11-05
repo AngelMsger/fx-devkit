@@ -16,6 +16,8 @@ export interface Ownership {
   readonly area: string;
   readonly lead: PersonRef | null;
   readonly scenario: string;
+  readonly area_id?: string;
+  readonly scenario_id?: string;
   readonly devLead: PersonRef | null;
   readonly roles: Readonly<Record<string, readonly PersonRef[]>>;
 }
@@ -31,6 +33,8 @@ export function ownersOf(members: Members, repo: string): Ownership[] {
       if (!(scenario.repos ?? []).includes(repo)) continue;
       owners.push({
         area: area.group,
+        ...(area.id ? { area_id: area.id } : {}),
+        ...(scenario.id ? { scenario_id: scenario.id } : {}),
         lead: area.lead === undefined ? null : ref(area.lead),
         scenario: scenario.name,
         devLead: scenario.dev_lead === undefined ? null : ref(scenario.dev_lead),

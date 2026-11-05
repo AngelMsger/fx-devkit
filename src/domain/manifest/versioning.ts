@@ -12,7 +12,7 @@ export const SUPPORTED: Record<Exclude<Kind, 'local'>, readonly number[]> = {
   environments: [1, 2],
   tools: [3],
   harness: [2],
-  members: [1],
+  members: [1, 2],
 };
 
 export interface Header {

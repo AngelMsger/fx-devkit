@@ -3,14 +3,14 @@
 // people) in a temporary workspace, a shim jenkins-cli whose status is set
 // by an environment variable, and a temporary FX_HOME.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { writeNodeShim } from '../platform.js';
 
-import { freshHome, fx, repository, searchPath, tempDir } from './harness.js';
+import { freshHome, fx, manifestDirOf, repository, searchPath, tempDir } from './harness.js';
 
 interface Stage {
   readonly ws: string;
@@ -333,6 +333,52 @@ describe('facts: where, member, can, derived docs', () => {
     const human = fx(['repo', 'show', 'a'], s.env, s.ws).stdout;
     expect(human).toContain('dev lead: Bob (bob@example.com)');
     expect(human).toContain('backend: Alice (alice@example.com), Bob (bob@example.com)');
+  });
+
+  it('uses only the readable member document for scoped queries and gives upgrade guidance', () => {
+    const s = stage();
+    const file = path.join(manifestDirOf(s.env['FX_HOME']!, 'ws'), 'manifest/members.yaml');
+    const source = readFileSync('test/fixtures/manifest/member-collaboration/members.yaml', 'utf8');
+    writeFileSync(file, source);
+    const args = [
+      'member',
+      'list',
+      '--team',
+      'team-alpha',
+      '--function',
+      'frontend',
+      '--area',
+      'domain-docs',
+      '--as-of',
+      '2025-02-03',
+    ];
+    const run = fx([...args, '--format', 'ndjson'], s.env, s.ws);
+    expect(run.status, run.stderr).toBe(0);
+    expect(JSON.parse(run.stdout)).toMatchObject({
+      id: 'person-a',
+      relationships: [{ source: 'card/iris' }],
+    });
+    expect(run.stderr).not.toContain('card/iris');
+    expect(
+      fx(['member', 'show', 'Ax7', '--system', 'loom', ...json], s.env, s.ws).json(),
+    ).toMatchObject({
+      items: [{ classification: 'identity_ambiguous' }, { classification: 'identity_ambiguous' }],
+      has_more: false,
+    });
+    writeFileSync(file, source.replace('schema_version: 2', 'schema_version: 3'));
+    const newer = fx([...args, ...json], s.env, s.ws);
+    expect(newer.error()).toMatchObject({
+      code: 'MANIFEST_SCHEMA_TOO_NEW',
+      next_steps: expect.arrayContaining(['fx self update --dry-run']),
+    });
+    writeFileSync(file, source.replace('sensitive: true', 'sensitive: false'));
+    const invalid = fx([...args, ...json], s.env, s.ws);
+    expect(invalid.error().code).toBe('MEMBERS_NOT_SENSITIVE');
+    expect(invalid.stdout).toBe('');
+    renameSync(file, file + '.disabled');
+    const missing = fx([...args, ...json], s.env, s.ws);
+    expect(missing.error().code).toBe('MEMBERS_MISSING');
+    expect(missing.stdout).toBe('');
   });
 
   it('derives AGENTS.md without people or coordinates, and tells a stale guide from a foreign one', () => {

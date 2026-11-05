@@ -717,3 +717,9 @@ or keychain failures are diagnosed separately from missing credentials.
 Environments may share a stored login: when `fx login` signs you in for one of them,
 it checks the tool's earlier environments it could not finish again, and reports
 those that now work as verified.
+
+## Member relationships
+
+Use `fx member show <account> --system <system> --area <id> --format json` to look up an author in context. Require one exact identity match. Read directory memberships, responsible teams for the business, and the person's assignments separately. Multiple confirmed teams can apply. Candidates need verification and missing coverage stays unknown. With no area, show returns all applicable relationships.
+
+Use `fx member list --team <id> --function <id> --area <id>` to find people doing that work. All supplied dimensions must match one assignment. Without business scope, a directory membership can also match. Use `--as-of YYYY-MM-DD` for declared validity on a particular date.

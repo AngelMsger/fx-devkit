@@ -94,6 +94,7 @@ how to continue after a sign-in or approval, and how to
 | Replace a repository selection | `fx repo select <name...>` / `fx repo select --all`   |
 | Select repositories            | `fx repo pick <name...>` / `fx repo unpick <name...>` |
 | Select environments            | `fx env pick <name...>` / `fx env unpick <name...>`   |
+| Find a person by business area | `fx member show <query> --area <area>`                |
 | Find a service                 | `fx where <repo> --env <environment>`                 |
 | List capabilities              | `fx can`                                              |
 | Check a capability             | `fx can <capability> --env <environment>`             |

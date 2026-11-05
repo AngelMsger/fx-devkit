@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.15.0).
+Command syntax for the current source (package version 0.16.0).
 See the [version history](../../CHANGELOG.md) for changes between releases.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 
@@ -814,14 +814,18 @@ fx mcp show knowledge --format json
 
 ## `fx member list`
 
-List people, optionally those of one area or one status
+List people by business scope, team, function and status
 
 Flags:
 
 | Flag | Description |
 |---|---|
-| `--area` | only people of this area |
+| `--area` | business area id or group name |
+| `--as-of` | relationship validity date (YYYY-MM-DD, default today in UTC) |
+| `--function` | function on the same relationship |
+| `--scenario` | scenario id within --area |
 | `--status` | only this status: active, initialized, resigned, deactivated |
+| `--team` | team on the matching relationship |
 
 Examples:
 
@@ -838,6 +842,15 @@ Arguments:
 | Argument | Required | Description |
 |---|---|---|
 | `query` | yes | email, id, account handle, name or git name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--area` | business area id or group name |
+| `--as-of` | relationship validity date (YYYY-MM-DD, default today in UTC) |
+| `--scenario` | scenario id within --area |
+| `--system` | resolve an account in this system only |
 
 Examples:
 

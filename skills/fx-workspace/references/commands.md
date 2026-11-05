@@ -145,7 +145,10 @@ explicit `--probe`. Pass `--platform` to keep one platform's check from waiting 
 another's. A `not_covered` row states what the manifest covers: its first note is the
 reason, and a note of the environment may follow.
 
-`fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `accounts` (per system), `matched_by`, `via`.
+`fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `accounts` (per system), `matched_by`, `via`. For author attribution, pass `--system <system>` and require exactly one account match. Keep ambiguous identity candidates separate.
+Use `--area <id>` and optionally `--scenario <id>` for a business context. Keep `memberships`, `responsible_teams`, and `assignments` separate. Read each edge's source and status. A confirmed function without a team leaves team classification uncovered. Multiple confirmed teams are valid. `candidate`, `multiple_candidates`, `not_configured`, and `not_covered` do not confirm a team. Date filters evaluate declared intervals only.
+`fx member list --team <id> --function <id> --area <id>` requires a single matching assignment. Without business scope, either kind of relationship may match. Keep collective `all` separate from named people.
+
 `fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact. Its `next_steps` use the canonical repository name and explicit workspace to select an unpicked repository and synchronize missing shared checkouts; inspection itself never changes selection or downloads files.
 
 ### Diagnostic reports

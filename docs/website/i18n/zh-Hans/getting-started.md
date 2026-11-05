@@ -361,3 +361,9 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 ### 复用已有登录
 
 初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。多个环境可能共享已保存的登录：`fx login` 为其中一个环境完成登录后，会重新检查该工具之前未能完成的环境，并把已经可用的报告为 verified。
+
+## 成员归属与业务协作 {#member-relationships}
+
+使用 `fx member show <account> --system <system> --area <id> --format json` 查询作者。确认身份需要唯一的精确账号匹配。分别读取目录归属、业务责任团队和个人协作职责。多支团队可以同时得到确认。候选关系仍需核实，未覆盖的归属保持未知。省略业务域会返回所有适用关系。
+
+使用 `fx member list --team <id> --function <id> --area <id>` 查找承担该项工作的人。所有条件必须命中同一条协作关系。省略业务范围时也可匹配目录关系。`--as-of YYYY-MM-DD` 按指定日期检查声明的有效期。

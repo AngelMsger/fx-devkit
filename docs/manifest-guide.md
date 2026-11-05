@@ -465,3 +465,46 @@ Jenkins 0.9.0, OpenObserve 0.13.0, Prometheus 0.2.0. Declare matching
 trusted commands; `fx sync --only services --dry-run` previews. Existing non-empty
 conflicts are reported, never automatically overwritten or activated. Sentry uses
 public workspace `.sentryclirc` defaults with equivalent preservation behavior.
+
+## Member relationships
+
+Members schema 2 requires fx 0.16.0 (pending release). Distribute and verify the reader before enabling the new document. Schema 1 remains readable. Keep every person ID, account (including negative states), lead, role and repository reference. Give every area an ID and every scenario an ID unique within its area. Declare team and function vocabularies locally. Each edge binds one person to a team and/or function; add edges for additional functions. An area or scenario can declare multiple responsible teams. A directory entry can record a standalone personal function. A legacy `all` remains an unexpanded collective with unspecified team; a scoped collective assignment uses `person: all`, an explicit team and optional function. Set the same floor in `manifest/workspace.yaml` so older installations report the required version on entry.
+
+The following fictional `manifest/members.yaml` works alongside a workspace document:
+
+```yaml
+schema_version: 2
+min_cli: '0.16.0'
+sensitive: true
+people: [{ id: fern, email: fern@example.com }]
+teams: [{ id: ink, name: Ink Studio }, { id: clay, name: Clay Studio }]
+functions: [{ id: illustrator, name: Illustrator }]
+areas: [{ id: atlas, group: Illustrated Atlas, responsible_teams: [ink] }]
+memberships:
+  - {
+      person: fern,
+      team: clay,
+      function: illustrator,
+      status: confirmed,
+      source: roster/fern,
+      verified_at: '2025-04-02',
+    }
+assignments:
+  - {
+      person: fern,
+      area: atlas,
+      team: ink,
+      function: illustrator,
+      status: confirmed,
+      source: atlas/credits,
+      verified_at: '2025-04-02',
+    }
+```
+
+```sh
+fx manifest validate --kind members --strict --format json
+fx member show fern --area atlas --format json
+fx member list --team ink --function illustrator --area atlas --format json
+```
+
+Both queries use one value per selector. Dates use UTC calendar days. The interval includes `valid_from` and excludes `valid_until`; omitted boundaries are open. `verified_at` records when evidence was checked. A date query evaluates intervals in the current file. Set `status: unverified` for candidate evidence. Confirmed relationships require a source and verification date. Preserve the distinction between no assignments section (`not_configured`) and no applicable edge (`not_covered`). When only the business function is known, omit the team on the assignment. Its evidence can confirm the function. Team classification stays uncovered until there is team evidence.

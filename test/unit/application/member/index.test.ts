@@ -22,7 +22,7 @@ describe('member who / list / owners', () => {
   it('answers with the person and how they were matched, touching nothing but stdout data', async () => {
     const h = await stage();
     const rows = new MemberShow(h.deps).execute('alice@example.com');
-    expect(rows).toEqual([
+    expect(rows).toMatchObject([
       {
         id: 'alice',
         display: 'Alice',
@@ -35,6 +35,10 @@ describe('member who / list / owners', () => {
         },
         matched_by: 'email',
         via: null,
+        classification: 'not_configured',
+        memberships: [],
+        assignments: [],
+        collective: { roles: [{ person: 'all', role: 'qa' }], assignments: [] },
       },
     ]);
     expect(h.reporter.notices).toEqual([]);
@@ -78,6 +82,17 @@ describe('member who / list / owners', () => {
       (await new RepoShow(none.deps).execute({ name: 'fx-example-api' })).owners,
       'no members document is not the same as nobody',
     ).toBeNull();
+  });
+
+  it('returns all identity candidates with an explicit ambiguity state', async () => {
+    const h = await stage(fixture('../member-collaboration/members.yaml'));
+    expect(
+      new MemberShow(h.deps).execute('Ax7', { system: 'loom', area: 'domain-docs' }),
+    ).toMatchObject([
+      { id: 'person-a', matched_by: 'account', via: 'loom', classification: 'identity_ambiguous' },
+      { id: 'person-b', matched_by: 'account', via: 'loom', classification: 'identity_ambiguous' },
+    ]);
+    expect(h.reporter.notices).toEqual([]);
   });
 
   it('says so when there is no members document', async () => {

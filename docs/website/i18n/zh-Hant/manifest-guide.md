@@ -286,3 +286,46 @@ fx 0.2.0 支援在工作區 provider、platform 預設值及環境覆寫項宣�
 相同預設可共用本機目標，同一目標有不同預設時會阻擋設定。衝突的舊 vars 應刪除以避免兩個來源。使用者名稱、電子郵件、密碼、PAT/API Token 值、Cookie 與瀏覽器工作階段不可分發；每人透過自己的 CLI 取得並保存憑證。額外 service 欄位在非嚴格模式也驗證失敗；URL 中的憑證會遭拒且不回顯。
 
 預設要求 Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0、Prometheus ≥0.2.0，需在 tools.yaml 設定版本下限。init、明確執行的 sync 與 login 使用受信任命令準備設定；`fx sync --only services --dry-run` 可預覽。非空衝突不會自動覆寫或切換啟用項；Sentry 公共工作區預設值遵循相同保留原則。
+
+## 成員歸屬與業務協作 {#member-relationships}
+
+成員 schema 2 需要 fx 0.16.0（待發布）。先分發並驗證 CLI，再啟用新版資料。CLI 繼續讀取 schema 1。遷移時保留人員 ID、帳號及其否定狀態、負責人、角色和儲存庫引用。為每個領域和域內情境指定穩定 ID。團隊與職能詞彙由清單宣告。每筆關係記錄一個人、團隊或職能，多種職能可分列。領域及情境可有多個責任團隊。目錄關係可以只記錄個人職能。舊有的 `all` 保留為團隊範圍未知的集體職責；有範圍的集體協作使用 `person: all`，指定團隊並可指定職能。 請在 `manifest/workspace.yaml` 同步設定版本下限，讓舊版 CLI 進入工作區時提示所需版本。
+
+以下虛構的 `manifest/members.yaml` 可搭配工作區清單使用。
+
+```yaml
+schema_version: 2
+min_cli: '0.16.0'
+sensitive: true
+people: [{ id: fern, email: fern@example.com }]
+teams: [{ id: ink, name: Ink Studio }, { id: clay, name: Clay Studio }]
+functions: [{ id: illustrator, name: Illustrator }]
+areas: [{ id: atlas, group: Illustrated Atlas, responsible_teams: [ink] }]
+memberships:
+  - {
+      person: fern,
+      team: clay,
+      function: illustrator,
+      status: confirmed,
+      source: roster/fern,
+      verified_at: '2025-04-02',
+    }
+assignments:
+  - {
+      person: fern,
+      area: atlas,
+      team: ink,
+      function: illustrator,
+      status: confirmed,
+      source: atlas/credits,
+      verified_at: '2025-04-02',
+    }
+```
+
+```sh
+fx manifest validate --kind members --strict --format json
+fx member show fern --area atlas --format json
+fx member list --team ink --function illustrator --area atlas --format json
+```
+
+每項篩選只傳一個值。日期按 UTC 日曆日計算，包含 `valid_from`，不含 `valid_until`，省略的一端開放。`verified_at` 是證據核實日。日期查詢只檢查目前檔案宣告的區間。候選關係使用 `status: unverified`。已確認的關係須有來源和核實日期。請區分未設定協作部分（`not_configured`）與沒有適用關係（`not_covered`）。 只核實業務職能時可省略協作關係的團隊。該證據可以確認職能，團隊歸屬仍待補證。

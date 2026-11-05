@@ -286,3 +286,46 @@ fx 0.2.0 ではワークスペース provider、platform のデフォルト、�
 同じプリセットは同じローカル保存先を共有できますが、異なる設定を同じ保存先に宣言すると準備がブロックされます。矛盾する旧 vars は削除して設定元を一つにします。ユーザー名、メールアドレス、パスワード、PAT/API Token の値、Cookie、ブラウザーセッションは配布できません。各メンバーが自分の CLI で取得・保存します。余分な service フィールドは非 strict モードでも検証に失敗し、URL 内の認証情報は値を表示せず拒否します。
 
 必要なバージョンは Bitbucket/Confluence ≥0.20.0、Jenkins ≥0.9.0、OpenObserve ≥0.13.0、Prometheus ≥0.2.0 です。tools.yaml に下限を指定します。init、明示的 sync、login は信頼済みコマンドで準備し、`fx sync --only services --dry-run` でプレビューできます。空でない既存値の競合は自動上書きせず、有効な context も自動変更しません。Sentry の公開ワークスペース設定にも同じ保持方針を適用します。
+
+## メンバーの所属と協力関係 {#member-relationships}
+
+メンバーのスキーマ 2 には fx 0.16.0（リリース前）が必要です。CLI を配布して動作確認してから新しい文書を有効にします。スキーマ 1 も引き続き読めます。移行時は人物 ID、アカウントと不在状態、責任者、役割、リポジトリ参照を保持します。領域に一意の ID、シナリオに領域内で一意の ID を付けます。チームと職能の語彙はマニフェストで定義します。関係ごとに一人の所属先や職能を記録し、複数の職能は行を分けます。領域やシナリオの所管チームは複数指定できます。所属先が不明でも個人の職能を登録できます。従来の `all` はチーム範囲が未指定の集団として保持します。範囲が明確な集団には `person: all` とチームを指定し、必要に応じて職能も指定します。 古い CLI でも起動時に必要なバージョンが表示されるよう、`manifest/workspace.yaml` にも同じ最低バージョンを指定します。
+
+次の架空の `manifest/members.yaml` をワークスペース文書と組み合わせて使用できます。
+
+```yaml
+schema_version: 2
+min_cli: '0.16.0'
+sensitive: true
+people: [{ id: fern, email: fern@example.com }]
+teams: [{ id: ink, name: Ink Studio }, { id: clay, name: Clay Studio }]
+functions: [{ id: illustrator, name: Illustrator }]
+areas: [{ id: atlas, group: Illustrated Atlas, responsible_teams: [ink] }]
+memberships:
+  - {
+      person: fern,
+      team: clay,
+      function: illustrator,
+      status: confirmed,
+      source: roster/fern,
+      verified_at: '2025-04-02',
+    }
+assignments:
+  - {
+      person: fern,
+      area: atlas,
+      team: ink,
+      function: illustrator,
+      status: confirmed,
+      source: atlas/credits,
+      verified_at: '2025-04-02',
+    }
+```
+
+```sh
+fx manifest validate --kind members --strict --format json
+fx member show fern --area atlas --format json
+fx member list --team ink --function illustrator --area atlas --format json
+```
+
+各条件には値を一つ指定します。日付は UTC の暦日で、`valid_from` を含み `valid_until` を含みません。省略した境界に制限はありません。`verified_at` は根拠の確認日です。日付の照会は現在の文書に宣言された期間を評価します。候補には `status: unverified` を指定します。確認済みの関係には出典と確認日が必要です。協力関係の設定自体がない `not_configured` と、該当する関係がない `not_covered` を区別します。 業務上の職能だけが分かっている場合、担当関係のチームを省略できます。根拠により職能が確認できても、チームの根拠が得られるまでチーム分類は未確定です。
