@@ -556,8 +556,8 @@ from another person's links.
 
 `member show` and `member list` return both fields as person IDs or `null`, also
 in human output. Business filters and `--as-of` do not change these undated
-personal facts. This capability is unreleased; enable it only after distributing
-and verifying a reader that supports these fields. At rollout, set `min_cli` in
-both the members and workspace documents to that reader's released version.
+personal facts. These fields require fx 0.17.0 or later. Distribute and verify that reader
+before enabling them, and set `min_cli: '0.17.0'` in both the members and
+workspace documents.
 Older readers reject these fields in strict mode or discard them in normal reads;
 do not migrate a shared manifest first.
