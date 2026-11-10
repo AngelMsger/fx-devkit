@@ -33,6 +33,8 @@ describe('member who / list / owners', () => {
           feishu_project: { id: 'ou_alice' },
           jira: { state: 'not_found' },
         },
+        mentor: null,
+        leader: null,
         matched_by: 'email',
         via: null,
         classification: 'not_configured',
@@ -93,6 +95,29 @@ describe('member who / list / owners', () => {
       { id: 'person-b', matched_by: 'account', via: 'loom', classification: 'identity_ambiguous' },
     ]);
     expect(h.reporter.notices).toEqual([]);
+  });
+
+  it('returns personal links independently of business scope and leaves undeclared links unknown', async () => {
+    const h = await stage(`schema_version: 1
+sensitive: true
+people:
+  - {id: learner, mentor: guide, leader: owner}
+  - {id: guide, leader: owner}
+  - {id: owner}
+areas:
+  - group: Workshop
+    scenarios:
+      - {name: Drafting, roles: {writer: [learner]}}
+`);
+    const expected = { id: 'learner', mentor: 'guide', leader: 'owner' };
+    expect(new MemberShow(h.deps).execute('learner', { area: 'Workshop' })).toMatchObject([
+      expected,
+    ]);
+    expect(new MemberList(h.deps).execute({ area: 'Workshop' })).toMatchObject([expected]);
+    expect(new MemberShow(h.deps).execute('guide')).toMatchObject([
+      { mentor: null, leader: 'owner', legacy_roles: [] },
+    ]);
+    expect(new MemberShow(h.deps).execute('owner')).toMatchObject([{ mentor: null, leader: null }]);
   });
 
   it('says so when there is no members document', async () => {

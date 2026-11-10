@@ -4,7 +4,7 @@ import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { membersOf } from './source.js';
 
-export const MEMBER_COLUMNS = ['id', 'display', 'status', 'areas'] as const;
+export const MEMBER_COLUMNS = ['id', 'display', 'status', 'mentor', 'leader', 'areas'] as const;
 
 export class MemberList {
   constructor(private readonly deps: WorkspaceDeps) {}

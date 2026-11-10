@@ -145,7 +145,7 @@ explicit `--probe`. Pass `--platform` to keep one platform's check from waiting 
 another's. A `not_covered` row states what the manifest covers: its first note is the
 reason, and a note of the environment may follow.
 
-`fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `accounts` (per system), `matched_by`, `via`. For author attribution, pass `--system <system>` and require exactly one account match. Keep ambiguous identity candidates separate.
+`fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `mentor`, `leader`, `accounts` (per system), `matched_by`, `via`. For author attribution, pass `--system <system>` and require exactly one account match. Keep ambiguous identity candidates separate. List and show return `mentor` and `leader` as explicit person IDs or null; neither is inferred from business roles, other people or date filters.
 Use `--area <id>` and optionally `--scenario <id>` for a business context. Keep `memberships`, `responsible_teams`, and `assignments` separate. Read each edge's source and status. A confirmed function without a team leaves team classification uncovered. Multiple confirmed teams are valid. `candidate`, `multiple_candidates`, `not_configured`, and `not_covered` do not confirm a team. Date filters evaluate declared intervals only.
 `fx member list --team <id> --function <id> --area <id>` requires a single matching assignment. Without business scope, either kind of relationship may match. Keep collective `all` separate from named people.
 

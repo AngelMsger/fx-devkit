@@ -209,11 +209,25 @@ describe('facts: where, member, can, derived docs', () => {
     const all = fx(['member', 'list', ...json], s.env, s.ws);
     expect(all.status, all.stderr).toBe(0);
     expect((all.json() as Items<MemberRow>).items).toEqual([
-      { id: 'alice', display: 'Alice', status: 'active', areas: ['Platform'] },
-      { id: 'bob', display: 'Bob', status: 'active', areas: ['Platform'] },
+      {
+        id: 'alice',
+        display: 'Alice',
+        status: 'active',
+        mentor: null,
+        leader: null,
+        areas: ['Platform'],
+      },
+      {
+        id: 'bob',
+        display: 'Bob',
+        status: 'active',
+        mentor: null,
+        leader: null,
+        areas: ['Platform'],
+      },
     ]);
     expect(fx(['member', 'list'], s.env, s.ws).stdout.split('\n')[0]).toMatch(
-      /^id\s+display\s+status\s+areas$/,
+      /^id\s+display\s+status\s+mentor\s+leader\s+areas$/,
     );
     expect(
       (
