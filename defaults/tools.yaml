@@ -18,16 +18,16 @@ defaults:
 tools:
   - name: bitbucket-cli
     desc: Repositories, forks, pull requests and code review on Bitbucket
-    min_version: '0.24.0'
+    min_version: '0.29.0'
     install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
     docs: https://github.com/AngelMsger/bitbucket-cli
   - name: confluence-cli
-    min_version: '0.21.0'
+    min_version: '0.25.0'
     desc: Pages, spaces and comments in Confluence
     install: [{ via: npm, spec: '@angelmsger/confluence-cli' }]
     docs: https://github.com/AngelMsger/confluence-cli
   - name: jenkins-cli
-    min_version: '0.10.0'
+    min_version: '0.14.0'
     desc: Jobs, builds and console output in Jenkins
     install: [{ via: npm, spec: '@angelmsger/jenkins-cli' }]
     auth:
@@ -36,7 +36,7 @@ tools:
       login: [config, init]
     docs: https://github.com/AngelMsger/jenkins-cli
   - name: openobserve-cli
-    min_version: '0.14.0'
+    min_version: '0.19.0'
     desc: Logs, metrics and traces in OpenObserve
     install: [{ via: npm, spec: '@angelmsger/openobserve-cli' }]
     auth:
@@ -45,7 +45,7 @@ tools:
       login: [config, init]
     docs: https://github.com/AngelMsger/openobserve-cli
   - name: prometheus-cli
-    min_version: '0.2.0'
+    min_version: '0.6.0'
     desc: PromQL queries, series discovery, scrape targets and alerts in Prometheus
     install: [{ via: npm, spec: '@angelmsger/prometheus-cli' }]
     auth:
@@ -54,12 +54,12 @@ tools:
       login: [config, init]
     docs: https://github.com/AngelMsger/prometheus-cli
   - name: jira-cli
-    min_version: '0.7.0'
+    min_version: '0.11.0'
     desc: Issues, comments, transitions and worklogs in Jira
     install: [{ via: npm, spec: '@angelmsger/jira-cli' }]
     docs: https://github.com/AngelMsger/jira-cli
   - name: wecom-calendar-cli
-    min_version: '0.5.0'
+    min_version: '0.7.0'
     desc: A local, searchable mirror of your own WeCom calendars, history included
     install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
     docs: https://github.com/AngelMsger/wecom-calendar-cli
@@ -73,7 +73,7 @@ tools:
       docs: https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/security.md
     docs: https://github.com/AngelMsger/wecom-channel-cli
   - name: wecom-chat-cli
-    min_version: '0.2.0'
+    min_version: '0.3.0'
     desc: Scoped WeCom smart-bot tasks and independently reviewed replies
     version_args: [version]
     install: [{ via: npm, spec: '@angelmsger/wecom-chat-cli' }]
@@ -90,7 +90,7 @@ tools:
     auth: { command: [auth, status], login: [auth, login] }
     docs: https://cli.github.com/
   - name: sentry
-    min_version: '0.44.1'
+    min_version: '0.49.0'
     desc: Issues, events and releases in Sentry
     install: [{ via: npm, spec: sentry }]
     skill: { command: [] }
@@ -107,25 +107,25 @@ tools:
     auth: { command: [] }
     docs: https://kubernetes.io/docs/reference/kubectl/
   - name: lark-cli
-    min_version: '1.0.94'
+    min_version: '1.0.99'
     desc: Feishu / Lark messaging, documents, calendar and more
     install: [{ via: npm, spec: '@larksuite/cli' }]
     skill: { command: [] }
     auth: { command: [auth, status] }
   - name: meegle
-    min_version: '1.0.23'
+    min_version: '1.0.28'
     desc: Feishu Project (Meegle) work items
     install: [{ via: npm, spec: '@lark-project/meegle' }]
     skill: { command: [] }
     auth: { command: [] }
   - name: wecom-cli
-    min_version: '1.2.1'
+    min_version: '1.3.4'
     desc: WeCom messaging, documents and calendar
     install: [{ via: npm, spec: '@wecom/cli' }]
     skill: { command: [] }
     auth: { command: [] }
   - name: tmeet
-    min_version: '1.0.18'
+    min_version: '1.1.0'
     desc: Tencent Meeting meetings, recordings, minutes and transcripts
     install: [{ via: npm, spec: '@tencentcloud/tmeet' }]
     skill: { command: [] }

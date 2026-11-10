@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.16.1 (2026-11-10)
+
+- Align npm companion minimum versions with the current published family and upstream releases, including `wecom-chat-cli` v0.3.0 and official `wecom-cli` v1.3.4.
+- Document Chat 0.2.x watch-output and cursor migration; keep fx readiness scoped to the worker task and Skills managed by the host.
+
 ## 0.16.0 (2026-11-10)
 
 - Require `wecom-channel-cli` v0.3.0+ for mandatory self-bot observation filtering and use its canonical `doctor` readiness command. Keep `wecom-chat-cli` at its latest published v0.2.0 floor, with task-scoped readiness and host-managed Skills.

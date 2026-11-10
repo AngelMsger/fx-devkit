@@ -155,7 +155,9 @@ providers:
 
 `fx can im` 透過該通訊端執行 `task get`，並要求回應包含不受信內容標記。它傳回就緒狀態和讀取命令，不傳回或持久化任務正文。權杖缺失、過期或遭撤銷時，綁定處於未設定狀態。就緒只證明檢查當時能夠讀取該任務，不代表後續回覆仍然有效、沙箱已安裝或真實企業微信部署已驗收。
 
-工具目錄支援 `fx tool show/install/update wecom-chat-cli`，使用其 `version` 命令，最低版本為 v0.2.0。CLI 支援 Linux 和 macOS。它沒有 `auth status`、`config init` 或 `skill install` 命令，因此 fx 不呼叫這些系列預設命令。請透過受限宿主的 Skill 機制安裝對應 npm 套件中的 `SKILL.md`；fx 不會將其複製給通用程式設計 Agent。僅安裝工具不代表任務已就緒。
+工具目錄支援 `fx tool show/install/update wecom-chat-cli`，使用其 `version` 命令，最低版本為 v0.3.0。CLI 支援 Linux 和 macOS。它沒有 `auth status`、`config init` 或 `skill install` 命令，因此 fx 不呼叫這些系列預設命令。請透過受限宿主的 Skill 機制安裝對應 npm 套件中的 `SKILL.md`；fx 不會將其複製給通用程式設計 Agent。僅安裝工具不代表任務已就緒。
+
+從 Chat 0.2.x 升級會改變 operator 的 watch 輸出和游標。恢復 supervisor 前請依照 [Chat 遷移指南](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/host-integration.md#migration-and-acceptance) 操作；fx 不會遷移宿主佇列或游標。
 
 broker 設定、任務簽發、工作階段路由、獨立回覆審核，以及影響使用者後續存取的記憶決策仍由可信宿主或管理員負責。此 provider 不會啟動 broker、列舉收件匣、傳送回覆或複製憑證。一般開發工作區可以只安裝工具，不將 `im` 綁定到它。
 
@@ -311,7 +313,7 @@ fx 0.2.0 支援在工作區 provider、platform 預設值及環境覆寫項宣�
 
 ## 成員歸屬與業務協作 {#member-relationships}
 
-成員 schema 2 需要 fx 0.16.0（待發布）。先分發並驗證 CLI，再啟用新版資料。CLI 繼續讀取 schema 1。遷移時保留人員 ID、帳號及其否定狀態、負責人、角色和儲存庫引用。為每個領域和域內情境指定穩定 ID。團隊與職能詞彙由清單宣告。每筆關係記錄一個人、團隊或職能，多種職能可分列。領域及情境可有多個責任團隊。目錄關係可以只記錄個人職能。舊有的 `all` 保留為團隊範圍未知的集體職責；有範圍的集體協作使用 `person: all`，指定團隊並可指定職能。 請在 `manifest/workspace.yaml` 同步設定版本下限，讓舊版 CLI 進入工作區時提示所需版本。
+成員 schema 2 需要 fx 0.16.0。先分發並驗證 CLI，再啟用新版資料。CLI 繼續讀取 schema 1。遷移時保留人員 ID、帳號及其否定狀態、負責人、角色和儲存庫引用。為每個領域和域內情境指定穩定 ID。團隊與職能詞彙由清單宣告。每筆關係記錄一個人、團隊或職能，多種職能可分列。領域及情境可有多個責任團隊。目錄關係可以只記錄個人職能。舊有的 `all` 保留為團隊範圍未知的集體職責；有範圍的集體協作使用 `person: all`，指定團隊並可指定職能。 請在 `manifest/workspace.yaml` 同步設定版本下限，讓舊版 CLI 進入工作區時提示所需版本。
 
 以下虛構的 `manifest/members.yaml` 可搭配工作區清單使用。
 
