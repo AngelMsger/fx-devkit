@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.17.0 (2026-11-10)
+
+- Declare personal mentors and leaders on `people`; member list/show expose explicit IDs or null, and validation rejects invalid references and cycles.
+
 ## 0.16.1 (2026-11-10)
 
 - Align npm companion minimum versions with the current published family and upstream releases, including `wecom-chat-cli` v0.3.0 and official `wecom-cli` v1.3.4.

@@ -21,6 +21,8 @@ export interface PersonRow extends MemberClassification {
   readonly email: string | null;
   readonly status: string;
   readonly accounts: NonNullable<Person['accounts']>;
+  readonly mentor: string | null;
+  readonly leader: string | null;
   readonly matched_by: MatchedBy;
   readonly via: string | null;
 }
@@ -30,6 +32,8 @@ export const PERSON_COLUMNS = [
   'display',
   'email',
   'status',
+  'mentor',
+  'leader',
   'matched_by',
   'via',
   'accounts',
@@ -64,6 +68,8 @@ export class MemberShow {
       email: person.email ?? null,
       status: person.status ?? 'active',
       accounts: person.accounts ?? {},
+      mentor: person.mentor ?? null,
+      leader: person.leader ?? null,
       matched_by: matchedBy,
       via: via ?? null,
       ...view.describe(person.id, matches.length > 1),

@@ -353,3 +353,18 @@ fx member list --team ink --function illustrator --area atlas --format json
 ```
 
 每項篩選只傳一個值。日期按 UTC 日曆日計算，包含 `valid_from`，不含 `valid_until`，省略的一端開放。`verified_at` 是證據核實日。日期查詢只檢查目前檔案宣告的區間。候選關係使用 `status: unverified`。已確認的關係須有來源和核實日期。請區分未設定協作部分（`not_configured`）與沒有適用關係（`not_covered`）。 只核實業務職能時可省略協作關係的團隊。該證據可以確認職能，團隊歸屬仍待補證。
+
+### 導師與最終負責人
+
+人員關係直接放在 `people` 中, 獨立於業務領域、團隊和職能. 成員 schema 1 和 2 均支援選填的 `mentor` 與 `leader` 人員 ID. `mentor` 表示直接導師, `leader` 表示明確指定的最終負責人. 兩者都不代表行政匯報關係, 也不繼承業務責任.
+
+```yaml
+people:
+  - { id: learner, mentor: guide, leader: owner }
+  - { id: guide, leader: owner }
+  - { id: owner }
+```
+
+參照必須指向同一文件中的人員. 空值、`all`、自我參照及任一關係內的循環都會被拒絕. 最終負責人自己的 `leader` 應省略, 不要指向自己. 欄位缺失表示未知, 不代表沒有導師或負責人. 不從其他人的關係推斷本人的關係.
+
+`member show` 和 `member list` 在結構化及人類可讀輸出中均回傳這兩個欄位, 值為人員 ID 或 `null`. 業務篩選與 `--as-of` 不改變這些沒有有效期間的人員事實. 這些欄位需要 fx 0.17.0 或更新版本. 先分發並驗證相容 CLI, 再啟用欄位, 並將 members 和 workspace 文件的 `min_cli` 設為 `0.17.0`. 舊 CLI 在嚴格模式下拒絕這些欄位, 一般讀取則會捨棄它們, 不要提前遷移共用清單.

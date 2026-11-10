@@ -37,6 +37,13 @@ export const personSchema = z
       .enum(STATUSES)
       .optional()
       .describe('active, initialized, resigned or deactivated; defaults to active'),
+    mentor: z.string().trim().min(1).optional().describe('person id of the direct mentor'),
+    leader: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe('person id explicitly accountable for this person; not an inferred manager'),
     accounts: z
       .record(z.string(), account)
       .optional()

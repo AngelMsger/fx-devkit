@@ -353,3 +353,18 @@ fx member list --team ink --function illustrator --area atlas --format json
 ```
 
 每项筛选只传一个值。日期按 UTC 自然日计算，包含 `valid_from`，不含 `valid_until`，省略的一端开放。`verified_at` 是证据核验日。日期查询只检查当前文件声明的区间。候选关系使用 `status: unverified`。已确认关系须有来源和核验日期。区分没有配置协作部分（`not_configured`）和没有适用关系（`not_covered`）。 只核实业务职能时可省略协作关系的团队。该证据可以确认职能，团队归属仍待补证。
+
+### 导师与最终负责人
+
+人员关系直接放在 `people` 中, 独立于业务域、团队和职能. 成员 schema 1 和 2 均支持可选的 `mentor` 与 `leader` 人员 ID. `mentor` 表示直接导师, `leader` 表示明确指定的最终负责人. 两者都不代表行政汇报关系, 也不继承业务责任.
+
+```yaml
+people:
+  - { id: learner, mentor: guide, leader: owner }
+  - { id: guide, leader: owner }
+  - { id: owner }
+```
+
+引用必须指向同一文档中的人员. 空值、`all`、自指和任一种关系内的循环均会被拒绝. 最终负责人自己的 `leader` 应省略, 不要指向自己. 字段缺失表示未知, 不代表没有导师或负责人. 不从其他人的关系推断本人的关系.
+
+`member show` 和 `member list` 在结构化及人类可读输出中均返回这两个字段, 值为人员 ID 或 `null`. 业务筛选及 `--as-of` 不改变这些没有有效期的人员事实. 这些字段需要 fx 0.17.0 或更高版本. 先分发并验证兼容 CLI, 再启用字段, 并将 members 和 workspace 文档的 `min_cli` 设为 `0.17.0`. 旧 CLI 在严格模式下拒绝这些字段, 普通读取则会丢弃它们, 不要提前迁移共享清单.

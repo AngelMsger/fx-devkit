@@ -203,6 +203,8 @@ function listPerson(doc: Members, facts: Facts, input: MemberFilter, person: Per
     id: person.id,
     display: person.display ?? null,
     status: person.status ?? 'active',
+    mentor: person.mentor ?? null,
+    leader: person.leader ?? null,
     areas: (doc.areas ?? [])
       .filter(
         (a) =>

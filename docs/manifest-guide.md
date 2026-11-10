@@ -532,3 +532,32 @@ fx member list --team ink --function illustrator --area atlas --format json
 ```
 
 Both queries use one value per selector. Dates use UTC calendar days. The interval includes `valid_from` and excludes `valid_until`; omitted boundaries are open. `verified_at` records when evidence was checked. A date query evaluates intervals in the current file. Set `status: unverified` for candidate evidence. Confirmed relationships require a source and verification date. Preserve the distinction between no assignments section (`not_configured`) and no applicable edge (`not_covered`). When only the business function is known, omit the team on the assignment. Its evidence can confirm the function. Team classification stays uncovered until there is team evidence.
+
+### Mentors and leaders
+
+Personal links belong on `people`, independently of business areas, teams and
+functions. Both members schemas 1 and 2 accept optional `mentor` and
+`leader` person IDs. `mentor` names the direct mentor; `leader`
+names the explicitly designated person with final accountability. Neither field
+asserts an administrative reporting line or inherits business ownership.
+
+```yaml
+people:
+  - { id: learner, mentor: guide, leader: owner }
+  - { id: guide, leader: owner }
+  - { id: owner }
+```
+
+References must name a person in the same document. Empty values, `all`, self
+references and cycles within either relationship are rejected. Omit the owner's
+own `leader` rather than making it self-referential. Missing fields mean
+unknown, not that the person has no mentor or owner. No relationship is inferred
+from another person's links.
+
+`member show` and `member list` return both fields as person IDs or `null`, also
+in human output. Business filters and `--as-of` do not change these undated
+personal facts. These fields require fx 0.17.0 or later. Distribute and verify that reader
+before enabling them, and set `min_cli: '0.17.0'` in both the members and
+workspace documents.
+Older readers reject these fields in strict mode or discard them in normal reads;
+do not migrate a shared manifest first.
