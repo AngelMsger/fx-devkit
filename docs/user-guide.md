@@ -322,7 +322,7 @@ while `wecom-calendar-cli` searches a local mirror of each member's own calendar
 history included; each member signs in and fills the mirror with
 `wecom-calendar-cli sync` themselves.
 
-Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness checks the local broker through the agent socket.
+Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness runs `doctor` through the agent socket. Channel observations exclude messages authored by the same bot, including another client using that identity. Upgrade the broker together with the CLI and reconcile older watch checkpoints or relay queues using the companion's [migration guide](https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/watching.md#self-exclusion).
 
 For smart-bot conversations, bind `im` to `wecom-chat-cli` only inside a restricted worker workspace. `fx can im` checks access to the current task and returns its read command without exposing the conversation. Installation is available through `fx tool install wecom-chat-cli`; the packaged Skill needs manual installation through the isolated host. See [worker setup](manifest-guide.md#wecom-smart-bot-workers).
 

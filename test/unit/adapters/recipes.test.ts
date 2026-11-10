@@ -90,7 +90,6 @@ it('reads who is signed in from a family CLI’s `auth status`, which exits zero
     'jenkins-cli',
     'openobserve-cli',
     'wecom-calendar-cli',
-    'wecom-channel-cli',
   ]);
   for (const recipe of checks)
     expect('json' in recipe.verify && recipe.verify.json, recipe.tool).toBeTruthy();

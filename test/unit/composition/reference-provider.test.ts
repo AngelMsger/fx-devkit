@@ -140,13 +140,16 @@ describe('workspace reference providers', () => {
   it('checks the channel broker before offering a bounded event query', async () => {
     const s = await stage('channel', 'wecom-channel-cli', {});
     const result = { code: 0, stdout: '{"data":{"ready":false}}', stderr: '' };
-    s.h.process.on(['wecom-channel-cli', 'auth', 'status'], result);
+    s.h.process.on(['wecom-channel-cli', 'doctor'], result);
     expect((await s.can.execute({ target: 'channel' })).status).toBe('unconfigured');
     result.stdout = '{"data":{"ready":true,"authentication_verified":false}}';
     expect(await s.can.execute({ target: 'channel' })).toMatchObject({
       status: 'ready',
       entry: { command: 'wecom-channel-cli event list --limit 10' },
     });
+    expect(
+      s.h.process.calls.every((call) => ['--version', 'doctor'].includes(call.vector[1]!)),
+    ).toBe(true);
   });
 
   it('requires a live worker task without exposing its content or acquiring operator authority', async () => {

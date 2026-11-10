@@ -197,7 +197,7 @@ capability 表示代码托管、CI、日志、错误追踪等意图，provider �
 
 工作区级能力一次绑定：`code-host`、`issue-tracker`、`knowledge-base`、`im`、`channel`、`calendar`、`meeting`、`task`、`worklog`；环境级能力按平台实例绑定：`error-tracker`、`log-store`、`metrics`、`ci`、`cluster`。不带目标的 `fx can` 列出这些能力以及当前工作区里各由谁提供；`fx manifest providers` 列出已绑定的内容和每个能力可选的 provider。`calendar` 是日程与忙闲所在；`meeting` 是承载在线会议及其录制、纪要的会议系统，在一个产品里排日程、在另一个产品里开会的团队两者都绑定。在企业微信上，`wecom-calendar` 通过 WeCom CLI 列出其机器人可见的日程，`wecom-calendar-cli` 则在每位成员自己日历的本地镜像中连同历史一起搜索；登录以及用 `wecom-calendar-cli sync` 填充镜像都由成员自己完成。
 
-将工作区能力 `channel` 绑定到 `wecom-channel-cli` 即可安装 CLI 和 Skill。就绪检查通过代理套接字检测本地 broker。
+将工作区能力 `channel` 绑定到 `wecom-channel-cli` 即可安装 CLI 和 Skill。就绪检查通过代理套接字运行 `doctor`。频道监听会排除以同一 Bot 身份发送的消息，包括其他客户端使用该身份发送的内容。升级 CLI 时应同时升级 broker，并按配套 CLI 的[迁移指南](https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/watching.md#self-exclusion)核对旧监听检查点或 relay 队列。
 
 智能机器人对话可在受限 worker 工作区中将 `im` 绑定到 `wecom-chat-cli`。`fx can im` 检查当前任务的访问权限并返回读取命令，不输出对话内容。使用 `fx tool install wecom-chat-cli` 安装 CLI；包内 Skill 需通过隔离宿主手动安装。参见[worker 配置](manifest-guide.md#wecom-smart-bot-workers)。
 
