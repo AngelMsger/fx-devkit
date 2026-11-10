@@ -109,7 +109,7 @@ function resolveTool(
   };
 }
 
-// An empty command means the tool has no Skill or needs no sign-in.
+// Empty commands disable automatic Skill installation or the standalone auth probe.
 function resolvedSkill(skill: Tool['skill']): Pick<ResolvedTool, 'skill'> {
   if (skill === undefined || skill.command.length === 0) return {};
   return {

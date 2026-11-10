@@ -30,6 +30,18 @@ deletes them with null. Relative verification files
 resolve from the workspace root; ~ resolves from the user's home. The root is
 created after validation/registration and before local setup starts.
 
+## Scoped smart-bot tasks
+
+The `wecom-chat-cli` reference provider binds `im` only in a restricted worker
+workspace. Its recipe reads the current task with explicit worker socket,
+bot ID and deployment variables, using the supervisor-provided token environment.
+The shared verifier treats output as sensitive and reports only the fixed trust
+expectation, never task content. Missing, expired or revoked grants fail readiness;
+passing establishes only current-task access. No token or task is persisted by fx.
+The catalog uses `version` and disables inherited auth/Skill commands because
+v0.2.0 has neither interface. The packaged Skill is installed through the isolated
+host; fx does not provision the broker, issue grants or approve replies.
+
 ## Manifest validation
 
 `fx manifest validate` judges every reported problem in ordinary and strict modes,

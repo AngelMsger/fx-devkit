@@ -6,6 +6,7 @@ import { ToolInstall } from '../../../../src/application/tool/install.js';
 import { ToolInstallWithSkills } from '../../../../src/application/tool/with-skills.js';
 import { loadTools } from '../../../../src/domain/manifest/loader.js';
 import { resolveTools } from '../../../../src/domain/toolchain/resolve.js';
+import { bundledTools } from '../../../bundled-tools.js';
 import { FakeAgentHost } from '../../../fakes/fake-agent-host.js';
 import { FakeInstaller } from '../../../fakes/fake-installer.js';
 import { FakeLock } from '../../../fakes/fake-lock.js';
@@ -32,12 +33,12 @@ const writable: WritePosture = { readOnly: false, source: 'default' };
 const agent = new FakeAgentHost('claude-code', true);
 const skillsDir = agent.skillsDir('global');
 
-function setup(patch?: string) {
-  const loaded = loadTools(catalog, patch, { cliVersion: '1.0.0' });
+function setup(patch?: string, base = catalog) {
+  const loaded = loadTools(base, patch, { cliVersion: '1.0.0' });
   const tools = resolveTools(loaded.doc, loaded.provenance);
   const proc = new FakeProcess()
     .on(['npm', 'install', '-g'], (vector) => {
-      proc.binaries.add(vector[3]!.replace(/^@example\/|@latest$/g, ''));
+      proc.binaries.add(vector[3]!.replace(/^@[^/]+\//, '').replace(/@latest$/, ''));
       return { code: 0, stdout: '', stderr: '' };
     })
     .always({ code: 0, stdout: '1.0.0\n', stderr: '' });
@@ -63,6 +64,34 @@ function setup(patch?: string) {
 }
 
 describe('installing or updating tools from the tool commands', () => {
+  it('installs WeCom Chat without calling unsupported Skill or sign-in commands', async () => {
+    const s = setup(undefined, bundledTools());
+    const preview = await s.command.execute({
+      tools: s.tools,
+      names: ['wecom-chat-cli'],
+      update: false,
+      dryRun: true,
+      posture: writable,
+    });
+    expect(preview).toMatchObject([{ name: 'wecom-chat-cli', status: 'planned', skill: 'none' }]);
+    expect(s.proc.calledWith(['npm'])).toBe(false);
+
+    const rows = await s.command.execute({
+      tools: s.tools,
+      names: ['wecom-chat-cli'],
+      update: false,
+      dryRun: false,
+      posture: writable,
+    });
+    expect(rows).toMatchObject([{ name: 'wecom-chat-cli', status: 'done', skill: 'none' }]);
+    expect(s.proc.calledWith(['npm', 'install', '-g', '@angelmsger/wecom-chat-cli@latest'])).toBe(
+      true,
+    );
+    expect(
+      s.proc.calls.filter((call) => call.vector[0] === 'wecom-chat-cli').map((call) => call.vector),
+    ).toEqual([['wecom-chat-cli', 'version']]);
+  });
+
   it('updates only the installed tools and then has each one install its Skill again', async () => {
     const s = setup();
     const rows = await s.command.execute({

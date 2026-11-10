@@ -324,6 +324,8 @@ history included; each member signs in and fills the mirror with
 
 Bind the workspace capability `channel` to `wecom-channel-cli` to install the CLI and its Skill. Readiness checks the local broker through the agent socket.
 
+For smart-bot conversations, bind `im` to `wecom-chat-cli` only inside a restricted worker workspace. `fx can im` checks access to the current task and returns its read command without exposing the conversation. Installation is available through `fx tool install wecom-chat-cli`; the packaged Skill needs manual installation through the isolated host. See [worker setup](manifest-guide.md#wecom-smart-bot-workers).
+
 `metrics` is served by `prometheus-cli`. Its coordinate is a service's scrape
 job: `where` prints an `up{job="..."}` query that returns the label set of that
 service's targets, the starting point for writing further selectors. A selector

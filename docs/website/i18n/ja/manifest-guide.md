@@ -137,6 +137,28 @@ fx manifest explain --kind tools 'tools[].setup'
 fx manifest schema --kind environments
 ```
 
+## WeCom スマートボットのワーカー {#wecom-smart-bot-workers}
+
+この割り当ては、オペレーターが準備した隔離会話ワーカー専用です。`manifest/workspace.yaml` の `providers` に以下を追加し、例の座標をオペレーターが指定したワーカーソケットとスコープに置き換えます。
+
+```yaml
+providers:
+  im:
+    provider: wecom-chat-cli
+    vars:
+      socket: /run/chat-worker/bridge.sock
+      bot_id: example-bot
+      deployment: support
+```
+
+信頼できる supervisor は、ワーカーのツール実行環境だけに `WECOM_CHAT_TASK_TOKEN` を渡します。マニフェスト、コマンド引数、プロンプト、共有環境には保存しません。オペレーターのソケットやボットの Secret をワーカーに渡さないでください。ブローカー、ワーカー、レビュー担当には [Chat のデプロイガイド](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/security.md)が定める OS とツールの隔離が必要です。
+
+`fx can im` はこのソケットで `task get` を実行し、信頼されていない内容を示すエンベロープを確認します。準備状態と読み取りコマンドを返し、タスク本文は返さず永続保存もしません。トークンがない、期限切れ、または失効済みなら未設定となります。準備完了は確認時点でそのタスクを読めることだけを意味し、後続の返信の有効性、サンドボックスの設置、実際の WeCom 環境での受け入れ確認を保証しません。
+
+カタログでは `fx tool show/install/update wecom-chat-cli` を利用でき、`version` コマンドで v0.2.0 以上を確認します。CLI は Linux と macOS に対応します。`auth status`、`config init`、`skill install` はないため、fx はこれらの共通既定コマンドを実行しません。対応する npm パッケージの `SKILL.md` は隔離ホストの Skill 機構でインストールしてください。fx が汎用コーディングエージェントへコピーすることはありません。ツールのインストールだけではタスクの準備完了にはなりません。
+
+ブローカー設定、タスク発行、セッションの振り分け、独立した返信レビュー、以後の利用者アクセスを左右するメモリー判断は、信頼されたホストまたはオペレーターが担当します。この provider はブローカーの起動、受信一覧の列挙、返信送信、資格情報のコピーを行いません。通常の開発ワークスペースでは `im` を割り当てずにツールだけをインストールできます。
+
 ## 既存 checkout のインポート {#import-existing-checkouts}
 
 ソースディレクトリを既存ワークスペースの外に用意します。

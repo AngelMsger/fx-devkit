@@ -199,6 +199,8 @@ capability 表示程式碼託管、CI、日誌、錯誤追蹤等意圖，provide
 
 將工作區能力 `channel` 綁定到 `wecom-channel-cli` 即可安裝 CLI 和 Skill。就緒檢查透過代理通訊端偵測本機 broker。
 
+智慧機器人對話可在受限 worker 工作區中將 `im` 綁定到 `wecom-chat-cli`。`fx can im` 檢查目前任務的存取權限並傳回讀取命令，不輸出對話內容。使用 `fx tool install wecom-chat-cli` 安裝 CLI；套件內的 Skill 需透過隔離宿主手動安裝。參見 [worker 設定](manifest-guide.md#wecom-smart-bot-workers)。
+
 `metrics` 由 `prometheus-cli` 提供。它的座標是服務的抓取 job：`where` 輸出一條 `up{job="..."}` 查詢，回傳該服務各抓取目標的標籤集合，可作為撰寫後續選擇器的起點。選擇器比對不到任何序列時查詢仍然成功，因此指標不提供存在性探測，`where --probe` 對它回報 `unknown`，不作猜測。
 
 `tool list/show` 顯示工具需求，`tool install/update` 使用宣告的安裝程式，`login` 引導設定。驗證由各工具負責，包括已儲存的憑證可以送往哪個服務。fx 為內建工具定義的命令無需確認即可執行；團隊 `tools.yaml` 新增或覆寫的命令向量需要信任一次，向量改變後需要重新確認。口頭確認手動步驟不能取代驗證成功。

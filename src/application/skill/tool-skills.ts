@@ -26,7 +26,7 @@ export async function planTools(
   const items: ToolSkillItem[] = [];
   for (const tool of input.toolchain ?? []) {
     if (!tool.enabled || tool.skill === undefined) {
-      items.push(noVector(tool, 'ships no Skill'));
+      items.push(noVector(tool, 'no Skill installation command'));
       continue;
     }
     if (

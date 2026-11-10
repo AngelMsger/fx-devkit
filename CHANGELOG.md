@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add `wecom-chat-cli` v0.2.0+ to the tool catalog and as an `im` provider for isolated workers. Readiness checks only the current task, keeps chat text out of reports, and never issues grants or approves replies. Its packaged Skill remains host-managed.
+
 - Query directory memberships, personal functions and business collaboration separately with members schema 2. Scoped member lookups return the matching relationships, validity dates and sources. Schema 1 remains readable.
 
 ## 0.15.0 (2026-11-02)
