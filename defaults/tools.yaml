@@ -72,6 +72,14 @@ tools:
       json: { path: data.ready, equals: true }
       docs: https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/security.md
     docs: https://github.com/AngelMsger/wecom-channel-cli
+  - name: wecom-chat-cli
+    min_version: '0.2.0'
+    desc: Scoped WeCom smart-bot tasks and independently reviewed replies
+    version_args: [version]
+    install: [{ via: npm, spec: '@angelmsger/wecom-chat-cli' }]
+    skill: { command: [] }
+    auth: { command: [] }
+    docs: https://github.com/AngelMsger/wecom-chat-cli
   - name: gh
     min_version: '2.50.0'
     desc: Repositories, branches, pull requests and Actions runs on GitHub

@@ -199,6 +199,28 @@ fx manifest explain --kind tools 'tools[].setup'
 fx manifest schema --kind environments
 ```
 
+## WeCom smart-bot workers
+
+Use this binding only in an operator-provisioned, isolated conversation worker. Add it under `providers` in `manifest/workspace.yaml`; replace the example coordinates with the worker socket and scope supplied by the operator:
+
+```yaml
+providers:
+  im:
+    provider: wecom-chat-cli
+    vars:
+      socket: /run/chat-worker/bridge.sock
+      bot_id: example-bot
+      deployment: support
+```
+
+The trusted supervisor supplies `WECOM_CHAT_TASK_TOKEN` only to the worker tool executor. Never store it in a manifest, argv, prompt or shared environment; do not give the worker the operator socket or bot Secret. The broker, worker and reviewer need the OS and tool isolation described in the [Chat deployment guide](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/security.md).
+
+`fx can im` reads `task get` through that socket and requires the untrusted-content envelope. It returns readiness and the read command, without returning or persisting the task text. A missing, expired or revoked grant makes the binding unconfigured. Readiness proves access to this task at check time; it does not prove that a later reply is valid, that a sandbox is installed, or that a live WeCom deployment has been accepted.
+
+The catalog supports `fx tool show/install/update wecom-chat-cli`, uses its `version` command and requires v0.2.0 or newer. The CLI supports Linux and macOS. It has no `auth status`, `config init` or `skill install` command, so fx does not invoke the family defaults. Install the `SKILL.md` included in the matching npm package through the restricted host's Skill mechanism; fx does not copy it to general-purpose coding agents. Tool installation alone does not establish task readiness.
+
+Broker setup, task issuance, session routing, independent reply review and future-user memory decisions stay with the trusted host/operator. This provider never starts a broker, enumerates an inbox, sends a reply or copies credentials. A general development workspace may install the tool without binding `im` to it.
+
 ## Import existing checkouts
 
 Use a source directory outside the existing workspace:

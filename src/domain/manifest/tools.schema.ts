@@ -28,7 +28,7 @@ export const installMethod = z
 export const skillCommand = z
   .strictObject({
     command: commandVector.describe(
-      'arguments that install the companion Skill; empty means it ships none',
+      'arguments that install the companion Skill; empty disables automatic Skill installation',
     ),
     agent_flag: z
       .string()
@@ -44,7 +44,7 @@ export const skillCommand = z
 export const authCommand = z
   .strictObject({
     command: commandVector.describe(
-      'arguments that report credential status; empty means no credentials are needed',
+      'arguments that report credential status; empty disables the standalone credential check',
     ),
     json: jsonExpectation
       .optional()

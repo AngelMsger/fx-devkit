@@ -137,6 +137,28 @@ fx manifest explain --kind tools 'tools[].setup'
 fx manifest schema --kind environments
 ```
 
+## 企業微信智慧機器人 worker {#wecom-smart-bot-workers}
+
+此綁定僅適用於管理員預先設定的隔離對話 worker。在 `manifest/workspace.yaml` 的 `providers` 下新增以下內容，並將範例座標替換為管理員提供的 worker 通訊端及作用域：
+
+```yaml
+providers:
+  im:
+    provider: wecom-chat-cli
+    vars:
+      socket: /run/chat-worker/bridge.sock
+      bot_id: example-bot
+      deployment: support
+```
+
+可信 supervisor 僅向 worker 的工具執行器提供 `WECOM_CHAT_TASK_TOKEN`。不要將其寫入 manifest、命令列參數、提示詞或共用環境；不要向 worker 提供 operator 通訊端或機器人 Secret。broker、worker 和審核者必須符合 [Chat 部署指南](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/security.md)中的作業系統與工具隔離要求。
+
+`fx can im` 透過該通訊端執行 `task get`，並要求回應包含不受信內容標記。它傳回就緒狀態和讀取命令，不傳回或持久化任務正文。權杖缺失、過期或遭撤銷時，綁定處於未設定狀態。就緒只證明檢查當時能夠讀取該任務，不代表後續回覆仍然有效、沙箱已安裝或真實企業微信部署已驗收。
+
+工具目錄支援 `fx tool show/install/update wecom-chat-cli`，使用其 `version` 命令，最低版本為 v0.2.0。CLI 支援 Linux 和 macOS。它沒有 `auth status`、`config init` 或 `skill install` 命令，因此 fx 不呼叫這些系列預設命令。請透過受限宿主的 Skill 機制安裝對應 npm 套件中的 `SKILL.md`；fx 不會將其複製給通用程式設計 Agent。僅安裝工具不代表任務已就緒。
+
+broker 設定、任務簽發、工作階段路由、獨立回覆審核，以及影響使用者後續存取的記憶決策仍由可信宿主或管理員負責。此 provider 不會啟動 broker、列舉收件匣、傳送回覆或複製憑證。一般開發工作區可以只安裝工具，不將 `im` 綁定到它。
+
 ## 匯入既有 checkout {#import-existing-checkouts}
 
 使用現有工作區之外的來源目錄：

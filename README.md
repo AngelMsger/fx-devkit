@@ -23,6 +23,9 @@ keeps its own history, branches, dependencies and build system.
 - Use human output interactively or JSON with explicit status and recovery steps.
 - Keep authentication and service APIs in the companion tools you already use.
 
+WeCom smart-bot workers can use the `wecom-chat-cli` companion; see the
+[worker binding and isolation requirements](docs/manifest-guide.md#wecom-smart-bot-workers).
+
 ## Requirements
 
 Use Node.js 22 or newer, Git and npm. Bun is also supported as an alternative
