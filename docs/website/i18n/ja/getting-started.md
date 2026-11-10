@@ -197,7 +197,7 @@ capability はコードホスト、CI、ログ、エラー追跡などの目的�
 
 ワークスペース単位で結び付ける能力は `code-host`、`issue-tracker`、`knowledge-base`、`im`、`channel`、`calendar`、`meeting`、`task`、`worklog` です。環境単位で platform ごとに結び付ける能力は `error-tracker`、`log-store`、`metrics`、`ci`、`cluster` です。対象を指定しない `fx can` は、これらの能力と、このワークスペースでそれぞれを提供するものを一覧します。`fx manifest providers` は結び付けの内容と、各能力が受け付ける provider を一覧します。`calendar` は予定と空き時間の所在です。`meeting` はオンライン会議とその録画・議事録を保持する会議システムで、予定の管理と会議の開催を別の製品で行うチームは両方を結び付けます。WeCom では、`wecom-calendar` は WeCom CLI を通じてボットから見える予定を一覧し、`wecom-calendar-cli` は各メンバー自身のカレンダーのローカルミラーを履歴ごと検索します。サインインと `wecom-calendar-cli sync` によるミラーの更新は、各メンバーが自分で行います。
 
-ワークスペースの `channel` を `wecom-channel-cli` に割り当てると、CLI と Skill をインストールできます。準備状態はエージェントのソケット経由でローカルブローカーに問い合わせます。
+ワークスペースの `channel` を `wecom-channel-cli` に割り当てると、CLI と Skill をインストールできます。準備状態はエージェントのソケット経由で `doctor` を実行して確認します。チャネルの監視では、同じ Bot ID を使う別クライアントからの送信も含め、その Bot が作成したメッセージを除外します。CLI とブローカーを一緒に更新し、既存の監視チェックポイントやリレーキューはコンパニオンの[移行ガイド](https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/watching.md#self-exclusion)に従って照合してください。
 
 スマートボットとの会話には、隔離されたワーカーのワークスペース内でのみ `im` を `wecom-chat-cli` に割り当てます。`fx can im` は現在のタスクへのアクセスを確認し、会話内容を出力せずに読み取りコマンドを返します。CLI は `fx tool install wecom-chat-cli` でインストールできますが、同梱 Skill は隔離ホストで手動設定します。[ワーカー設定](manifest-guide.md#wecom-smart-bot-workers)を参照してください。
 

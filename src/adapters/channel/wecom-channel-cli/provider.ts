@@ -19,7 +19,7 @@ export const wecomChannelProvider: ProviderDescriptor<Coordinate> = {
       instructions:
         'Ask the operator for the agent socket and set WECOM_CHANNEL_SOCKET or select a configured channel context.',
       verify: {
-        command: ['auth', 'status'],
+        command: ['doctor'],
         json: { path: 'data.ready', equals: true },
       },
     },

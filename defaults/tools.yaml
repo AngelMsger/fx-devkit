@@ -64,11 +64,11 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
     docs: https://github.com/AngelMsger/wecom-calendar-cli
   - name: wecom-channel-cli
-    min_version: '0.1.0'
+    min_version: '0.3.0'
     desc: Posts, replies and event updates in WeCom channels
     install: [{ via: npm, spec: '@angelmsger/wecom-channel-cli' }]
     auth:
-      command: [auth, status]
+      command: [doctor]
       json: { path: data.ready, equals: true }
       docs: https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/security.md
     docs: https://github.com/AngelMsger/wecom-channel-cli
