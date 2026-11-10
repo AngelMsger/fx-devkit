@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.16.1 (2026-11-10)
+
+- 將 npm 配套 CLI 的最低版本對齊到專案家族及上游目前已發布版本，包括 `wecom-chat-cli` v0.3.0 與官方 `wecom-cli` v1.3.4。
+- 補充 Chat 0.2.x 的 watch 輸出與游標遷移說明；fx 繼續僅檢查 worker 目前任務，由宿主管理 Skill。
+
 ## 0.16.0 (2026-11-10)
 
 - 要求 `wecom-channel-cli` v0.3.0 及以上，以強制排除自身 Bot 的監聽事件，並使用正式的 `doctor` 命令檢查就緒狀態。`wecom-chat-cli` 的最低版本維持為已發佈的最新版 v0.2.0，繼續使用任務範圍的就緒檢查和由宿主管理的 Skill。

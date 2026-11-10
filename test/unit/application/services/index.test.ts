@@ -78,7 +78,7 @@ async function fixture(
     prompter,
   };
   h.process.binaries.add('bitbucket-cli');
-  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.24.0', stderr: '' });
+  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.29.0', stderr: '' });
   const plan = buildPlan(h.deps, login, { scopeEnvs: undefined });
   return { h, login, trust, plan, operation: new ServiceOperation(h.deps, login) };
 }
@@ -710,7 +710,7 @@ envs:
     const logins: string[] = [];
     h.process.always((vector) => {
       const context = vector[vector.indexOf('--use-context') + 1] ?? '';
-      if (vector.includes('--version')) return { code: 0, stdout: '0.14.0', stderr: '' };
+      if (vector.includes('--version')) return { code: 0, stdout: '0.19.0', stderr: '' };
       if (vector.includes('set-context'))
         return { code: 0, stdout: '{"changed":false}', stderr: '' };
       if (vector.includes('reuse')) {
@@ -791,7 +791,7 @@ envs:
     let signedIn = false;
     h.process.always((vector) => {
       const context = vector[vector.indexOf('--use-context') + 1] ?? '';
-      if (vector.includes('--version')) return { code: 0, stdout: '0.14.0', stderr: '' };
+      if (vector.includes('--version')) return { code: 0, stdout: '0.19.0', stderr: '' };
       if (vector.includes('set-context')) return UNCHANGED;
       if (vector.includes('reuse'))
         return context === 'test' || signedIn

@@ -42,7 +42,7 @@ async function checksPhase(totalMs: number, status: Readonly<Record<string, Stat
   });
   h.process.binaries.add('openobserve-cli');
   h.process.always((vector) => {
-    if (vector.includes('--version')) return { code: 0, stdout: '0.14.0', stderr: '' };
+    if (vector.includes('--version')) return { code: 0, stdout: '0.19.0', stderr: '' };
     if (!vector.includes('status')) return answer({ changed: false });
     const context = vector[vector.indexOf('--use-context') + 1] ?? '';
     if (status[context] === 'hangs')
