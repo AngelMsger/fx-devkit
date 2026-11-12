@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.18.1 (2026-11-12)
+
 - Separate confirmed release failures from incomplete checks, group repeated unavailable causes with recovery, and preserve structured query errors. Missing Sentry projects no longer trigger organization-wide queries or misleading release failures.
 
 ## 0.18.0 (2026-11-12)
