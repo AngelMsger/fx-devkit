@@ -1,11 +1,8 @@
 // The release checklist as a person reads it: one block per repository, opening with
 // what its release would carry (the version, both branch heads and how many commits
 // are not merged yet, whose heads let the code host's own tools list them), then its
-// checks, so whatever holds a repository back reads in one place. Repositories with
-// nothing to report close the output one line each, saying what they would release,
-// unless --details asks for their checks. A finding every repository shares, such as
-// a tool nobody signed in to, is said once above them. The report itself stays the
-// machine interface.
+// checks. Unavailable checks are grouped separately from confirmed problems; only
+// repositories with complete, passing checks appear in the passing section.
 
 import type {
   ReleaseFinding,
@@ -16,6 +13,7 @@ import type {
 } from '../domain/release/types.js';
 import { shortSha } from '../domain/workspace/commits.js';
 
+import { incompleteLines, releaseCounts } from './release-coverage.js';
 import type { Display } from './render/display.js';
 import { gap, widthOf } from './render/width.js';
 
@@ -38,29 +36,44 @@ export function releaseText(report: ReleaseReport, view: ReleaseView): string {
   // are all said once for every repository.
   const repos = [...new Set([...report.repos.map((r) => r.name), ...findings.map((f) => f.id)])];
   if (repos.length === 0) return `${display.paint('quiet', '(none)')}\n`;
-  const shared = repos.length > 1 ? sharedFindings(findings, repos.length) : [];
-  const own = (repo: string): ReleaseFinding[] =>
-    findings.filter((f) => f.id === repo && !shared.some((s) => sameFinding(s, f)));
-  const passed = (repo: string): boolean => own(repo).every((f) => f.level === 'ok');
-  const expanded = view.details ? repos : repos.filter((repo) => !passed(repo));
-  const quiet = repos.filter((repo) => !expanded.includes(repo));
+  const own = (repo: string): ReleaseFinding[] => findings.filter((f) => f.id === repo);
+  const visible = (f: ReleaseFinding): boolean =>
+    view.details || f.coverage !== 'incomplete' || f.level === 'fail';
+  const expanded = view.details
+    ? repos
+    : repos.filter((repo) => own(repo).some((f) => visible(f) && f.level !== 'ok'));
+  const quiet = repos.filter(
+    (repo) =>
+      !expanded.includes(repo) &&
+      own(repo).every((f) => f.level === 'ok' && f.coverage !== 'incomplete'),
+  );
+  const pending = repos.filter((repo) => !expanded.includes(repo) && !quiet.includes(repo));
   const row = rowOf(display, Math.max(0, ...findings.map((f) => widthOf(f.group))));
   const described = new Map(report.repos.map((r) => [r.name, r]));
   const sections = [
-    ...(shared.length === 0
-      ? []
-      : [[display.paint('strong', 'Every repository'), ...shared.flatMap(row)]]),
+    [...display.wrap(releaseCounts(report), Math.max(24, display.room(0)))],
     ...expanded.map((repo) => [
       heading(display, repo, own(repo)),
       ...carried(display, described.get(repo)),
-      ...own(repo).flatMap(row),
+      ...own(repo).filter(visible).flatMap(row),
     ]),
+    ...(view.details ? [] : incompleteLines(findings, display)),
+    ...(pending.length === 0
+      ? []
+      : [
+          okLines(
+            display,
+            'Checks incomplete',
+            pending.map((repo) => described.get(repo) ?? repo),
+            'warn',
+          ),
+        ]),
     ...(quiet.length === 0
       ? []
       : [
           okLines(
             display,
-            shared.length === 0 ? 'All checks ok' : 'Otherwise ok',
+            'Completed checks (passed or not applicable)',
             quiet.map((repo) => described.get(repo) ?? repo),
           ),
         ]),
@@ -135,33 +148,16 @@ function remarks(display: Display, repo: ReleaseRepo, indent: string): string[] 
     .map((l) => `${indent}${display.paint('quiet', l)}`);
 }
 
-// A problem every repository has in common, the same words and the same fix.
-function sharedFindings(findings: readonly ReleaseFinding[], repos: number): ReleaseFinding[] {
-  const first = new Map<string, ReleaseFinding>();
-  const count = new Map<string, number>();
-  for (const f of findings) {
-    if (f.level === 'ok') continue;
-    const key = keyOf(f);
-    if (!first.has(key)) first.set(key, f);
-    count.set(key, (count.get(key) ?? 0) + 1);
-  }
-  return [...first].filter(([key]) => count.get(key) === repos).map(([, f]) => f);
-}
-
-function sameFinding(a: ReleaseFinding, b: ReleaseFinding): boolean {
-  return keyOf(a) === keyOf(b);
-}
-
-function keyOf(f: ReleaseFinding): string {
-  return JSON.stringify([f.group, f.level, f.message, f.fix ?? null]);
-}
-
 // The repository, then how many of its checks failed or warn; just ok when none did.
 function heading(display: Display, repo: string, findings: readonly ReleaseFinding[]): string {
   const counts = (['fail', 'warn'] as const).flatMap((level) => {
-    const n = findings.filter((f) => f.level === level).length;
+    const n = findings.filter(
+      (f) => f.level === level && (level === 'fail' || f.coverage !== 'incomplete'),
+    ).length;
     return n === 0 ? [] : [display.paint(level, `${n} ${level}`)];
   });
+  const incomplete = findings.filter((f) => f.coverage === 'incomplete').length;
+  if (incomplete > 0) counts.push(display.paint('warn', `${incomplete} incomplete`));
   const verdict = counts.length === 0 ? display.paint('ok', 'ok') : counts.join(', ');
   return `${display.paint('strong', repo)}${GUTTER}${verdict}`;
 }
@@ -192,6 +188,7 @@ function okLines(
   display: Display,
   label: string,
   repos: readonly (ReleaseRepo | string)[],
+  role: 'ok' | 'warn' = 'ok',
 ): string[] {
   const rows = repos.map((repo) =>
     typeof repo === 'string'
@@ -207,7 +204,7 @@ function okLines(
   const room = Math.max(display.room(lead), NARROWEST_MESSAGE);
   const under = ' '.repeat(lead);
   return [
-    display.paint('ok', label),
+    display.paint(role, label),
     ...rows.flatMap(({ name, shipped, repo }) => {
       const said = shipped === undefined ? '' : aligned(shipped, versionWidth);
       const [first = '', ...rest] = said === '' ? [] : display.wrap(said, room);

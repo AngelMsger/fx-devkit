@@ -176,7 +176,13 @@ same ambiguous setup. Doctor marks its missing verification as incomplete.
 optional host activation can remain unverified. An incomplete verdict exits 12.
 `fx release check` returns `ok`, `complete`, summary and findings and exits zero when its
 checklist was produced. Findings carry group, id, level, coverage, message, fix and
-handoff; full results also carry evidence. `repos[]` says what each release would ship,
+handoff; caught query errors also carry a structured `failure` with recovery, retained
+in compact JSON. Full results also carry evidence. Incomplete checks are not passes:
+`RELEASE_INCOMPLETE` means no confirmed failure but missing evidence, and a known
+failure can also have incomplete coverage. Human output groups identical unavailable
+causes separately from confirmed problems; `--details` expands all repository checks.
+A missing error-tracker project is incomplete coverage and must be corrected or
+explicitly marked not covered; never substitute an organization-wide query. `repos[]` says what each release would ship,
 in summaries too. For `can`, inspect its capability status.
 
 Doctor groups are `repos`, `root`, `tools`, `login`, `agents`, `manifest`, `self`,

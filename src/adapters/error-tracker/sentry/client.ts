@@ -44,6 +44,18 @@ export function sentryFailed(call: SentryCall, what: string): DevkitError {
       nextSteps: [`fx login ${BINARY}`, `${BINARY} auth status`],
     });
   }
+  // The CLI repeats the project and wrapping errors before the network cause.
+  // Keep the cause independent of the project so a shared outage reads once.
+  const network = detail.indexOf('Network error');
+  if (network >= 0)
+    return new DevkitError(
+      'network',
+      'PLATFORM_QUERY_FAILED',
+      `${BINARY}: ${detail.slice(network)}`,
+      {
+        nextSteps: ['Check connectivity and VPN, then retry.', `fx doctor --tool ${BINARY}`],
+      },
+    );
   return new DevkitError(
     categoryOf(call.code),
     'PLATFORM_QUERY_FAILED',

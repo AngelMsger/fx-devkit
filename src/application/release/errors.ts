@@ -6,6 +6,7 @@ import { errorsFinding, ISSUE_CEILING } from '../../domain/release/errors.js';
 import { notChecked, unanswered, type ReleaseFinding } from '../../domain/release/types.js';
 import type { ErrorTracker } from '../../ports/error-tracker.js';
 import { environmentsOf } from '../env/names.js';
+import { workspaceCommand } from '../workspace/guidance.js';
 import { platformAs } from '../workspace/platforms.js';
 
 import { attempt, type CheckContext } from './facts.js';
@@ -35,6 +36,11 @@ export function checkErrors(ctx: CheckContext): Promise<ReleaseFinding> {
         repo,
         coordinate.notes[0] ?? `no ${tracker.binding.platform} coordinate in ${env}`,
       );
+    if (coordinate.command === null)
+      return unanswered('errors', repo, 'Error tracker coordinate is incomplete', {
+        fix: workspaceCommand(ctx.deps, 'manifest', 'lint'),
+        evidence: { notes: coordinate.notes },
+      });
     const page = await tracker.platform.issues(coordinate.vars, {
       since: ctx.policy.since,
       limit: ISSUE_CEILING,

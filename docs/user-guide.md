@@ -540,10 +540,16 @@ verdict and every blocker; `--details` adds full stage evidence. Human output st
 with the task result and next action. Human `release check` output opens each
 repository with what it would ship: the version its target branch declares, the head
 commits of both branches, and how many commits on the source branch are not merged
-into the target yet. Each repository with a failing or warning check gets its own
-block with all of its checks, a problem every repository shares is stated once above
-them, and the repositories whose checks all passed close the output one line each;
-`--details` lists their checks too. On a terminal, human output
+into the target yet. The opening counts distinguish failed, warning, incomplete, passed and not-applicable
+checks. Confirmed problems appear under their repositories; identical unavailable
+or partial checks are grouped with their affected checks, repositories and recovery.
+A known failure can also be incomplete. Only repositories whose checks completed
+without problems appear in the completed section; explicit exclusions are counted
+separately from passes. `--details` expands every repository's checks. Incomplete
+reports without confirmed failures emit `RELEASE_INCOMPLETE`, while JSON keeps its
+existing `ok`/`complete` semantics and retains structured query failures. A missing
+error-tracker project is reported as incomplete rather than querying all projects.
+On a terminal, human output
 adds colour and symbols, fits tables to the width and prints an error as text; a pipe or a file
 receives plain text and the JSON error envelope, and `NO_COLOR` removes the colour.
 While a command works, the terminal also shows one status line with the time elapsed, how far

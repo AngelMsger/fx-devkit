@@ -6,6 +6,8 @@ import type { StepRow } from '../application/login/run.js';
 import type { Report } from '../domain/report.js';
 import type { Notice } from '../ports/reporter.js';
 
+import { releaseCounts } from './release-coverage.js';
+
 export interface LoginProblem {
   readonly step: string;
   readonly reason: string;
@@ -62,14 +64,14 @@ export function reportNotice(
   codes: ReportCodes,
   nextSteps: readonly string[] = [],
 ): Notice {
-  const { ok, warn, fail } = report.summary;
   const fixes = report.findings
     .filter((f) => f.level === 'fail')
     .flatMap((f) => (f.fix === undefined ? [] : [f.fix]));
+  const passed = report.complete ? codes.ok : 'RELEASE_INCOMPLETE';
   return {
-    code: report.ok ? codes.ok : codes.failures,
-    message: `${ok} ok, ${warn} warn, ${fail} fail${report.complete ? '' : '; checks incomplete'}`,
-    ...(report.ok ? {} : { nextSteps: [...new Set([...fixes, ...nextSteps])] }),
+    code: report.ok ? passed : codes.failures,
+    message: releaseCounts(report),
+    ...(report.ok && report.complete ? {} : { nextSteps: [...new Set([...fixes, ...nextSteps])] }),
   };
 }
 

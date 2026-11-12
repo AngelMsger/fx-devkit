@@ -88,7 +88,10 @@ not provider-specific application branches.
   watchers must not change what a pipe or JSON receives.
 - Collections use `{items, has_more, next?}`. Absent facts are explicit values;
   never confuse not configured, not covered and a failed check. Preserve
-  structured errors when returning batch or report results.
+  structured errors when returning batch or report results. Release summaries must
+  distinguish confirmed failures from incomplete checks, including after grouping
+  shared causes. A missing project coordinate must never broaden a repository
+  query to an entire organization.
 - Use `DevkitError`; keep released codes and category exit codes stable. Every
   error carries recovery steps, and `LOGIN_REQUIRED` carries a user handoff.
   Unknown commands, config keys and resource selectors offer nearest matches.

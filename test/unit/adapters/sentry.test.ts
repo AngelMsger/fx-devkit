@@ -8,6 +8,36 @@ const vars = { host: 'sentry.example.com', org: 'fx', slug: 'fx-example-auth-tes
 const LIST = ['sentry', 'issue', 'list', 'fx/fx-example-auth-test'];
 
 describe('SentryErrorTracker', () => {
+  it.each([undefined, '', '  ', '{slug}'])(
+    'refuses an absent or unresolved project (%s) before querying the organization',
+    async (slug) => {
+      const proc = new FakeProcess();
+      await expect(
+        new SentryErrorTracker(proc).issues(
+          { host: vars.host, org: vars.org, ...(slug === undefined ? {} : { slug }) },
+          { since: '14d', limit: 1000 },
+        ),
+      ).rejects.toMatchObject({ category: 'config', code: 'SENTRY_PROJECT_REQUIRED' });
+      expect(proc.calls).toHaveLength(0);
+    },
+  );
+
+  it('reports a shared network cause without a project-specific error prefix', async () => {
+    const proc = new FakeProcess().on(LIST, {
+      code: 30,
+      stdout: '',
+      stderr:
+        'Error: Failed to fetch issues from 1 project(s): Network error Unable to reach Sentry at https://sentry.example.com: Connect Timeout Error',
+    });
+    await expect(
+      new SentryErrorTracker(proc).issues(vars, { since: '14d', limit: 1000 }),
+    ).rejects.toMatchObject({
+      category: 'network',
+      retryable: true,
+      message:
+        'sentry: Network error Unable to reach Sentry at https://sentry.example.com: Connect Timeout Error',
+    });
+  });
   it('locates through the manifest-free default command and page', () => {
     const tracker = new SentryErrorTracker(new FakeProcess());
     expect(tracker.locate(vars)).toEqual({

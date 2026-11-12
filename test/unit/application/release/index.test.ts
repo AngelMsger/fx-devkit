@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
 import { Release } from '../../../../src/application/release/index.js';
+import { DevkitError } from '../../../../src/domain/errors.js';
 import type { Check } from '../../../../src/domain/release/types.js';
 import type { Platform } from '../../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
@@ -409,6 +410,24 @@ describe('Release', () => {
     expect(s.tracker.asked.length).toBe(2);
   });
 
+  it('preserves a shared branch-query failure and its recovery for every dependent check', async () => {
+    const s = await stage();
+    s.codeHost.branches = async () => {
+      throw new DevkitError('network', 'PLATFORM_QUERY_FAILED', 'Host unreachable', {
+        nextSteps: ['Check connectivity and VPN, then retry.'],
+      });
+    };
+    const report = await run(s, { only: ['deps', 'merge', 'ci'], repos: ['fx-example-api'] });
+    expect(report.complete).toBe(false);
+    for (const f of report.findings)
+      expect(f).toMatchObject({
+        coverage: 'incomplete',
+        level: 'warn',
+        fix: 'Check connectivity and VPN, then retry.',
+        failure: { category: 'network', code: 'PLATFORM_QUERY_FAILED', retryable: true },
+      });
+  });
+
   it('asks a code host that drives no tool without any readiness question', async () => {
     const s = await stage({
       tools: [],
@@ -528,7 +547,14 @@ describe('Release', () => {
 
   it('turns one repository failing a query into its own warning, not the report failing', async () => {
     const s = await stage();
-    s.tracker.failure = new Error('sentry: rate limited');
+    s.tracker.failure = new DevkitError(
+      'rate_limit',
+      'PLATFORM_QUERY_FAILED',
+      'sentry: rate limited',
+      {
+        nextSteps: ['Retry later.'],
+      },
+    );
     const report = await run(s, { only: ['errors'] as Check[] });
     expect(byKey(report)).toEqual({
       'errors:fx-example-api': 'warn',
@@ -536,6 +562,32 @@ describe('Release', () => {
       'errors:fx-example-legacy': 'ok',
     });
     expect(report.findings[0]?.message).toBe('sentry: rate limited');
+    expect(report.findings[0]).toMatchObject({
+      coverage: 'incomplete',
+      fix: 'Retry later.',
+      failure: {
+        category: 'rate_limit',
+        code: 'PLATFORM_QUERY_FAILED',
+        retryable: true,
+        next_steps: ['Retry later.'],
+      },
+    });
     expect(report.ok).toBe(true);
+    expect(report.complete).toBe(false);
+  });
+
+  it('leaves missing project coordinates unanswered without querying an organization', async () => {
+    const s = await stage({
+      environments: fixture('environments.yaml').replace("slug: 'fx-{svc}-dev'", "slug: ''"),
+    });
+    const report = await run(s, { only: ['errors'] });
+    expect(s.tracker.asked).toEqual([]);
+    expect(report.findings[0]).toMatchObject({
+      level: 'warn',
+      coverage: 'incomplete',
+      message: 'Error tracker coordinate is incomplete',
+      fix: 'fx manifest lint --workspace fx',
+    });
+    expect(report.complete).toBe(false);
   });
 });
