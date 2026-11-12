@@ -151,6 +151,7 @@ export class GitRepoSource implements ManifestSource {
     try {
       await this.git.fetch(dir, 'upstream');
     } catch (err) {
+      if (err instanceof DevkitError) throw err;
       throw new DevkitError(
         'network',
         'MANIFEST_REFRESH_FAILED',

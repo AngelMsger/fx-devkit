@@ -27,7 +27,7 @@ import {
   stringAt,
   unreadableError,
 } from '../../family/cli.js';
-import { familyService, serviceFlags } from '../../family/service.js';
+import { familyService } from '../../family/service.js';
 
 import { BINARY, BitbucketCli, type CliCall } from './client.js';
 import { BitbucketGitProcess } from './git-process.js';
@@ -189,11 +189,7 @@ export const bitbucketCliProvider: ProviderDescriptor<CodeHost> = {
   tools: [BINARY],
   service: (settings) => familyService('bitbucket-cli', settings, '0.24.0'),
   recipes: BITBUCKET_RECIPES,
-  gitProcess: (process, vars) =>
-    new BitbucketGitProcess(process, [
-      ...(vars['context'] ? ['--use-context', vars['context']] : []),
-      ...serviceFlags(vars),
-    ]),
+  gitProcess: (process, vars) => new BitbucketGitProcess(process, vars),
   vars: [
     { name: 'host', desc: 'git clone prefix, e.g. ssh://git@git.example.com', required: true },
     { name: 'web', desc: 'browser base URL, e.g. https://git.example.com', required: false },

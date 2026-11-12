@@ -281,6 +281,7 @@ export function skillDeps(
 // Provider descriptors own context flags; application workflows remain host agnostic.
 function workspaceGitProcess(container: Container, ctx: WorkspaceContext): Process {
   const binding = codeHostBinding(ctx.bindings);
+  if (binding.provider === null) return container.gitProcess;
   const descriptor = binding.provider ? container.describeProvider(binding.provider) : undefined;
-  return descriptor?.gitProcess?.(container.process, binding.vars) ?? container.gitProcess;
+  return descriptor?.gitProcess?.(container.process, binding.vars) ?? container.process;
 }

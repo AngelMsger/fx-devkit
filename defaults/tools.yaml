@@ -18,7 +18,7 @@ defaults:
 tools:
   - name: bitbucket-cli
     desc: Repositories, forks, pull requests and code review on Bitbucket
-    min_version: '0.29.0'
+    min_version: '0.30.0'
     install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
     docs: https://github.com/AngelMsger/bitbucket-cli
   - name: confluence-cli
@@ -64,7 +64,7 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
     docs: https://github.com/AngelMsger/wecom-calendar-cli
   - name: wecom-channel-cli
-    min_version: '0.3.0'
+    min_version: '0.4.0'
     desc: Posts, replies and event updates in WeCom channels
     install: [{ via: npm, spec: '@angelmsger/wecom-channel-cli' }]
     auth:

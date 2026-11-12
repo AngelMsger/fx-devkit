@@ -26,7 +26,7 @@ function fixture() {
   const root = tempDir('fx-init-standalone-');
   const shims = path.join(root, 'bin');
   const template = path.join(root, 'template');
-  companion(shims, 'bitbucket-cli', '0.29.0', true);
+  companion(shims, 'bitbucket-cli', '0.30.0', true);
   companion(template, 'jira-cli', '0.11.0', false);
   const receipt = path.join(root, 'npm-calls.json');
   writeNodeShim(
@@ -73,7 +73,7 @@ describe('init without a manifest', () => {
     expect(applied.status, applied.stderr).toBe(12);
     expect(applied.json()).toMatchObject({
       tools: [
-        { name: 'bitbucket-cli', install: 'present', installed: '0.29.0', sign_in: 'ready' },
+        { name: 'bitbucket-cli', install: 'present', installed: '0.30.0', sign_in: 'ready' },
         { name: 'jira-cli', install: 'installed', installed: '0.11.0', sign_in: 'pending' },
       ],
       preparation: {

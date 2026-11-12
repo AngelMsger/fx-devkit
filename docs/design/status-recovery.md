@@ -50,9 +50,10 @@ Bitbucket's companion owns the Git credential bridge. Composition wraps network
 Git processes, including manifest materialization and refresh, business clones and
 fetches and live remote-head reads. Local Git
 plumbing is unchanged. Provider descriptors supply explicit context/service flags
-for workspace operations; bootstrap uses the companion's service matching before
+for workspace operations, after the existing public-service agreement check; bootstrap uses the companion's service matching before
 manifest settings exist. The process wrapper passes deadlines and cancellation
-through and never receives tokens or authenticated environment values.
+through within one invocation budget and never receives tokens or authenticated environment values.
+Manifest refresh preserves structured authentication failures and their recovery steps.
 
 The installed companion is probed for `git --help` once per wrapper. Compatible
 versions run `bitbucket-cli git --fallback -- <arguments>`; missing/older versions
