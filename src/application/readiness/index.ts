@@ -8,6 +8,7 @@ import { platformOf, type Binding, type PlatformBinding } from '../../domain/man
 import { undeclaredPlatform } from '../../domain/obs/coordinate.js';
 import { problemsOfTool } from '../../domain/setup/names.js';
 import { gaveNoAnswer, SetupProgress } from '../../domain/setup/progress.js';
+import { bindToolCommand } from '../../domain/toolchain/command.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import { buildPlan } from '../login/collect.js';
@@ -15,7 +16,7 @@ import type { LoginDeps } from '../login/deps.js';
 import { handoffStep, loginCommand } from '../login/handoff.js';
 import { Verifier } from '../login/verify.js';
 import { isTrustRequired } from '../safety/trust.js';
-import { ToolCheck, toolRecoveryCommand } from '../tool/check.js';
+import { ToolCheck, toolRecoveryCommand, type ToolState } from '../tool/check.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
 
@@ -65,7 +66,40 @@ export class Readiness {
 
     if (target.tool === null) return this.verdict('ready');
 
-    const state = await this.toolState(target.tool);
+    const inspected = await this.toolState(target.tool);
+    const state = typeof inspected === 'string' ? inspected : inspected.state;
+    const result = await this.toolVerdict({ ...target, tool: target.tool }, state, env);
+    if (typeof inspected === 'string') return result;
+    const execution = {
+      tool: inspected.name,
+      binary: inspected.binary,
+      binary_path: inspected.binary_path ?? null,
+      version: inspected.installed,
+      cwd: this.deps.ctx.root,
+    };
+    return {
+      ...result,
+      execution,
+      handoff:
+        result.handoff === null
+          ? null
+          : {
+              ...result.handoff,
+              user_steps: result.handoff.user_steps.map((step) => ({
+                ...step,
+                ...(step.command === undefined
+                  ? {}
+                  : { command: bindToolCommand(step.command, execution) }),
+              })),
+            },
+    };
+  }
+
+  private async toolVerdict(
+    target: Target & { readonly tool: ResolvedTool },
+    state: ToolState | 'untrusted',
+    env: string | null,
+  ): Promise<Verdict> {
     if (state === 'untrusted') return untrusted(this.deps, target.tool.name);
     if (state === 'unknown') return versionUnknown(this.deps, target.tool);
     if (state !== 'ok')
@@ -159,11 +193,12 @@ export class Readiness {
   private async inspectToolState(tool: ResolvedTool): Promise<ToolReadiness> {
     try {
       const [status] = await new ToolCheck(this.deps.process).execute({
+        cwd: this.deps.ctx.root,
         tools: [tool],
         trust: this.deps.trust,
       });
       if (status === undefined) return 'unknown';
-      return status.state;
+      return status;
     } catch (err) {
       if (isTrustRequired(err)) return 'untrusted';
       if (err instanceof DevkitError) return 'unknown';

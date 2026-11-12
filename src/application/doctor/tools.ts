@@ -25,6 +25,7 @@ export async function checkTools(
     try {
       const [status] = await checks.unit(tool.name, () =>
         check.execute({
+          cwd: deps.ctx.root,
           tools: [{ ...tool, required: options.required.has(tool.name) }],
           trust: deps.trust,
         }),

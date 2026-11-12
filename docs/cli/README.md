@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.17.0).
+Command syntax for the current source (package version 0.18.0).
 See the [version history](../../CHANGELOG.md) for changes between releases.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 
@@ -13,7 +13,7 @@ Use `fx <command> --help` for the exact syntax supported by your executable.
 | `fx login` | Prepare tool access for the selected workspace: authentication, configuration and permission checks |
 | `fx doctor` | Check repositories, tools, login state, agent Skills, the manifest and whether fx or the manifest is behind, in one pass |
 | `fx status` | Show every tracked repository: branch, cleanliness, position against upstream |
-| `fx can` | Whether a capability or tool can be used right now; when not, what a person must do first |
+| `fx can` | Whether a capability or tool can be used right now, its checked executable, and how to recover |
 | `fx where` | Locate repository coordinates; optionally probe or record their existence |
 | `fx release check` | Show what each repository would release and check it: dependencies, branches, builds and unresolved errors. Read-only |
 | `fx completion` | Print a shell completion script for bash, zsh, fish or PowerShell |
@@ -157,7 +157,7 @@ Flags:
 | `--dry-run` | print the fix plan instead of applying it (requires: --fix) |
 | `--env` | only these environments (provider tool and login checks) (repeatable or comma-separated) (repeatable) |
 | `--fix` | apply the fixes fx can make itself |
-| `--tool` | check these tools explicitly (default: declared tools and active providers) (repeatable or comma-separated) (repeatable) |
+| `--tool` | limit checks and fixes to these tools and their setup; omit for the whole workspace (repeatable or comma-separated) (repeatable) |
 
 Examples:
 
@@ -189,7 +189,7 @@ fx status --fetch --dirty
 
 ## `fx can`
 
-Whether a capability or tool can be used right now; when not, what a person must do first
+Whether a capability or tool can be used right now, its checked executable, and how to recover
 
 Without a target, list every capability a manifest binds and what serves it in this workspace. The list reads bindings only; it does not check readiness.
 
@@ -857,6 +857,22 @@ Examples:
 ```bash
 fx member show alice
 fx member show ou_alice --format json
+```
+
+## `fx member selectors`
+
+List exact area, scenario, team and function selectors without people
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--kind` | only this kind of selector (one of: area, scenario, team, function) |
+
+Examples:
+
+```bash
+fx member selectors --kind scenario --format json
 ```
 
 ## `fx repo list`

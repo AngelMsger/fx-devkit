@@ -1,7 +1,7 @@
 // Execute the printed recovery from an unrelated directory and competing workspace context.
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -95,6 +95,268 @@ function follow(command: string, s: ReturnType<typeof stage>, environment: NodeJ
 }
 
 describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POSIX shell', () => {
+  it('requires separate exact-vector trust before executing a configured probe', () => {
+    const s = stage();
+    const marker = path.join(s.base, 'untrusted-probe.txt');
+    const bin = path.join(s.base, 'bin');
+    writeNodeShim(
+      bin,
+      'custom-jenkins',
+      `
+const args=process.argv.slice(2);
+if(args.includes('--version')) console.log('9.0.0');
+else if(args.includes('auth')) console.log(JSON.stringify({authenticated:true}));
+else require('node:fs').writeFileSync(process.env.PROBE_RECORD, 'executed');
+`,
+    );
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/tools.yaml'),
+      stringify({
+        schema_version: 3,
+        tools: [{ name: 'jenkins-cli', binary: 'custom-jenkins' }],
+      }),
+    );
+    const env = { ...s.env, PATH: searchPath(bin), PROBE_RECORD: marker };
+    const scope = ['--workspace', 'alpha', '--env', 'test', '--format', 'json'];
+    expect(fx(['can', 'ci', ...scope, '--yes'], env, s.roots.beta).status).toBe(0);
+    for (const check of [[], ['--no-check']]) {
+      const blocked = fx(
+        ['where', 'api', '--platform', 'ci', '--probe', '--no-input', ...scope, ...check],
+        env,
+        s.roots.beta,
+      );
+      expect(blocked.error().code).toBe('VECTOR_UNTRUSTED');
+      expect(existsSync(marker)).toBe(false);
+    }
+    const allowed = fx(
+      ['where', 'api', '--platform', 'ci', '--probe', '--yes', ...scope],
+      env,
+      s.roots.beta,
+    );
+    expect(allowed.status, allowed.stderr).toBe(0);
+    expect(readFileSync(marker, 'utf8')).toBe('executed');
+  });
+
+  it('keeps nested service version checks on the selected workspace', () => {
+    const s = stage();
+    for (const name of ['alpha', 'beta'] as const)
+      writeNodeShim(
+        path.join(s.roots[name], 'bin'),
+        'jenkins-cli',
+        `
+const args=process.argv.slice(2);
+if(args.includes('--version')) console.log(${JSON.stringify(name === 'alpha' ? '9.0.0' : '0.1.0')});
+else if(args.includes('config')||args.includes('reuse')) console.log(JSON.stringify({changed:false}));
+else console.log(JSON.stringify({authenticated:true}));
+`,
+      );
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/environments.yaml'),
+      stringify({
+        schema_version: 2,
+        platforms: {
+          ci: {
+            provider: 'jenkins-cli',
+            capability: 'ci',
+            service: { base_url: 'https://ci.example.com', context: 'test', auth_scheme: 'token' },
+          },
+        },
+        envs: { test: { platforms: { ci: { vars: { path: 'services/api/main' } } } } },
+      }),
+    );
+    const result = fx(
+      ['can', 'ci', '--workspace', 'alpha', '--env', 'test', '--format', 'json'],
+      { ...s.env, PATH: `./bin${path.delimiter}${searchPath()}` },
+      s.roots.beta,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.json()).toMatchObject({
+      status: 'ready',
+      handoff: null,
+      execution: { tool: 'jenkins-cli', version: '9.0.0', cwd: s.roots.alpha },
+    });
+  });
+
+  it('keeps member selector recovery on the explicitly selected workspace', () => {
+    const s = stage('beta');
+    for (const [workspace, person] of [
+      ['alpha', 'alice'],
+      ['beta', 'bob'],
+    ]) {
+      writeFileSync(
+        path.join(manifestDirOf(s.home, workspace!), 'manifest/members.yaml'),
+        stringify({
+          schema_version: 1,
+          sensitive: true,
+          people: [{ id: person }],
+          areas: [
+            {
+              group: 'Ecosystem',
+              scenarios: [{ name: 'Help Center', roles: { backend: [person] } }],
+            },
+          ],
+        }),
+      );
+    }
+    const env = { ...s.env, FX_WORKSPACE: 'beta' };
+    const answer = fx(
+      ['member', 'list', '--workspace', 'alpha', '--area', 'Help Center', '--format', 'json'],
+      env,
+      s.roots.beta,
+    );
+    expect(answer.error().code).toBe('AREA_NOT_FOUND');
+    const command = answer.error().next_steps[0]!;
+    expect(command).toContain('--workspace alpha');
+    const recovered = follow(command, s, env);
+    expect(recovered.status, recovered.stderr).toBe(0);
+    expect(recovered.json()).toMatchObject({ items: [{ id: 'alice' }] });
+  });
+
+  it('checks, prints and probes the same configured binary from the selected workspace', () => {
+    const s = stage();
+    const marker = path.join(s.base, 'probe.txt');
+    for (const name of ['alpha', 'beta'] as const) {
+      writeNodeShim(
+        path.join(s.roots[name], 'bin'),
+        'custom-jenkins',
+        `
+const args = process.argv.slice(2);
+if (args.includes('--version')) console.log('9.0.0');
+else if (args.includes('auth')) console.log(JSON.stringify({authenticated:true}));
+else require('node:fs').appendFileSync(process.env.PROBE_RECORD, ${JSON.stringify(name)} + '|' + process.cwd() + String.fromCharCode(10));
+`,
+      );
+    }
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/tools.yaml'),
+      stringify({ schema_version: 3, tools: [{ name: 'jenkins-cli', binary: 'custom-jenkins' }] }),
+    );
+    const env = { ...s.env, PATH: `./bin${path.delimiter}${searchPath()}`, PROBE_RECORD: marker };
+    const result = fx(
+      [
+        'where',
+        'api',
+        '--workspace',
+        'alpha',
+        '--env',
+        'test',
+        '--platform',
+        'ci',
+        '--probe',
+        '--yes',
+        '--format',
+        'json',
+      ],
+      env,
+      s.roots.beta,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const row = (result.json() as { items: { command: string; probed: string }[] }).items[0]!;
+    expect(row).toMatchObject({
+      ready: 'ready',
+      outcome: 'reachable',
+      suggested_confidence: 'verified',
+      execution: { tool: 'jenkins-cli', binary: 'custom-jenkins', cwd: s.roots.alpha },
+    });
+    expect(row.command).toContain('custom-jenkins');
+    expect(row.probed).toContain('custom-jenkins');
+    expect(readFileSync(marker, 'utf8')).toBe(`alpha|${s.roots.alpha}\n`);
+  });
+
+  it('does not let an unrelated incomplete setup block a scoped doctor repair', () => {
+    const s = stage();
+    writeFileSync(
+      path.join(manifestDirOf(s.home, 'alpha'), 'manifest/environments.yaml'),
+      stringify({
+        schema_version: 2,
+        platforms: {
+          ci: { provider: 'jenkins-cli', capability: 'ci' },
+          cluster: { provider: 'kubectl', capability: 'cluster' },
+        },
+        envs: { test: { platforms: { ci: { vars: { path: 'services/api/main' } }, cluster: {} } } },
+      }),
+    );
+    const bin = path.join(s.base, 'bin');
+    writeNodeShim(
+      bin,
+      'jenkins-cli',
+      "if (process.argv.includes('--version')) console.log('9.0.0'); else console.log(JSON.stringify({authenticated:true}));",
+    );
+    const result = fx(
+      [
+        'doctor',
+        '--tool',
+        'jenkins-cli',
+        '--workspace',
+        'alpha',
+        '--fix',
+        '--yes',
+        '--format',
+        'json',
+        '--details',
+      ],
+      { ...s.env, PATH: searchPath(bin) },
+      s.roots.beta,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const report = result.json() as { findings: { id: string }[] };
+    expect(report).toMatchObject({
+      repairs: [{ group: 'login', status: 'completed' }],
+      coverage: 'complete',
+    });
+    expect(report.findings.some((finding) => finding.id.startsWith('kubectl'))).toBe(false);
+  });
+
+  it('executes the checked companion after a later shell selects an older installation', () => {
+    const s = stage();
+    const current = path.join(s.base, 'current tools');
+    const old = path.join(s.base, 'old tools');
+    const checked = writeNodeShim(
+      current,
+      'jenkins-cli',
+      `
+const args = process.argv.slice(2);
+if (args.includes('--version')) console.log('9.0.0');
+else if (args.includes('auth')) console.log(JSON.stringify({authenticated:true}));
+else console.log('checked installation');
+`,
+    );
+    writeNodeShim(old, 'jenkins-cli', "console.log('old installation');");
+    const result = fx(
+      ['where', 'api', '--env', 'test', '--platform', 'ci', '--format', 'json'],
+      { ...s.env, PATH: searchPath(current) },
+      s.roots.alpha,
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const row = (
+      result.json() as {
+        items: {
+          ready: string;
+          command: string;
+          execution: { binary_path: string; version: string; cwd: string };
+        }[];
+      }
+    ).items[0]!;
+    expect(row).toMatchObject({
+      ready: 'ready',
+      execution: { binary_path: checked, version: '9.0.0', cwd: s.roots.alpha },
+    });
+    const env = childEnvironment({ ...s.env, PATH: searchPath(old) });
+    expect(
+      spawnSync('/bin/sh', ['-c', 'jenkins-cli --version'], {
+        env,
+        encoding: 'utf8',
+      }).stdout.trim(),
+    ).toBe('old installation');
+    const follow = spawnSync('/bin/sh', ['-c', row.command], {
+      cwd: row.execution.cwd,
+      env,
+      encoding: 'utf8',
+    });
+    expect(follow.status, follow.stderr).toBe(0);
+    expect(follow.stdout.trim()).toBe('checked installation');
+  });
+
   it.each(['none', 'beta', 'environment'] as const)(
     'keeps repo/env recovery on alpha with context %s',
     (context) => {
@@ -345,7 +607,11 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
     );
     // Installed, with its access not yet enabled: the step is a person's to finish.
     const shims = path.join(s.base, 'shims');
-    writeNodeShim(shims, 'fixture-tool', 'process.exit(1);');
+    writeNodeShim(
+      shims,
+      'fixture-tool',
+      "if (process.argv.includes('--version')) console.log('1.0.0'); else process.exit(1);",
+    );
     const env = {
       ...s.env,
       FX_WORKSPACE: 'beta',
@@ -363,7 +629,17 @@ describe.skipIf(process.platform === 'win32')('scoped recovery commands in a POS
     const pending = follow(result.error().next_steps[0]!, s, env);
     expect(pending.error().code).toBe('LOGIN_REQUIRED');
     const report = fx(
-      ['doctor', '--tool', 'fixture-tool', '--workspace', 'alpha', '--format', 'json', '--details'],
+      [
+        'doctor',
+        '--tool',
+        'fixture-tool',
+        '--workspace',
+        'alpha',
+        '--yes',
+        '--format',
+        'json',
+        '--details',
+      ],
       env,
       s.base,
     ).json() as { findings: { group: string; id: string; fix?: string }[] };

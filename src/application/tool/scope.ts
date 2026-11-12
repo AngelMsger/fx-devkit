@@ -43,7 +43,7 @@ export function workspaceToolScope(
   const toolchain = toolchainOf(ctx);
   const available = toolchain.all;
   const known = (tool: string): boolean => available.some((entry) => entry.name === tool);
-  const bindings = activeBindings(ctx, selection);
+  const bindings = activeBindings(ctx, selection, available);
   const dependencies = new Set(providerTools(bindings, ctx.providers, available).keys());
   const problems: Finding[] = [
     ...unservedBindings(ctx, bindings, available).map((binding) =>
@@ -108,7 +108,11 @@ function unservedBindings(
   });
 }
 
-function activeBindings(ctx: WorkspaceContext, selection: ToolScopeSelection): KeyedBinding[] {
+function activeBindings(
+  ctx: WorkspaceContext,
+  selection: ToolScopeSelection,
+  available: readonly ResolvedTool[],
+): KeyedBinding[] {
   const environments = Object.entries(ctx.manifest.environments?.result.doc.envs ?? {}).filter(
     ([name]) =>
       (selection.envs === undefined || selection.envs.includes(name)) &&
@@ -121,7 +125,14 @@ function activeBindings(ctx: WorkspaceContext, selection: ToolScopeSelection): K
         environments.some(([, env]) => env.platforms?.[binding.platform] !== undefined),
       )
       .map(keyedPlatform),
-  ];
+  ].filter(
+    (binding) =>
+      selection.tools === undefined ||
+      selection.tools.some(
+        (name) =>
+          binding.provider === name || providerTools([binding], ctx.providers, available).has(name),
+      ),
+  );
 }
 
 function isRequired(tool: ResolvedTool, dependencies: ReadonlySet<string>): boolean {

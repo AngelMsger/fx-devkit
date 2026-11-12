@@ -5,15 +5,12 @@
 import { DevkitError } from '../../domain/errors.js';
 import { suggestionHint } from '../../domain/fuzzy.js';
 import type { Person } from '../../domain/manifest/types.js';
-import {
-  memberView,
-  type MemberScope,
-  type MemberClassification,
-} from '../../domain/members/classify.js';
+import type { MemberScope, MemberClassification } from '../../domain/members/classify.js';
 import { findPeople, suggestPerson, type MatchedBy } from '../../domain/members/resolve.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 
 import { membersOf } from './source.js';
+import { scopedMemberView } from './view.js';
 
 export interface PersonRow extends MemberClassification {
   readonly id: string;
@@ -61,7 +58,7 @@ export class MemberShow {
         },
       );
     }
-    const view = memberView(members, input, new Date().toISOString().slice(0, 10));
+    const view = scopedMemberView(this.deps, members, input);
     return matches.map(({ person, matchedBy, via }) => ({
       id: person.id,
       display: person.display ?? null,

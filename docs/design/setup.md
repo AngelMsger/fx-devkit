@@ -476,6 +476,18 @@ keep their separate short budgets. Outer lifecycle deadlines still take preceden
 
 ## Terminal handoff
 
+An explicit `doctor --tool` scopes both diagnosis and repair to the selected tools,
+their installation records and setup. It skips repository/root/host projections and
+unrelated manifest checks. Tool inspection precedes dependent command checks: failed
+startup/version verification leaves them waiting on `tools:<name>`, without a sign-in
+handoff. File-only prerequisites can still be inspected. Unscoped doctor retains the
+whole-workspace checks and repairs.
+
+Providers may declare optional service fields without changing existing declarations.
+Sentry's optional `auth_scheme: token` selects a manual credential-acquisition step
+for servers without device OAuth; its status check still accepts existing authentication.
+The public credential page can be overridden, but no personal token enters a manifest.
+
 Human preparation output includes the required user actions and their commands,
 followed by the continuation command. Identical user commands appear once. Agent
 actions remain separate; displaying personal sign-in never executes it. Structured

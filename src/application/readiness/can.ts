@@ -17,6 +17,7 @@ import {
   type PlatformBinding,
 } from '../../domain/manifest/providers.js';
 import { shellLine } from '../../domain/shell.js';
+import { bindToolCommand } from '../../domain/toolchain/command.js';
 import type { McpVerdict } from '../harness/mcp-readiness.js';
 import { canMcp, type HarnessSession } from '../harness/session.js';
 import type { LoginDeps } from '../login/deps.js';
@@ -54,6 +55,10 @@ export interface CapabilityRow {
   readonly desc: string;
 }
 
+type ReferenceEntry = Omit<NonNullable<CanResult['entry']>, 'command'> & {
+  readonly command: readonly string[];
+};
+
 export const CAPABILITY_COLUMNS = [
   'capability',
   'scope',
@@ -77,14 +82,26 @@ export class Can {
     const readiness = new Readiness(this.deps, this.login);
     const target = readiness.resolve(input.target, input.env);
     const env = input.env ?? null;
-    const entry = this.entry(target);
+    const template = this.entry(target);
+    const verdict = await readiness.judge(target, env);
+    const execution = verdict.execution;
+    const entry =
+      template === undefined
+        ? undefined
+        : {
+            ...template,
+            command: shellLine(
+              bindToolCommand(template.command, execution),
+              this.deps.commandShell,
+            ),
+          };
     return {
       capability: target.capability,
       tool: target.tool?.name ?? null,
       provider: target.binding?.provider ?? null,
       env,
       ...(entry === undefined ? {} : { entry }),
-      ...(await readiness.judge(target, env)),
+      ...verdict,
     };
   }
 
@@ -120,7 +137,7 @@ export class Can {
 
   // A provider the manifest defines itself (see manifestProviderTool) has no entry
   // coordinate to offer: the readiness of its tool answers the question.
-  private entry(target: Target): CanResult['entry'] {
+  private entry(target: Target): ReferenceEntry | undefined {
     const binding = target.binding;
     if (binding === null || binding.provider === null) return undefined;
     const descriptor = this.login.describeProvider(binding.provider);
@@ -139,7 +156,7 @@ export class Can {
     const coordinate = this.deps.reference(binding);
     return {
       label: coordinate.label,
-      command: shellLine(coordinate.command, this.deps.commandShell),
+      command: coordinate.command,
       url: coordinate.url ?? null,
     };
   }

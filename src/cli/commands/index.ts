@@ -41,6 +41,7 @@ import ManifestValidate from './manifest/validate.js';
 import McpList from './mcp/list.js';
 import McpShow from './mcp/show.js';
 import MemberList from './member/list.js';
+import MemberSelectors from './member/selectors.js';
 import MemberShow from './member/show.js';
 import ReleaseCheckCommand from './release/check.js';
 import RepoAdd from './repo/add.js';
@@ -132,6 +133,7 @@ const CANONICAL_COMMANDS = {
   'tool:update': ToolUpdate,
   'member:list': MemberList,
   'member:show': MemberShow,
+  'member:selectors': MemberSelectors,
   'manifest:validate': ManifestValidate,
   'manifest:lint': ManifestLint,
   'manifest:explain': ManifestExplain,

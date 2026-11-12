@@ -80,7 +80,7 @@ export class Doctor {
   async execute(input: DoctorInput): Promise<DoctorReport> {
     validateSetupSelection(this.deps.ctx, input, this.deps.commandShell);
     const toolScope = workspaceToolScope(this.deps.ctx, input, this.deps.commandShell);
-    const repairs = input.fix ? await this.fix({ ...input, tools: toolScope.configuredNames }) : [];
+    const repairs = input.fix ? await this.fix(input, toolScope.configuredNames) : [];
     const groups = await Tally.during(this.deps.activity, 'checks', (checks) =>
       this.check(input, toolScope, checks),
     );
@@ -95,14 +95,8 @@ export class Doctor {
   ): Promise<(readonly Finding[])[]> {
     const group = (name: string, check: () => Promise<readonly Finding[]>) =>
       checks.plan(1).unit(name, check);
-    return Promise.all([
-      toolScope.problems,
-      group('repos', () => checkRepos(this.deps)),
-      group('root', () =>
-        checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
-      ),
-      group('installations', () => checkInstallations(this.doctor.inventory, input.tools)),
-      checkTools(this.deps, toolScope, checks),
+    const tools = checkTools(this.deps, toolScope, checks);
+    const login = tools.then((findings) =>
       checkLogin(
         this.deps,
         this.doctor.login,
@@ -111,9 +105,31 @@ export class Doctor {
           requiredTools: toolScope.required,
           envs: input.envs,
           dryRun: input.dryRun,
+          blockedTools: new Set(
+            findings.filter((f) => f.evidence?.['state'] !== 'ok').map((f) => f.id),
+          ),
         },
         checks,
       ),
+    );
+    if (input.tools !== undefined)
+      return Promise.all([
+        toolScope.problems,
+        group('installations', () =>
+          checkInstallations(this.doctor.inventory, toolScope.configuredNames),
+        ),
+        tools,
+        login,
+      ]);
+    return Promise.all([
+      toolScope.problems,
+      group('repos', () => checkRepos(this.deps)),
+      group('root', () =>
+        checkRoot(this.deps, { hosts: this.doctor.skills.hosts, login: this.doctor.login }),
+      ),
+      group('installations', () => checkInstallations(this.doctor.inventory, input.tools)),
+      tools,
+      login,
       group('agents', () => checkAgents(this.deps, this.doctor.skills)),
       group('manifest', () =>
         checkManifest(this.deps, this.doctor.login, this.doctor.bundledTools, this.doctor.updates),
@@ -129,7 +145,10 @@ export class Doctor {
     findings: readonly Finding[],
     repairs: readonly RepairAttempt[],
   ): Promise<DoctorReport> {
-    const groupOrder = [...GROUPS, ...this.extensions.map((extension) => extension.group)];
+    const groupOrder =
+      input.tools === undefined
+        ? [...GROUPS, ...this.extensions.map((extension) => extension.group)]
+        : ['installations', 'tools', 'login', 'manifest'];
     const diagnostic = report(groupOrder, findings);
     const plan = await new Login(this.deps, this.doctor.login).plan({
       tools: toolScope.configuredNames,
@@ -179,6 +198,9 @@ export class Doctor {
     const step =
       item.group === 'login' ? plan.steps.find((step) => step.id === item.id) : undefined;
     const check = findingCheck(item, step ? toolScope.required.has(step.tool) : item.required);
+    const waitsOn = item.evidence?.['waits_on'];
+    if (typeof waitsOn === 'string')
+      return { ...check, waits_on: waitsOn, actions: [], owner: 'agent' };
     if (step === undefined || item.level === 'ok' || item.actions) return check;
     const handoff = handoffOf(item, step);
     return {
@@ -187,7 +209,7 @@ export class Doctor {
     };
   }
 
-  private async fix(input: DoctorInput): Promise<RepairAttempt[]> {
+  private async fix(input: DoctorInput, tools: readonly string[]): Promise<RepairAttempt[]> {
     if (!input.dryRun) assertWritable(input.posture, 'doctor --fix');
     const repairs: RepairAttempt[] = [];
     const attempt = async (group: string, run: () => Promise<unknown>): Promise<void> => {
@@ -200,26 +222,28 @@ export class Doctor {
         repairs.push({ group, status: 'failed', failure: toEnvelope(failure).error });
       }
     };
-    for (const extension of this.extensions) {
-      if (extension.fix) await attempt(extension.group, () => extension.fix!(input));
+    if (input.tools === undefined) {
+      for (const extension of this.extensions) {
+        if (extension.fix) await attempt(extension.group, () => extension.fix!(input));
+      }
+      await attempt('agents', () =>
+        new SkillStage(this.deps, this.doctor.skills).execute({
+          dryRun: input.dryRun,
+          posture: input.posture,
+        }),
+      );
+      await attempt('manifest', () =>
+        new DeriveDocs(this.deps, this.doctor.login).execute({
+          check: false,
+          dryRun: input.dryRun,
+          posture: input.posture,
+        }),
+      );
     }
-    await attempt('agents', () =>
-      new SkillStage(this.deps, this.doctor.skills).execute({
-        dryRun: input.dryRun,
-        posture: input.posture,
-      }),
-    );
-    await attempt('manifest', () =>
-      new DeriveDocs(this.deps, this.doctor.login).execute({
-        check: false,
-        dryRun: input.dryRun,
-        posture: input.posture,
-      }),
-    );
     await attempt('login', () =>
       new Login(this.deps, this.doctor.login).execute({
         mode: 'prepare',
-        tools: input.tools,
+        tools,
         envs: input.envs,
         skipManual: true,
         dryRun: input.dryRun,

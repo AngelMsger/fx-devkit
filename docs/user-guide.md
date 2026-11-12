@@ -671,6 +671,25 @@ readability. [Support](support.md#troubleshooting) explains discovery and update
 
 ### Resume login after a handoff
 
+Use `doctor --tool <name>` for a focused diagnosis: only that tool's installation
+and setup are checked or repaired. It does not refresh unrelated repositories,
+guides or host resources. Omit `--tool` for the full workspace check. If an
+executable/version check fails, dependent command checks wait for that prerequisite;
+this does not mean the person needs to sign in again.
+
+`can` and checked `where` results include `execution.binary_path`, `version` and
+`cwd` for an inspected tool. Use that path and working directory in later calls:
+another shell may resolve the same name to a different installation. Provider
+commands and direct handoff vectors are bound to it; manifest shell templates
+remain verbatim. `tool install/update` reports `binary_path` with `version_after`.
+Recheck readiness and reload the matching companion Skill after an update.
+
+Preparation readiness does not guarantee every API permission. Verify the operation
+you need before requesting more access: inability to search does not prove that a
+known document cannot be read. Sentry instances without device OAuth can declare
+`service.auth_scheme: token`; fx then hands over personal token setup and still
+accepts an already authenticated CLI. Never put the token in the manifest or chat.
+
 When `login` needs human input, complete the authorized handoff and repeat the
 same invocation. fx checks current state before rerunning actions; then recheck
 the original `can` or `doctor` query and continue your task. Like init and sync,
@@ -721,6 +740,12 @@ it checks the tool's earlier environments it could not finish again, and reports
 those that now work as verified.
 
 ## Member relationships
+
+Discover filter values with `fx member selectors`, optionally `--kind area`,
+`scenario`, `team` or `function`. Each row returns its kind, ID, name and parent
+area without listing people. A scenario used as an area returns explicit queries
+for its actual parent areas. Missing account keys remain unknown. Responsibility
+data is evidence for a proposal, not permission to replace an existing work-item owner.
 
 Use `fx member show <account> --system <system> --area <id> --format json` to look up an author in context. Require one exact identity match. Read directory memberships, responsible teams for the business, and the person's assignments separately. Multiple confirmed teams can apply. Candidates need verification and missing coverage stays unknown. With no area, show returns all applicable relationships.
 

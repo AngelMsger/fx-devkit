@@ -59,6 +59,12 @@ use canonical names for mutations. An ambiguous match is not permission to guess
 Before querying a service, use `fx where <repo> --env <env>` and select its
 `capability` row. Without a repository, use `fx can <capability|tool> [--env <env>]`.
 Inspect `ready`/`status`, coordinates and handoffs, then use the companion's Skill.
+Use `execution.binary_path` from the check, and its `cwd`, for subsequent companion
+calls. Checked provider commands and direct handoff vectors are already bound to
+that executable. Manifest-authored shell templates remain verbatim: inspect them
+against the returned execution evidence before use. After an update, compare its
+`binary_path`/`version_after` with the next readiness result and reload the matching
+companion Skill. Do not substitute a bare command from another shell's PATH.
 A printed command is not permission for a write. fx's diagnostic provider queries
 are read-only; source contributions use a separate explicit write workflow.
 
@@ -91,12 +97,19 @@ Authorization persists across steps; a handoff does not expand it.
    `login <tool> --env <env> --dry-run --no-input`. Omit `--env` for unscoped tools.
    `login --list` describes recipes without verifying them. Load the companion's
    Skill before provider-specific setup.
+   A scoped doctor checks/fixes only the named tools and their setup. Executable
+   failures block dependent command checks; they do not establish missing credentials.
+   Reuse the cause and next action already returned instead of rerunning an unchanged probe.
 2. Perform authorized local preparation. Verify the package, registry and exact
    vectors before installation. Preserve working configuration; fix confirmed
    PATH/runtime problems before reinstalling. A run step may still open a browser
    or create credentials, so inspect its effects.
 3. Hand off only what requires the person: consent, access, credentials or a new
    approval. Never request tokens in chat. Continue independent work while waiting.
+   Test the requested operation first: lack of search permission does not establish
+   that a known document cannot be read. If a Sentry instance rejects device OAuth
+   with `invalid_client`, follow its token acquisition instructions rather than
+   repeating that flow; a declared `service.auth_scheme: token` selects manual setup.
 4. Re-run the same readiness check and resume the original task on `ready`.
    Do not repeat unchanged failures or reinitialize successful setup.
 
@@ -110,6 +123,12 @@ runtime and PATH before reinstalling. A verified `node <checkout>/bin/fx.js` can
 stand in for `fx`; `self update` cannot repair an entry that cannot execute.
 
 ## Routing
+
+For member filters, discover exact values with `fx member selectors`, optionally
+`--kind area|scenario|team|function`. A scenario belongs under its returned `area`;
+do not use a similarly named area as a substitute. Missing account keys are unknown,
+not confirmed accounts. Responsibility evidence supports a proposal; changing an
+existing work-item owner must still follow the user's requested scope.
 
 | Task                                       | Entry                                                                                    |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------- |

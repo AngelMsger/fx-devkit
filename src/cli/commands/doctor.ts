@@ -17,7 +17,9 @@ export default class DoctorCommand extends FxCommand {
   static override flags = {
     fix: Flags.boolean({ description: 'apply the fixes fx can make itself' }),
     env: listFlag('only these environments (provider tool and login checks)'),
-    tool: listFlag('check these tools explicitly (default: declared tools and active providers)'),
+    tool: listFlag(
+      'limit checks and fixes to these tools and their setup; omit for the whole workspace',
+    ),
     'dry-run': Flags.boolean({
       dependsOn: ['fix'],
       description: 'print the fix plan instead of applying it',

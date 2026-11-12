@@ -91,6 +91,28 @@ const kube = (recipe: SetupRecipe): RecipeSource => ({
 });
 
 describe('planSetup', () => {
+  it('applies tool selection before expanding recipes or collecting their problems', () => {
+    const input = {
+      tools: [tool('bitbucket-cli'), tool('kubectl')],
+      recipes: [{ recipe: login, vars: {} }, kube(kubeconfig), kube(access)],
+      providerTools: ['bitbucket-cli', 'kubectl'],
+      environments: {
+        schema_version: 2 as const,
+        platforms: { kube: {} },
+        envs: { dev: { platforms: { kube: {} } } },
+      },
+      scopeEnvs: undefined,
+    };
+    const selected = planSetup({ ...input, filter: { tools: ['bitbucket-cli'] } });
+    expect(selected.problems).toEqual([]);
+    expect(selected.steps.map((step) => step.id)).toEqual(['bitbucket-cli.login']);
+    expect(planSetup({ ...input, filter: { tools: [] } })).toEqual({ steps: [], problems: [] });
+    expect(planSetup({ ...input, filter: { tools: ['kubectl'] } }).problems).toMatchObject([
+      { reason: 'missing_vars' },
+      { reason: 'missing_vars' },
+    ]);
+  });
+
   it('reports conflicting platform steps and withholds their dependent actions', () => {
     const shared = { platforms: { alpha: {}, beta: {} } };
     const plan = planSetup({
@@ -351,7 +373,7 @@ describe('planSetup', () => {
   });
 
   it('skips disabled tools, flags recipes for unknown tools, and filters by tool', () => {
-    const plan = planSetup({
+    const input = {
       tools: [tool('bitbucket-cli', { enabled: false }), tool('kubectl')],
       recipes: [
         { recipe: login, vars: { web: 'x' } },
@@ -361,10 +383,11 @@ describe('planSetup', () => {
       providerTools: ['bitbucket-cli', 'kubectl'],
       environments,
       scopeEnvs: undefined,
-      filter: { tools: ['kubectl'] },
-    });
+    };
+    const plan = planSetup({ ...input, filter: { tools: ['kubectl'] } });
     expect(plan.steps.map((s) => s.tool)).toEqual(['kubectl', 'kubectl']);
-    expect(plan.problems).toEqual([
+    expect(plan.problems).toEqual([]);
+    expect(planSetup(input).problems).toEqual([
       { step: 'ghost.login', reason: 'tool_unknown', detail: 'ghost is not in the toolchain' },
     ]);
   });

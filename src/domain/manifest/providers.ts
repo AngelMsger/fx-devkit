@@ -19,6 +19,7 @@ import type { Environments, Workspace } from './types.js';
 // methods it can use. A provider without one takes no service block at all.
 export interface ServiceContract {
   readonly fields: readonly ServiceField[];
+  readonly optionalFields?: readonly ServiceField[];
   readonly authSchemes?: readonly AuthScheme[];
 }
 

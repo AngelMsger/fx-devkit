@@ -48,6 +48,7 @@ export interface ToolInstallOutput {
   readonly ran: boolean;
   readonly code: number | null;
   readonly version_after: string | null;
+  readonly binary_path?: string | null;
   readonly error?: string;
   readonly status?: EffectOutcome;
   readonly phase?: 'install' | 'version';
@@ -191,7 +192,8 @@ export class ToolInstall {
       retain({ ...current, phase: 'version' });
       binaryPath = (await this.deps.process.which(tool.binary)) ?? null;
       const version = await this.probe(tool, input.trust);
-      retain({ ...output, ran: true, code: 0, version_after: version ?? null, status: 'done' });
+      const observed = { binary_path: binaryPath, version_after: version ?? null };
+      retain({ ...output, ...observed, ran: true, code: 0, status: 'done' });
       return current;
     } catch (error) {
       const failure = toEnvelope(asDevkitError(error)).error;

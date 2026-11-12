@@ -104,6 +104,20 @@ change; aggregate timings alone do not prove that evidence coverage was preserve
 
 ## Other reusable probes
 
+The CLI regressions also cover failures at the boundary with an agent's shell:
+
+- `test/e2e/scoped-recovery.test.ts` changes PATH after readiness, then executes the
+  printed provider command against the checked installation. Keep paths with spaces.
+- Doctor application cases distinguish an unavailable executable from missing
+  credentials and verify that a scoped repair leaves unrelated host resources alone.
+- Service cases cover token-only Sentry acquisition and existing-login reuse;
+  member cases distinguish exact scenario names from superficially similar areas.
+
+When evaluating the companion Skill, include a known-resource read whose search
+permission is unavailable. Successful recovery should complete the requested read
+without asking for unrelated access. Use synthetic/private fixtures and measure
+task completion and unnecessary handoffs separately from command counts.
+
 - `harness-smoke.mjs` prepares disposable lifecycle resources for native inspection.
 - `bitbucket-parent-smoke.mjs` exercises companion fork-parent output against a
   loopback fixture. Companion changes belong in the companion repository; this

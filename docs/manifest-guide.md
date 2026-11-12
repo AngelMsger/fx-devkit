@@ -470,7 +470,11 @@ offers; it is not a condition of readiness. A member whose context for the same
 Prometheus accepts `auth_scheme: none` for a server that takes no sign-in: its
 readiness is whether the server answers, and no login is requested. Use `basic`
 or `bearer` only where a gateway in front of it requires one.
-Sentry accepts only `base_url` and `org`. A platform that names no `provider` is
+Sentry requires `base_url` and `org`. It also accepts optional `auth_scheme: token`
+for instances without device OAuth, and a public `credential_url` acquisition page.
+Omitting the method preserves device/browser login; token mode uses a manual handoff
+without embedding secrets in commands. Existing authenticated CLI state remains valid
+regardless of the declared acquisition method. A platform that names no `provider` is
 checked against the provider its own name implies, the same one `fx manifest
 providers` reports for it. Identical declarations can share a local
 destination; incompatible settings for the same destination block preparation.

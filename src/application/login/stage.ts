@@ -183,7 +183,7 @@ export function setupActions(
         id: `approve:${step.id}`,
         description: initializing
           ? 'Review the remaining initialization effects and continue this workspace'
-          : `Repair ${step.tool}'s local preparation and the workspace's managed guides and Skills`,
+          : `Repair ${step.tool}'s local preparation`,
         argv: initializing
           ? [...resume.argv, '--yes']
           : ['fx', 'doctor', '--fix', '--tool', step.tool, '--workspace', deps.ctx.name, '--yes'],

@@ -7,7 +7,7 @@ import type { Binding, PlatformBinding } from '../../domain/manifest/providers.j
 import type { SetupStep } from '../../domain/setup/types.js';
 import type { ResolvedTool } from '../../domain/toolchain/resolve.js';
 import type { Pending } from '../login/handoff.js';
-import type { ToolState } from '../tool/check.js';
+import type { ToolStatus } from '../tool/check.js';
 
 export type ReadyStatus =
   | 'ready'
@@ -19,7 +19,16 @@ export type ReadyStatus =
   | 'not_covered'
   | 'unknown';
 
-export type ToolReadiness = ToolState | 'untrusted';
+export type ToolReadiness = ToolStatus | 'unknown' | 'untrusted';
+
+// The installation checked by this fx process, which can differ from a later shell's PATH.
+export interface ToolExecution {
+  readonly tool: string;
+  readonly binary: string;
+  readonly binary_path: string | null;
+  readonly version: string | null;
+  readonly cwd: string;
+}
 
 // A step that keeps a target from being ready, with what is known about why.
 export interface PendingStep {
@@ -50,4 +59,5 @@ export interface Verdict {
   readonly handoff: HandoffEnvelope | null;
   readonly alternatives: readonly string[];
   readonly unfinished?: readonly UnfinishedCheck[];
+  readonly execution?: ToolExecution;
 }

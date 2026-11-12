@@ -104,6 +104,13 @@ Read `detail` and the step's own guidance. A missing `check` comes from an older
 or a check that did not run; `fx doctor --tool <tool> [--env <env>]` shows the tool's
 message.
 
+When a tool was inspected, `execution` contains its canonical `tool`, configured `binary`, nullable
+`binary_path` and `version`, and the workspace `cwd`. Use this executable instead
+of resolving the name again in another shell. Checked provider entry/coordinate
+commands and direct handoff vectors use that path. Manifest shell templates stay
+verbatim; `--no-check` does not bind or verify a tool. Recheck after changing an
+installation. A ready tool does not establish permission for every API operation.
+
 A bound provider without a companion tool has no installation or login check;
 `ready` means preparation is complete, not that every repository query will succeed.
 
@@ -148,6 +155,11 @@ reason, and a note of the environment may follow.
 `fx member show <query>` — `items[]` of people: `id`, `display`, `email`, `status`, `mentor`, `leader`, `accounts` (per system), `matched_by`, `via`. For author attribution, pass `--system <system>` and require exactly one account match. Keep ambiguous identity candidates separate. List and show return `mentor` and `leader` as explicit person IDs or null; neither is inferred from business roles, other people or date filters.
 Use `--area <id>` and optionally `--scenario <id>` for a business context. Keep `memberships`, `responsible_teams`, and `assignments` separate. Read each edge's source and status. A confirmed function without a team leaves team classification uncovered. Multiple confirmed teams are valid. `candidate`, `multiple_candidates`, `not_configured`, and `not_covered` do not confirm a team. Date filters evaluate declared intervals only.
 `fx member list --team <id> --function <id> --area <id>` requires a single matching assignment. Without business scope, either kind of relationship may match. Keep collective `all` separate from named people.
+
+`fx member selectors [--kind area|scenario|team|function]` returns vocabulary rows
+with `kind`, canonical `id`, display `name` and nullable parent `area`. Results contain
+no people. A name supplied as an area that exactly identifies a scenario/team/function
+returns the corresponding explicit queries instead of an unrelated fuzzy area.
 
 `fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact. Its `next_steps` use the canonical repository name and explicit workspace to select an unpicked repository and synchronize missing shared checkouts; inspection itself never changes selection or downloads files.
 

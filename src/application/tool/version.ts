@@ -7,10 +7,11 @@ import type { Process } from '../../ports/process.js';
 export async function probeToolVersion(
   process: Pick<Process, 'run'>,
   tool: Pick<ResolvedTool, 'name' | 'binary' | 'versionArgs'>,
-  options: { readonly propagateErrors?: boolean } = {},
+  options: { readonly propagateErrors?: boolean; readonly cwd?: string | undefined } = {},
 ): Promise<string | undefined> {
   try {
     const result = await process.run([tool.binary, ...tool.versionArgs], {
+      ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
       timeoutMs: 5000,
       diagnostic: { phase: `${tool.name} version probe` },
     });

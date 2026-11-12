@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.18.0 (2026-11-12)
+
+- Bind readiness evidence, provider commands, handoffs and probes to the same executable and workspace, including custom binary names.
+- Scope tool diagnosis and repair before setup expansion; distinguish startup prerequisites from credential handoffs.
+- Support manual personal-token acquisition for Sentry instances without device OAuth while preserving existing authentication.
+- Add member selector discovery and workspace-preserving query corrections, with updated companion guidance and regression coverage.
+
 ## 0.17.0 (2026-11-10)
 
 - Declare personal mentors and leaders on `people`; member list/show expose explicit IDs or null, and validation rejects invalid references and cycles.
