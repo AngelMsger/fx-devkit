@@ -1,6 +1,6 @@
 # fx-devkit command reference
 
-Command syntax for the current source (package version 0.18.1).
+Command syntax for the current source (package version 0.19.0).
 See the [version history](../../CHANGELOG.md) for changes between releases.
 Use `fx <command> --help` for the exact syntax supported by your executable.
 
@@ -260,11 +260,17 @@ Flags:
 
 | Flag | Description |
 |---|---|
+| `--baseline` | historical release baseline as repo=ref; repeat for multiple repositories (repeatable) |
 | `--env` | environment whose errors count; default: release.env |
+| `--from` | inclusive error-window start, ISO timestamp with timezone; requires --to and excludes --since |
+| `--history-limit` | maximum first-parent commits per version history (default: 100) |
 | `--jobs` | independent checks handled at the same time (default: 4) |
 | `--only` | only these checks (repeatable or comma-separated) (repeatable; one of: deps, merge, ci, errors) |
 | `--since` | how far back a new error counts; default: release.since |
 | `--tag` | only repositories carrying these tags (repeatable or comma-separated) (repeatable) |
+| `--to` | exclusive error-window end, ISO timestamp with timezone; requires --from |
+| `--version-history` | read the last version-field change at each pinned source head (default: false) |
+| `--version-path` | explicit version declaration as repo=path, including nested packages; repeatable (repeatable) |
 
 Examples:
 
@@ -898,13 +904,38 @@ fx repo list --unreadable
 
 ## `fx repo show`
 
-Show one repository: resolved entry, disk state, code-host URLs and owners
+Show one repository: resolved entry, disk state, code-host URLs and responsibility facts
 
 Arguments:
 
 | Argument | Required | Description |
 |---|---|---|
 | `name` | yes | repository name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--as-of` | relationship validity date in the current members document (YYYY-MM-DD, default today in UTC); not a historical snapshot |
+
+## `fx repo version`
+
+Read a pinned version declaration, its last field change and an optional historical baseline. Read-only
+
+Arguments:
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | yes | known repository name |
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--baseline` | historical release ref to resolve and compare with the pinned head |
+| `--history-limit` | maximum first-parent commits examined (default: 100) |
+| `--path` | repository-relative VERSION or package metadata path; supports nested packages |
+| `--ref` | branch, tag or commit; default: declared repository branch or remote default |
 
 ## `fx repo select`
 

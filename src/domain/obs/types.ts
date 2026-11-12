@@ -3,6 +3,8 @@
 // everything the manifest had to say about it. fx prints coordinates, it never executes
 // them.
 
+import type { ErrorEnvelope } from '../errors.js';
+import type { TimeRange } from '../release/window.js';
 import type { Vars } from '../template.js';
 
 import type { Confidence } from './confidence.js';
@@ -48,6 +50,20 @@ export interface Issue {
   readonly count: number;
   readonly url: string | null;
   readonly culprit: string | null;
+  // Legacy firstSeen means lifetime; explicit scope prevents a filtered list date masquerading as it.
+  readonly firstSeenScope?: 'lifetime' | 'unknown';
+  readonly listFirstSeen?: string | null;
+  readonly windowFirstSeen?: string | null;
+  readonly status?: string | null;
+  // Receipt time of the metadata response that supplied this status, not the report start.
+  readonly statusObservedAt?: string;
+  readonly assignee?: Readonly<Record<string, unknown>> | null;
+}
+
+export interface IssueFailure {
+  readonly stage: 'list' | 'detail' | 'pagination' | 'metadata';
+  readonly issue_id?: string;
+  readonly error: ErrorEnvelope['error'];
 }
 
 export interface IssueQuery {
@@ -55,12 +71,21 @@ export interface IssueQuery {
   readonly since: string;
   // The most issues worth returning.
   readonly limit: number;
+  readonly range?: TimeRange;
+  // Report start for correlation only; adapters independently date status observations.
+  readonly observedAt?: string;
+  readonly cursor?: string;
 }
 
 export interface IssuePage {
   readonly issues: readonly Issue[];
   // The tracker had more than the limit asked for, so the list is a floor.
   readonly more: boolean;
+  readonly next?: string;
+  readonly pagesRead?: number;
+  readonly coverage?: 'checked' | 'incomplete';
+  readonly failures?: readonly IssueFailure[];
+  readonly truncationReason?: string;
 }
 
 export interface ObsCoordinate {

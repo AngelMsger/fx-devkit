@@ -1,8 +1,5 @@
-// The `sentry` CLI is not a family tool: it answers `--json` with a `data`
-// array and speaks in exit-code ranges (10–19 no credentials, 20–29 input,
-// 30–39 the API) rather than the family's single codes. A rejected token
-// surfaces as an API failure carrying "401 Unauthorized" (measured against
-// sentry 0.42), so credentials are recognised by range or by that text.
+// The companion owns API transport and credentials. fx reads its JSON envelopes
+// and preserves authentication and throttling failures without fetching events.
 
 import { type Category, DevkitError } from '../../../domain/errors.js';
 import { stderrReason } from '../../../domain/toolchain/stderr.js';
@@ -24,7 +21,11 @@ export class SentryCli {
   // host is asking for that one, not for whichever was configured last.
   async call(args: readonly string[], timeoutMs: number, host?: string): Promise<SentryCall> {
     const url = host?.includes('://') ? host : `https://${host}`;
-    const env = host === undefined ? undefined : { SENTRY_URL: url, SENTRY_HOST: url };
+    // Current issue status and pagination must come from this observation, not a cached response.
+    const env = {
+      SENTRY_NO_CACHE: '1',
+      ...(host === undefined ? {} : { SENTRY_URL: url, SENTRY_HOST: url }),
+    };
     const result = await this.process.run([BINARY, ...args, '--json'], {
       timeoutMs,
       env,
@@ -57,14 +58,15 @@ export function sentryFailed(call: SentryCall, what: string): DevkitError {
       },
     );
   return new DevkitError(
-    categoryOf(call.code),
+    categoryOf(call.code, call.stderr),
     'PLATFORM_QUERY_FAILED',
     `${BINARY} could not ${what}: ${detail}`,
     { nextSteps: [`fx doctor --tool ${BINARY}`] },
   );
 }
 
-function categoryOf(code: number): Category {
+function categoryOf(code: number, stderr: string): Category {
+  if (/\b429\b|too many requests|rate limit/i.test(stderr)) return 'rate_limit';
   if (code >= 20 && code <= 29) return 'not_found';
   return 'server';
 }

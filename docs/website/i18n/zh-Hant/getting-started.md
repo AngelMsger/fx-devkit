@@ -275,7 +275,7 @@ fx skill status
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
 | 建立、同步和檢查工作區 | `init`、`sync`、`status`                                                                             |
 | 設定存取並檢查就緒     | `login`、`doctor`、`can`                                                                             |
-| 查詢環境座標與發佈證據 | `where`、`release check`                                                                             |
+| 查詢環境座標與發佈證據 | `where`、`release check`、`repo version`                                                             |
 | 管理儲存庫             | `repo list/show/pick/unpick/add/remove/fork/open`                                                    |
 | 管理環境與 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                                                |
 | 管理工具和 Skill       | `tool list/show/install/update/history/inventory`、`agent skills`                                    |
@@ -294,13 +294,31 @@ fx skill status
 
 發佈版本優先讀取來源分支根目錄的 `VERSION` 檔案, 並在兩個分支的最新提交上讀取相同路徑. 內容會去除首尾空白, 空內容保持為未知. 沒有 `VERSION` 時, 繼續從相依檔案 (如 `package.json`) 讀取版本. 相依檢查仍讀取相依宣告.
 
+發佈錯誤視窗可以使用相對時長, 或一對包含時區的明確時間. 絕對區間包含起點, 不包含終點; 要包含完整的一天, 終點使用當地次日零點. 例如:
+
+```sh
+fx release check fx-example-api --from 2026-04-01T00:00:00+08:00 --to 2026-04-15T00:00:00+08:00 --format json --details
+fx repo version fx-example-api --ref main --baseline v1.2.0 --format json
+fx repo version fx-example-sdk --path packages/client/package.json --format json
+```
+
+版本證據將參照固定到提交, 標明實際宣告欄位, 並沿第一父提交歷史查找該欄位最近一次值變更. 僅修改相依不算版本變化. 歷史基準比較從該參照以來的全部變更, 與尚未合入發佈分支的提交分開. 原始碼版本或修改時間不能證明已發佈. 歷史缺失或查詢預算耗盡時, 傳回帶有原因的部分證據. [CLI 參考](cli/README.md) 說明如何在多儲存庫發佈檢查中請求這些證據, 以及如何選擇套件路徑.
+
+自動探索版本證據時會略過 `requirements.txt` 等只宣告相依關係的檔案. 已存在但無法讀取的受支援版本來源會使證據不完整, 不會隱含改選其他套件; Gradle 可以使用相鄰的 `gradle.properties`. Maven 支援字面版本, 或可從專案 properties 解析為字面值的單一 `${property}`. 組合運算式、巢狀運算式或無法解析的運算式會回傳 `VERSION_DECLARATION_UNREADABLE`, 並保留證據不完整狀態.
+
+Sentry 證據保留符合未解決查詢且在視窗內活躍的已收集候選, 包括舊問題. 後續確認 resolved 或 ignored 的狀態保留在稽核證據中, 但不計入新問題判定, 並區分生命週期首次出現時間與清單/視窗時間. 分頁或中繼資料失敗會明確保留; 部分證據不能證明問題不存在. 狀態與負責人反映讀取各回應時的情況, 不代表歷史視窗內的狀態. 事件數的統計範圍未知, 不能當成本輪新增事件次數. 錯誤檢查按生命週期首次出現時間計數; 舊問題是否復發需要另行判斷.
+
+`repo show` 也傳回 `ownership_evidence`: 儲存庫關聯的業務範圍、人員、團隊和集體職責. 日期篩選只對目前成員文件中宣告的有效區間求值, 不還原歷史快照, 也不決定指派給誰.
+
 | 結果               | 完成判定                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | `init/sync/doctor` | `preparation.state` 為 `planned`、`ready` 或 `incomplete`，僅針對 `preparation.scope`。 |
-| `release check`    | 讀取 `ok`、`complete`、檢查項目與 `repos`；此命令不發佈或部署。                         |
+| `release check`    | 讀取 `ok`、`complete`、`evidence_complete`、檢查項目與 `repos`；此命令不發佈或部署。    |
 | `can`              | 讀取目標能力的 `status` 和接手指引。                                                    |
 
 準備就緒結束代碼為 0，未完成為 12；預覽只是計畫。設定或執行異常保留原分類結束代碼，也可能傳回部分 stdout。`doctor.coverage` 單獨描述診斷涵蓋範圍；選用宿主啟用未驗證不會阻塞必要工作，檔案存在也不證明啟用。
+
+發佈報告成功產生後仍以 0 結束. `ok` 表示沒有失敗檢查, `complete` 表示檢查涵蓋完整. `evidence_complete` 還包括已請求的儲存庫事實; 為 false 時應查看 `facet_coverage` 和失敗原因. `observed_at` 是命令開始時間. 每個儲存庫記錄自己的標準化時間區間; 儲存庫原則使用不同視窗時, 頂層區間為 null.
 
 Init 會自行執行已授權的本地準備。結果保留已完成步驟；認證未完成時，不要重複這些步驟。
 

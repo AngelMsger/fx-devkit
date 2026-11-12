@@ -52,6 +52,16 @@ export function releaseText(report: ReleaseReport, view: ReleaseView): string {
   const described = new Map(report.repos.map((r) => [r.name, r]));
   const sections = [
     [...display.wrap(releaseCounts(report), Math.max(24, display.room(0)))],
+    ...(report.evidence_complete === false
+      ? [
+          [
+            display.paint(
+              'warn',
+              'Requested release evidence is incomplete; inspect the unknown fields and recovery steps.',
+            ),
+          ],
+        ]
+      : []),
     ...expanded.map((repo) => [
       heading(display, repo, own(repo)),
       ...carried(display, described.get(repo)),
@@ -142,6 +152,7 @@ function remarks(display: Display, repo: ReleaseRepo, indent: string): string[] 
   const room = Math.max(display.room(widthOf(indent)), NARROWEST_MESSAGE);
   return [
     ...repo.unanswered.map((u) => `${u.field} unknown: ${u.reason}`),
+    ...evidenceRemarks(repo),
     ...(repo.note === null ? [] : [`note: ${repo.note}`]),
   ]
     .flatMap((said) => display.wrap(said, room))
@@ -222,4 +233,24 @@ function aligned(shipped: Shipping, versionWidth: number): string {
   if (versionWidth === 0) return shipped.text;
   const version = shipped.version ?? '';
   return `${version}${gap(version, versionWidth)}${GUTTER}${shipped.text}`;
+}
+
+// Detailed facts may fail independently of the four checklist findings.
+function evidenceRemarks(repo: ReleaseRepo): string[] {
+  const history = repo.version_evidence;
+  const baseline = repo.baseline_evidence;
+  return [
+    ...(history === null || history === undefined
+      ? []
+      : [
+          `version history: ${history.coverage}; ${history.declaration?.file ?? 'unknown source'}${history.last_change === null ? '' : ` changed ${history.last_change.committed_at}`}`,
+          ...history.failures.map((f) => f.message),
+        ]),
+    ...(baseline === null || baseline === undefined
+      ? []
+      : [
+          `baseline ${baseline.baseline.requested_ref}: ${baseline.coverage}${baseline.commits === null ? '' : `; ${plural(baseline.commits.length, 'commit')} since baseline`}`,
+          ...baseline.failures.map((f) => f.message),
+        ]),
+  ];
 }

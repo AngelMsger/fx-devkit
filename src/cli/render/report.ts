@@ -22,6 +22,7 @@ const COLLECTIONS = new Set([
 const RECOVERY = new Set([
   'preparation',
   'failure',
+  'failures',
   'error',
   'handoff',
   'next_steps',
@@ -66,6 +67,10 @@ function compactObject(
       ) {
         omitted[at] = 1;
         return [];
+      }
+      if (key === 'commits' && prefix.endsWith('baseline_evidence') && Array.isArray(item)) {
+        omitted[at] = (omitted[at] ?? 0) + item.length;
+        return [['commits_count', item.length]];
       }
       if (key === 'evidence') {
         omitted[at] = (omitted[at] ?? 0) + 1;

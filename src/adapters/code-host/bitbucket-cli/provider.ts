@@ -225,9 +225,12 @@ function commitOf(item: Record<string, unknown>): Commit | undefined {
   const sha = stringAt(item, 'hash') ?? stringAt(item, 'id');
   const date = stringAt(item, 'date');
   if (sha === undefined || date === undefined) return undefined;
-  const parents = Array.isArray(item['parents'])
-    ? item['parents'].filter((p): p is string => typeof p === 'string')
-    : [];
+  const parents = item['parents'];
+  if (
+    !Array.isArray(parents) ||
+    !parents.every((p): p is string => typeof p === 'string' && p !== '')
+  )
+    return undefined;
   return {
     sha,
     author: stringAt(item, 'author') ?? '',

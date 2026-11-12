@@ -2,7 +2,11 @@
 // It finds the written declaration without running a build that might compute another.
 // VERSION is plain text; structured metadata uses the readers below.
 
+import path from 'node:path';
+
 import { parse } from 'smol-toml';
+
+import type { VersionDeclaration } from './version-evidence.js';
 
 export type VersionReader = (text: string) => string | undefined;
 
@@ -10,6 +14,7 @@ export type VersionReader = (text: string) => string | undefined;
 export const GRADLE_PROPERTIES = 'gradle.properties';
 export const ROOT_VERSION = 'VERSION';
 
+// Reader order is the automatic declaration discovery order.
 export const VERSION_READERS: Readonly<Record<string, VersionReader>> = {
   [ROOT_VERSION]: (text) => text,
   'package.json': packageVersion,
@@ -21,10 +26,47 @@ export const VERSION_READERS: Readonly<Record<string, VersionReader>> = {
 };
 
 export function declaredVersion(file: string, text: string): string | undefined {
-  const reader = VERSION_READERS[file];
+  const name = path.posix.basename(file);
+  if (!Object.hasOwn(VERSION_READERS, name)) return undefined;
+  const reader = VERSION_READERS[name];
   if (reader === undefined) return undefined;
   const version = reader(text)?.trim();
   return version === undefined || version === '' ? undefined : version;
+}
+
+// Field names are structural paths, except plain text (text) and Gradle/properties
+// assignments (version). A POM property records the field actually carrying the value.
+export function versionDeclaration(file: string, text: string): VersionDeclaration | undefined {
+  const name = path.posix.basename(file);
+  const value = declaredVersion(file, text);
+  if (value === undefined) return undefined;
+  if (name === 'package.json') {
+    const doc: unknown = JSON.parse(text);
+    return { file, field: '/version', value, package_name: stringAt(doc, ['name']) ?? null };
+  }
+  if (name === 'pyproject.toml') {
+    const doc: unknown = parse(text);
+    const table =
+      stringAt(doc, ['project', 'version']) === undefined ? ['tool', 'poetry'] : ['project'];
+    return {
+      file,
+      field: `/${[...table, 'version'].join('/')}`,
+      value,
+      package_name: stringAt(doc, [...table, 'name']) ?? null,
+    };
+  }
+  if (name === 'pom.xml') {
+    const values = pomValues(text);
+    const field = values.has('project/version') ? 'project/version' : 'project/parent/version';
+    const property = /^\$\{([\w.-]+)\}$/.exec(values.get(field) ?? '')?.[1];
+    return {
+      file,
+      field: `/${property === undefined ? field : `project/properties/${property}`}`,
+      value,
+      package_name: values.get('project/artifactId') ?? null,
+    };
+  }
+  return { file, field: name === ROOT_VERSION ? 'text' : 'version', value, package_name: null };
 }
 
 function packageVersion(text: string): string | undefined {
@@ -59,13 +101,14 @@ function stringAt(doc: unknown, path: readonly string[]): string | undefined {
 }
 
 // The project's own <version>, else the one it inherits from <parent>; a single
-// ${property} is resolved from the project's <properties>, as CI-friendly versions use.
+// ${property} is resolved from the project's <properties>. Composite and recursive
+// expressions are unreadable because fx does not run Maven's expression evaluator.
 function pomVersion(text: string): string | undefined {
   const values = pomValues(text);
   const version = values.get('project/version') ?? values.get('project/parent/version');
   const property = version === undefined ? undefined : /^\$\{([\w.-]+)\}$/.exec(version)?.[1];
-  if (property === undefined) return version;
-  return values.get(`project/properties/${property}`) ?? version;
+  const resolved = property === undefined ? version : values.get(`project/properties/${property}`);
+  return resolved === undefined || resolved.includes('${') ? undefined : resolved;
 }
 
 // The text of every element, keyed by its path from the root.

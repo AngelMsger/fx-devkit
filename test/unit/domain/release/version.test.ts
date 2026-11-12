@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { declaredVersion } from '../../../../src/domain/release/version.js';
+import { declaredVersion, versionDeclaration } from '../../../../src/domain/release/version.js';
 
 describe('declaredVersion', () => {
+  it('reports real fields for Python tables and POM properties', () => {
+    expect(
+      versionDeclaration('pyproject.toml', '[tool.poetry]\nname="library"\nversion="1.0.0"'),
+    ).toEqual({
+      file: 'pyproject.toml',
+      field: '/tool/poetry/version',
+      package_name: 'library',
+      value: '1.0.0',
+    });
+    expect(
+      versionDeclaration(
+        'pom.xml',
+        '<project><artifactId>library</artifactId><version>${revision}</version><properties><revision>1.0.0</revision></properties></project>',
+      ),
+    ).toEqual({
+      file: 'pom.xml',
+      field: '/project/properties/revision',
+      package_name: 'library',
+      value: '1.0.0',
+    });
+  });
   it('reads root VERSION as trimmed text and leaves an empty declaration unknown', () => {
     expect(declaredVersion('VERSION', ' 2.1.0\r\n')).toBe('2.1.0');
     expect(declaredVersion('VERSION', ' \r\n')).toBeUndefined();
@@ -51,6 +72,19 @@ describe('declaredVersion', () => {
     );
   });
 
+  it.each([
+    ['composite version', '${revision}${changelist}', '1.4.0'],
+    ['embedded property', '1.4.${revision}', '0'],
+    ['recursive property', '${revision}', '${major}.4.0'],
+    ['missing property', '${missing}', '1.4.0'],
+  ])('leaves an unsupported POM %s unreadable', (_kind, version, revision) => {
+    const pom = `<project><version>${version}</version><properties>
+      <revision>${revision}</revision><changelist>-SNAPSHOT</changelist><major>1</major>
+    </properties></project>`;
+    expect(declaredVersion('pom.xml', pom)).toBeUndefined();
+    expect(versionDeclaration('pom.xml', pom)).toBeUndefined();
+  });
+
   it('reads a top-level Gradle version and gradle.properties, not an indented one', () => {
     expect(declaredVersion('build.gradle', "plugins { id 'java' }\nversion = '1.2.0'\n")).toBe(
       '1.2.0',
@@ -73,5 +107,6 @@ describe('declaredVersion', () => {
 
   it('knows no version in a file that cannot declare one', () => {
     expect(declaredVersion('requirements.txt', 'httpx==0.27\n')).toBeUndefined();
+    expect(declaredVersion('constructor', '1.0.0')).toBeUndefined();
   });
 });

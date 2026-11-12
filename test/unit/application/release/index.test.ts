@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { TemplatePlatform } from '../../../../src/adapters/platform/template-platform.js';
 import { Release } from '../../../../src/application/release/index.js';
 import { DevkitError } from '../../../../src/domain/errors.js';
-import type { Check } from '../../../../src/domain/release/types.js';
+import type { Check, ErrorQueryContext } from '../../../../src/domain/release/types.js';
 import type { Platform } from '../../../../src/ports/platform.js';
 import type { ProviderDescriptor } from '../../../../src/ports/provider.js';
 import { FakeCi } from '../../../fakes/fake-ci.js';
@@ -132,7 +132,7 @@ async function stage(options: StageOptions = {}) {
   h.process.when((v) => v[1] === '--version', { code: 0, stdout: 'x 9.0.0', stderr: '' });
   const login = fakeLoginDeps(options.descriptors ?? DESCRIPTORS);
   login.clock.now = () => new Date('2026-09-03T00:00:00Z');
-  return { h, codeHost, ci, tracker, release: new Release(h.deps, login) };
+  return { h, codeHost, ci, tracker, login, release: new Release(h.deps, login) };
 }
 
 const run = (
@@ -212,6 +212,14 @@ describe('Release', () => {
     ]);
     expect(legacy[0]?.message).toContain('no branch dev');
     expect(legacy[2]?.message).toContain('not checked');
+    expect(legacy[3]?.coverage).toBe('not_applicable');
+    expect(legacy[3]?.evidence?.['query_context']).toEqual({
+      repository: 'fx-example-legacy',
+      environment: 'dev',
+      range: report.range,
+      observed_at: report.observed_at,
+      source: null,
+    });
   });
 
   it('runs only the checks asked for, and asks no other platform', async () => {
@@ -451,6 +459,13 @@ describe('Release', () => {
     expect(report.findings.find((f) => f.group === 'errors')?.message).toBe(
       'no environment for errors in the release policy, not checked',
     );
+    expect(report.findings.find((f) => f.group === 'errors')?.evidence?.['query_context']).toEqual({
+      repository: 'fx-example-api',
+      environment: null,
+      range: report.range,
+      observed_at: report.observed_at,
+      source: null,
+    });
     expect(s.ci.asked).toEqual([]);
     expect(s.tracker.asked).toEqual([]);
   });
@@ -545,6 +560,38 @@ describe('Release', () => {
     await expect(run(s, { since: 'soon' })).rejects.toMatchObject({ code: 'BAD_SINCE' });
   });
 
+  it('reports an incomplete located coordinate locally without asking the tracker', async () => {
+    const s = await stage({
+      environments: fixture('environments.yaml').replace("slug: 'fx-{svc}-dev'", "slug: ''"),
+    });
+    const report = await run(s, { repos: ['fx-example-api'], only: ['errors'] });
+    expect(s.tracker.asked).toEqual([]);
+    expect(report).toMatchObject({
+      complete: false,
+      findings: [
+        {
+          id: 'fx-example-api',
+          level: 'warn',
+          coverage: 'incomplete',
+          message: 'Error-tracker coordinate for fx-example-api in dev is incomplete',
+          fix: 'fx where fx-example-api --env dev --platform sentry',
+          failures: [
+            {
+              code: 'COORDINATE_INCOMPLETE',
+              category: 'config',
+              retryable: false,
+              hint: expect.stringContaining('Missing coordinate variables: slug'),
+              next_steps: expect.arrayContaining([
+                'Complete the missing coordinate variables in the shared manifest, then retry.',
+              ]),
+            },
+          ],
+          evidence: { coordinate: { status: 'located' } },
+        },
+      ],
+    });
+  });
+
   it('turns one repository failing a query into its own warning, not the report failing', async () => {
     const s = await stage();
     s.tracker.failure = new DevkitError(
@@ -585,9 +632,331 @@ describe('Release', () => {
     expect(report.findings[0]).toMatchObject({
       level: 'warn',
       coverage: 'incomplete',
-      message: 'Error tracker coordinate is incomplete',
-      fix: 'fx manifest lint --workspace fx',
+      message: 'Error-tracker coordinate for fx-example-api in dev is incomplete',
+      failure: {
+        code: 'COORDINATE_INCOMPLETE',
+        next_steps: expect.arrayContaining(['fx manifest lint --workspace fx']),
+      },
     });
     expect(report.complete).toBe(false);
+  });
+});
+
+describe('Release evidence orchestration', () => {
+  const auditInput = {
+    repos: ['fx-example-api'],
+    only: ['errors'] as Check[],
+    from: '2026-09-01T00:00:00Z',
+    to: '2026-09-03T00:00:00Z',
+  };
+
+  it('preserves the query identity across a readiness failure and a later retry', async () => {
+    const s = await stage({ tools: ['bitbucket-cli', 'jenkins-cli'] });
+    const blocked = await run(s, auditInput);
+    expect(blocked.findings[0]?.coverage).toBe('incomplete');
+    expect(s.tracker.asked).toEqual([]);
+    const before = blocked.findings[0]?.evidence?.['query_context'] as ErrorQueryContext;
+    expect(before).toEqual({
+      repository: 'fx-example-api',
+      environment: 'dev',
+      range: {
+        start: '2026-09-01T00:00:00.000Z',
+        end: '2026-09-03T00:00:00.000Z',
+        bounds: '[start,end)',
+      },
+      observed_at: '2026-09-03T00:00:00.000Z',
+      source: {
+        platform: 'sentry',
+        provider: 'sentry',
+        coordinate_fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    });
+
+    s.h.process.binaries.add('sentry');
+    s.login.clock.now = () => new Date('2026-09-03T00:05:00Z');
+    s.release = new Release(s.h.deps, s.login);
+    const retried = await run(s, auditInput);
+    expect(retried.findings[0]?.coverage).toBe('checked');
+    expect(retried.findings[0]?.evidence?.['query_context']).toEqual({
+      ...before,
+      observed_at: '2026-09-03T00:05:00.000Z',
+    });
+    expect(s.tracker.asked).toHaveLength(1);
+  });
+
+  it('retains query identity and the retry cursor when a later issue page fails', async () => {
+    const s = await stage();
+    vi.spyOn(s.tracker, 'issues')
+      .mockResolvedValueOnce({
+        issues: s.tracker.issuesOf.get('fx-example-api-dev') ?? [],
+        more: true,
+        next: 'page-two',
+      })
+      .mockRejectedValueOnce(new DevkitError('rate_limit', 'THROTTLED', 'Try later'));
+    const partial = await run(s, auditInput);
+    expect(partial.findings[0]).toMatchObject({
+      coverage: 'incomplete',
+      evidence: {
+        error_evidence: {
+          pages_read: 1,
+          next: 'page-two',
+          items: [{ id: '1' }],
+          failures: [{ stage: 'list', error: { code: 'THROTTLED' } }],
+        },
+      },
+    });
+    const before = partial.findings[0]?.evidence?.['query_context'] as ErrorQueryContext;
+    expect(before).toMatchObject({
+      repository: 'fx-example-api',
+      environment: 'dev',
+      range: partial.range,
+      observed_at: '2026-09-03T00:00:00.000Z',
+      source: {
+        platform: 'sentry',
+        provider: 'sentry',
+        coordinate_fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    });
+    s.login.clock.now = () => new Date('2026-09-03T00:10:00Z');
+    const retried = await run(s, auditInput);
+    expect(retried.findings[0]?.coverage).toBe('checked');
+    expect(retried.findings[0]?.evidence?.['query_context']).toEqual({
+      ...before,
+      observed_at: '2026-09-03T00:10:00.000Z',
+    });
+  });
+
+  it.each([
+    ['host', 'sentry.example.com', 'other-tracker.example.com', 'other-tracker.example.com'],
+    ['organization', 'org: fx', 'org: other-org', 'other-org'],
+    ['project', "slug: 'fx-{svc}-dev'", 'slug: other-project', 'other-project'],
+  ])(
+    'distinguishes a changed tracker %s without exposing raw coordinates',
+    async (_kind, old, next, coordinateValue) => {
+      const original = await stage();
+      const changed = await stage({
+        environments: fixture('environments.yaml').replace(old, next),
+      });
+      const first = await run(original, auditInput);
+      const second = await run(changed, auditInput);
+      const before = first.findings[0]?.evidence?.['query_context'] as ErrorQueryContext;
+      const after = second.findings[0]?.evidence?.['query_context'] as ErrorQueryContext;
+      expect(after.source).toEqual({
+        platform: 'sentry',
+        provider: 'sentry',
+        coordinate_fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      expect(after.source?.coordinate_fingerprint).not.toBe(before.source?.coordinate_fingerprint);
+      expect({ ...after, source: before.source }).toEqual(before);
+      expect(JSON.stringify(after)).not.toContain(coordinateValue);
+    },
+  );
+
+  it('pins absolute ranges and one observation start across concurrent repositories', async () => {
+    const s = await stage();
+    const asked = vi.spyOn(s.tracker, 'issues');
+    let tick = Date.parse('2026-09-03T00:00:00Z');
+    s.login.clock.now = () => new Date((tick += 60_000));
+    const report = await run(s, {
+      repos: ['fx-example-api', 'fx-example-data'],
+      only: ['errors'],
+      from: '2026-08-20T00:00:00+08:00',
+      to: '2026-09-03T00:00:00+08:00',
+    });
+    const range = {
+      start: '2026-08-19T16:00:00.000Z',
+      end: '2026-09-02T16:00:00.000Z',
+      bounds: '[start,end)',
+    };
+    expect(report.observed_at).toBe('2026-09-03T00:01:00.000Z');
+    expect(report.range).toEqual(range);
+    expect(report.repos.every((repo) => JSON.stringify(repo.range) === JSON.stringify(range))).toBe(
+      true,
+    );
+    expect(
+      asked.mock.calls.map(([, query]) => ({ range: query.range, observed_at: query.observedAt })),
+    ).toEqual(Array.from({ length: 2 }, () => ({ range, observed_at: report.observed_at })));
+    expect(s.codeHost.queries).toEqual([]);
+    expect(report.repos.map((repo) => repo.facet_coverage?.declaration)).toEqual([
+      'not_requested',
+      'not_requested',
+    ]);
+  });
+
+  it('resolves a shared relative policy once and lets the invocation override it', async () => {
+    const s = await stage({
+      workspace:
+        fixture('workspace.yaml') + RELEASE_BLOCK.replace('  env: dev', '  env: dev\n  since: 2d'),
+    });
+    const asked = vi.spyOn(s.tracker, 'issues');
+    const report = await run(s, { repos: ['fx-example-api', 'fx-example-data'], only: ['errors'] });
+    const range = {
+      start: '2026-09-01T00:00:00.000Z',
+      end: '2026-09-03T00:00:00.000Z',
+      bounds: '[start,end)',
+    };
+    expect(report.range).toEqual(range);
+    expect(asked.mock.calls.map(([, query]) => query.range)).toEqual([range, range]);
+    expect(report.repos.map((repo) => repo.range)).toEqual([range, range]);
+    const overridden = await run(s, { repos: ['fx-example-api'], only: ['errors'], since: '1d' });
+    expect(overridden.range).toEqual({ ...range, start: '2026-09-02T00:00:00.000Z' });
+  });
+
+  it('collects an explicit nested package history and baseline only for the requested repository', async () => {
+    const s = await stage();
+    s.codeHost.commits.set('d1', { ...commit('d1', 'alice', 'bump package'), parents: ['m1'] });
+    s.codeHost.commits.set('release-one', commit('m1', 'alice', 'released'));
+    s.codeHost.files.set(
+      'fx/fx-example-api d1:packages/client/package.json',
+      '{"name":"@example/client","version":"1.1.0"}',
+    );
+    s.codeHost.files.set(
+      'fx/fx-example-api m1:packages/client/package.json',
+      '{"name":"@example/client","version":"1.0.0"}',
+    );
+    const report = await run(s, {
+      repos: ['fx-example-api', 'fx-example-data'],
+      only: ['errors'],
+      versionPaths: { 'fx-example-api': 'packages/client/package.json' },
+      baselines: { 'fx-example-api': 'release-one' },
+    });
+    expect(report.repos[0]).toMatchObject({
+      source: { version: '1.1.0' },
+      target: { version: '1.0.0' },
+      version_file: 'packages/client/package.json',
+      version_evidence: {
+        requested_ref: 'dev',
+        resolved_sha: 'd1',
+        coverage: 'checked',
+        declaration: {
+          file: 'packages/client/package.json',
+          field: '/version',
+          package_name: '@example/client',
+          value: '1.1.0',
+        },
+        last_change: { commit_sha: 'd1', previous_value: '1.0.0', current_value: '1.1.0' },
+      },
+      baseline_evidence: {
+        baseline: { requested_ref: 'release-one', resolved_sha: 'm1' },
+        head: { resolved_sha: 'd1' },
+        coverage: 'checked',
+      },
+      facet_coverage: {
+        declaration: 'checked',
+        version_history: 'checked',
+        baseline: 'checked',
+        errors: 'checked',
+      },
+    });
+    expect(report.repos[1]).toMatchObject({
+      source: null,
+      version_evidence: null,
+      baseline_evidence: null,
+      facet_coverage: {
+        declaration: 'not_requested',
+        version_history: 'not_requested',
+        baseline: 'not_requested',
+        errors: 'checked',
+      },
+    });
+    expect(s.codeHost.queries.some((query) => query.includes('data/fx-example-data'))).toBe(false);
+  });
+
+  it('retains a code-host failure even when only error checks were requested', async () => {
+    const s = await stage();
+    vi.spyOn(s.codeHost, 'branches').mockRejectedValue(
+      new DevkitError('server', 'HOST_UNAVAILABLE', 'Code host is unavailable', {
+        nextSteps: ['Retry the code-host query.'],
+      }),
+    );
+    const report = await run(s, {
+      repos: ['fx-example-data'],
+      only: ['errors'],
+      versionHistory: true,
+    });
+    expect(report).toMatchObject({ ok: true, complete: true, evidence_complete: false });
+    expect(report.repos[0]).toMatchObject({
+      source: null,
+      version_evidence: null,
+      facet_coverage: {
+        declaration: 'incomplete',
+        version_history: 'incomplete',
+        errors: 'checked',
+      },
+      unanswered: [
+        {
+          error: { code: 'HOST_UNAVAILABLE', next_steps: ['Retry the code-host query.'] },
+        },
+      ],
+    });
+  });
+
+  it('reports the same nested Gradle declaration in legacy and structured version facts', async () => {
+    const s = await stage();
+    s.codeHost.commits.set('d1', { ...commit('d1', 'alice', 'bump service'), parents: ['m1'] });
+    for (const [sha, version] of [
+      ['d1', '4.1.0'],
+      ['m1', '4.0.0'],
+    ]) {
+      s.codeHost.files.set(
+        `fx/fx-example-api ${sha}:services/api/build.gradle`,
+        "plugins { id 'java' }",
+      );
+      s.codeHost.files.set(
+        `fx/fx-example-api ${sha}:services/api/gradle.properties`,
+        `version=${version}\n`,
+      );
+      s.codeHost.files.set(`fx/fx-example-api ${sha}:gradle.properties`, 'version=99.0.0\n');
+    }
+    const report = await run(s, {
+      repos: ['fx-example-api'],
+      only: ['errors'],
+      versionPaths: { 'fx-example-api': 'services/api/build.gradle' },
+    });
+    expect(report.repos[0]).toMatchObject({
+      source: { version: '4.1.0' },
+      target: { version: '4.0.0' },
+      version_file: 'services/api/gradle.properties',
+      version_evidence: {
+        coverage: 'checked',
+        declaration: { file: 'services/api/gradle.properties', value: '4.1.0' },
+        last_change: { previous_value: '4.0.0', current_value: '4.1.0' },
+      },
+    });
+  });
+
+  it('keeps checklist completeness distinct from a failed optional historical question', async () => {
+    const s = await stage();
+    s.codeHost.files.set('data/fx-example-data s1:VERSION', '1.0.0');
+    const report = await run(s, {
+      repos: ['fx-example-data'],
+      only: ['errors'],
+      baselines: { 'fx-example-data': 'missing-release' },
+    });
+    expect(report).toMatchObject({ ok: true, complete: true, evidence_complete: false });
+    expect(report.repos[0]?.facet_coverage).toMatchObject({
+      errors: 'checked',
+      baseline: 'incomplete',
+    });
+    expect(report.repos[0]?.baseline_evidence?.failures).toEqual([
+      expect.objectContaining({
+        code: expect.any(String),
+        message: expect.stringContaining('missing-release'),
+      }),
+    ]);
+  });
+
+  it.each([
+    { from: '2026-09-01T00:00:00Z' },
+    { from: '2026-09-01T00:00:00Z', to: '2026-09-03T00:00:00Z', since: '2d' },
+    { baselines: { 'fx-example-data': 'release-one' } },
+    { versionPaths: { 'fx-example-api': '../VERSION' } },
+  ])('validates evidence selectors before querying providers: %j', async (input) => {
+    const s = await stage();
+    await expect(
+      run(s, { repos: ['fx-example-api'], only: ['errors'], ...input }),
+    ).rejects.toMatchObject({ category: 'usage' });
+    expect(s.codeHost.queries).toEqual([]);
+    expect(s.tracker.asked).toEqual([]);
   });
 });

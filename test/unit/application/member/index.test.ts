@@ -70,20 +70,38 @@ describe('member who / list / owners', () => {
     const h = await stage(
       fixture('members.yaml').replace('[fx-example-auth]', '[fx-example-data]'),
     );
-    expect(await new RepoShow(h.deps).execute({ name: 'fx-example-data' })).toMatchObject({
+    expect(
+      await new RepoShow(h.deps).execute({ name: 'fx-example-data', asOf: '2025-02-01' }),
+    ).toMatchObject({
       name: 'fx-example-data',
       owners: [{ area: 'Platform', scenario: 'Login', devLead: { id: 'alice' } }],
+      ownership_evidence: {
+        as_of: '2025-02-01',
+        historical_snapshot: false,
+        coverage: 'checked',
+        items: [{ people: [{ id: 'alice', legacy_roles: expect.any(Array) }] }],
+      },
       contact: '#data',
     });
     expect(
       await new RepoShow(h.deps).execute({ name: 'fx-example-api' }),
       'a repository no scenario names has no owners',
-    ).toMatchObject({ owners: [], contact: '#platform' });
+    ).toMatchObject({
+      owners: [],
+      ownership_evidence: { coverage: 'not_covered', items: [] },
+      contact: '#platform',
+    });
     const none = await stage(null);
     expect(
-      (await new RepoShow(none.deps).execute({ name: 'fx-example-api' })).owners,
+      await new RepoShow(none.deps).execute({ name: 'fx-example-api' }),
       'no members document is not the same as nobody',
-    ).toBeNull();
+    ).toMatchObject({
+      owners: null,
+      ownership_evidence: { coverage: 'not_configured', items: [] },
+    });
+    expect(h.reporter.notices).toEqual([]);
+    expect(h.fs.writes).toEqual([]);
+    expect(h.localStore.writes).toEqual([]);
   });
 
   it('returns all identity candidates with an explicit ambiguity state', async () => {

@@ -28,7 +28,7 @@ import { runGit } from '../../git/run.js';
 
 // One line per commit: sha, author, ISO committer date, parents, subject.
 const COMMIT_FORMAT = '--format=%H%x00%an%x00%cI%x00%P%x00%s';
-const MISSING_PATH = /does not exist|exists on disk, but not in|invalid object name/i;
+const MISSING_PATH = /does not exist|exists on disk, but not in/i;
 
 export class LocalGitCodeHost implements CodeHost {
   readonly supportsContributions = false;
@@ -110,16 +110,34 @@ export class LocalGitCodeHost implements CodeHost {
   }
 
   async compare(ref: RepoRef, range: CommitRange): Promise<Commit[]> {
+    const shallow = await this.git(ref, ['rev-parse', '--is-shallow-repository']);
+    if (shallow.code !== 0) throw failed(ref, 'inspect history completeness', shallow);
+    if (shallow.stdout.trim() !== 'false')
+      throw new DevkitError(
+        'incomplete',
+        'CODE_HOST_SHALLOW_HISTORY',
+        'A shallow repository cannot prove the complete comparison range',
+        {
+          nextSteps: ['Supply a complete bare repository, then retry the comparison.'],
+        },
+      );
     const result = await this.git(ref, ['rev-list', COMMIT_FORMAT, range.to, `^${range.from}`]);
     if (result.code !== 0) throw failed(ref, `compare ${range.from}..${range.to}`, result);
     return commitsOf(ref, result.stdout);
   }
 
   async commit(ref: RepoRef, sha: string): Promise<Commit> {
-    const result = await this.git(ref, ['rev-list', '-1', COMMIT_FORMAT, sha]);
-    const [commit] = result.code === 0 ? commitsOf(ref, result.stdout) : [];
-    if (commit === undefined) throw failed(ref, `read commit ${sha}`, result);
-    return commit;
+    const resolved = await this.git(ref, [
+      'rev-parse',
+      '--verify',
+      '--end-of-options',
+      `${sha}^{commit}`,
+    ]);
+    if (resolved.code !== 0) throw failed(ref, `resolve commit ${sha}`, resolved);
+    const canonical = resolved.stdout.trim();
+    const result = await this.git(ref, ['cat-file', 'commit', canonical]);
+    if (result.code !== 0) throw failed(ref, `read commit ${canonical}`, result);
+    return rawCommit(ref, canonical, result.stdout);
   }
 
   async readFile(ref: RepoRef, file: string, at: string): Promise<string | undefined> {
@@ -148,6 +166,25 @@ export class LocalGitCodeHost implements CodeHost {
   private get host(): string {
     return this.vars['host'] ?? '';
   }
+}
+
+// rev-list hides parents at a shallow boundary; the raw object preserves them so
+// the history query reports an unreadable parent rather than inventing a root.
+function rawCommit(ref: RepoRef, sha: string, text: string): Commit {
+  const split = text.indexOf('\n\n');
+  const header = text.slice(0, split);
+  const author = /^author (.*) <[^>]*> -?\d+ [+-]\d{4}$/m.exec(header)?.[1];
+  const timestamp = /^committer .* (-?\d+) [+-]\d{4}$/m.exec(header)?.[1];
+  const date = timestamp === undefined ? NaN : Number(timestamp) * 1000;
+  if (split === -1 || author === undefined || !Number.isFinite(date))
+    throw unreadableError(ref, 'a raw commit', sha);
+  return {
+    sha,
+    author,
+    date: new Date(date).toISOString(),
+    parents: [...header.matchAll(/^parent (\S+)$/gm)].map((match) => match[1] ?? ''),
+    message: text.slice(split + 2).split('\n')[0] ?? '',
+  };
 }
 
 export const localGitProvider: ProviderDescriptor<CodeHost> = {

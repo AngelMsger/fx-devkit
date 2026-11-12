@@ -95,6 +95,23 @@ describe('GitHubCodeHost queries', () => {
     expect(proc.soleCallTo(['gh', 'api']).vector).toContain('--jq');
   });
 
+  it('resolves a named ref to a canonical commit and refuses absent parent metadata', async () => {
+    const proc = new FakeProcess().when(
+      api('repos/octo/tool/commits/v1.0.0'),
+      out(commit('canonical-sha', ['parent'])),
+    );
+    expect(await host(proc).commit(ref, 'v1.0.0')).toMatchObject({
+      sha: 'canonical-sha',
+      parents: ['parent'],
+    });
+    for (const parents of [undefined, null, ['valid', null]]) {
+      const broken = new FakeProcess().always(out({ ...commit('c1', []), parents }));
+      await expect(host(broken).commit(ref, 'c1')).rejects.toMatchObject({
+        code: 'PLATFORM_QUERY_FAILED',
+      });
+    }
+  });
+
   it('reads a file raw, answers undefined for a missing one and throws for anything else', async () => {
     const proc = new FakeProcess()
       .when(api('repos/octo/tool/contents/package.json'), out('{"version":"1.0.0"}'))

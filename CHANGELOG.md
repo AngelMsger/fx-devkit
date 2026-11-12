@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## 0.19.0 (2026-11-12)
+
+- Read pinned version declarations and first-parent field history with `repo version`, including nested packages and an optional historical baseline. Release checks can include the same evidence without treating a source change as publication.
+- Add absolute, timezone-qualified error windows and paginated Sentry issue metadata. Keep lifetime first-seen, window activity, current status and count scope distinct; report partial collection and detail failures explicitly.
+- Add `evidence_complete` and per-repository facet coverage without changing release check verdicts or exit-zero reporting. `repo show` adds scoped responsibility evidence with date-filtered relationships from the current members document, without choosing an assignee.
 
 ## 0.18.1 (2026-11-12)
 

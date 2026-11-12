@@ -7,6 +7,8 @@ import { argument, jobsFlag, listFlag } from '../../flags.js';
 import { RELEASE_CODES, reportNotice } from '../../notices.js';
 import { releaseText } from '../../release-view.js';
 
+import { repoOverrides } from './overrides.js';
+
 export default class ReleaseCheckCommand extends FxCommand {
   static override description =
     'Show what each repository would release and check it: dependencies, branches, builds and unresolved errors. Read-only';
@@ -24,6 +26,32 @@ export default class ReleaseCheckCommand extends FxCommand {
     only: listFlag('only these checks', CHECKS),
     env: Flags.string({ description: 'environment whose errors count; default: release.env' }),
     since: Flags.string({ description: 'how far back a new error counts; default: release.since' }),
+    from: Flags.string({
+      description:
+        'inclusive error-window start, ISO timestamp with timezone; requires --to and excludes --since',
+    }),
+    to: Flags.string({
+      description: 'exclusive error-window end, ISO timestamp with timezone; requires --from',
+    }),
+    'version-history': Flags.boolean({
+      description: 'read the last version-field change at each pinned source head',
+      default: false,
+    }),
+    'history-limit': Flags.integer({
+      description: 'maximum first-parent commits per version history',
+      min: 1,
+      max: 1000,
+      default: 100,
+    }),
+    baseline: Flags.string({
+      description: 'historical release baseline as repo=ref; repeat for multiple repositories',
+      multiple: true,
+    }),
+    'version-path': Flags.string({
+      description:
+        'explicit version declaration as repo=path, including nested packages; repeatable',
+      multiple: true,
+    }),
     jobs: jobsFlag,
   };
 
@@ -35,6 +63,12 @@ export default class ReleaseCheckCommand extends FxCommand {
       only: flags.only as Check[] | undefined,
       env: flags.env,
       since: flags.since,
+      from: flags.from,
+      to: flags.to,
+      versionHistory: flags['version-history'],
+      historyLimit: flags['history-limit'],
+      baselines: repoOverrides(flags.baseline),
+      versionPaths: repoOverrides(flags['version-path']),
       jobs: flags.jobs,
     });
     // --fields selects from the report itself, in every format.

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { releaseText } from '../../../src/cli/release-view.js';
+import { PLAIN } from '../../../src/cli/render/display.js';
 import { createRenderer, type RenderOptions } from '../../../src/cli/render/index.js';
 import { DevkitError, toEnvelope } from '../../../src/domain/errors.js';
 import { HARNESS_ACTIONS, HOOK_ACTIONS } from '../../../src/domain/harness/actions.js';
+import { errorsFinding } from '../../../src/domain/release/errors.js';
+import { report as summarizeReport } from '../../../src/domain/report.js';
 import { CaptureStream } from '../../fakes/capture-stream.js';
 
 function render(options: RenderOptions = {}, format: 'json' | 'ndjson' = 'json') {
@@ -211,5 +215,122 @@ describe('projection rows in a workflow summary', () => {
       'stage_details.mcp.items': 5,
       'stage_details.hooks.items': 6,
     });
+  });
+});
+
+it('summarizes large historical comparisons without hiding failures or truncating explicit details', () => {
+  const source = {
+    repos: [
+      {
+        name: 'a',
+        baseline_evidence: {
+          commits: [{ sha: 'a1' }, { sha: 'a2' }],
+          coverage: 'checked',
+          failures: [],
+        },
+      },
+      {
+        name: 'b',
+        baseline_evidence: {
+          commits: [{ sha: 'b1' }],
+          coverage: 'incomplete',
+          failures: [failure],
+        },
+      },
+    ],
+  };
+  const summary = render({ report: 'release:check' });
+  const details = render({ report: 'release:check', details: true });
+  const projected = render({
+    report: 'release:check',
+    fields: ['repos.baseline_evidence.commits'],
+  });
+  summary.renderer.record(source);
+  details.renderer.record(source);
+  projected.renderer.record(source);
+  expect(JSON.parse(summary.out())).toMatchObject({
+    repos: [
+      { baseline_evidence: { commits_count: 2, coverage: 'checked' } },
+      { baseline_evidence: { commits_count: 1, coverage: 'incomplete', failures: [failure] } },
+    ],
+    omitted: { 'repos.baseline_evidence.commits': 3 },
+  });
+  expect(JSON.parse(details.out())).toEqual(source);
+  expect(JSON.parse(projected.out())['repos.baseline_evidence.commits']).toEqual([
+    [{ sha: 'a1' }, { sha: 'a2' }],
+    [{ sha: 'b1' }],
+  ]);
+});
+
+it('keeps partial error-query recovery in compact JSON and the human release view', () => {
+  const throttle = toEnvelope(
+    new DevkitError('rate_limit', 'THROTTLED', 'Tracker rate limited', {
+      nextSteps: ['Wait, then retry the same absolute range.'],
+    }),
+  ).error;
+  const timeout = toEnvelope(
+    new DevkitError('network', 'TIMEOUT', 'Tracker request timed out', {
+      nextSteps: ['Check connectivity, then retry.'],
+    }),
+  ).error;
+  const baseIssue = {
+    id: '1',
+    shortId: 'EXAMPLE-1',
+    title: 'Example',
+    level: 'error',
+    firstSeen: '2026-09-01T00:00:00Z',
+    lastSeen: null,
+    count: 1,
+    url: null,
+    culprit: null,
+  };
+  const issues = [baseIssue, { ...baseIssue, id: '2', firstSeen: null }];
+  const finding = errorsFinding({
+    repo: 'example',
+    env: 'test',
+    slug: 'example',
+    label: 'Tracker',
+    since: '14d',
+    now: new Date('2026-09-03T00:00:00Z'),
+    issues,
+    capped: false,
+    page: {
+      issues,
+      more: false,
+      coverage: 'incomplete',
+      failures: [
+        { stage: 'detail', issue_id: '2', error: throttle },
+        { stage: 'detail', issue_id: '3', error: timeout },
+      ],
+    },
+  });
+  const result = { ...summarizeReport(['errors'], [finding]), repos: [] };
+  const output = render({ report: 'release:check' });
+  output.renderer.record(result);
+  const summary = JSON.parse(output.out());
+  expect(summary).toMatchObject({
+    complete: false,
+    findings: [
+      {
+        level: 'fail',
+        coverage: 'incomplete',
+        failure: throttle,
+        failures: [throttle, timeout],
+        fix: throttle.next_steps[0],
+      },
+    ],
+  });
+  expect(summary.findings[0].evidence).toBeUndefined();
+  expect(summary.findings[0].message).toContain('evidence is incomplete');
+  const text = releaseText(result, { display: PLAIN, details: false });
+  expect(text).toContain('evidence is incomplete');
+  expect(text).toContain(throttle.next_steps[0]);
+  expect(finding.evidence).toMatchObject({
+    error_evidence: {
+      failures: [
+        { stage: 'detail', issue_id: '2', error: throttle },
+        { stage: 'detail', issue_id: '3', error: timeout },
+      ],
+    },
   });
 });

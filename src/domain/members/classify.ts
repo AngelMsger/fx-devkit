@@ -67,7 +67,11 @@ function scopeOf(doc: Members, input: MemberFilter, today: string) {
     input.function,
     (doc.functions ?? []).map((f) => f.id),
   );
-  const asOf = input.asOf ?? today;
+  return { area, scenario, asOf: resolveMemberDate(input.asOf, today) };
+}
+
+export function resolveMemberDate(value: string | undefined, today: string): string {
+  const asOf = value ?? today;
   const date = new Date(asOf + 'T00:00:00Z');
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(asOf) ||
@@ -77,7 +81,7 @@ function scopeOf(doc: Members, input: MemberFilter, today: string) {
     throw new DevkitError('usage', 'INVALID_AS_OF', 'Expected a calendar date in YYYY-MM-DD form', {
       nextSteps: ['fx member show --help'],
     });
-  return { area, scenario, asOf };
+  return asOf;
 }
 
 function responsibilities(areas: readonly Area[]) {

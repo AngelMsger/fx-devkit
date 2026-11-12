@@ -42,14 +42,31 @@ function stage(): Stage {
   repository(
     host,
     'a',
-    { 'package.json': '{"dependencies":{"x":"1.0.0-dev"}}\n' },
-    { dev: { files: { NOTE: 'more\n' }, message: 'feat: m-1 more' } },
+    {
+      'package.json': '{"dependencies":{"x":"1.0.0-dev"}}\n',
+      'packages/client/package.json': '{"name":"@example/client","version":"1.0.0"}',
+    },
+    {
+      dev: {
+        files: {
+          NOTE: 'more\n',
+          'packages/client/package.json': '{"name":"@example/client","version":"1.1.0"}',
+        },
+        message: 'feat: m-1 more',
+      },
+    },
   );
   repository(
     host,
     'b',
     { VERSION: '1.0.0\n', 'requirements.txt': 'httpx==0.27\n' },
     { dev: 'level' },
+  );
+  repository(
+    host,
+    'c',
+    { VERSION: '7.0.0\n' },
+    { dev: { files: { VERSION: '7.1.0\n' }, message: 'feat: next version' } },
   );
   const manifestDir = path.join(base, 'src', 'manifest');
   mkdirSync(manifestDir, { recursive: true });
@@ -63,6 +80,7 @@ function stage(): Stage {
       'repos:',
       '  - { name: a, desc: Broken, tags: [backend], obs: { svc: alpha } }',
       '  - { name: b, desc: Fine, tags: [backend], obs: { svc: beta } }',
+      '  - { name: c, desc: Standalone, release: { covered: false } }',
       'release:',
       '  source: dev',
       '  env: dev',
@@ -127,7 +145,10 @@ else process.exit(2);
 const a=process.argv.slice(2).join(' ');
 if(a==='--version') console.log('sentry 0.42.2');
 else if(a==='auth status') process.exit(Number(process.env.FAKE_SENTRY_OK??0));
-else if(a.includes('issue list ')) console.log(JSON.stringify({data:a.includes('issue list fx/fx-alpha-dev')?[{id:'1',shortId:'FX-ALPHA-DEV-1',title:'boom',level:'error',firstSeen:'${recent}',lastSeen:'${recent}',count:'3',permalink:null,culprit:null}]:[],hasMore:false}));
+else if(a.startsWith('api ')) {
+  const issue = {id:'1',shortId:'FX-ALPHA-DEV-1',title:'boom',level:'error',firstSeen:'${recent}',lastSeen:'${recent}',count:'3',permalink:null,culprit:null,status:'unresolved'};
+  console.log(JSON.stringify({status:200,body:a.startsWith('api issues/1/')?issue:(a.includes('fx-alpha-dev')?[issue]:[]),pagination:{nextCursor:null}}));
+}
 else process.exit(2);
 `,
   );
@@ -264,5 +285,110 @@ describe('release', () => {
     });
     // The summary still leaves the passing findings out; what ships is not a finding.
     expect(run.json()).toMatchObject({ output_mode: 'summary' });
+  });
+});
+
+describe('release evidence CLI', () => {
+  it('parses nested version and baseline selectors into pinned facts alongside a fixed range', () => {
+    const s = stage();
+    const run = fx(
+      [
+        'release',
+        'check',
+        'a',
+        '--only',
+        'errors',
+        '--details',
+        '--format',
+        'json',
+        '--from',
+        '2026-08-20T00:00:00+08:00',
+        '--to',
+        '2026-09-03T00:00:00+08:00',
+        '--version-path',
+        'a=packages/client/package.json',
+        '--baseline',
+        'a=main',
+        '--history-limit',
+        '2',
+      ],
+      s.env,
+      s.ws,
+    );
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.json()).toMatchObject({
+      observed_at: expect.any(String),
+      range: {
+        start: '2026-08-19T16:00:00.000Z',
+        end: '2026-09-02T16:00:00.000Z',
+        bounds: '[start,end)',
+      },
+      evidence_complete: true,
+      repos: [
+        {
+          source: { version: '1.1.0' },
+          target: { version: '1.0.0' },
+          version_evidence: {
+            coverage: 'checked',
+            declaration: {
+              file: 'packages/client/package.json',
+              package_name: '@example/client',
+              value: '1.1.0',
+            },
+            last_change: { previous_value: '1.0.0', current_value: '1.1.0' },
+          },
+          baseline_evidence: {
+            coverage: 'checked',
+            baseline: { requested_ref: 'main' },
+            commits: [expect.objectContaining({ message: 'feat: m-1 more' })],
+          },
+        },
+      ],
+    });
+  });
+
+  it('reads version history for a repository deliberately excluded from release checks', () => {
+    const s = stage();
+    const run = fx(
+      ['repo', 'version', 'c', '--ref', 'dev', '--baseline', 'main', '--format', 'json'],
+      s.env,
+      s.ws,
+    );
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.json()).toMatchObject({
+      name: 'c',
+      evidence_complete: true,
+      version_evidence: {
+        requested_ref: 'dev',
+        coverage: 'checked',
+        declaration: { file: 'VERSION', value: '7.1.0' },
+        last_change: { previous_value: '7.0.0' },
+      },
+      baseline_evidence: {
+        baseline: { requested_ref: 'main', declaration: { value: '7.0.0' } },
+        coverage: 'checked',
+      },
+    });
+    const excluded = fx(['release', 'check', 'c', '--format', 'json'], s.env, s.ws);
+    expect(excluded.status).not.toBe(0);
+    expect(excluded.error().code).toBe('REPO_NOT_COVERED');
+  });
+
+  it('rejects malformed, duplicate and out-of-selection override values', () => {
+    const s = stage();
+    for (const flags of [
+      ['--baseline', 'main'],
+      ['--baseline', 'a=main', '--baseline', 'a=dev'],
+      ['--version-path', 'a='],
+      ['--version-path', 'b=VERSION'],
+    ]) {
+      const run = fx(
+        ['release', 'check', 'a', '--only', 'errors', '--format', 'json', ...flags],
+        s.env,
+        s.ws,
+      );
+      expect(run.status, run.stderr).not.toBe(0);
+      expect(run.error().code).toBe('RELEASE_OVERRIDE_INVALID');
+    }
   });
 });

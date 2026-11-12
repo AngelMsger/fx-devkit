@@ -500,6 +500,7 @@ Flags describe whether they accept repeated or comma-separated values.
 | Discover or change workspace registrations    | `workspace list/show/unregister/relocate/rebind`                                   |
 | Configure access and diagnose readiness       | `login`, `doctor`, `can`                                                           |
 | Find service coordinates and release evidence | `where`, `release check`                                                           |
+| Inspect a version declaration and its history | `repo version`                                                                     |
 | Browse and select repositories                | `repo list/show/select`, `repo pick/unpick`                                        |
 | Register local repositories or find a fork    | `repo add/remove`, `repo fork/open`                                                |
 | Select environments and agents                | `env list/show/select/pick/unpick`, `agent list/pick/unpick`                       |
@@ -568,17 +569,64 @@ the selected file is read at both branch heads. Its text is trimmed, and an empt
 declaration stays unknown. Without `VERSION`, fx uses the existing dependency-file
 version lookup (for example, `package.json`). Dependency checks still read dependencies.
 
-| Result                   | Completion decision                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `init`, `sync`, `doctor` | `preparation.state`: `planned`, `ready`, or `incomplete`, for `preparation.scope`. |
-| `release check`          | `ok`, `complete`, the findings and `repos`; it does not publish or deploy.         |
-| `can`                    | `status` and the handoff for that capability.                                      |
+For a release's error window, use a relative duration or an explicit pair of
+timezone-qualified instants. Absolute ranges include the start and exclude the
+end; use the following local midnight to include a whole day. For example:
+
+```sh
+fx release check fx-example-api --from 2026-04-01T00:00:00+08:00 --to 2026-04-15T00:00:00+08:00 --format json --details
+fx repo version fx-example-api --ref main --baseline v1.2.0 --format json
+fx repo version fx-example-sdk --path packages/client/package.json --format json
+```
+
+Version evidence pins refs to commits, identifies the actual declaration field
+and finds its last value change along the first-parent history. A dependency-only
+edit does not count. A historical baseline compares everything since that ref;
+it is separate from commits not yet merged into the release branch. A source
+version or its modification time does not prove publication. Missing history or
+an exhausted history budget returns partial evidence with a reason. The
+[CLI reference](cli/README.md) covers the options for adding this evidence to a
+multi-repository release check and selecting package paths.
+
+Automatic version-evidence discovery skips dependency-only files such as
+`requirements.txt`. A supported version source that is present but unreadable
+leaves evidence incomplete instead of silently selecting another package; Gradle
+can use adjacent `gradle.properties`. Maven supports literal versions or a single
+`${property}` resolved to a literal in the project's properties. Composite,
+nested or unresolved expressions return `VERSION_DECLARATION_UNREADABLE` with
+incomplete evidence.
+
+Sentry evidence retains collected candidates that matched an unresolved query
+and were active in the window, including older issues. It keeps lifetime
+first-seen separate from list/window dates. A later resolved or ignored status
+remains in the audit evidence and is excluded from the fresh-issue verdict. Pagination or metadata failures remain explicit; partial evidence does
+not prove that no issue exists. Status and assignee describe the time each
+response was read, not the historical window. Event counts have unknown scope
+and are not counts of newly introduced events. The error verdict counts lifetime
+first appearances; deciding whether an old issue regressed is a separate review.
+
+`repo show` also returns `ownership_evidence`: repository-linked business scopes,
+people, teams and collective responsibilities. Its date filter evaluates declared
+intervals in the current members document; it does not restore a historical
+snapshot or choose an assignee.
+
+| Result                   | Completion decision                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| `init`, `sync`, `doctor` | `preparation.state`: `planned`, `ready`, or `incomplete`, for `preparation.scope`.              |
+| `release check`          | `ok`, `complete`, `evidence_complete`, the findings and `repos`; it does not publish or deploy. |
+| `can`                    | `status` and the handoff for that capability.                                                   |
 
 Ready preparation exits 0; incomplete preparation exits 12. Preview is only a
 plan. Fatal configuration/execution errors retain their category exit codes and
 may include partial stdout. `doctor.coverage` describes diagnostic coverage
 separately; optional native activation can remain unverified without blocking
 required work. A projection file alone does not establish host activation.
+
+Release reports still exit zero when produced. `ok` means no failed check and
+`complete` means complete check coverage. `evidence_complete` also includes the
+requested repository facts; inspect `facet_coverage` and failures when it is false.
+`observed_at` is the command's start time. Each repository records its normalized
+range; the top-level range is null when repository policies use different windows.
 
 Init executes authorized local preparation itself. Completed setup steps stay
 visible in the result; do not repeat them while authentication is pending.
