@@ -4,6 +4,7 @@
 import os from 'node:os';
 
 import { SystemClock } from '../adapters/clock/system-clock.js';
+import { BitbucketGitProcess } from '../adapters/code-host/bitbucket-cli/git-process.js';
 import { FamilyServiceProtocol } from '../adapters/family/service-protocol.js';
 import { NodeFs } from '../adapters/fs/node-fs.js';
 import { SystemGit } from '../adapters/git/system-git.js';
@@ -81,6 +82,7 @@ export interface Container {
   readonly projections: ProjectionStore & LinkProjectionStore;
   readonly process: Process;
   readonly git: Git;
+  readonly gitProcess: Process;
   readonly clock: Clock;
   readonly bundledTools: () => string;
   readonly packageMetadata: () => PackageMetadata;
@@ -114,6 +116,7 @@ export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOption
     activity,
   );
   const process = options.decorateProcess?.(watched) ?? watched;
+  const gitProcess = new BitbucketGitProcess(process);
   const lock = new FileLock(home);
   const fs = new NodeFs(lock);
   return {
@@ -127,7 +130,8 @@ export function createContainer(env: NodeJS.ProcessEnv, options: ContainerOption
     fs,
     projections: new FileProjectionStore(lock),
     process,
-    git: new SystemGit(process),
+    git: new SystemGit(gitProcess),
+    gitProcess,
     clock,
     bundledTools: bundledToolsText,
     packageMetadata: bundledPackage,
@@ -233,7 +237,7 @@ export function workspaceDeps(container: Container, input: WorkspaceInvocation):
     ...(commandShell === undefined ? {} : { commandShell }),
     trust: trustContext(container, ctx.name, input),
     process: container.process,
-    git: container.git,
+    git: new SystemGit(workspaceGitProcess(container, ctx)),
     fs: container.fs,
     projections: container.projections,
     localStore: container.localStore,
@@ -272,4 +276,12 @@ export function skillDeps(
     bundledSkillDir: bundledSkillDir(),
     globalLock: container.lock,
   };
+}
+
+// Provider descriptors own context flags; application workflows remain host agnostic.
+function workspaceGitProcess(container: Container, ctx: WorkspaceContext): Process {
+  const binding = codeHostBinding(ctx.bindings);
+  if (binding.provider === null) return container.gitProcess;
+  const descriptor = binding.provider ? container.describeProvider(binding.provider) : undefined;
+  return descriptor?.gitProcess?.(container.process, binding.vars) ?? container.process;
 }

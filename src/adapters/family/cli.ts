@@ -5,7 +5,7 @@
 import { type Category, DevkitError, exitCodeFor, toolMissingError } from '../../domain/errors.js';
 import { errorEnvelope, stderrReason } from '../../domain/toolchain/stderr.js';
 import { isRecord } from '../../domain/values.js';
-import type { Process, ProcessResult } from '../../ports/process.js';
+import type { Process, ProcessResult, RunOptions } from '../../ports/process.js';
 
 import { serviceFlags } from './service.js';
 
@@ -63,7 +63,7 @@ export class FamilyCli {
 
   // Repository synchronization can query the code host without a readiness command.
   // An unprepared/conflicting preset must never fall through to an authenticated request.
-  private async checkService(): Promise<void> {
+  async checkService(options: RunOptions = {}): Promise<void> {
     if (!this.context || !this.service?.['base_url']) return;
     const result = await this.process.run(
       [
@@ -76,7 +76,7 @@ export class FamilyCli {
         '--format',
         'json',
       ],
-      { timeoutMs: 5000 },
+      { ...options, timeoutMs: Math.min(options.timeoutMs ?? 5000, 5000) },
     );
     if (result.code === 0 && objectOf(parse(result.stdout))?.['changed'] === false) return;
     throw new DevkitError(

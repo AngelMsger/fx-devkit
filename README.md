@@ -22,6 +22,8 @@ keeps its own history, branches, dependencies and build system.
   selections and credentials local.
 - Use human output interactively or JSON with explicit status and recovery steps.
 - Keep authentication and service APIs in the companion tools you already use.
+  A compatible `bitbucket-cli` also supplies HTTPS Git authentication for init and sync,
+  including manifests with SSH URLs, without giving tokens to fx.
 
 WeCom smart-bot workers can use the `wecom-chat-cli` companion; see the
 [worker binding and isolation requirements](docs/manifest-guide.md#wecom-smart-bot-workers).

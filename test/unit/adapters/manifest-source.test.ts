@@ -8,6 +8,7 @@ import { FileSource } from '../../../src/adapters/manifest-source/file.js';
 import { GitRepoSource } from '../../../src/adapters/manifest-source/git-repo.js';
 import { StdinSource } from '../../../src/adapters/manifest-source/stdin.js';
 import { NodeProcess } from '../../../src/adapters/process/node-process.js';
+import { DevkitError } from '../../../src/domain/errors.js';
 import { FakeFs } from '../../fakes/fake-fs.js';
 import { FakeGit } from '../../fakes/fake-git.js';
 import { FakeProcess } from '../../fakes/fake-process.js';
@@ -255,6 +256,16 @@ describe('GitRepoSource refresh decisions', () => {
       reason:
         'upstream would replace local files Git does not track: .env; move them aside to update',
     });
+  });
+
+  it('preserves native authentication recovery when refreshing the manifest', async () => {
+    const failure = new DevkitError('auth', 'HTTP_Unauthorized', 'Token rejected', {
+      nextSteps: ['bitbucket-cli --use-context team auth login'],
+    });
+    const git = new FakeGit().add(dir, { state: clean }).before('fetch', () => {
+      throw failure;
+    });
+    await expect(source(git).refresh(dir)).rejects.toBe(failure);
   });
 
   it('preserves the source when ignored payload inspection cannot complete', async () => {

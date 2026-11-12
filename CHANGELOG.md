@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.20.0 (2026-11-12)
+
+- Use compatible bitbucket-cli native HTTPS Git authentication for manifest
+  initialization, cloning, fetch and remote-head reads. SSH
+  declarations and stored remotes are preserved; fx never handles token values.
+  Missing or older companions retain ordinary Git, while rejected credentials
+  remain failures.
+- Update the companion catalog to bitbucket-cli 0.30.0 and wecom-channel-cli 0.4.0.
+
 ## 0.19.0 (2026-11-12)
 
 - Read pinned version declarations and first-parent field history with `repo version`, including nested packages and an optional historical baseline. Release checks can include the same evidence without treating a source change as publication.

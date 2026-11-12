@@ -21,6 +21,8 @@ export interface AdapterDeps {
 
 export interface ProviderDescriptor<P> extends ProviderFacts {
   readonly recipes: readonly SetupRecipe[];
+  // Optional native Git authentication, configured by the same public binding.
+  readonly gitProcess?: (process: Process, vars: Vars) => Process;
   // Values the recipes read that the provider works out from a binding's own variables,
   // e.g. the host name inside a clone URL.
   readonly recipeVars?: (vars: Vars) => Vars;

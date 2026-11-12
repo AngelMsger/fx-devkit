@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.20.0 (2026-11-12)
+
+- 通过兼容的 bitbucket-cli 原生 HTTPS Git 认证完成 manifest 初始化、克隆、fetch及远端 HEAD 读取；保留 SSH 声明及 remote，fx 不接触 token。配套 CLI 缺失或较旧时使用普通 Git，凭据被拒绝时保留错误。
+- 将配套 CLI 登记更新到 bitbucket-cli 0.30.0 和 wecom-channel-cli 0.4.0。
+
 ## 0.19.0 (2026-11-12)
 
 - 通过 `repo version` 读取固定到提交的版本声明和第一父提交字段历史, 支持嵌套包及可选历史基线. 发布检查可包含同样的证据, 不将源码变化视为已经发布.

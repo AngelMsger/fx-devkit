@@ -78,7 +78,7 @@ async function fixture(
     prompter,
   };
   h.process.binaries.add('bitbucket-cli');
-  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.29.0', stderr: '' });
+  h.process.on(['bitbucket-cli', '--version'], { code: 0, stdout: '0.30.0', stderr: '' });
   const plan = buildPlan(h.deps, login, { scopeEnvs: undefined });
   return { h, login, trust, plan, operation: new ServiceOperation(h.deps, login) };
 }

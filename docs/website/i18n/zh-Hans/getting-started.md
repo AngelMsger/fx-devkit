@@ -21,6 +21,12 @@
 
 支持 macOS 和 Linux。原生 Windows 适配器已实现，但 Windows 实机执行和 Agent 宿主激活尚未完成验证；目标为本地 NTFS 上的 PowerShell 5.1/7 和 cmd。参见 [Windows 支持边界](support.md#platform-support)。
 
+## Bitbucket Git 认证 {#bitbucket-git-authentication}
+
+当 `bitbucket-cli git --help` 可用时，fx 会使用配套 CLI 已有的登录，通过 HTTPS 完成 manifest 初始化、仓库克隆与同步。只要服务器允许 HTTPS Git，Data Center PAT 具有仓库读取权限即可；即使 manifest 使用 SSH URL，也不需要 SSH key。地址转换仅对本次调用生效，已保存的 remote 保持不变。fx 不读取或保存 token；推送仍需要写权限。
+
+首次克隆 manifest 前，先配置配套 CLI 的服务并登录。多个账号可通过 `BITBUCKET_CONTEXT` 选择初始化时使用的 context；工作区操作优先使用 manifest 声明的 context。用 `bitbucket-cli git -- ls-remote <clone-url>` 验证实际 Git 读取。配套 CLI 缺失或版本较旧时，继续使用普通 Git 认证，需升级配套 CLI 才能使用此能力。凭据被拒绝时会保留错误。单独执行 `git fetch` 仍需自行配置认证，或改用 `bitbucket-cli git -- -C <dir> fetch upstream`。此机制不支持递归子模块。
+
 ## 安装 {#install}
 
 <!-- distribution:internal -->

@@ -610,3 +610,14 @@ It never copies secrets or changes a populated destination identity. Multiple
 identities require `--from-context` after native `config contexts` discovery.
 Keep the final auth check: `unavailable` or `unchanged` does not establish login.
 Treat keychain/network/scope failures as their own recovery, not a login request.
+
+## Bitbucket Git transport
+
+With a companion providing `bitbucket-cli git --help`, init/sync and Git remote
+reads use its existing login over HTTPS, including SSH URLs without SSH keys.
+The companion owns all credentials; never extract tokens into fx or rewrite shared
+manifests just to bypass SSH. Select a bootstrap account with `BITBUCKET_CONTEXT`;
+workspace Git uses the provider's context. Check actual reading with
+`bitbucket-cli git -- ls-remote <clone-url>`. API readiness alone is not proof of
+Git access. Old/missing companions keep ordinary Git; rejected tokens do not fall
+back. Push needs separate write permission. Recursive submodules are unsupported.

@@ -28,6 +28,24 @@ Windows execution and real host activation remain unverified. Windows targets
 PowerShell 5.1/7 and cmd on local NTFS, without requiring WSL, Git Bash,
 administrator privileges or Developer Mode. See [platform support](support.md#platform-support).
 
+## Bitbucket Git authentication
+
+When `bitbucket-cli git --help` is available, fx uses that companion's existing
+login for HTTPS Git during manifest initialization, repository cloning and sync.
+A Data Center PAT with repository read permission is sufficient when the server
+permits HTTPS Git; no SSH key is required, even if the manifest uses SSH URLs.
+The companion converts URLs for each invocation and preserves stored remotes.
+fx never reads or stores the token. Push additionally requires write permission.
+
+Before the first manifest clone, configure the companion's service and login.
+For multiple accounts, select the intended context with `BITBUCKET_CONTEXT`;
+workspace operations use the manifest's declared context when present. Verify
+actual Git reading with `bitbucket-cli git -- ls-remote <clone-url>`.
+Missing or older companions retain ordinary Git authentication; upgrade the
+companion to use this bridge. Rejected credentials remain errors. Standalone
+`git fetch` needs its own authentication, or use `bitbucket-cli git -- -C <dir>
+fetch upstream`. Recursive submodules are outside this bridge's supported scope.
+
 ## Install
 
 <!-- distribution:internal -->

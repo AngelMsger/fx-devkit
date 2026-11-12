@@ -21,6 +21,12 @@ fx をインストールし、チームのマニフェストを接続してリ�
 
 macOS と Linux をサポートします。Windows のネイティブアダプターは実装済みですが、実機実行とエージェントホストの有効化は未検証です。対象はローカル NTFS 上の PowerShell 5.1/7 と cmd です。[Windows の検証範囲](support.md#platform-support)を参照してください。
 
+## Bitbucket の Git 認証 {#bitbucket-git-authentication}
+
+`bitbucket-cli git --help` が使える場合、fx は対応 CLI の既存のログインを利用し、HTTPS 経由で manifest の初期化、リポジトリのクローン、同期を行います。サーバーが HTTPS Git を許可していれば、リポジトリの読み取り権限を持つ Data Center PAT で利用でき、manifest が SSH URL でも SSH キーは不要です。URL の変換は呼び出しごとに適用され、保存済みの remote は変更されません。fx はトークンを読み取ったり保存したりしません。push には書き込み権限が別途必要です。
+
+最初に manifest をクローンする前に、対応 CLI のサービス設定とログインを済ませてください。複数のアカウントでは `BITBUCKET_CONTEXT` で初期化に使う context を選びます。ワークスペースの操作では manifest の context 宣言が優先されます。`bitbucket-cli git -- ls-remote <clone-url>` で実際の Git 読み取りを確認できます。対応 CLI が未導入または旧版なら通常の Git 認証を継続するため、この機能には更新が必要です。拒否された認証情報のエラーはそのまま返します。単独の `git fetch` には個別の認証設定が必要です。代わりに `bitbucket-cli git -- -C <dir> fetch upstream` を利用できます。再帰的なサブモジュールは未対応です。
+
 ## インストール {#install}
 
 <!-- distribution:internal -->
