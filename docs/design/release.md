@@ -11,6 +11,14 @@ answer is a warning with incomplete coverage, never a pass. The command exits ze
 whenever it produced the checklist, so a caller reads both flags and the findings
 rather than the exit status.
 
+`evidence_complete` additionally covers the requested repository facts, including
+unanswered declaration questions and optional version-history/baseline reads.
+`facet_coverage` on each repository distinguishes `checked`, `incomplete`,
+`not_requested` and `not_applicable` for declaration, version history, baseline
+and errors. These facts do not change the existing `ok`/`complete` definitions or
+the exit-zero report contract. A history lookup can be incomplete while all
+requested checks passed. Structured failures stay beside their partial evidence.
+
 The checklist knows capabilities, not providers. It asks the code host for
 branches, a range of commits, one commit and one file, the CI platform for a job's
 last build and the error tracker for open issues; whichever providers the manifest
@@ -38,6 +46,44 @@ failed, the repository's `unanswered` names the field and the reason, because so
 these questions, such as the target's version, no check asks. The questions it shares
 with the checks are asked once per repository.
 
+## Pinned version evidence
+
+Version history is opt-in for a release report. `repo version` reads it for any
+known repository, including one excluded from the release checklist. Both use
+the same code-host port and readiness gate. A requested branch, tag or commit is
+resolved to an immutable SHA before files and history are read. Automatic source
+selection prefers root `VERSION`, then supported package metadata. An explicit
+repository-relative path can select a nested package. The declaration records its
+actual `file`, `field`, `package_name` and `value`; a Gradle fallback names
+`gradle.properties`, not the build script that referred to it.
+
+Automatic discovery ignores dependency-only formats without a version reader,
+such as `requirements.txt`, so they cannot hide a later supported source. Once a
+supported source is present, an empty or unreadable declaration is incomplete;
+it does not silently select another package. Maven supports a literal version or
+one `${property}` resolved to a literal in the project's `properties`. Composite,
+nested and unresolved expressions are unreadable, with
+`VERSION_DECLARATION_UNREADABLE` retained in the evidence's failures.
+
+The history walk compares the selected field along the first-parent chain, so
+changing dependencies or whitespace does not count as a version change. The
+source path, field and package identity stay fixed during the walk. It returns
+the latest change's commit, commit time, previous value and current value. Only
+an actual root commit establishes a root declaration. A shallow boundary, missing
+parent, unreadable declaration, changed package identity or renamed/missing file
+leaves coverage incomplete; absence at a non-root parent does not prove creation.
+The walk has a bounded commit budget and reports `commits_read`, `termination`,
+`next_sha` and structured `failures`. `next_sha` describes where it stopped, not a
+promise that a later independent query reconstructs the original result.
+
+An optional caller-selected historical baseline pins both refs, reads the same
+declaration source on each side, and returns all commits reachable from the head
+but not the baseline. This range includes bot and merge commits. It is separate
+from `unmerged`, which counts people's commits absent from the current target
+branch. fx does not discover the last published version from a date, assume that
+a tag was deployed, infer a next minor version, or treat a source declaration as
+a built artifact. Those decisions require the caller's release policy and evidence.
+
 ## Policy resolution
 
 A repository's policy is the workspace `release` block with that repository's own
@@ -48,6 +94,16 @@ manifest does not list is never on the checklist, and `release.covered: false`
 takes it off. Targets default to `main` and `master`; the look-back window
 defaults to fourteen days and is written as an amount and a short unit (`14d`,
 `48h`, `2w`), because a release checklist counts days, not months.
+
+Error windows accept either that relative duration or explicit start/end instants
+with a timezone. Absolute bounds normalize to UTC milliseconds and are half-open:
+`[start,end)`. A whole local calendar day therefore ends at the following local
+midnight. Relative windows share one command-start `observed_at`; per-repository
+policy durations may still produce different ranges. Each repository records its
+range, while the top-level range is null unless every repository shares it.
+The report start is not a transactional snapshot of remote systems. Provider
+timestamps with sub-millisecond precision retain their source values; boundary
+comparisons truncate to milliseconds, never round forward.
 
 ## Selection and order
 
@@ -99,11 +155,72 @@ unreadable rather than failed.
 
 ## Unresolved errors
 
-Exception cleanup asks for issues first seen inside the window and still open.
-The tracker answers with activity inside the window; first-seen is judged here,
-so an issue the tracker cannot date is neither counted nor forgotten. fx asks for
-a bounded number of issues and the tracker says whether it had more — what it did
-not send is unread, not absent.
+Every errors finding carries `evidence.query_context`, including authentication
+failures, query failures and not-applicable results. It records `repository`,
+nullable `environment`, normalized `range`, command-start `observed_at`, and
+`source: {platform, provider, coordinate_fingerprint}` or null. Coordinates are
+resolved before the readiness gate, preserving the same identity across a failed
+authentication check and its retry. An unavailable or explicitly uncovered source
+is null. The fingerprint identifies the provider's query scope without exposing
+arbitrary variable values.
+
+Sentry query fingerprints identify the configured endpoint, organization and
+project selector, so repository aliases for one project retain the same source
+identity. Repository and environment are bound separately in `query_context`.
+Other tracker providers may supply their own query fingerprint; without it, the
+full canonical coordinate fingerprint is retained conservatively.
+
+Before treating a retry as superseding an earlier failure, a caller must match
+the repository, environment, range and non-null source identity and retain both
+observation times. Evidence from another server, organization, project or period
+cannot replace that failure. fx reports each attempt separately; these fields
+do not establish an atomic snapshot across queries or remote systems.
+
+Exception cleanup evaluates currently unresolved issues active inside the window.
+It collects those candidates before testing their lifetime first-seen date, so an
+older active issue remains available to a caller investigating a regression. The
+legacy finding still counts issues whose lifetime first-seen is inside the range,
+no later than the command's observation time. Undated issues leave coverage
+incomplete. This check alone does not establish that older issues are harmless.
+
+The application traverses pages, deduplicates IDs and stops on exhaustion or an
+explicit partial result. A page limit, missing/repeated cursor, lack of progress or
+query failure never establishes absence. `error_evidence` keeps every collected
+candidate, the range, `pages_read`, `has_more`, a continuation cursor when known,
+`coverage`, `truncation_reason` and structured failures. There is no public fx
+resume flag; retry the same absolute range or inspect the companion's query with
+its cursor, keeping partial and subsequent results distinguishable.
+
+The Sentry adapter reads metadata through the companion's API command, not the
+issue-view command that also fetches events. It reads lifetime first-seen from
+each issue's detail endpoint. List first-seen, filtered/window first-seen and
+lifetime first-seen remain separate fields; failed or invalid detail dates stay
+unknown and never fall back to list dates. Counts retain `count_scope: unknown`
+and must not be described as newly occurring events in the range. Current status
+and assignee are observed per response; each issue records its actual
+`status_observed_at`, while the aggregate time is null. A historical range does
+not reconstruct the issue's status or assignee at that historical time.
+
+Error candidates retain the latest observed metadata for each ID across pages,
+including a resolved or ignored status received after an unresolved list query.
+The fresh-issue verdict excludes those confirmed terminal observations. Advancing
+cursors remain progress even when a page repeats IDs. Structured query failures
+also appear in the finding's `failures` array, so compact reports retain error
+codes, retryability and recovery steps while omitting detailed evidence.
+
+Tool readiness does not establish a complete project coordinate. A located error
+coordinate without an executable query returns local `COORDINATE_INCOMPLETE`
+evidence and never calls the tracker; explicitly uncovered coordinates remain
+not applicable. Sentry queries prefer a configured positive numeric project ID,
+otherwise use the exact project slug. Issue lists have a sixty-second deadline;
+individual metadata reads retain thirty seconds and run at most four at once
+per project. The repository worker budget also bounds concurrent project reads.
+
+Sentry API reads set `SENTRY_NO_CACHE=1` only in the child process environment
+to obtain current status rather than a stored HTTP response. This does not
+change personal CLI settings. A full page can be terminal: the companion omits
+pagination when its parsed Link metadata has no next page, so page size alone
+is not evidence of truncation.
 
 ## Incomplete checks and recovery
 
@@ -126,3 +243,20 @@ The error-tracker workflow refuses coordinates whose command cannot be resolved;
 the Sentry adapter additionally requires a concrete organization and project before
 starting any query. Sentry's `org/` selector queries every project and is never a
 valid fallback for a repository check. Explicit `not_covered` remains an exclusion.
+
+## Responsibility evidence
+
+`repo show` keeps its existing `owners` projection and adds `ownership_evidence`.
+The latter uses the same scope and interval rules as member queries, preserving
+each repository-linked area/scenario, named people, responsibility teams and
+collective assignments separately. Coverage distinguishes no members document
+(`not_configured`), no linked scope (`not_covered`) and evaluated scopes (`checked`).
+An evaluated scope may explicitly have no relationships.
+
+The selected `as_of` date filters declared relationship intervals in the current
+members document; `basis: current_members_document` and
+`historical_snapshot: false` prevent treating it as a historical personnel
+snapshot. Person status, mentor and leader are current declared facts. The
+projection does not choose an assignee, expand collective `all` into named
+people, or infer responsibility from commit authors. A team workflow makes and
+records the final assignment using this evidence.

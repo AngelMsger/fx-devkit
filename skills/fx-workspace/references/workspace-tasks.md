@@ -36,7 +36,9 @@ covered by the [Skill reference](commands.md#standalone-companion-skill).
   Optional activation stays separate. Doctor's `coverage` describes diagnostics.
 - For `release check`, inspect `ok`, coverage `complete`, warning/failure findings and
   `repos[]`, what each repository would ship. It can exit zero with failures and does
-  not publish anything.
+  not publish anything. `evidence_complete` also covers requested declaration,
+  version-history and baseline facts; inspect per-repository `facet_coverage` and
+  structured failures before relying on missing data.
 - For `login`, retain `summary`, `problems` and step recovery fields. `handoff`
   needs input; `blocked` has an unfinished prerequisite; `not_started` was not attempted.
 - Read partial stdout after a nonzero exit. It preserves completed effects and
@@ -130,25 +132,26 @@ do not use a similarly named area as a substitute. Missing account keys are unkn
 not confirmed accounts. Responsibility evidence supports a proposal; changing an
 existing work-item owner must still follow the user's requested scope.
 
-| Task                                       | Entry                                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| Discover or repair workspace identity      | `fx workspace list/show`; `workspace relocate/rebind/unregister --dry-run`               |
-| Choose an exact repository/environment set | `fx repo select <names...>`; `fx env select <names...>`; `--all` or `--none`             |
-| Inspect checkouts                          | `fx status`; `--fetch` refreshes remote comparisons                                      |
-| Update selected repositories/resources     | `fx sync --dry-run`; use `--only` to narrow stages                                       |
-| Select repositories or environments        | `fx repo pick/unpick`; `fx env pick/unpick`                                              |
-| Inspect one repository and owners          | `fx repo show <repo>`; `fx member show <name>`                                           |
-| Find service diagnostics                   | `fx where <repo> --env <env>`                                                            |
-| Check tools/access                         | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                 |
-| Inspect repository release criteria        | `fx release check <repo> --only merge --details`                                         |
-| Install/update a companion and its Skill   | `fx tool install <tool> --dry-run`; `fx tool update <tool>\|--all --dry-run`             |
-| Review tool provenance                     | `fx tool history [tool]`; `fx tool inventory`                                            |
-| Inspect host resources                     | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                    |
-| Inspect declarations                       | `fx manifest validate --strict`; `fx manifest explain '<path>'`; `fx manifest providers` |
-| Edit/render shared facts                   | `fx manifest repo-set`; `fx manifest record-probe`; `fx manifest render --check`         |
-| Import existing checkouts                  | `fx manifest import <dir> --format json`                                                 |
-| Contribute selected source files           | `fx source push <paths...> --issue <id> --title <title> --dry-run`                       |
-| Inspect personal settings                  | `fx config list`; `fx config get <key> --explain`                                        |
+| Task                                                | Entry                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Discover or repair workspace identity               | `fx workspace list/show`; `workspace relocate/rebind/unregister --dry-run`                       |
+| Choose an exact repository/environment set          | `fx repo select <names...>`; `fx env select <names...>`; `--all` or `--none`                     |
+| Inspect checkouts                                   | `fx status`; `--fetch` refreshes remote comparisons                                              |
+| Update selected repositories/resources              | `fx sync --dry-run`; use `--only` to narrow stages                                               |
+| Select repositories or environments                 | `fx repo pick/unpick`; `fx env pick/unpick`                                                      |
+| Inspect one repository and owners                   | `fx repo show <repo>`; `fx member show <name>`                                                   |
+| Find service diagnostics                            | `fx where <repo> --env <env>`                                                                    |
+| Check tools/access                                  | `fx can <capability-or-tool>`; `fx doctor --tool <tool>`                                         |
+| Inspect repository release criteria                 | `fx release check <repo> --only merge --details`                                                 |
+| Inspect a written version and its last field change | `fx repo version <repo>`; use `--help` for pinned refs, nested packages and historical baselines |
+| Install/update a companion and its Skill            | `fx tool install <tool> --dry-run`; `fx tool update <tool>\|--all --dry-run`                     |
+| Review tool provenance                              | `fx tool history [tool]`; `fx tool inventory`                                                    |
+| Inspect host resources                              | `fx agent skills`; `fx hook list`; `fx mcp list/show`                                            |
+| Inspect declarations                                | `fx manifest validate --strict`; `fx manifest explain '<path>'`; `fx manifest providers`         |
+| Edit/render shared facts                            | `fx manifest repo-set`; `fx manifest record-probe`; `fx manifest render --check`                 |
+| Import existing checkouts                           | `fx manifest import <dir> --format json`                                                         |
+| Contribute selected source files                    | `fx source push <paths...> --issue <id> --title <title> --dry-run`                               |
+| Inspect personal settings                           | `fx config list`; `fx config get <key> --explain`                                                |
 
 Match the returned row by `capability`, not by a platform name from another manifest.
 `fx can` without a target lists every capability with its scope, what it is for and
@@ -170,6 +173,17 @@ Use `--format json` for results and `--help` for exact arguments. The table's
 `pick/unpick` notation means separate commands. Bare topics show their commands;
 help and completion prefer canonical names while preserving compatibility aliases.
 `release check` evaluates a checklist; it does not publish packages or deploy services.
+
+For release preparation, set the error window explicitly when dates matter and
+keep the normalized `[start,end)` range from the report. Request version history
+or a historical baseline when deciding whether the written version changed;
+current-branch `unmerged` is not the range since the last release. Read all error
+candidates from `error_evidence`, not only the legacy fresh-issue list. Distinguish
+lifetime first-seen from window dates, and current status from historical state.
+Do not turn unknown count scope into new-event counts or partial pagination into
+absence. Use `repo show` responsibility evidence and scoped member queries when
+a team workflow needs an assignee. Team policy decides final ownership, release
+intent and the next version; generic evidence does not make those decisions.
 
 ## What sync will and will not do
 

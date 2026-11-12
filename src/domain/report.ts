@@ -24,6 +24,7 @@ export interface Finding<G extends string = string> {
   readonly handoff?: HandoffEnvelope;
   readonly evidence?: Evidence;
   readonly failure?: ErrorEnvelope['error'];
+  readonly failures?: readonly ErrorEnvelope['error'][];
 }
 
 export interface Report<G extends string = string> {
@@ -41,6 +42,7 @@ export interface FindingExtra {
   readonly handoff?: HandoffEnvelope | undefined;
   readonly evidence?: Evidence | undefined;
   readonly failure?: ErrorEnvelope['error'] | undefined;
+  readonly failures?: readonly ErrorEnvelope['error'][] | undefined;
 }
 
 export function finding<G extends string>(
@@ -60,6 +62,7 @@ export function finding<G extends string>(
     ...(extra.handoff === undefined ? {} : { handoff: extra.handoff }),
     ...(extra.evidence === undefined ? {} : { evidence: extra.evidence }),
     ...(extra.failure === undefined ? {} : { failure: extra.failure }),
+    ...(extra.failures === undefined ? {} : { failures: extra.failures }),
     ...(extra.required === undefined ? {} : { required: extra.required }),
     ...(extra.actions === undefined ? {} : { actions: extra.actions }),
   };

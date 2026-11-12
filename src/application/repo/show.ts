@@ -3,6 +3,10 @@
 
 import type { ResolvedRepo } from '../../domain/manifest/local.js';
 import { ownersOf, type Ownership } from '../../domain/members/owners.js';
+import {
+  ownershipEvidence,
+  type OwnershipEvidence,
+} from '../../domain/members/ownership-evidence.js';
 import { deriveStatus, type StatusRow } from '../../domain/workspace/status.js';
 import type { WorkspaceDeps } from '../workspace/deps.js';
 import { workspaceCommand } from '../workspace/guidance.js';
@@ -28,17 +32,27 @@ export interface RepoDetail extends StatusRow {
   readonly contact: string | null;
   // null: no members document, not an unowned repository.
   readonly owners: readonly Ownership[] | null;
+  readonly ownership_evidence: OwnershipEvidence;
   readonly next_steps: readonly string[];
 }
 
 export class RepoShow {
   constructor(private readonly deps: WorkspaceDeps) {}
 
-  async execute(input: { readonly name: string }): Promise<RepoDetail> {
+  async execute(input: {
+    readonly name: string;
+    readonly asOf?: string | undefined;
+  }): Promise<RepoDetail> {
     const repo = findKnownRepo(this.deps, input.name);
+    const people = this.deps.ctx.manifest.members?.result.doc;
+    const evidence = ownershipEvidence({
+      members: people,
+      repo: repo.name,
+      asOf: input.asOf,
+      today: new Date().toISOString().slice(0, 10),
+    });
     const urls = urlsFor(this.deps, repo, undefined);
     const status = deriveStatus(repo, await inspectDisk(this.deps, repo), urls.upstream);
-    const people = this.deps.ctx.manifest.members?.result.doc;
     const picked = this.deps.ctx.workspace.repos.some((entry) => entry.name === repo.name);
     return {
       ...status,
@@ -54,6 +68,7 @@ export class RepoShow {
       web_url: webUrlFor(this.deps, repo) ?? null,
       contact: contactFor(this.deps, repo) ?? null,
       owners: people === undefined ? null : ownersOf(people, repo.name),
+      ownership_evidence: evidence,
       next_steps: [
         ...(!picked ? [workspaceCommand(this.deps, 'repo', 'pick', repo.name)] : []),
         ...(!status.exists && repo.origin === 'shared'

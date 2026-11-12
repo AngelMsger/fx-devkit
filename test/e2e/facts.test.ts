@@ -368,7 +368,27 @@ describe('facts: where, member, can, derived docs', () => {
     const s = stage();
     const file = path.join(manifestDirOf(s.env['FX_HOME']!, 'ws'), 'manifest/members.yaml');
     const source = readFileSync('test/fixtures/manifest/member-collaboration/members.yaml', 'utf8');
-    writeFileSync(file, source);
+    writeFileSync(file, source.replaceAll('[folio]', '[a]'));
+    const repoArgs = ['repo', 'show', 'a', '--as-of', '2025-02-03', ...json];
+    const repo = fx(repoArgs, s.env, s.ws);
+    expect(repo.status, repo.stderr).toBe(0);
+    expect(repo.json()).toMatchObject({
+      ownership_evidence: {
+        as_of: '2025-02-03',
+        basis: 'current_members_document',
+        historical_snapshot: false,
+        coverage: 'checked',
+        items: [
+          { context: { area: 'domain-docs', scenario: 'proof' }, people: [{ id: 'person-a' }] },
+          { context: { area: 'domain-forms', scenario: 'fold' }, people: [{ id: 'person-a' }] },
+        ],
+      },
+    });
+    expect(repo.stderr).not.toContain('person-a');
+    expect(repo.stderr).not.toContain('card/iris');
+    expect(
+      fx(['repo', 'show', 'a', '--as-of', '2025-02-30', ...json], s.env, s.ws).error().code,
+    ).toBe('INVALID_AS_OF');
     const args = [
       'member',
       'list',
@@ -404,10 +424,22 @@ describe('facts: where, member, can, derived docs', () => {
     const invalid = fx([...args, ...json], s.env, s.ws);
     expect(invalid.error().code).toBe('MEMBERS_NOT_SENSITIVE');
     expect(invalid.stdout).toBe('');
+    const invalidRepo = fx(repoArgs, s.env, s.ws);
+    expect(invalidRepo.error().code).toBe('MEMBERS_NOT_SENSITIVE');
+    expect(invalidRepo.stdout).toBe('');
     renameSync(file, file + '.disabled');
     const missing = fx([...args, ...json], s.env, s.ws);
     expect(missing.error().code).toBe('MEMBERS_MISSING');
     expect(missing.stdout).toBe('');
+    expect(fx(repoArgs, s.env, s.ws).json()).toMatchObject({
+      owners: null,
+      ownership_evidence: { coverage: 'not_configured', items: [] },
+    });
+    mkdirSync(file);
+    const unreadableRepo = fx(repoArgs, s.env, s.ws);
+    expect(unreadableRepo.status).not.toBe(0);
+    expect(unreadableRepo.stdout).toBe('');
+    expect(unreadableRepo.error()).toMatchObject({ code: expect.any(String) });
   });
 
   it('derives AGENTS.md without people or coordinates, and tells a stale guide from a foreign one', () => {

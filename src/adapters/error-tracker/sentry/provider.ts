@@ -28,6 +28,7 @@ export const sentryProvider: ProviderDescriptor<ErrorTracker> = {
   envVars: [
     { name: 'team', desc: 'team slug in this environment', required: false },
     { name: 'slug', desc: 'project slug template, may use {svc}', required: true },
+    { name: 'id', desc: 'optional positive numeric project ID for issue queries', required: false },
   ],
-  create: (deps) => new SentryErrorTracker(deps.process),
+  create: (deps) => new SentryErrorTracker(deps.process, deps.clock),
 };

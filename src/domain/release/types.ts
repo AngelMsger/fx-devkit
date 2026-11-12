@@ -2,7 +2,11 @@
 // of a report whose ids are repository names, and what each repository's
 // release would carry, so a verdict always names what it was about.
 
+import type { ErrorEnvelope } from '../errors.js';
 import { finding, type Finding, type FindingExtra, type Level, type Report } from '../report.js';
+
+import type { BaselineEvidence, VersionEvidence } from './version-evidence.js';
+import type { TimeRange } from './window.js';
 
 export const CHECKS = ['deps', 'merge', 'ci', 'errors'] as const;
 export type Check = (typeof CHECKS)[number];
@@ -56,6 +60,32 @@ export interface ReleaseRepo {
   // The questions to the code host that failed, so a null above is not mistaken for
   // "declares nothing" or "nothing to merge".
   readonly unanswered: readonly Unanswered[];
+  readonly range?: TimeRange;
+  readonly version_evidence?: VersionEvidence | null;
+  readonly baseline_evidence?: BaselineEvidence | null;
+  readonly facet_coverage?: ReleaseFacetCoverage;
+}
+
+// Query provenance is present even when authentication or the first page fails.
+export interface ErrorQueryContext {
+  readonly repository: string;
+  readonly environment: string | null;
+  readonly range: TimeRange;
+  readonly observed_at: string;
+  readonly source: {
+    readonly platform: string;
+    readonly provider: string;
+    readonly coordinate_fingerprint: string;
+  } | null;
+}
+
+export type EvidenceCoverage = 'checked' | 'incomplete' | 'not_requested' | 'not_applicable';
+
+export interface ReleaseFacetCoverage {
+  readonly declaration: EvidenceCoverage;
+  readonly version_history: EvidenceCoverage;
+  readonly baseline: EvidenceCoverage;
+  readonly errors: EvidenceCoverage;
 }
 
 export interface Unanswered {
@@ -63,9 +93,15 @@ export interface Unanswered {
   // source.version, the same two for target, or unmerged.
   readonly field: string;
   readonly reason: string;
+  readonly error?: ErrorEnvelope['error'];
 }
 
-export type ReleaseReport = Report<Check> & { readonly repos: readonly ReleaseRepo[] };
+export type ReleaseReport = Report<Check> & {
+  readonly repos: readonly ReleaseRepo[];
+  readonly observed_at?: string;
+  readonly range?: TimeRange | null;
+  readonly evidence_complete?: boolean;
+};
 
 export function releaseFinding(
   check: Check,

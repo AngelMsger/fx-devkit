@@ -14,7 +14,7 @@ import {
   type ReleaseRepo,
   type ReleaseReport,
 } from '../../domain/release/types.js';
-import { windowMs } from '../../domain/release/window.js';
+import { resolveRange, type TimeRange } from '../../domain/release/window.js';
 import { report } from '../../domain/report.js';
 import { environmentsOf, envNotFound } from '../env/names.js';
 import type { LoginDeps } from '../login/deps.js';
@@ -30,6 +30,7 @@ import { gatherFacts, type CheckContext, type FactsOutcome } from './facts.js';
 import { Gates } from './gates.js';
 import { checkMerge } from './merge.js';
 import { describeRepo } from './repo.js';
+import { validateVersionPath } from './version-declaration.js';
 
 export interface ReleaseInput {
   readonly repos?: readonly string[] | undefined;
@@ -37,6 +38,12 @@ export interface ReleaseInput {
   readonly only?: readonly Check[] | undefined;
   readonly env?: string | undefined;
   readonly since?: string | undefined;
+  readonly from?: string | undefined;
+  readonly to?: string | undefined;
+  readonly versionHistory?: boolean | undefined;
+  readonly versionPaths?: Readonly<Record<string, string>> | undefined;
+  readonly baselines?: Readonly<Record<string, string>> | undefined;
+  readonly historyLimit?: number | undefined;
   readonly jobs: number;
 }
 
@@ -60,24 +67,90 @@ export class Release {
   }
 
   async execute(input: ReleaseInput): Promise<ReleaseReport> {
-    if (input.since !== undefined) windowMs(input.since);
+    const observedAt = this.login.clock.now();
     this.checkEnv(input.env);
     const checks = CHECKS.filter((c) => input.only === undefined || input.only.includes(c));
     const repos = this.select(input);
+    this.validateEvidenceInput(input, repos, observedAt);
     await this.warmGates(repos, checks, input);
     const results = await Tally.during(this.deps.activity, 'repos', (tally) => {
       tally.plan(repos.length);
       return pooled(repos, input.jobs, (repo) =>
-        tally.unit(repo.name, () => this.checkRepo(repo, checks, input)),
+        tally.unit(repo.name, () => this.checkRepo(repo, checks, input, observedAt)),
       );
     });
+    const checked = report(
+      CHECKS,
+      results.flatMap((r) => r.findings),
+    );
+    const described = results.map((r) => r.repo);
     return {
-      ...report(
-        CHECKS,
-        results.flatMap((r) => r.findings),
-      ),
-      repos: results.map((r) => r.repo),
+      ...checked,
+      repos: described,
+      observed_at: observedAt.toISOString(),
+      range: commonRange(described),
+      evidence_complete:
+        checked.complete &&
+        described.every(
+          (repo) =>
+            repo.unanswered.length === 0 &&
+            Object.values(repo.facet_coverage ?? {}).every((coverage) => coverage !== 'incomplete'),
+        ),
     };
+  }
+
+  private validateEvidenceInput(
+    input: ReleaseInput,
+    repos: readonly ResolvedRepo[],
+    now: Date,
+  ): void {
+    const names = new Set(repos.map((repo) => repo.name));
+    for (const [kind, values] of Object.entries({
+      baseline: input.baselines,
+      'version-path': input.versionPaths,
+    })) {
+      for (const [name, value] of Object.entries(values ?? {})) {
+        if (!names.has(name) || value.trim() === '')
+          throw new DevkitError(
+            'usage',
+            'RELEASE_OVERRIDE_INVALID',
+            `The ${kind} override must name a selected repository and a nonempty value`,
+            {
+              nextSteps: ['Select the repository and provide a repo=value override.'],
+            },
+          );
+      }
+    }
+    for (const value of Object.values(input.versionPaths ?? {})) validateVersionPath(value);
+    if (
+      input.historyLimit !== undefined &&
+      (!Number.isSafeInteger(input.historyLimit) ||
+        input.historyLimit < 1 ||
+        input.historyLimit > 1000)
+    )
+      throw new DevkitError(
+        'usage',
+        'VERSION_HISTORY_BUDGET_INVALID',
+        'History budget must be between 1 and 1000 commits',
+        {
+          nextSteps: ['Use --history-limit with an integer from 1 to 1000.'],
+        },
+      );
+    for (const repo of repos) this.rangeFor(repo, input, now);
+  }
+
+  private rangeFor(repo: ResolvedRepo, input: ReleaseInput, now: Date): TimeRange {
+    const policy = releasePolicyOf(this.deps.ctx.manifest.workspace.result.doc, repo.name);
+    const explicit = input.from !== undefined || input.to !== undefined;
+    const since = input.since ?? (explicit ? undefined : policy.since);
+    return resolveRange(
+      {
+        ...(since === undefined ? {} : { since }),
+        ...(input.from === undefined ? {} : { start: input.from }),
+        ...(input.to === undefined ? {} : { end: input.to }),
+      },
+      now,
+    );
   }
 
   // The name came from the person, so it is answered once, not per repository.
@@ -96,7 +169,7 @@ export class Release {
   ): Promise<void> {
     const doc = this.deps.ctx.manifest.workspace.result.doc;
     const policies = repos.map((repo) => releasePolicyOf(doc, repo.name));
-    if (checks.some((c) => c !== 'errors')) await this.gates.through('code-host', undefined);
+    if (needsCodeHost(checks, input)) await this.gates.through('code-host', undefined);
     const wanted = (check: Check, envs: (string | undefined)[]): string[] =>
       checks.includes(check) ? [...new Set(envs.filter((e): e is string => e !== undefined))] : [];
     for (const env of wanted(
@@ -144,6 +217,7 @@ export class Release {
     repo: ResolvedRepo,
     checks: readonly Check[],
     input: ReleaseInput,
+    observedAt: Date,
   ): Promise<{ findings: ReleaseFinding[]; repo: ReleaseRepo }> {
     const shared = releasePolicyOf(this.deps.ctx.manifest.workspace.result.doc, repo.name);
     const ctx: CheckContext = {
@@ -152,17 +226,58 @@ export class Release {
       repo,
       policy: { ...shared, env: input.env ?? shared.env, since: input.since ?? shared.since },
       members: this.deps.ctx.manifest.members?.result.doc,
-      now: this.login.clock.now(),
+      now: observedAt,
+      range: this.rangeFor(repo, input, observedAt),
+      factsRequested: needsCodeHost(checks, input, repo.name),
+      ...(input.versionHistory === undefined ? {} : { versionHistory: input.versionHistory }),
+      ...(input.historyLimit === undefined ? {} : { historyLimit: input.historyLimit }),
+      ...(input.versionPaths?.[repo.name] === undefined
+        ? {}
+        : { versionPath: input.versionPaths[repo.name] }),
+      ...(input.baselines?.[repo.name] === undefined
+        ? {}
+        : { baselineRef: input.baselines[repo.name] }),
     };
-    const facts = checks.some((c) => c !== 'errors')
+    const facts = needsCodeHost(checks, input, repo.name)
       ? await gatherFacts(ctx)
       : { kind: 'error' as const, reason: 'not asked' };
     const [findings, described] = await Promise.all([
       Promise.all(checks.map((check) => CHECKERS[check](ctx, facts))),
       describeRepo(ctx, facts),
     ]);
-    return { findings, repo: described };
+    const errors = findings.find((finding) => finding.group === 'errors');
+    return {
+      findings,
+      repo: {
+        ...described,
+        ...(described.facet_coverage === undefined
+          ? {}
+          : {
+              facet_coverage: {
+                ...described.facet_coverage,
+                errors: errors?.coverage ?? 'not_requested',
+              },
+            }),
+      },
+    };
   }
+}
+
+function needsCodeHost(checks: readonly Check[], input: ReleaseInput, repo?: string): boolean {
+  const overrides =
+    repo === undefined
+      ? Object.keys(input.versionPaths ?? {}).length > 0 ||
+        Object.keys(input.baselines ?? {}).length > 0
+      : input.versionPaths?.[repo] !== undefined || input.baselines?.[repo] !== undefined;
+  return checks.some((check) => check !== 'errors') || input.versionHistory === true || overrides;
+}
+
+function commonRange(repos: readonly ReleaseRepo[]): TimeRange | null {
+  const first = repos[0]?.range;
+  return first !== undefined &&
+    repos.every((repo) => repo.range?.start === first.start && repo.range.end === first.end)
+    ? first
+    : null;
 }
 
 const COVERAGE_HINT =

@@ -103,6 +103,7 @@ how to continue after a sign-in or approval, and how to
 | Check a capability             | `fx can <capability> --env <environment>`             |
 | Refresh guides and Skills      | `fx sync --only docs,skills`                          |
 | Check what is ready to release | `fx release check`                                    |
+| Inspect version history        | `fx repo version <repo>`                              |
 
 Use `repo list`, `env list`, `agent list` and `tool list` to discover valid names.
 Use `repo select` and `env select` to choose an exact set, `--all` to follow the

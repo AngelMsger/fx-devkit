@@ -275,7 +275,7 @@ fx skill status
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
 | 创建、同步和检查工作区 | `init`、`sync`、`status`                                                                             |
 | 设置访问并检查就绪     | `login`、`doctor`、`can`                                                                             |
-| 查询环境坐标与发布证据 | `where`、`release check`                                                                             |
+| 查询环境坐标与发布证据 | `where`、`release check`、`repo version`                                                             |
 | 管理仓库               | `repo list/show/pick/unpick/add/remove/fork/open`                                                    |
 | 管理环境与 Agent       | `env list/show/pick/unpick`、`agent list/pick/unpick`                                                |
 | 管理工具和 Skill       | `tool list/show/install/update/history/inventory`、`agent skills`                                    |
@@ -294,13 +294,31 @@ fx skill status
 
 发布版本优先读取源分支根目录的 `VERSION` 文件, 并在两个分支的最新提交上读取同一路径. 内容会去除首尾空白, 空内容保持为未知. 没有 `VERSION` 时, 继续从依赖文件 (如 `package.json`) 读取版本. 依赖检查仍读取依赖声明.
 
+发布错误窗口可以使用相对时长, 或一对包含时区的明确时间. 绝对区间包含起点, 不包含终点; 要包含完整的一天, 终点使用当地次日零点. 例如:
+
+```sh
+fx release check fx-example-api --from 2026-04-01T00:00:00+08:00 --to 2026-04-15T00:00:00+08:00 --format json --details
+fx repo version fx-example-api --ref main --baseline v1.2.0 --format json
+fx repo version fx-example-sdk --path packages/client/package.json --format json
+```
+
+版本证据把引用固定到提交, 标明实际声明字段, 并沿第一父提交历史查找该字段最近一次值变更. 仅修改依赖不算版本变化. 历史基线比较从该引用以来的全部变更, 与尚未合入发布分支的提交分开. 源码版本或修改时间不能证明已发布. 历史缺失或查询预算耗尽时, 返回带有原因的部分证据. [CLI 参考](cli/README.md) 说明如何在多仓发布检查中请求这些证据, 以及如何选择包路径.
+
+自动发现版本证据时会跳过 `requirements.txt` 等只声明依赖的文件. 已存在但无法读取的受支持版本来源会使证据不完整, 不会隐式改选其他包; Gradle 可以使用相邻的 `gradle.properties`. Maven 支持字面版本, 或可从项目 properties 解析为字面值的单个 `${property}`. 组合表达式、嵌套表达式或无法解析的表达式返回 `VERSION_DECLARATION_UNREADABLE`, 并保留证据不完整状态.
+
+Sentry 证据保留匹配未解决查询且在窗口内活跃的已收集候选, 包括旧问题. 后续确认 resolved 或 ignored 的状态保留在审计证据中, 但不计入新问题判定, 并区分生命周期首次出现时间和列表/窗口时间. 分页或元数据失败会明确保留; 部分证据不能证明问题不存在. 状态与责任人反映读取各响应时的情况, 不代表历史窗口内的状态. 事件数的统计范围未知, 不能当作本轮新增事件次数. 错误检查按生命周期首次出现时间计数; 旧问题是否回归需要另行判断.
+
+`repo show` 还返回 `ownership_evidence`: 仓库关联的业务范围、人员、团队和集体职责. 日期筛选只对当前成员文档中声明的有效区间求值, 不恢复历史快照, 也不决定委派谁.
+
 | 结果               | 完成判定                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | `init/sync/doctor` | `preparation.state` 为 `planned`、`ready` 或 `incomplete`，仅针对 `preparation.scope`。 |
-| `release check`    | 读取 `ok`、`complete`、检查项和 `repos`；此命令不发布或部署。                           |
+| `release check`    | 读取 `ok`、`complete`、`evidence_complete`、检查项和 `repos`；此命令不发布或部署。      |
 | `can`              | 读取目标能力的 `status` 和接手指引。                                                    |
 
 准备就绪退出 0，未完成退出 12；预览只是计划。配置或执行异常保留原分类退出码，也可能返回部分 stdout。`doctor.coverage` 单独描述诊断覆盖；可选宿主激活未验证不会阻塞必需工作，文件存在也不证明激活。
+
+发布报告成功生成后仍以 0 退出. `ok` 表示没有失败检查, `complete` 表示检查覆盖完整. `evidence_complete` 还包括已请求的仓库事实; 为 false 时应查看 `facet_coverage` 和失败原因. `observed_at` 是命令开始时间. 每个仓库记录自己的标准化时间区间; 仓库策略使用不同窗口时, 顶层区间为 null.
 
 Init 会自行执行已授权的本地准备。结果保留已完成步骤；认证未完成时，不要重复这些步骤。
 

@@ -53,6 +53,7 @@ import RepoRemove from './repo/remove.js';
 import RepoSelect from './repo/select.js';
 import RepoShow from './repo/show.js';
 import RepoUnpick from './repo/unpick.js';
+import RepoVersion from './repo/version.js';
 import SelfInfo from './self/info.js';
 import SelfUpdate from './self/update.js';
 import SkillInstall from './skill/install.js';
@@ -103,6 +104,7 @@ const CANONICAL_COMMANDS = {
   completion: CompletionCommand,
   'repo:list': RepoList,
   'repo:show': RepoShow,
+  'repo:version': RepoVersion,
   'repo:select': RepoSelect,
   'repo:pick': RepoPick,
   'repo:unpick': RepoUnpick,

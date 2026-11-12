@@ -43,7 +43,9 @@ export interface CodeHost {
   branches(ref: RepoRef): Promise<Branch[]>;
   // Commits reachable from `to` and not from `from`, every page of them.
   compare(ref: RepoRef, range: CommitRange): Promise<Commit[]>;
-  commit(ref: RepoRef, sha: string): Promise<Commit>;
+  // Resolve a branch, tag or SHA to a canonical commit SHA. Parents are complete
+  // and ordered; absent/unreadable parent metadata must never become a root commit.
+  commit(ref: RepoRef, refOrSha: string): Promise<Commit>;
   // undefined when the path does not exist at that ref; anything else throws.
   readFile(ref: RepoRef, path: string, at: string): Promise<string | undefined>;
 }

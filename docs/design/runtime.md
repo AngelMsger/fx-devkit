@@ -302,13 +302,13 @@ and authorization. See [setup](setup.md) for selection and coverage semantics.
 
 ## Deadlines and process lifecycle
 
-| Work                           | Bound and outcome                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------------- |
-| Package/manifest update lookup | Two-second upstream deadline; failure is silent and never changes the command outcome |
-| Provider query                 | Fifteen seconds for family tools; thirty seconds for the slower Sentry CLI            |
-| Code-host identity/readability | Five-second process deadline; a timeout reads as `unknown`                            |
-| Hook foreground                | Independent two-second supervisor; host wrapper allows three seconds                  |
-| Hook background                | Thirty-second supervisor; companion calls receive the remaining bounded budget        |
+| Work                           | Bound and outcome                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Package/manifest update lookup | Two-second upstream deadline; failure is silent and never changes the command outcome             |
+| Provider query                 | Fifteen seconds for family tools; sixty seconds for Sentry issue lists, thirty for issue metadata |
+| Code-host identity/readability | Five-second process deadline; a timeout reads as `unknown`                                        |
+| Hook foreground                | Independent two-second supervisor; host wrapper allows three seconds                              |
+| Hook background                | Thirty-second supervisor; companion calls receive the remaining bounded budget                    |
 
 Update checks cache successful and failed attempts. They are disabled for self
 update/completion, quiet mode and the `update_check` preference. Local filesystem

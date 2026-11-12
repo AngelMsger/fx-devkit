@@ -91,6 +91,23 @@ describe('BitbucketCodeHost queries', () => {
     });
   });
 
+  it('resolves a named ref and never interprets missing parents as a root', async () => {
+    const proc = new FakeProcess().on(
+      [...BB, 'commit', 'get', 'v1.0.0', '--repo', 'FX/fx-example-auth'],
+      ok({ hash: 'canonical-sha', date: '0', parents: ['parent'] }),
+    );
+    expect(await host(proc).commit(ref, 'v1.0.0')).toMatchObject({
+      sha: 'canonical-sha',
+      parents: ['parent'],
+    });
+    for (const parents of [undefined, null, ['valid', null]]) {
+      const broken = new FakeProcess().always(ok({ hash: 'c1', date: '0', parents }));
+      await expect(host(broken).commit(ref, 'c1')).rejects.toMatchObject({
+        code: 'PLATFORM_QUERY_FAILED',
+      });
+    }
+  });
+
   it('returns a file verbatim, undefined when absent, and throws otherwise', async () => {
     const vector = [
       ...BB,

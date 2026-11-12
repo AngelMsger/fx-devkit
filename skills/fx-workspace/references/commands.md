@@ -163,6 +163,38 @@ returns the corresponding explicit queries instead of an unrelated fuzzy area.
 
 `fx repo show <repo>` — the resolved entry, disk state and URLs, plus `owners`: `[]` when the members document names nobody, `null` when the workspace has no members document at all, else items of `area`, `lead`, `scenario`, `devLead`, `roles`, every person as `{id, name, email}` (name and email `null` when the id is not in the document, `all` included); `contact` is the project's contact. Its `next_steps` use the canonical repository name and explicit workspace to select an unpicked repository and synchronize missing shared checkouts; inspection itself never changes selection or downloads files.
 
+`ownership_evidence` is an additional scope-aware projection. It carries `as_of`,
+`basis: current_members_document`, `historical_snapshot: false`, `coverage`,
+`items` and `has_more: false`. Each item retains the repository-linked area/scenario,
+context, named people, responsibility teams and collective assignments. A person's
+status, mentor and leader remain explicit current facts. `--as-of YYYY-MM-DD`
+filters declared relationship intervals, defaulting to today in UTC; it does not
+reconstruct old membership documents. `not_configured` means no members document,
+`not_covered` means no linked scope, and a checked scope can still say
+`no_relationships`. Do not expand collective `all` or infer an assignee from Git
+authors. A team workflow selects an owner from applicable responsibility evidence.
+
+`fx repo version <repo>` reads pinned version history for any known repository,
+even one excluded from the release checklist. `version_evidence` carries
+`requested_ref`, `resolved_sha`, `declaration`, `last_change`, `coverage`,
+`commits_read`, `termination`, `next_sha` and structured `failures`.
+`declaration` is `{file, field, package_name, value}`. `last_change` identifies the
+commit, committer time, old/new values, `history_mode: first_parent` and whether
+this is a field change or actual root declaration. A dependency edit is not a
+version-field change. Source path, field and package identity stay fixed during
+the walk; renamed files, shallow/missing parents and exhausted budgets remain
+incomplete. `next_sha` describes a stop point, not an automatic resume mechanism.
+The optional `baseline_evidence` pins both refs and compares their declarations
+and complete commit range. `evidence_complete` covers both requested facets.
+Use the command's help for ref, path, baseline and history-budget options.
+
+Automatic declaration discovery skips dependency-only files such as
+`requirements.txt`. A present but unreadable supported source remains incomplete;
+only the documented Gradle fallback selects adjacent `gradle.properties`.
+Maven versions must be literals or one project property resolved to a literal.
+Composite, nested or unresolved expressions retain
+`VERSION_DECLARATION_UNREADABLE`; they are not concrete versions.
+
 ### Diagnostic reports
 
 Login and doctor reject unknown explicit tool/environment selectors before setup
@@ -174,7 +206,7 @@ same ambiguous setup. Doctor marks its missing verification as incomplete.
 `fx doctor` returns `preparation`, diagnostic `coverage` (`complete` or `incomplete`),
 `summary {ok, warn, fail}` and `findings[]`. The preparation verdict owns task completion;
 optional host activation can remain unverified. An incomplete verdict exits 12.
-`fx release check` returns `ok`, `complete`, summary and findings and exits zero when its
+`fx release check` returns `ok`, `complete`, `evidence_complete`, summary and findings and exits zero when its
 checklist was produced. Findings carry group, id, level, coverage, message, fix and
 handoff; caught query errors also carry a structured `failure` with recovery, retained
 in compact JSON. Full results also carry evidence. Incomplete checks are not passes:
@@ -198,33 +230,59 @@ repair rows; use `--details` to inspect all attempts. Each attempt is
 structured recovery errors before post-repair findings are collected.
 `completed` means the repair ran, not that the subsequent check passed.
 
-`fx release check [<repo>...] [--tag] [--only deps,merge,ci,errors] [--env] [--since]
-[--jobs]` covers repositories selected by manifest release policy; `fx release` is its
+`fx release check` covers repositories selected by manifest release policy; `fx release` is its
 compatibility name. It is read-only: it never merges, tags, publishes or deploys.
+Use `--help` for selection, absolute/relative error windows and optional version
+history, historical baseline and version-path overrides. Override keys must name
+selected repositories; use a separate invocation for multiple packages in one repo.
 
-Each `repos[]` entry is `{name, source, target, version_file, unmerged, note,
-unanswered}`. `source`
+Each `repos[]` entry includes `name`, `source`, `target`, `version_file`, `unmerged`,
+`note` and `unanswered`, plus `range`, `version_evidence`, `baseline_evidence` and
+`facet_coverage`. `source`
 and `target` are the branch heads `{branch, sha, date, message, version}`; `version` is
-what the repository's dependency file declares at that commit, null when it declares
-none. `target` is null for a repository releasing from one branch, and both are null
+what the selected root `VERSION` or package metadata declares at that commit, null
+when unknown. `target` is null for a repository releasing from one branch, and both are null
 when the code host was not asked or did not answer, which the findings explain.
 `unmerged` is `{commits, authors}`: how many people's commits the source has that the
 target lacks, and how many people wrote them; null when not compared. To read those
 commits, ask the code host's own CLI for the range from `target.sha` to `source.sha`;
 `fx repo show <repo>` gives where the repository lives on the host. `unanswered[]` lists
-each question to the code host that failed as `{field, reason}`, where `field` is the
+each question to the code host that failed as `{field, reason, error}`, where `error`
+retains structured recovery and `field` is the
 value left null (`version_file`, `source.commit`, `source.version`, `target.commit`,
 `target.version`, `unmerged`); a null without an entry means the repository declares
 none.
 
+`version_evidence` uses the standalone version contract above. `baseline_evidence`
+is `{baseline, head, commits, coverage, failures}`. The default JSON summary replaces
+the commit array with `commits_count` and an omitted count; `--details` or explicit
+`--fields` retains the full array. Failures remain visible. Each snapshot has
+`requested_ref`, `resolved_sha` and `declaration`. Its commits include bots and
+merges since the caller's baseline, independently of `unmerged`. A version-field
+change, tag or source declaration does not establish an artifact build, publication
+or deployment. fx does not infer a next minor version.
+
+`facet_coverage` distinguishes `checked`, `incomplete`, `not_requested` and
+`not_applicable` for `declaration`, `version_history`, `baseline` and `errors`.
+Error findings also retain a top-level `failures` array in summary output, with
+structured error codes, retryability and recovery steps. Detailed error candidates
+keep the latest metadata observation per ID; a resolved/ignored detail can follow
+an unresolved list result and is excluded from the fresh-issue verdict.
+
+`evidence_complete` additionally covers requested facts and unanswered questions;
+it does not redefine `ok` or check coverage `complete`. The report's `observed_at`
+is one command-start timestamp. Absolute ranges normalize to UTC and use
+`[start,end)`; relative policies share this observation time but can use different
+durations. The top-level `range` is null when per-repository ranges differ.
+
 Evidence is grouped by check:
 
-| Group    | Evidence                                                                                                                                  |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `merge`  | `source`, `target`, `ahead[]`, `behind[]`, `filtered`, `unknown[]` directions; commits have `sha`, `author {id, name}`, `date`, `message` |
-| `deps`   | `file`, `offending[] {name, version, section, runtime}`                                                                                   |
-| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, commit, head, current}`; null `path` means no declared job           |
-| `errors` | `env`, `slug`, `since`, `capped`, `undated`, `issues[] {short_id, title, level, first_seen, last_seen, count, url}`                       |
+| Group    | Evidence                                                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `merge`  | `source`, `target`, `ahead[]`, `behind[]`, `filtered`, `unknown[]` directions; commits have `sha`, `author {id, name}`, `date`, `message`  |
+| `deps`   | `file`, `offending[] {name, version, section, runtime}`                                                                                    |
+| `ci`     | `builds[] {side, env, branch, path, number, status, started_at, url, commit, head, current}`; null `path` means no declared job            |
+| `errors` | `query_context`, `env`, `slug`, `since`, `capped`, `undated`, legacy fresh `issues[]`, and complete candidate metadata in `error_evidence` |
 
 CI `current` compares the commit the build checked out, `commit`, with the branch head
 `head` when the platform names it. A null `commit` (Jenkins before jenkins-cli 0.12.0)
@@ -233,13 +291,50 @@ freshness heuristic, not revision verification; use the companion's build detail
 when the task requires an exact commit match.
 The full report's merge/dependency/issue evidence is available with `--details`.
 
+Every errors finding includes `evidence.query_context`, even when authentication
+or collection fails or the check is not applicable. It is
+`{repository, environment, range, observed_at, source}`; `source` is
+`{platform, provider, coordinate_fingerprint}` or null for an unavailable or
+explicitly uncovered coordinate. The fingerprint preserves the provider's query
+identity before authentication without exposing arbitrary vars.
+
+Sentry query fingerprints identify the configured endpoint, organization and
+project selector, so repository aliases for one project retain the same source
+identity. Repository and environment are bound separately in `query_context`.
+Other tracker providers may supply their own query fingerprint; without it, the
+full canonical coordinate fingerprint is retained conservatively.
+
+For an audited retry, match the repository, environment, normalized range and
+non-null source identity before superseding an earlier failure; keep both
+observation times. A different server, organization, project or period is another
+query. Each attempt remains separate and is not an atomic remote snapshot.
+
+`error_evidence` retains every collected candidate returned by an unresolved
+query and active in the range, including older issues. It carries `items`, `range`, `observed_at`,
+`pages_read`, `has_more`, optional `next`, `coverage`, `failures` and
+`truncation_reason`. Inspect these before treating a query as complete. fx follows
+pagination internally; there is no public cursor-resume flag. Keep the same
+absolute bounds when retrying or investigating a continuation with the companion.
+Lifetime first-seen comes from issue detail; `lifetime_first_seen` and
+`first_seen_scope` never use window/list dates as a fallback. Missing details
+remain unknown. `list_first_seen` has unknown scope and `window_first_seen` stays
+separate. `count_scope: unknown` prevents treating counts as newly occurring
+events. `status_scope: current` describes each item's actual `status_observed_at`,
+not state at the historical window; the aggregate status time is null. Assignee
+is read metadata, not a selected or newly assigned owner. The legacy verdict
+counts lifetime first appearances only; old regressions require separate review.
+
 Uncovered explicit repositories yield `REPO_NOT_COVERED`, unmatched tags
 `TAG_NOT_FOUND`, unknown environments `ENV_NOT_FOUND`, and an empty checklist
 `CHECKLIST_EMPTY`. `--since` accepts windows such as `14d`, `48h` or `2w`;
-invalid windows yield `BAD_SINCE`. Missing platform responses/jobs, undated
+invalid windows yield `BAD_SINCE`. Mixing relative and absolute bounds, missing a
+bound or invalid timezone-qualified timestamps yields `BAD_TIME_RANGE`.
+Missing platform responses/jobs, undated
 issues and builds that cannot be dated against the branch head warn rather
-than prove readiness. `RELEASE_OK` / `RELEASE_FAILURES` are closing notices;
-inspect report coverage even when the notice says OK.
+than prove readiness. Closing notices distinguish `RELEASE_FAILURES` for confirmed
+failures, `RELEASE_INCOMPLETE` for missing check coverage without confirmed failures,
+and `RELEASE_OK` for complete checks without failures. Inspect `evidence_complete`
+separately for requested repository facts.
 
 ### Update notices
 

@@ -10,6 +10,7 @@ import type { ResolvedRepo } from '../../domain/manifest/local.js';
 import type { Members } from '../../domain/manifest/types.js';
 import type { ReleasePolicy } from '../../domain/release/policy.js';
 import { unanswered, type Check, type ReleaseFinding } from '../../domain/release/types.js';
+import type { TimeRange } from '../../domain/release/window.js';
 import type { Branch } from '../../domain/workspace/commits.js';
 import { repoRef, type RepoRef } from '../../domain/workspace/ref.js';
 import type { CodeHostQueries } from '../../ports/code-host.js';
@@ -31,6 +32,12 @@ export interface CheckContext {
   readonly policy: ReleasePolicy;
   readonly members: Members | undefined;
   readonly now: Date;
+  readonly range?: TimeRange;
+  readonly factsRequested?: boolean;
+  readonly versionHistory?: boolean;
+  readonly versionPath?: string;
+  readonly historyLimit?: number;
+  readonly baselineRef?: string;
 }
 
 export interface RepoFacts {
@@ -53,7 +60,7 @@ export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
   if (ref === undefined)
     return { kind: 'error', reason: 'no code-host reference: neither a project nor an upstream' };
   try {
-    const host = remembering(ctx.deps.codeHost());
+    const host = rememberCodeHost(ctx.deps.codeHost());
     const branches = await host.branches(ref);
     const named = (name: string | undefined): Branch | undefined =>
       name === undefined ? undefined : branches.find((b) => b.name === name);
@@ -71,7 +78,7 @@ export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
 
 // One question asked once per repository: the checks and the release summary read
 // the same heads, files and range, and a failed answer is the same failure for each.
-function remembering(host: CodeHostQueries): CodeHostQueries {
+export function rememberCodeHost(host: CodeHostQueries): CodeHostQueries {
   const asked = new Map<string, Promise<unknown>>();
   const once = <T>(key: string, ask: () => Promise<T>): Promise<T> => {
     let answer = asked.get(key) as Promise<T> | undefined;
