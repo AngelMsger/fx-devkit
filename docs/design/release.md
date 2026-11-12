@@ -104,3 +104,25 @@ The tracker answers with activity inside the window; first-seen is judged here,
 so an issue the tracker cannot date is neither counted nor forgotten. fx asks for
 a bounded number of issues and the tracker says whether it had more — what it did
 not send is unread, not absent.
+
+## Incomplete checks and recovery
+
+The human report counts failed, warning, incomplete, passed and not-applicable
+checks separately. Severity and coverage are independent: a confirmed failure can
+also be incomplete, for example when the tracker returns only part of its issues.
+Confirmed problems stay under their repositories. Unavailable or partial checks
+are grouped by identical cause and recovery, with the exact check/repository scope;
+`--details` instead expands every repository's checks. A shared cause never makes
+an affected repository read as passing. Timeout groups offer a scoped retry with
+`--jobs 1`; this is a diagnostic step, not evidence that concurrency caused it.
+
+Query failures caught by the release workflow retain their structured `failure`
+and recovery in JSON, including the compact view. A report with no confirmed
+failure but incomplete coverage emits `RELEASE_INCOMPLETE`, not `RELEASE_OK`.
+Its exit-zero report contract and JSON severity counts are unchanged.
+
+An unresolved coordinate is incomplete coverage, not an exclusion or a pass.
+The error-tracker workflow refuses coordinates whose command cannot be resolved;
+the Sentry adapter additionally requires a concrete organization and project before
+starting any query. Sentry's `org/` selector queries every project and is never a
+valid fallback for a repository check. Explicit `not_covered` remains an exclusion.

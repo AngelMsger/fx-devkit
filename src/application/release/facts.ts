@@ -5,7 +5,7 @@
 // knowing is an outcome the checks turn into findings, never an exception
 // that stops the report.
 
-import { asDevkitError } from '../../domain/errors.js';
+import { asDevkitError, toEnvelope, type ErrorEnvelope } from '../../domain/errors.js';
 import type { ResolvedRepo } from '../../domain/manifest/local.js';
 import type { Members } from '../../domain/manifest/types.js';
 import type { ReleasePolicy } from '../../domain/release/policy.js';
@@ -20,7 +20,7 @@ import { blockedFinding, type Gate, type Gates } from './gates.js';
 // A check reads the manifest, asks a platform, and reads a repository: it
 // is handed those three and not the git, filesystem or subprocess ports
 // that would let it write.
-export type ReleaseDeps = Pick<WorkspaceDeps, 'ctx' | 'platform'> & {
+export type ReleaseDeps = Pick<WorkspaceDeps, 'ctx' | 'platform' | 'commandShell'> & {
   readonly codeHost: () => CodeHostQueries;
 };
 
@@ -44,7 +44,7 @@ export interface RepoFacts {
 export type FactsOutcome =
   | { readonly kind: 'facts'; readonly facts: RepoFacts }
   | { readonly kind: 'gate'; readonly gate: Gate & { open: false } }
-  | { readonly kind: 'error'; readonly reason: string };
+  | { readonly kind: 'error'; readonly reason: string; readonly failure?: ErrorEnvelope['error'] };
 
 export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
   const gate = await ctx.gates.through('code-host', undefined);
@@ -64,7 +64,8 @@ export async function gatherFacts(ctx: CheckContext): Promise<FactsOutcome> {
     const target = candidate?.name === source?.name ? undefined : candidate;
     return { kind: 'facts', facts: { host, ref, branches, source, target } };
   } catch (err) {
-    return { kind: 'error', reason: asDevkitError(err).message };
+    const failure = toEnvelope(asDevkitError(err)).error;
+    return { kind: 'error', reason: failure.message, failure };
   }
 }
 
@@ -97,7 +98,11 @@ export function withoutFacts(
 ): ReleaseFinding {
   return outcome.kind === 'gate'
     ? blockedFinding(check, repo, outcome.gate)
-    : unanswered(check, repo, outcome.reason);
+    : unanswered(check, repo, outcome.reason, {
+        failure: outcome.failure,
+        fix: outcome.failure?.next_steps[0],
+        handoff: outcome.failure?.handoff,
+      });
 }
 
 // A check's own failure is its finding: the report goes on.
@@ -109,6 +114,11 @@ export async function attempt(
   try {
     return await run();
   } catch (err) {
-    return unanswered(check, repo, asDevkitError(err).message);
+    const failure = toEnvelope(asDevkitError(err)).error;
+    return unanswered(check, repo, failure.message, {
+      failure,
+      fix: failure.next_steps[0],
+      handoff: failure.handoff,
+    });
   }
 }

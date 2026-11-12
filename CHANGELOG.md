@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Separate confirmed release failures from incomplete checks, group repeated unavailable causes with recovery, and preserve structured query errors. Missing Sentry projects no longer trigger organization-wide queries or misleading release failures.
+
 ## 0.18.0 (2026-11-12)
 
 - Bind readiness evidence, provider commands, handoffs and probes to the same executable and workspace, including custom binary names.

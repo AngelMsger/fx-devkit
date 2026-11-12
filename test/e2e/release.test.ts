@@ -235,11 +235,11 @@ describe('release', () => {
     expect(run.stdout).not.toContain('feat: m-1 more');
     expect(run.stdout).toMatch(/^ {2}merge {3}fail {2}1 commit on dev not merged into main$/m);
     expect(run.stdout.trimEnd().split('\n').slice(-2)).toEqual([
-      'All checks ok',
+      'Completed checks (passed or not applicable)',
       expect.stringMatching(/^ {2}b {2}1\.0\.0 {2}main [0-9a-f]{7}, dev merged$/),
     ]);
     const all = fx(['release', 'check', '--details', 'b'], s.env, s.ws);
-    expect(all.stdout).toMatch(/^b {2}ok\n {2}1\.0\.0 {2}main [0-9a-f]{7}, dev merged\n/);
+    expect(all.stdout).toMatch(/^b {2}ok\n {2}1\.0\.0 {2}main [0-9a-f]{7}, dev merged\n/m);
     expect(all.stdout).toMatch(/^ {2}merge {3}ok {4}dev and main agree$/m);
   });
 

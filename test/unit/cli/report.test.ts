@@ -109,6 +109,7 @@ describe('workflow JSON summaries', () => {
           coverage: 'incomplete',
           handoff: { summary: 'need access', user_steps: [] },
           evidence: { payload: 'large' },
+          failure,
         },
         {
           id: 'broken',
@@ -127,6 +128,7 @@ describe('workflow JSON summaries', () => {
     });
     expect(out.findings).toHaveLength(2);
     expect(out.findings[0].handoff.summary).toBe('need access');
+    expect(out.findings[0].failure).toEqual(failure);
     expect(out.findings[1].fix).toBe('inspect');
   });
 

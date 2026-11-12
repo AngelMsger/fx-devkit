@@ -1,7 +1,7 @@
 // Aggregate diagnostic severity and coverage. Workflows decide preparation
 // readiness and exit status separately from this report's ok/complete flags.
 
-import type { HandoffEnvelope } from './errors.js';
+import type { ErrorEnvelope, HandoffEnvelope } from './errors.js';
 import type { PreparationAction } from './preparation.js';
 
 // Checked means evidence was obtained; incomplete means it was unavailable.
@@ -23,6 +23,7 @@ export interface Finding<G extends string = string> {
   readonly fix?: string;
   readonly handoff?: HandoffEnvelope;
   readonly evidence?: Evidence;
+  readonly failure?: ErrorEnvelope['error'];
 }
 
 export interface Report<G extends string = string> {
@@ -39,6 +40,7 @@ export interface FindingExtra {
   readonly fix?: string | undefined;
   readonly handoff?: HandoffEnvelope | undefined;
   readonly evidence?: Evidence | undefined;
+  readonly failure?: ErrorEnvelope['error'] | undefined;
 }
 
 export function finding<G extends string>(
@@ -57,6 +59,7 @@ export function finding<G extends string>(
     ...(extra.fix === undefined ? {} : { fix: extra.fix }),
     ...(extra.handoff === undefined ? {} : { handoff: extra.handoff }),
     ...(extra.evidence === undefined ? {} : { evidence: extra.evidence }),
+    ...(extra.failure === undefined ? {} : { failure: extra.failure }),
     ...(extra.required === undefined ? {} : { required: extra.required }),
     ...(extra.actions === undefined ? {} : { actions: extra.actions }),
   };

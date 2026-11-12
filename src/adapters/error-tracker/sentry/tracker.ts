@@ -3,8 +3,10 @@
 // The one query lists a project's unresolved issues first seen inside a
 // window; the domain judges first-seen again from the dates it gets back.
 
+import { DevkitError } from '../../../domain/errors.js';
 import type { Coordinate, ProbeVector } from '../../../domain/obs/types.js';
 import type { Vars } from '../../../domain/template.js';
+import { placeholders } from '../../../domain/template.js';
 import type { ErrorTracker, Issue, IssuePage, IssueQuery } from '../../../ports/error-tracker.js';
 import type { Process } from '../../../ports/process.js';
 import { objectOf, stringAt, unreadableError } from '../../family/cli.js';
@@ -50,6 +52,19 @@ export class SentryErrorTracker implements ErrorTracker {
   }
 
   async issues(vars: Vars, query: IssueQuery): Promise<IssuePage> {
+    const missing = ['org', 'slug'].filter(
+      (key) => !vars[key]?.trim() || placeholders(vars[key] ?? '').length > 0,
+    );
+    if (missing.length > 0)
+      throw new DevkitError(
+        'config',
+        'SENTRY_PROJECT_REQUIRED',
+        `Sentry project coordinate is incomplete: missing ${missing.join(', ')}`,
+        {
+          hint: 'A repository check requires an organization and project; it must not query all projects.',
+          nextSteps: ['fx manifest lint', 'fx where <repo> --env <env>'],
+        },
+      );
     const project = `${vars['org'] ?? ''}/${vars['slug'] ?? ''}`;
     const call = await this.cli.call(
       [

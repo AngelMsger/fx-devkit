@@ -2,8 +2,10 @@
 // ship and what holds it back, without scrolling through the repositories that are ready.
 import { expect, it } from 'vitest';
 
+import { RELEASE_CODES, reportNotice } from '../../../src/cli/notices.js';
 import { releaseText } from '../../../src/cli/release-view.js';
 import { displayOf, PLAIN } from '../../../src/cli/render/display.js';
+import { DevkitError, toEnvelope } from '../../../src/domain/errors.js';
 import {
   releaseFinding,
   unanswered,
@@ -53,6 +55,40 @@ const passing = (repo: string) => [
   releaseFinding('merge', repo, 'ok', 'dev and main agree'),
 ];
 
+it('groups one timed-out dependency across checks while retaining exact repository scope and recovery', () => {
+  const failure = toEnvelope(
+    new DevkitError('internal', 'PROCESS_TIMEOUT', 'bitbucket-cli did not finish within 15000ms'),
+  ).error;
+  const findings = (['deps', 'merge', 'ci'] as const).flatMap((check) =>
+    ['api', 'web'].map((repo) =>
+      unanswered(check, repo, failure.message, { failure, fix: `Inspect ${repo} ${check}` }),
+    ),
+  );
+  const report = checklist(findings);
+  const text = releaseText(report, { display: PLAIN, details: false });
+  expect(text.match(/did not finish/g)).toHaveLength(1);
+  expect(text).toContain('deps, merge, ci: api, web');
+  expect(text).toContain('--jobs 1 --details');
+  expect(text).not.toContain('Completed checks');
+  expect(reportNotice(report, RELEASE_CODES, ['fx release check --details'])).toMatchObject({
+    code: 'RELEASE_INCOMPLETE',
+    message: expect.stringContaining('6 incomplete'),
+    nextSteps: ['fx release check --details'],
+  });
+});
+
+it('keeps a confirmed failure visible even when its evidence is partial', () => {
+  const report = checklist([
+    releaseFinding('errors', 'api', 'fail', 'at least 1000 unresolved issues', {
+      coverage: 'incomplete',
+    }),
+  ]);
+  const text = releaseText(report, { display: PLAIN, details: false });
+  expect(text).toContain('api  1 fail, 1 incomplete');
+  expect(text).toContain('errors  fail  at least 1000 unresolved issues');
+  expect(reportNotice(report, RELEASE_CODES).code).toBe('RELEASE_FAILURES');
+});
+
 it('lists each repository with a problem under its own name and the ready ones on one line', () => {
   const text = releaseText(
     checklist([
@@ -65,11 +101,13 @@ it('lists each repository with a problem under its own name and the ready ones o
   );
   expect(text).toBe(
     [
+      'Checks: 1 failed, 0 warnings, 0 incomplete, 5 passed, 0 not applicable',
+      '',
       'api  1 fail',
       '  deps   fail  package.json: sdk 1.0.0-dev (dependencies)',
       '  merge  ok    dev and main agree',
       '',
-      'All checks ok',
+      'Completed checks (passed or not applicable)',
       '  web',
       '  worker',
       '',
@@ -77,6 +115,8 @@ it('lists each repository with a problem under its own name and the ready ones o
   );
   expect(releaseText(checklist(passing('web')), { display: PLAIN, details: true })).toBe(
     [
+      'Checks: 0 failed, 0 warnings, 0 incomplete, 2 passed, 0 not applicable',
+      '',
       'web  ok',
       '  deps   ok    package.json: no pre-release dependency',
       '  merge  ok    dev and main agree',
@@ -85,34 +125,30 @@ it('lists each repository with a problem under its own name and the ready ones o
   );
 });
 
-it('says once what every repository lacks, with the command that lets the check run', () => {
+it('groups unavailable checks across a subset without calling affected repositories ready', () => {
   const login = (repo: string) =>
     unanswered('errors', repo, 'sentry is unauthenticated for dev', { fix: 'fx login sentry' });
-  const text = releaseText(
-    checklist([
-      ...passing('web'),
-      login('web'),
-      releaseFinding('deps', 'api', 'ok', 'no dependency file, not checked'),
-      releaseFinding('merge', 'api', 'warn', 'could not compare main..dev: timed out'),
-      login('api'),
-    ]),
-    { display: PLAIN, details: false },
+  const report = checklist([
+    ...passing('web'),
+    login('web'),
+    releaseFinding('deps', 'api', 'fail', 'sdk is a snapshot'),
+    login('api'),
+    ...passing('worker'),
+  ]);
+  const text = releaseText(report, { display: PLAIN, details: false });
+  expect(text).toContain('Checks: 1 failed, 0 warnings, 2 incomplete, 4 passed, 0 not applicable');
+  expect(text).toContain('api  1 fail, 1 incomplete');
+  expect(text.indexOf('sdk is a snapshot')).toBeLessThan(
+    text.indexOf('Unavailable or partial checks'),
   );
-  expect(text).toBe(
-    [
-      'Every repository',
-      '  errors  warn  sentry is unauthenticated for dev',
-      '                fx login sentry',
-      '',
-      'api  1 warn',
-      '  deps    ok    no dependency file, not checked',
-      '  merge   warn  could not compare main..dev: timed out',
-      '',
-      'Otherwise ok',
-      '  web',
-      '',
-    ].join('\n'),
-  );
+  expect(text.match(/sentry is unauthenticated/g)).toHaveLength(1);
+  expect(text).toContain('errors: web, api');
+  expect(text).toContain('Next: fx login sentry');
+  expect(text).toContain('Checks incomplete\n  web');
+  expect(text).toContain('Completed checks (passed or not applicable)\n  worker');
+  const details = releaseText(report, { display: PLAIN, details: true });
+  expect(details).toContain('web  1 incomplete');
+  expect(details.match(/sentry is unauthenticated/g)).toHaveLength(2);
 });
 
 it('paints levels, keeps passing checks quiet and wraps a long message under its column', () => {
@@ -126,6 +162,9 @@ it('paints levels, keeps passing checks quiet and wraps a long message under its
     ),
   ).split('\n');
   expect(text).toEqual([
+    'Checks: 1 failed, 0 warnings, 0 incomplete, 1 passed, 0',
+    'not applicable',
+    '',
     '<strong>api</>  <fail>1 fail</>',
     '  deps  <ok>ok</>    <quiet>pom.xml: no pre-release dependency</>',
     '  ci    <fail>fail</>  dev #12 succeeded; main #9 succeeded',
@@ -165,12 +204,14 @@ it('opens each repository with what it would ship, and counts the commits not me
   );
   expect(text).toBe(
     [
+      'Checks: 1 failed, 0 warnings, 0 incomplete, 3 passed, 0 not applicable',
+      '',
       'api  1 fail',
       '  1.2.0  main a1a1a1a, dev d1d1d1d (1.3.0) not merged: 2 commits by 2 people',
       '  note: releases from dev while the migration lasts',
       '  merge  fail  2 commits on dev not merged into main',
       '',
-      'All checks ok',
+      'Completed checks (passed or not applicable)',
       '  web   2.0.1  main f1f1f1f, dev merged',
       '  tool         master b1b1b1b',
       '  gone',
@@ -194,7 +235,7 @@ it('counts the commits and the people behind them, however many there are', () =
     ),
     { display: PLAIN, details: false },
   );
-  expect(text.split('\n').slice(0, 3)).toEqual([
+  expect(text.split('\n').slice(2, 5)).toEqual([
     'api  1 fail',
     '  main a1a1a1a, dev d1d1d1d not merged: 120 commits by 1 person',
     '  merge  fail  120 commits on dev not merged into main',
@@ -214,19 +255,14 @@ it('names every repository with what it would ship, even when all its findings a
     [merge('api'), merge('web')],
     [behind('api', '111111'), behind('web', '222222')],
   );
-  const lines = [
-    'Every repository',
-    '  merge  fail  1 commit on dev not merged into main',
-    '',
-    'Otherwise ok',
-    '  api  1.2.0  main m111111, dev d111111 (1.3.0) not merged: 1 commit by 1 person',
-    '  web  1.2.0  main m222222, dev d222222 (1.3.0) not merged: 1 commit by 1 person',
-    '',
-  ];
-  expect(releaseText(report, { display: PLAIN, details: false })).toBe(lines.join('\n'));
+  const text = releaseText(report, { display: PLAIN, details: false });
+  expect(text).toContain('api  1 fail\n  1.2.0  main m111111, dev d111111');
+  expect(text).toContain('web  1 fail\n  1.2.0  main m222222, dev d222222');
+  expect(text.match(/1 commit on dev not merged into main/g)).toHaveLength(2);
+  expect(text).not.toContain('Completed checks');
   const detailed = releaseText(report, { display: PLAIN, details: true });
-  expect(detailed).toContain('api  ok\n  1.2.0  main m111111, dev d111111 (1.3.0) not merged');
-  expect(detailed).toContain('web  ok\n  1.2.0  main m222222');
+  expect(detailed).toContain('api  1 fail');
+  expect(detailed).toContain('web  1 fail');
 });
 
 it('says which question to the host failed, beside the note', () => {
@@ -239,8 +275,8 @@ it('says which question to the host failed, beside the note', () => {
     unanswered: [{ field: 'target.version', reason: 'timed out reading package.json' }],
   };
   const text = releaseText(checklist(passing('api'), [api]), { display: PLAIN, details: false });
-  expect(text.split('\n').slice(0, 4)).toEqual([
-    'All checks ok',
+  expect(text.split('\n').slice(2, 6)).toEqual([
+    'Completed checks (passed or not applicable)',
     '  api  main a1a1a1a, dev merged',
     '       target.version unknown: timed out reading package.json',
     '       note: frozen until the audit',
