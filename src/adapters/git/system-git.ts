@@ -270,7 +270,7 @@ function gitFailureHint(stderr: string): string {
   const category = gitFailureCategory(stderr);
   if (category === 'not_found') return 'Verify the configured branch still exists on the remote.';
   if (category === 'auth')
-    return 'Verify Git transport credentials and repository access; API login is separate.';
+    return 'Verify repository access and Git authentication; for Bitbucket token authentication, check bitbucket-cli git --help and the selected context.';
   if (category === 'network')
     return 'Check Git transport connectivity and retry after it is restored.';
   return 'Inspect Git diagnostics and local checkout state before retrying; no divergence was inferred.';

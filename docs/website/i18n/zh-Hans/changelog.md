@@ -17,6 +17,8 @@
 - 为不支持设备 OAuth 的 Sentry 实例提供个人 Token 手工设置流程, 保留已有有效认证.
 - 新增成员筛选项发现和保留工作区的查询纠正, 同步更新伴生 Skill 与回归覆盖.
 
+- 通过兼容的 bitbucket-cli 原生 HTTPS Git 认证完成 manifest 初始化、克隆、fetch及远端 HEAD 读取；保留 SSH 声明及 remote，fx 不接触 token。配套 CLI 缺失或较旧时使用普通 Git，凭据被拒绝时保留错误。
+
 ## 0.17.0 (2026-11-10)
 
 - 可在 `people` 中声明导师与最终负责人; 成员列表和详情返回明确的 ID 或 null, 校验拒绝无效引用和循环关系.
