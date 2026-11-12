@@ -346,6 +346,12 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 
 ### 人工接手后恢复登录 {#resume-login-after-a-handoff}
 
+使用 `doctor --tool <name>` 定向诊断时, 只检查或修复指定工具的安装与准备状态, 不刷新无关仓库、指引或宿主资源. 省略 `--tool` 可检查整个工作区. 客户端启动或版本检查失败时, 依赖它的命令检查会等待该前置条件; 这不表示需要重新登录.
+
+`can` 和启用检查的 `where` 返回已检查工具的 `execution.binary_path`、`version` 和 `cwd`. 后续调用使用这个路径和工作目录, 避免新 shell 从 PATH 选中其他安装. Provider 命令与直接 handoff 命令已绑定路径; manifest 自定义 shell 模板仍按原文输出. `tool install/update` 同时返回 `binary_path` 与 `version_after`. 更新后重新检查就绪并加载匹配的伴生 Skill.
+
+准备就绪不代表拥有每项 API 权限. 先验证所需操作再补权: 搜索失败不能证明已知文档无法读取. 不支持设备 OAuth 的 Sentry 实例可声明 `service.auth_scheme: token`, 改为人工设置个人 Token; 已有效的 CLI 登录仍可复用. 不要将 Token 写进 manifest 或聊天.
+
 `login` 需要人工输入时，先完成已授权的 handoff，再重跑同一命令。fx 会先检查当前状态，再决定是否重复操作；随后重新执行原先的 `can` 或 `doctor` 检查，继续原任务。与 init 和 sync 一样，`login` 会直接运行复用已有登录的内置步骤，即使带 `--no-input` 也不询问；只有登录前才会询问。
 
 机器调用方在非零退出时也要同时读取部分 stdout 与 stderr 错误。已完成步骤仍保留；`handoff`、`blocked`、`failed`、`not_started` 区分后续工作。汇总、计划问题和步骤恢复字段见[登录响应契约](../skills/fx-workspace/references/commands.md#readiness-and-recovery)。
@@ -365,6 +371,8 @@ Agent 发现包括 Claude Code、Codex CLI、Cursor 等已注册宿主。Skill�
 初始化会保留团队统一的 context 名称。兼容的配套 CLI 会先匹配同一服务的已有登录，复用个人身份，再决定是否需要你登录。Token 继续保存在原 CLI 的凭据存储中，当前 context 和已有身份保持不变。多个身份匹配时，可使用原 CLI 的 `auth reuse --from-context` 选择来源；网络或钥匙串问题会与缺少凭据分开报告。多个环境可能共享已保存的登录：`fx login` 为其中一个环境完成登录后，会重新检查该工具之前未能完成的环境，并把已经可用的报告为 verified。
 
 ## 成员归属与业务协作 {#member-relationships}
+
+用 `fx member selectors` 发现筛选值, 可用 `--kind area`、`scenario`、`team` 或 `function` 限定类型. 每行返回类型、ID、名称和所属 area, 不列出人员. 把场景误填为 area 时, 错误会给出正确父级的完整查询. 缺失账号字段仍表示未知. 职责数据可支持分派建议, 不授权覆盖既有工作项负责人.
 
 使用 `fx member show <account> --system <system> --area <id> --format json` 查询作者。确认身份需要唯一的精确账号匹配。分别读取目录归属、业务责任团队和个人协作职责。多支团队可以同时得到确认。候选关系仍需核实，未覆盖的归属保持未知。省略业务域会返回所有适用关系。
 

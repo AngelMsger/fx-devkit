@@ -41,6 +41,7 @@ export class ServiceOperation {
               : preparation.minVersion,
         }));
       const [version] = await new ToolCheck(this.deps.process).execute({
+        cwd: this.deps.ctx.root,
         tools,
         trust: { ...this.deps.trust, dryRun },
       });

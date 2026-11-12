@@ -280,6 +280,71 @@ const check: DoctorInput = {
 };
 
 describe('Doctor', () => {
+  it('limits explicit tool checks and repairs to setup without changing host resources', async () => {
+    const s = await stage({ lifecycle: true, yes: true });
+    s.h.process.binaries.add('bitbucket-cli');
+    const writes = s.h.fs.writes.length;
+    const gitCalls = s.h.git.calls.length;
+    const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'], fix: true });
+    expect(new Set(report.findings.map((f) => f.group))).toEqual(new Set(['tools', 'login']));
+    expect(report.repairs.map((r) => r.group)).toEqual(['login']);
+    expect(s.h.fs.writes).toHaveLength(writes);
+    expect(s.h.git.calls).toHaveLength(gitCalls);
+    expect(repaired(s)).toBe(0);
+    expect(s.h.process.calls.some((call) => call.vector.includes('login'))).toBe(false);
+  });
+
+  it('keeps a broken executable as an Agent prerequisite instead of asking for credentials', async () => {
+    const s = await stage({
+      describeProvider: (id) =>
+        id === 'bitbucket-cli'
+          ? {
+              ...DESCRIPTORS[id]!,
+              recipes: [
+                login,
+                {
+                  id: 'receipt',
+                  tool: 'bitbucket-cli',
+                  perEnv: false,
+                  kind: 'manual',
+                  title: 'Setup receipt',
+                  verify: { file: 'prepared.marker' },
+                  requires: ['login'],
+                },
+              ],
+            }
+          : DESCRIPTORS[id],
+    });
+    s.h.process.binaries.add('bitbucket-cli');
+    s.h.process.override(['bitbucket-cli', '--version'], {
+      code: 1,
+      stdout: '',
+      stderr: 'unable to open database file',
+    });
+    const report = await s.doctor.execute({ ...check, tools: ['bitbucket-cli'] });
+    const loginFinding = report.findings.find((f) => f.id === 'bitbucket-cli.login');
+    expect(loginFinding).toMatchObject({
+      coverage: 'incomplete',
+      evidence: { waits_on: 'tools:bitbucket-cli' },
+    });
+    expect(loginFinding).not.toHaveProperty('handoff');
+    expect(s.h.process.calls.some((call) => call.vector.includes('auth'))).toBe(false);
+    const receipt = report.findings.find((f) => f.id === 'bitbucket-cli.receipt');
+    expect(receipt).toMatchObject({
+      coverage: 'incomplete',
+      message: 'Blocked by bitbucket-cli.login',
+      actions: [],
+    });
+    expect(receipt).not.toHaveProperty('handoff');
+    expect(
+      report.preparation.blockers.find((b) => b.id === 'login:bitbucket-cli.login'),
+    ).toMatchObject({
+      owner: 'agent',
+      waits_on: 'tools:bitbucket-cli',
+      actions: [],
+    });
+  });
+
   it.each([
     { selection: { tools: ['bitbuckt-cli'] }, code: 'TOOL_UNKNOWN' },
     { selection: { envs: ['tset'] }, code: 'ENV_NOT_FOUND' },
@@ -404,10 +469,7 @@ describe('Doctor', () => {
       remotes: { upstream: upstream('fx-example-auth') },
       state: { branch: 'main', dirty: true, untracked: 0, ahead: 0, behind: 0 },
     });
-    const report = await s.doctor.execute({
-      ...check,
-      tools: ['bitbucket-cli', 'kubectl', 'jira-cli'],
-    });
+    const report = await s.doctor.execute(check);
     const by = (group: string) =>
       report.findings.filter((f) => f.group === group).map((f) => [f.id, f.level]);
     expect(by('repos')).toEqual([
@@ -417,11 +479,10 @@ describe('Doctor', () => {
     ]);
     expect(by('tools')).toEqual([
       ['bitbucket-cli', 'fail'],
-      ['jira-cli', 'fail'],
       ['kubectl', 'fail'],
     ]);
     expect(by('login')).toEqual([
-      ['bitbucket-cli.login', 'fail'],
+      ['bitbucket-cli.login', 'warn'],
       ['kubectl.kubeconfig@dev', 'fail'],
     ]);
     expect(by('agents')).toEqual([
@@ -437,8 +498,8 @@ describe('Doctor', () => {
     expect(by('self')).toEqual([['version', 'ok']]);
     expect(report.preparation.state).toBe('incomplete');
     const login = report.findings.find((f) => f.id === 'bitbucket-cli.login');
-    expect(login?.fix).toBe('fx login bitbucket-cli --workspace fx');
-    expect(login?.handoff?.user_steps[0]?.command).toEqual(['bitbucket-cli', 'auth', 'login']);
+    expect(login?.handoff).toBeUndefined();
+    expect(login?.evidence).toEqual({ waits_on: 'tools:bitbucket-cli' });
     expect(report.findings.find((f) => f.id === 'fx-example-api')?.fix).toBe(
       'fx sync --workspace fx',
     );
@@ -537,6 +598,7 @@ describe('Doctor', () => {
     const s = await stage({
       describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
     });
+    s.h.process.binaries.add('kubectl');
     s.h.process.override((vector) => vector.includes('get-contexts'), {
       code: 1,
       stdout: '',
@@ -558,6 +620,7 @@ describe('Doctor', () => {
     const s = await stage({
       describeProvider: (id) => (id === 'kubectl' ? kubectlProvider : DESCRIPTORS[id]),
     });
+    s.h.process.binaries.add('kubectl');
     s.h.process.override((vector) => vector[0] === 'kubectl' && vector[1] !== 'version', {
       code: 127,
       stdout: '',
@@ -614,6 +677,7 @@ describe('Doctor', () => {
       describeProvider: (id) =>
         id === 'bitbucket-cli' ? { ...DESCRIPTORS[id]!, recipes } : DESCRIPTORS[id],
     });
+    s.h.process.binaries.add('bitbucket-cli');
     // The later override is tried first: every check fails but the token's, which never ends.
     s.h.process
       .override(['bitbucket-cli', 'check'], { code: 1, stdout: '', stderr: 'role missing' })
@@ -709,12 +773,13 @@ describe('Doctor', () => {
 
   it('with --fix, repairs the Skills it owns', async () => {
     const s = await stage({ yes: true });
-    const report = await s.doctor.execute(repair);
+    const report = await s.doctor.execute({ ...check, fix: true });
     expect(report.findings.find((f) => f.id === 'claude-code:review')?.level).toBe('ok');
   });
 
   it('with --fix, leaves personal authentication and operator files for the user', async () => {
     const s = await stage({ yes: true });
+    s.h.process.binaries.add('bitbucket-cli');
     // Another environment's kubeconfig is in place; the one the repair covers is not.
     await s.h.fs.writeText(`${HOME}/.kube/test`, 'k');
     const report = await s.doctor.execute(repair);

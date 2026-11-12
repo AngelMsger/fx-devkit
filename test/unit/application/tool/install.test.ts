@@ -54,6 +54,23 @@ const installing = { phase: 'install', at: ['npm', 'install', '-g', 'beta@latest
 const versioning = { phase: 'version', at: ['beta'], exit: 0 };
 
 describe('ToolInstall', () => {
+  it('returns the resolved installation beside the version after an update', async () => {
+    const s = setup();
+    s.proc.locate('alpha', '/tools/current/alpha');
+    const [row] = await s.install.execute({
+      tools: s.tools,
+      names: ['alpha'],
+      update: true,
+      dryRun: false,
+      posture: writable,
+    });
+    expect(row).toMatchObject({
+      status: 'done',
+      version_after: '9.9.9',
+      binary_path: '/tools/current/alpha',
+    });
+  });
+
   it.each([false, true])(
     'keeps installer recovery on scoped definitions during update=%s and leaves standalone guidance global',
     async (update) => {

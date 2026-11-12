@@ -1,6 +1,6 @@
 ---
 name: fx-workspace
-version: 0.17.0
+version: 0.18.0
 description: 'Use only when the user explicitly asks for the fx workspace CLI or manifest, or the current task is inside an fx-managed workspace or routed by its fx-derived AGENTS.md. Drive workspace init and sync, repository status and selection, manifest validation and editing, companion tools and login, doctor, agent Skills, repository ownership, environment coordinates and readiness through can/where, and release checks across dependencies, branches, builds and errors. Do not use for generic Sentry, OpenObserve, Jenkins, Kubernetes, logs, errors or builds outside an fx-managed workspace.'
 metadata:
   requires:
@@ -17,6 +17,12 @@ unless the user explicitly asks for fx.
 Run `fx self info --format json` once when the running version is not yet known.
 Keep that executable prefix; its `initialization_guide` and `bundled_skill`
 identify the instructions shipped with this version.
+
+For a service task, use scoped `can`/`where` and keep the returned
+`execution.binary_path` and `execution.cwd` when calling its companion. A new
+shell may resolve the same name to a different installation. Read the companion
+Skill for that installation. `ready` establishes preparation, not every API scope:
+verify the operation the user needs before requesting more permissions.
 
 Choose the guide for the user's task:
 

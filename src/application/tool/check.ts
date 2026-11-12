@@ -35,6 +35,7 @@ export interface ToolStatus {
 }
 
 export interface ToolCheckInput {
+  readonly cwd?: string | undefined;
   readonly continueOnError?: boolean;
   readonly tools: readonly ResolvedTool[];
   readonly names?: readonly string[] | undefined;
@@ -53,7 +54,7 @@ export class ToolCheck {
     const rows: ToolStatus[] = [];
     for (const tool of selected) {
       try {
-        rows.push(await this.check(tool, input.trust));
+        rows.push(await this.check(tool, input.trust, input.cwd));
       } catch (error) {
         if (!input.continueOnError) throw error;
         rows.push({
@@ -73,14 +74,18 @@ export class ToolCheck {
     return rows;
   }
 
-  private async check(tool: ResolvedTool, trust: ToolCheckInput['trust']): Promise<ToolStatus> {
+  private async check(
+    tool: ResolvedTool,
+    trust: ToolCheckInput['trust'],
+    cwd?: string,
+  ): Promise<ToolStatus> {
     const base = {
       name: tool.name,
       required: tool.required,
       enabled: tool.enabled,
       min_version: tool.minVersion ?? null,
       binary: tool.binary,
-      binary_path: (await this.process.which(tool.binary)) ?? null,
+      binary_path: (await this.process.which(tool.binary, { cwd })) ?? null,
       install:
         tool.install[0] === undefined
           ? null
@@ -104,7 +109,7 @@ export class ToolCheck {
         return { ...base, state: 'unknown', installed: null };
       await trust.gate.ensure(probe);
     }
-    const installed = await probeToolVersion(this.process, tool);
+    const installed = await probeToolVersion(this.process, tool, { cwd });
     if (installed === undefined) return { ...base, state: 'unknown', installed: null };
     const outdated = tool.minVersion !== undefined && !atLeast(installed, tool.minVersion);
     return { ...base, state: outdated ? 'outdated' : 'ok', installed };

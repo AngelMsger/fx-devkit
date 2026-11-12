@@ -15,6 +15,12 @@ const toolFindings = (h: Harness, scope: WorkspaceToolScope): Promise<Finding[]>
   Tally.during(h.activity, 'checks', (checks) => checkTools(h.deps, scope, checks));
 
 describe('doctor tool scope', () => {
+  it('does not let an unrelated broken provider contaminate an explicit tool diagnosis', async () => {
+    const h = await harness({ workspace: workspace.replace('local-git', 'nonesuch') });
+    const scope = workspaceToolScope(h.ctx, { tools: ['jenkins-cli'] });
+    expect(scope.problems).toEqual([]);
+    expect(scope.configuredNames).toEqual(['jenkins-cli']);
+  });
   it('does not probe unused baseline tools for a local-git workspace', async () => {
     const h = await harness({ workspace });
     const scope = workspaceToolScope(h.ctx, {});

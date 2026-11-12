@@ -84,6 +84,37 @@ async function fixture(
 }
 
 describe('public service declarations', () => {
+  it('allows token-only Sentry instances and accepts an already authenticated CLI without another login', async () => {
+    const { h, plan, operation, login } = await fixture({
+      environments: `schema_version: 2
+platforms:
+  errors: {provider: sentry, capability: error-tracker, service: {base_url: 'https://sentry.example.com', org: team, auth_scheme: token, credential_url: 'https://help.example.com/tokens'}}
+envs: {dev: {platforms: {errors: {vars: {slug: app}}}}}
+`,
+      tools: ['sentry'],
+    });
+    const credential = plan.steps.find(
+      (step) => step.tool === 'sentry' && step.phase === 'authenticate',
+    )!;
+    expect(credential).toMatchObject({ kind: 'manual', open: 'https://help.example.com/tokens' });
+    expect(credential.run).toBeUndefined();
+    const preparation = plan.steps.find((step) => step.tool === 'sentry' && step.preparation)!;
+    await operation.execute(preparation, { dryRun: false });
+    h.process.on(['sentry', 'auth', 'status'], { code: 0, stdout: '{}', stderr: '' });
+    const result = await new Login(h.deps, login).execute({
+      tools: ['sentry'],
+      dryRun: true,
+      noInput: true,
+      skipManual: true,
+      posture: h.deps.trust.posture,
+    });
+    expect(result.items.find((step) => step.id === credential.id)?.result).toBe('verified');
+    expect(h.process.calls.some((call) => call.vector.includes('login'))).toBe(false);
+    expect(
+      h.reporter.notices.some((notice) => JSON.stringify(notice).includes('auth-tokens')),
+    ).toBe(false);
+  });
+
   it('preserves the SSH clone prefix and scopes individual login', async () => {
     const { h, plan } = await fixture();
     expect(h.ctx.bindings[0]?.vars['host']).toBe('ssh://git@git.example.com');

@@ -8,6 +8,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { shellLine } from '../../src/domain/shell.js';
 import { writeNodeShim } from '../platform.js';
 
 import { freshHome, fx, manifestDirOf, repository, searchPath, tempDir } from './harness.js';
@@ -206,6 +207,12 @@ describe('facts: where, member, can, derived docs', () => {
 
   it('lists people by area and status, and opens a repository by printing its page', () => {
     const s = stage();
+    const selectors = fx(['member', 'selectors', '--kind', 'scenario', ...json], s.env, s.ws);
+    expect(selectors.status, selectors.stderr).toBe(0);
+    expect(selectors.json()).toEqual({
+      items: [{ kind: 'scenario', id: 'Core', name: 'Core', area: 'Platform' }],
+      has_more: false,
+    });
     const all = fx(['member', 'list', ...json], s.env, s.ws);
     expect(all.status, all.stderr).toBe(0);
     expect((all.json() as Items<MemberRow>).items).toEqual([
@@ -294,7 +301,15 @@ describe('facts: where, member, can, derived docs', () => {
     });
     expect(row('a', 'jenkins', signedIn(s))).toMatchObject({
       ready: 'ready',
-      command: 'jenkins-cli build list services/a/dev',
+      command: shellLine(
+        [
+          path.join(s.shims, process.platform === 'win32' ? 'jenkins-cli.cmd' : 'jenkins-cli'),
+          'build',
+          'list',
+          'services/a/dev',
+        ],
+        'posix',
+      ),
     });
   });
 

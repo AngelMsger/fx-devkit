@@ -21,6 +21,7 @@ export interface LoginCheckOptions {
   readonly envs?: readonly string[] | undefined;
   readonly dryRun?: boolean;
   readonly requiredTools?: ReadonlySet<string>;
+  readonly blockedTools?: ReadonlySet<string>;
 }
 
 export async function checkLogin(
@@ -40,6 +41,10 @@ export async function checkLogin(
   );
   const progress = new SetupProgress();
   const check = async (step: SetupStep): Promise<Finding> => {
+    if (options.blockedTools?.has(step.tool) && 'command' in step.verify && !step.preparation) {
+      progress.record(step, 'unanswered');
+      return waitingForTool(step);
+    }
     const fix = loginCommand([step], deps);
     const standing = progress.admit(step);
     if (standing.kind !== 'clear') return blockedFinding(step, standing, deps);
@@ -75,6 +80,20 @@ export async function checkLogin(
   checks.plan(plan.steps.length);
   for (const step of plan.steps) findings.push(await checks.unit(step.id, () => check(step)));
   return findings;
+}
+
+function waitingForTool(step: SetupStep): Finding {
+  return finding(
+    'login',
+    step.id,
+    'warn',
+    `Waiting for ${step.tool} to pass its executable/version check`,
+    {
+      coverage: 'incomplete',
+      actions: [],
+      evidence: { waits_on: `tools:${step.tool}` },
+    },
+  );
 }
 
 function trustFinding(step: SetupStep, error: DevkitError, deps: WorkspaceDeps): Finding {

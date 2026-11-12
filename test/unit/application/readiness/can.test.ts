@@ -340,7 +340,9 @@ describe('Can', () => {
       status: 'unconfigured',
       handoff: {
         command: 'fx login jenkins-cli --workspace fx',
-        user_steps: [{ id: 'jenkins-cli.login', command: ['jenkins-cli', 'auth', 'login'] }],
+        user_steps: [
+          { id: 'jenkins-cli.login', command: ['/fake/bin/jenkins-cli', 'auth', 'login'] },
+        ],
       },
     });
 
@@ -356,6 +358,13 @@ describe('Can', () => {
       status: 'ready',
       handoff: null,
       alternatives: ['fx doctor --workspace fx'],
+      execution: {
+        tool: 'jenkins-cli',
+        binary: 'jenkins-cli',
+        binary_path: '/fake/bin/jenkins-cli',
+        version: '9.0.0',
+        cwd: s.h.ctx.root,
+      },
     });
     expect(s.h.localStore.writes).toEqual([]);
   });

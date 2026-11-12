@@ -8,10 +8,16 @@ import { describeProvider, resolveProvider } from '../../../src/composition/regi
 import type { Coordinate } from '../../../src/domain/obs/types.js';
 import { FakeClock } from '../../fakes/fake-clock.js';
 import { fakeLoginDeps } from '../../fakes/fake-login-deps.js';
-import { harness } from '../../fakes/workspace.js';
+import { harness, MANIFEST_DIR } from '../../fakes/workspace.js';
 
-async function stage(capability: string, provider: string, vars: Record<string, string>) {
+async function stage(
+  capability: string,
+  provider: string,
+  vars: Record<string, string>,
+  patch?: string,
+) {
   const h = await harness({
+    files: patch === undefined ? {} : { [`${MANIFEST_DIR}/manifest/tools.yaml`]: patch },
     workspace: JSON.stringify({
       schema_version: 2,
       providers: { [capability]: { provider, vars } },
@@ -24,6 +30,7 @@ async function stage(capability: string, provider: string, vars: Record<string, 
   const login = fakeLoginDeps(descriptor === undefined ? {} : { [provider]: descriptor });
   const deps = {
     ...h.deps,
+    trust: { ...h.deps.trust, yes: patch !== undefined },
     reference: (binding: Parameters<typeof h.deps.reference>[0]) =>
       resolveProvider<Coordinate>(binding, {
         process: h.process,
@@ -44,6 +51,32 @@ async function stage(capability: string, provider: string, vars: Record<string, 
 }
 
 describe('workspace reference providers', () => {
+  it('binds a reference command through the configured binary name', async () => {
+    const s = await stage(
+      'issue-tracker',
+      'feishu-project',
+      { project_key: 'team' },
+      'schema_version: 3\ntools: [{name: meegle, binary: custom-meegle}]\n',
+    );
+    s.h.process.locate('custom-meegle', '/tools/current/custom-meegle');
+    s.h.process.on(['custom-meegle', 'auth', 'status'], {
+      code: 0,
+      stdout: '{"authenticated":true}',
+      stderr: '',
+    });
+    expect(await s.can.execute({ target: 'issue-tracker' })).toMatchObject({
+      status: 'ready',
+      execution: {
+        tool: 'meegle',
+        binary: 'custom-meegle',
+        binary_path: '/tools/current/custom-meegle',
+      },
+      entry: {
+        command: '/tools/current/custom-meegle project search --project-key team --format json',
+      },
+    });
+  });
+
   it('requires authenticated true before Meegle is ready and only prints the project query', async () => {
     const s = await stage('issue-tracker', 'feishu-project', {
       project_key: 'team; echo injected',
@@ -53,7 +86,10 @@ describe('workspace reference providers', () => {
     s.h.process.on(auth, authResult);
     expect(await s.can.execute({ target: 'issue-tracker' })).toMatchObject({
       status: 'unconfigured',
-      entry: { command: "meegle project search --project-key 'team; echo injected' --format json" },
+      entry: {
+        command:
+          "/fake/bin/meegle project search --project-key 'team; echo injected' --format json",
+      },
     });
     authResult.stdout = '{"authenticated":true}';
     expect((await s.can.execute({ target: 'issue-tracker' })).status).toBe('ready');
@@ -127,7 +163,7 @@ describe('workspace reference providers', () => {
     result.stdout = '{"errcode":0,"results_json":{}}';
     expect(await s.can.execute({ target: 'im' })).toMatchObject({
       status: 'ready',
-      entry: { command: query.join(' ') },
+      entry: { command: `/fake/bin/${query.join(' ')}` },
     });
     expect(
       s.h.process.calls.every(
@@ -145,7 +181,7 @@ describe('workspace reference providers', () => {
     result.stdout = '{"data":{"ready":true,"authentication_verified":false}}';
     expect(await s.can.execute({ target: 'channel' })).toMatchObject({
       status: 'ready',
-      entry: { command: 'wecom-channel-cli event list --limit 10' },
+      entry: { command: '/fake/bin/wecom-channel-cli event list --limit 10' },
     });
     expect(
       s.h.process.calls.every((call) => ['--version', 'doctor'].includes(call.vector[1]!)),
@@ -182,7 +218,10 @@ describe('workspace reference providers', () => {
       data: { task_id: 'task-example', event: { text: externalText } },
     });
     const ready = await s.can.execute({ target: 'im' });
-    expect(ready).toMatchObject({ status: 'ready', entry: { command: query.join(' ') } });
+    expect(ready).toMatchObject({
+      status: 'ready',
+      entry: { command: `/fake/bin/${query.join(' ')}` },
+    });
     expect(JSON.stringify(ready)).not.toContain(externalText);
 
     Object.assign(response, { code: 5, stdout: '', stderr: 'task expired or revoked' });
@@ -208,7 +247,7 @@ describe('workspace reference providers', () => {
     result.stdout = '{"configured":true,"username":"member@example.com"}';
     expect(await s.can.execute({ target: 'calendar' })).toMatchObject({
       status: 'ready',
-      entry: { command: 'wecom-calendar-cli event list --format json' },
+      entry: { command: '/fake/bin/wecom-calendar-cli event list --format json' },
     });
     expect(
       s.h.process.calls.every(
@@ -225,12 +264,12 @@ describe('workspace reference providers', () => {
     s.h.process.on(query, result);
     expect(await s.can.execute({ target: 'meeting' })).toMatchObject({
       status: 'unconfigured',
-      handoff: { user_steps: [{ command: ['tmeet', 'auth', 'login'] }] },
+      handoff: { user_steps: [{ command: ['/fake/bin/tmeet', 'auth', 'login'] }] },
     });
     Object.assign(result, { code: 0, stdout: '{"message":"success"}', stderr: '' });
     expect(await s.can.execute({ target: 'meeting' })).toMatchObject({
       status: 'ready',
-      entry: { command: 'tmeet meeting list' },
+      entry: { command: '/fake/bin/tmeet meeting list' },
     });
     expect(
       s.h.process.calls.every(

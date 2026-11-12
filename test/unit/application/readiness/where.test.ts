@@ -54,6 +54,41 @@ async function stage(local: LocalLayer = {}) {
 }
 
 describe('Where', () => {
+  it('binds a checked provider command to its installation, including paths with spaces', async () => {
+    const h = await harness({
+      workspace: fixture('workspace.yaml'),
+      files: {
+        [`${MANIFEST_DIR}/manifest/environments.yaml`]: fixture('environments.yaml').replace(
+          "    command: 'jenkins-cli job get {path}'\n",
+          '',
+        ),
+      },
+      platforms: { 'jenkins-cli': jenkins },
+    });
+    const s = { h, where: new Where(h.deps, fakeLoginDeps(DESCRIPTORS)) };
+    const binary = path.resolve('/tools/current version/jenkins-cli');
+    s.h.process.locate('jenkins-cli', binary);
+    s.h.process.on(['jenkins-cli', '--version'], { code: 0, stdout: '9.0.0', stderr: '' });
+    const [row] = await s.where.execute({
+      repo: 'fx-example-api',
+      env: 'dev',
+      platform: 'jenkins',
+      check: true,
+      probe: false,
+    });
+    expect(row).toMatchObject({
+      ready: 'ready',
+      execution: {
+        binary: 'jenkins-cli',
+        binary_path: binary,
+        version: '9.0.0',
+        cwd: s.h.ctx.root,
+      },
+      command: shellLine([binary, 'build', 'list', 'services/fx-example-api/feature%2Fdev']),
+    });
+    expect(s.h.process.vectors()).toEqual([['jenkins-cli', '--version']]);
+  });
+
   it('uses an unpicked repository alias only to locate canonical coordinates', async () => {
     const h = await harness({
       workspace: fixture('workspace.yaml').replace(

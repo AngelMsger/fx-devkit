@@ -13,7 +13,11 @@ export const sentryProvider: ProviderDescriptor<ErrorTracker> = {
   id: BINARY,
   capability: 'error-tracker',
   impliedByPlatform: [BINARY],
-  settings: { fields: ['base_url', 'org'] },
+  settings: {
+    fields: ['base_url', 'org', 'auth_scheme', 'credential_url'],
+    authSchemes: ['token'],
+    optionalFields: ['auth_scheme'],
+  },
   tools: [BINARY],
   recipes: SENTRY_RECIPES,
   service: sentryService,

@@ -35,7 +35,9 @@ export function serviceRules(input: ServiceRuleInput): Problem[] {
       });
   }
   if (contract === undefined) return problems;
-  for (const key of contract.fields.filter((field) => !OPTIONAL.includes(field)))
+  for (const key of contract.fields.filter(
+    (field) => !OPTIONAL.includes(field) && !contract.optionalFields?.includes(field),
+  ))
     if (!service[key])
       problems.push({ path: `${path}.${key}`, message: 'required for service setup' });
   if (service.auth_scheme && !contract.authSchemes?.includes(service.auth_scheme))

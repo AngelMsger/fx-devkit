@@ -44,13 +44,15 @@ export interface PlanInput {
 
 export function planSetup(input: PlanInput): SetupPlan {
   const problems: PlanProblem[] = [];
-  const tools = new Map(input.tools.filter((t) => t.enabled).map((t) => [t.name, t]));
+  const selected = input.tools.filter((tool) => within(tool.name, input.filter?.tools));
+  const tools = new Map(selected.filter((t) => t.enabled).map((t) => [t.name, t]));
   const envs = Object.entries(input.environments?.envs ?? {}).filter(
     ([name]) => within(name, input.scopeEnvs) && within(name, input.filter?.envs),
   );
 
   const drafts: SetupStep[] = [];
   for (const source of input.recipes) {
+    if (!within(source.recipe.tool, input.filter?.tools)) continue;
     const tool = tools.get(source.recipe.tool);
     if (tool === undefined) {
       if (input.tools.some((t) => t.name === source.recipe.tool)) continue;
@@ -61,23 +63,21 @@ export function planSetup(input: PlanInput): SetupPlan {
       });
       continue;
     }
-    if (!source.recipe.perEnv) {
-      draft(fromSource(tool, source));
-      continue;
-    }
-    for (const [env, spec] of envs) {
-      const onPlatform =
-        source.platform === undefined ? undefined : spec.platforms?.[source.platform];
-      if (onPlatform === undefined) continue;
-      const vars: Vars = {
-        ...source.recipe.defaults,
-        ...source.vars,
-        ...onPlatform.vars,
-        ...setupVars(onPlatform.setup),
-        env,
-      };
-      draft(fromRecipe(tool, source.recipe, vars, env));
-    }
+    if (!source.recipe.perEnv) draft(fromSource(tool, source));
+    else
+      for (const [env, spec] of envs) {
+        const onPlatform =
+          source.platform === undefined ? undefined : spec.platforms?.[source.platform];
+        if (onPlatform === undefined) continue;
+        const vars: Vars = {
+          ...source.recipe.defaults,
+          ...source.vars,
+          ...onPlatform.vars,
+          ...setupVars(onPlatform.setup),
+          env,
+        };
+        draft(fromRecipe(tool, source.recipe, vars, env));
+      }
   }
   for (const tool of tools.values())
     for (const step of tool.setup) drafts.push(fromTeam(tool, step));
@@ -95,7 +95,7 @@ export function planSetup(input: PlanInput): SetupPlan {
     if (!alreadyCovered) drafts.push(auth);
   }
 
-  const unique = uniqueSteps(drafts.filter((s) => within(s.tool, input.filter?.tools)));
+  const unique = uniqueSteps(drafts);
   const ordered = order(unique.steps, input);
   problems.push(...unique.problems, ...ordered.problems);
   return { steps: ordered.steps, problems };

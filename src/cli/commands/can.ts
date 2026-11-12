@@ -7,7 +7,7 @@ import { argument } from '../flags.js';
 
 export default class CanCommand extends FxCommand {
   static override description =
-    'Whether a capability or tool can be used right now; when not, what a person must do first\n\nWithout a target, list every capability a manifest binds and what serves it in this workspace. The list reads bindings only; it does not check readiness.';
+    'Whether a capability or tool can be used right now, its checked executable, and how to recover\n\nWithout a target, list every capability a manifest binds and what serves it in this workspace. The list reads bindings only; it does not check readiness.';
   static override examples = [
     '<%= config.bin %> can --format json',
     '<%= config.bin %> can log-store --env test --format json',

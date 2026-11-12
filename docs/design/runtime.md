@@ -259,6 +259,16 @@ by its owner is outside this guarantee.
 
 ## Planned effects and readiness
 
+Readiness retains the inspected tool's executable path/version and workspace cwd.
+Provider vectors bind their canonical tool name or configured binary through the same
+rule. Checked coordinates, probes and direct handoff vectors use that executable and
+probes run from the selected workspace;
+manifest shell templates remain verbatim and no-check lookups remain unbound.
+An installation result also returns its resolved binary path, not only a ledger
+record. This prevents an agent's later login shell from silently choosing another
+installation through PATH. These values describe that check, not a permanent lease
+on a binary, nor permission for every operation exposed by a companion.
+
 Write use cases plan before gating. Dry-run returns the plan and makes no effect;
 actual writes honor read-only posture and explicit replacement/ownership checks.
 A batch preserves each failure's structured recovery instead of replacing it
