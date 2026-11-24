@@ -155,7 +155,7 @@ providers:
 
 `fx can im` はこのソケットで `task get` を実行し、信頼されていない内容を示すエンベロープを確認します。準備状態と読み取りコマンドを返し、タスク本文は返さず永続保存もしません。トークンがない、期限切れ、または失効済みなら未設定となります。準備完了は確認時点でそのタスクを読めることだけを意味し、後続の返信の有効性、サンドボックスの設置、実際の WeCom 環境での受け入れ確認を保証しません。
 
-カタログでは `fx tool show/install/update wecom-chat-cli` を利用でき、`version` コマンドで v0.3.0 以上を確認します。CLI は Linux と macOS に対応します。`auth status`、`config init`、`skill install` はないため、fx はこれらの共通既定コマンドを実行しません。対応する npm パッケージの `SKILL.md` は隔離ホストの Skill 機構でインストールしてください。fx が汎用コーディングエージェントへコピーすることはありません。ツールのインストールだけではタスクの準備完了にはなりません。
+カタログでは `fx tool show/install/update wecom-chat-cli` を利用でき、`version` コマンドで v0.4.0 以上を確認します。CLI は Linux と macOS に対応します。`auth status`、`config init`、`skill install` はないため、fx はこれらの共通既定コマンドを実行しません。対応する npm パッケージの `SKILL.md` は隔離ホストの Skill 機構でインストールしてください。fx が汎用コーディングエージェントへコピーすることはありません。ツールのインストールだけではタスクの準備完了にはなりません。
 
 Chat 0.2.x から更新すると、運用側の watch 出力とカーソルが変わります。スーパーバイザーを再開する前に [Chat 移行ガイド](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/host-integration.md#migration-and-acceptance) に従ってください。fx はホストのキューやカーソルを移行しません。
 

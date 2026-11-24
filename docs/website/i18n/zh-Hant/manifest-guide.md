@@ -155,7 +155,7 @@ providers:
 
 `fx can im` 透過該通訊端執行 `task get`，並要求回應包含不受信內容標記。它傳回就緒狀態和讀取命令，不傳回或持久化任務正文。權杖缺失、過期或遭撤銷時，綁定處於未設定狀態。就緒只證明檢查當時能夠讀取該任務，不代表後續回覆仍然有效、沙箱已安裝或真實企業微信部署已驗收。
 
-工具目錄支援 `fx tool show/install/update wecom-chat-cli`，使用其 `version` 命令，最低版本為 v0.3.0。CLI 支援 Linux 和 macOS。它沒有 `auth status`、`config init` 或 `skill install` 命令，因此 fx 不呼叫這些系列預設命令。請透過受限宿主的 Skill 機制安裝對應 npm 套件中的 `SKILL.md`；fx 不會將其複製給通用程式設計 Agent。僅安裝工具不代表任務已就緒。
+工具目錄支援 `fx tool show/install/update wecom-chat-cli`，使用其 `version` 命令，最低版本為 v0.4.0。CLI 支援 Linux 和 macOS。它沒有 `auth status`、`config init` 或 `skill install` 命令，因此 fx 不呼叫這些系列預設命令。請透過受限宿主的 Skill 機制安裝對應 npm 套件中的 `SKILL.md`；fx 不會將其複製給通用程式設計 Agent。僅安裝工具不代表任務已就緒。
 
 從 Chat 0.2.x 升級會改變 operator 的 watch 輸出和游標。恢復 supervisor 前請依照 [Chat 遷移指南](https://github.com/AngelMsger/wecom-chat-cli/blob/main/docs/host-integration.md#migration-and-acceptance) 操作；fx 不會遷移宿主佇列或游標。
 

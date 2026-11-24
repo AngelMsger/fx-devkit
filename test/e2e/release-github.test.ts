@@ -40,7 +40,7 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
 const out = (v) => process.stdout.write(typeof v === 'string' ? v : JSON.stringify(v) + '\\n');
 const notFound = () => { process.stderr.write('gh: Not Found (HTTP 404)\\n'); process.exit(1); };
-if (args[0] === '--version') { out('gh version 2.89.0 (2026-03-26)\\n'); process.exit(0); }
+if (args[0] === '--version') { out('gh version 2.105.0 (2026-11-18)\\n'); process.exit(0); }
 if (args[0] === 'auth' && args[1] === 'status') process.exit(0);
 const flag = (name) => args[args.indexOf(name) + 1];
 if (args[0] === 'run' && args[1] === 'list') {

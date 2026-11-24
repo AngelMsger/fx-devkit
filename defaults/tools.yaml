@@ -18,7 +18,7 @@ defaults:
 tools:
   - name: bitbucket-cli
     desc: Repositories, forks, pull requests and code review on Bitbucket
-    min_version: '0.30.0'
+    min_version: '0.30.1'
     install: [{ via: npm, spec: '@angelmsger/bitbucket-cli' }]
     docs: https://github.com/AngelMsger/bitbucket-cli
   - name: confluence-cli
@@ -27,7 +27,7 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/confluence-cli' }]
     docs: https://github.com/AngelMsger/confluence-cli
   - name: jenkins-cli
-    min_version: '0.14.0'
+    min_version: '0.15.0'
     desc: Jobs, builds and console output in Jenkins
     install: [{ via: npm, spec: '@angelmsger/jenkins-cli' }]
     auth:
@@ -64,7 +64,7 @@ tools:
     install: [{ via: npm, spec: '@angelmsger/wecom-calendar-cli' }]
     docs: https://github.com/AngelMsger/wecom-calendar-cli
   - name: wecom-channel-cli
-    min_version: '0.4.0'
+    min_version: '0.4.4'
     desc: Posts, replies and event updates in WeCom channels
     install: [{ via: npm, spec: '@angelmsger/wecom-channel-cli' }]
     auth:
@@ -73,7 +73,7 @@ tools:
       docs: https://github.com/AngelMsger/wecom-channel-cli/blob/main/docs/security.md
     docs: https://github.com/AngelMsger/wecom-channel-cli
   - name: wecom-chat-cli
-    min_version: '0.3.0'
+    min_version: '0.4.0'
     desc: Scoped WeCom smart-bot tasks and independently reviewed replies
     version_args: [version]
     install: [{ via: npm, spec: '@angelmsger/wecom-chat-cli' }]
@@ -81,7 +81,7 @@ tools:
     auth: { command: [] }
     docs: https://github.com/AngelMsger/wecom-chat-cli
   - name: gh
-    min_version: '2.50.0'
+    min_version: '2.105.0'
     desc: Repositories, branches, pull requests and Actions runs on GitHub
     install:
       - { via: brew, spec: gh }
@@ -90,14 +90,14 @@ tools:
     auth: { command: [auth, status], login: [auth, login] }
     docs: https://cli.github.com/
   - name: sentry
-    min_version: '0.49.0'
+    min_version: '0.50.0'
     desc: Issues, events and releases in Sentry
     install: [{ via: npm, spec: sentry }]
     skill: { command: [] }
     auth: { command: [auth, status] }
     docs: https://cli.sentry.dev/getting-started/installation/
   - name: kubectl
-    min_version: '1.37.0'
+    min_version: '1.37.2'
     desc: Read-only access to Kubernetes clusters
     version_args: [version, --client]
     install:
@@ -107,7 +107,7 @@ tools:
     auth: { command: [] }
     docs: https://kubernetes.io/docs/reference/kubectl/
   - name: lark-cli
-    min_version: '1.0.99'
+    min_version: '1.0.100'
     desc: Feishu / Lark messaging, documents, calendar and more
     install: [{ via: npm, spec: '@larksuite/cli' }]
     skill: { command: [] }
@@ -125,7 +125,7 @@ tools:
     skill: { command: [] }
     auth: { command: [] }
   - name: tmeet
-    min_version: '1.1.0'
+    min_version: '1.1.1'
     desc: Tencent Meeting meetings, recordings, minutes and transcripts
     install: [{ via: npm, spec: '@tencentcloud/tmeet' }]
     skill: { command: [] }
