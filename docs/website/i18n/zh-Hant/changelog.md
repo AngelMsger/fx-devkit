@@ -1,5 +1,9 @@
 # 更新日誌
 
+## 未發佈
+
+- 提高了以下工具的預設最低版本：bitbucket-cli (0.30.1)、jenkins-cli (0.15.0)、wecom-channel-cli (0.4.4)、wecom-chat-cli (0.4.0)、gh (2.105.0)、sentry (0.50.0)、kubectl (1.37.2)、lark-cli (1.0.100) 和 tmeet (1.1.1)。
+
 ## 0.20.0 (2026-11-12)
 
 - 透過相容的 bitbucket-cli 原生 HTTPS Git 驗證完成 manifest 初始化、複製、fetch及遠端 HEAD 讀取；保留 SSH 宣告及 remote，fx 不接觸 token。配套 CLI 缺失或較舊時使用一般 Git，憑證遭拒時保留錯誤。

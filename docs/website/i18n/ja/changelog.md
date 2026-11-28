@@ -1,5 +1,9 @@
 # 変更履歴
 
+## 未リリース
+
+- bitbucket-cli (0.30.1)、jenkins-cli (0.15.0)、wecom-channel-cli (0.4.4)、wecom-chat-cli (0.4.0)、gh (2.105.0)、sentry (0.50.0)、kubectl (1.37.2)、lark-cli (1.0.100)、tmeet (1.1.1) の既定の最低バージョンを引き上げました。
+
 ## 0.20.0 (2026-11-12)
 
 - 互換性のある bitbucket-cli のネイティブ HTTPS Git 認証で manifest 初期化、クローン、fetchとリモート HEAD の読み取りを実行します。SSH 宣言と remote を保ち、fx はトークンを扱いません。対応 CLI が未導入または旧版なら通常の Git を使い、認証拒否はエラーのまま返します。

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Raise the default minimum versions for bitbucket-cli (0.30.1), jenkins-cli (0.15.0), wecom-channel-cli (0.4.4), wecom-chat-cli (0.4.0), gh (2.105.0), sentry (0.50.0), kubectl (1.37.2), lark-cli (1.0.100) and tmeet (1.1.1).
+
 ## 0.20.0 (2026-11-12)
 
 - Use compatible bitbucket-cli native HTTPS Git authentication for manifest
